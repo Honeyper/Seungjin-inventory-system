@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>(주)승진 관리 시스템 로그인</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="login-page" aria-labelledby="page-title">
+      <section class="brand-panel" aria-label="시스템 소개">
+        <div class="brand-content">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 120 120" role="img">
+              <path class="mark-navy" d="M60 7 104 32v56L60 113 16 88V32L60 7Z" />
+              <path class="mark-gold" d="M61 8 104 32v29l-12 7V39L61 21V8Z" />
+              <path
+                class="mark-line"
+                d="M79 39H51c-10 0-18 7-18 16 0 8 5 13 15 17l23 9c4 2 6 4 6 7 0 4-4 7-10 7H38V80h29c10 0 18-7 18-16 0-8-5-13-15-17l-23-9c-4-2-6-4-6-7 0-4 4-7 10-7h28v15Z"
+              />
+            </svg>
+          </div>
+
+          <div class="brand-heading">
+            <p class="company">(주)승진</p>
+            <h1 id="page-title"><span>관리</span> <strong>시스템</strong></h1>
+            <div class="title-rule" aria-hidden="true"></div>
+          </div>
+
+          <p class="tagline">
+            입고부터 출고까지
+            <strong>한눈에 관리하는</strong>
+            통합 업무 시스템
+          </p>
+
+          <div class="module-list" aria-label="주요 관리 메뉴">
+            <div class="module-item">
+              <span class="module-icon">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M10 17 24 9l14 8v17l-14 8-14-8V17Z" />
+                  <path d="m10 17 14 8 14-8M24 25v17" />
+                  <path class="gold-stroke" d="M24 5v13m0 0-5-5m5 5 5-5" />
+                </svg>
+              </span>
+              <span>입고 관리</span>
+            </div>
+            <div class="module-item">
+              <span class="module-icon">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M14 12h20a3 3 0 0 1 3 3v25H11V15a3 3 0 0 1 3-3Z" />
+                  <path d="M18 12v-2a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v2" />
+                  <path class="gold-stroke" d="m18 23 3 3 7-7m-10 14 3 3 7-7" />
+                </svg>
+              </span>
+              <span>작업 관리</span>
+            </div>
+            <div class="module-item">
+              <span class="module-icon">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M9 19h13v20H9V19Zm17-8h13v28H26V11Z" />
+                  <path d="M14 19v-7h12m-9 27v-7h9" />
+                  <path class="gold-stroke" d="M32 17h4m-4 7h4" />
+                </svg>
+              </span>
+              <span>재고 관리</span>
+            </div>
+            <div class="module-item">
+              <span class="module-icon">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M8 16h23v19H8V16Zm23 7h7l4 5v7H31V23Z" />
+                  <path d="M14 39a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm23 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+                  <path class="gold-stroke" d="M15 16v-5h12" />
+                </svg>
+              </span>
+              <span>출고 관리</span>
+            </div>
+          </div>
+
+          <div class="capability-list" aria-label="업무 범위">
+            <span>실크인쇄</span>
+            <span>박인쇄</span>
+            <span>특수인쇄</span>
+            <span>통합 관리</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="login-panel" aria-label="관리자 로그인">
+        <form class="login-card" id="loginForm">
+          <div class="lock-badge" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path d="M14 22h20v18H14V22Z" />
+              <path d="M18 22v-7a6 6 0 0 1 12 0v7" />
+              <path class="gold-fill" d="M24 28a3 3 0 0 0-2 5.24V36h4v-2.76A3 3 0 0 0 24 28Z" />
+            </svg>
+          </div>
+
+          <h2>관리자 로그인</h2>
+          <div class="login-rule" aria-hidden="true"></div>
+          <p class="login-help">계정 정보를 입력하여 로그인해주세요.</p>
+
+          <label class="field">
+            <span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 21a8 8 0 0 0-16 0" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              계정
+            </span>
+            <input id="accountId" name="accountId" type="text" autocomplete="username" placeholder="계정ID를 입력하세요" />
+          </label>
+
+          <label class="field">
+            <span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+              비밀번호
+            </span>
+            <span class="password-control">
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="비밀번호를 입력하세요"
+              />
+              <button class="show-password" type="button" aria-label="비밀번호 보기">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+            </span>
+          </label>
+
+          <button class="login-button" type="submit">
+            <span>로그인</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h14m-6-6 6 6-6 6" />
+            </svg>
+          </button>
+        </form>
+      </section>
+
+      <p class="copyright">© SEUNGJIN Co., Ltd. All rights reserved.</p>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
