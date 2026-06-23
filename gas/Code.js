@@ -9,7 +9,8 @@ const CONFIG = {
     OUTBOUND: '출고내역',
     WORKS: '작업관리',
     WORK_SCANS: '작업스캔내역',
-    USERS: '사용자관리'
+    USERS: '사용자관리',
+    ACCOUNTS: '계정정보'
   }
 };
 
@@ -29,6 +30,7 @@ function doPost(e) {
 
     const routes = {
       healthCheck,
+      login,
       setupSheets,
       getProducts,
       createProduct
@@ -62,6 +64,111 @@ function healthCheck() {
     spreadsheetName: ss.getName(),
     checkedAt: new Date().toISOString()
   };
+}
+
+function login(payload) {
+  const accountId = String(payload.accountId || '').trim();
+  const password = String(payload.password || '').trim();
+
+  if (!accountId || !password) {
+    return {
+      success: false,
+      code: 'MISSING_CREDENTIALS',
+      message: '계정ID와 비밀번호를 입력해주세요.'
+    };
+  }
+
+  const accounts = getLoginAccounts_();
+  const account = accounts.find((item) => item.accountId === accountId && item.password === password);
+
+  if (!account) {
+    return {
+      success: false,
+      code: 'INVALID_CREDENTIALS',
+      message: '계정ID 또는 비밀번호가 올바르지 않습니다.'
+    };
+  }
+
+  if (account.role !== 'admin') {
+    return {
+      success: false,
+      code: 'ACCESS_DENIED',
+      message: '접근 권한이 없습니다. 작업자 계정은 모바일 작업자 화면에서만 사용할 수 있습니다.'
+    };
+  }
+
+  return {
+    success: true,
+    user: {
+      name: account.name,
+      accountId: account.accountId,
+      role: account.role
+    },
+    message: `${account.name}님, 환영합니다.`
+  };
+}
+
+function getLoginAccounts_() {
+  const sheet = getSheet_(CONFIG.SHEETS.ACCOUNTS);
+  const values = sheet.getDataRange().getDisplayValues();
+  const accounts = [];
+
+  collectAccountsFromBlock_(values, '관리자 계정', 'admin', accounts);
+  collectAccountsFromBlock_(values, '작업자 계정', 'worker', accounts);
+
+  return accounts;
+}
+
+function collectAccountsFromBlock_(values, blockTitle, role, accounts) {
+  const position = findCell_(values, blockTitle);
+  if (!position) {
+    return;
+  }
+
+  const headerRowIndex = position.row + 1;
+  const dataStartRowIndex = position.row + 2;
+  const startColIndex = position.col;
+  const headerRow = values[headerRowIndex] || [];
+  const headers = headerRow.slice(startColIndex, startColIndex + 3);
+
+  const nameOffset = headers.indexOf('이름');
+  const accountOffset = headers.indexOf('계정');
+  const passwordOffset = headers.indexOf('비밀번호');
+
+  if (nameOffset < 0 || accountOffset < 0 || passwordOffset < 0) {
+    throw new Error(`${blockTitle} 영역의 헤더를 확인해주세요.`);
+  }
+
+  for (let rowIndex = dataStartRowIndex; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex] || [];
+    const name = String(row[startColIndex + nameOffset] || '').trim();
+    const accountId = String(row[startColIndex + accountOffset] || '').trim();
+    const password = String(row[startColIndex + passwordOffset] || '').trim();
+
+    if (!name && !accountId && !password) {
+      break;
+    }
+
+    if (accountId && password) {
+      accounts.push({
+        name,
+        accountId,
+        password,
+        role
+      });
+    }
+  }
+}
+
+function findCell_(values, target) {
+  for (let row = 0; row < values.length; row += 1) {
+    for (let col = 0; col < values[row].length; col += 1) {
+      if (String(values[row][col] || '').trim() === target) {
+        return { row, col };
+      }
+    }
+  }
+  return null;
 }
 
 function setupSheets() {

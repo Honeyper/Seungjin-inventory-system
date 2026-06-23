@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>(주)승진 관리 시스템</title>
+    <style>
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        place-items: center;
+        color: #061f4c;
+        font-family: "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+        background: #f6f9fc;
+      }
+
+      main {
+        width: min(92vw, 720px);
+        padding: 48px;
+        text-align: center;
+        border: 1px solid #dbe2ec;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 18px 48px rgba(8, 42, 98, 0.12);
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 32px;
+      }
+
+      p {
+        margin: 0;
+        color: #7a879a;
+        font-size: 18px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>관리 시스템</h1>
+      <p>관리자 로그인이 완료되었습니다.</p>
+    </main>
+    <script>
+      const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
+      if (!session || session.role !== "admin") {
+        location.replace("./index.html");
+      }
+    </script>
+  </body>
+</html>
