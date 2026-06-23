@@ -359,33 +359,82 @@ function setupSheets() {
 }
 
 function getProducts() {
-  const sheet = getSheet_(CONFIG.SHEETS.PRODUCTS);
-  return readObjects_(sheet);
+  const sheet = getProductSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    return {
+      products: []
+    };
+  }
+
+  const { headers, rowIndex: headerRowIndex } = headerInfo;
+  const indexes = indexHeaders_(headers);
+  const products = values.slice(headerRowIndex + 1)
+    .filter((row) => row.some((cell) => String(cell || '').trim()))
+    .map((row) => {
+      const productCode = pickCell_(row, indexes, ['제품 ID', '제품ID']);
+      const registeredAt = pickCell_(row, indexes, ['등록일']);
+
+      return {
+        registeredAt,
+        registeredTime: pickCell_(row, indexes, ['등록시간']),
+        createdBy: pickCell_(row, indexes, ['등록자']),
+        productId: productCode,
+        productCode,
+        clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
+        productName: pickCell_(row, indexes, ['제품명']),
+        color: pickCell_(row, indexes, ['색상']),
+        boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
+        trayQuantity: pickCell_(row, indexes, ['트레이 수량', '트레이수량']),
+        updatedAt: pickCell_(row, indexes, ['최종 수정일', '수정일']),
+        updatedTime: pickCell_(row, indexes, ['최종 수정시간', '수정시간']),
+        note: pickCell_(row, indexes, ['비고'])
+      };
+    });
+
+  return {
+    products
+  };
 }
 
 function createProduct(payload) {
-  const required = ['업체명', '제품명', '박스당 수량'];
+  const required = ['업체명', '제품명'];
   required.forEach((field) => {
     if (!payload[field]) {
       throw new Error(`${field} 값이 필요합니다.`);
     }
   });
 
-  const sheet = getSheet_(CONFIG.SHEETS.PRODUCTS);
+  const sheet = getProductSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error('제품 DB 헤더를 찾을 수 없습니다.');
+  }
+
+  const { headers } = headerInfo;
+  const indexes = indexHeaders_(headers);
   const now = new Date();
-  const productId = payload['제품ID'] || makeId_('PRD');
-  const row = [
-    productId,
-    payload['업체명'],
-    payload['제품명'],
-    payload['기본 차수'] || '1차',
-    payload['최종공정'] || '1도',
-    Number(payload['박스당 수량']),
-    payload['사용 여부'] || '사용',
-    payload['비고'] || '',
-    now,
-    now
-  ];
+  const timezone = 'Asia/Seoul';
+  const clientName = String(payload['업체명'] || '').trim();
+  const productId = payload['제품 ID'] || payload['제품ID'] || makeClientProductId_(clientName, values, indexes);
+  const row = new Array(headers.length).fill('');
+
+  setRowValue_(row, indexes, ['등록일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
+  setRowValue_(row, indexes, ['등록시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
+  setRowValue_(row, indexes, ['등록자'], payload['등록자'] || 'Admin');
+  setRowValue_(row, indexes, ['제품 ID', '제품ID'], productId);
+  setRowValue_(row, indexes, ['업체명', '거래처명'], clientName);
+  setRowValue_(row, indexes, ['제품명'], payload['제품명']);
+  setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
+  setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
+  setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
+  setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
+  setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
+  setRowValue_(row, indexes, ['비고'], payload['비고'] || '');
 
   sheet.appendRow(row);
   return {
@@ -418,8 +467,119 @@ function getSheet_(sheetName) {
   return sheet;
 }
 
+function getProductSheet_() {
+  const ss = getSpreadsheet_();
+  const sheet = ss.getSheetByName(CONFIG.SHEETS.PRODUCTS) || ss.getSheetByName('제품 DB');
+  if (!sheet) {
+    throw new Error('제품DB 시트를 찾을 수 없습니다.');
+  }
+  return sheet;
+}
+
 function getOrCreateSheet_(ss, sheetName) {
   return ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+}
+
+function findHeaderRow_(values, requiredHeaders) {
+  for (let rowIndex = 0; rowIndex < values.length; rowIndex += 1) {
+    const headers = values[rowIndex].map((cell) => String(cell || '').trim());
+    const hasAllHeaders = requiredHeaders.every((header) => headers.includes(header));
+
+    if (hasAllHeaders) {
+      return {
+        rowIndex,
+        headers
+      };
+    }
+  }
+
+  return null;
+}
+
+function indexHeaders_(headers) {
+  return headers.reduce((indexes, header, index) => {
+    const normalized = String(header || '').trim();
+    if (normalized) {
+      indexes[normalized] = index;
+    }
+    return indexes;
+  }, {});
+}
+
+function pickCell_(row, indexes, names) {
+  const index = findHeaderIndex_(indexes, names);
+  return index >= 0 ? String(row[index] || '').trim() : '';
+}
+
+function setRowValue_(row, indexes, names, value) {
+  const index = findHeaderIndex_(indexes, names);
+  if (index >= 0) {
+    row[index] = value;
+  }
+}
+
+function findHeaderIndex_(indexes, names) {
+  for (let i = 0; i < names.length; i += 1) {
+    if (Object.prototype.hasOwnProperty.call(indexes, names[i])) {
+      return indexes[names[i]];
+    }
+  }
+  return -1;
+}
+
+function makeClientProductId_(clientName, values, indexes) {
+  const clientCode = makeClientCode_(clientName);
+  const productIdIndex = findHeaderIndex_(indexes, ['제품 ID', '제품ID']);
+  let maxSequence = 0;
+
+  if (productIdIndex >= 0) {
+    values.forEach((row) => {
+      const productId = String(row[productIdIndex] || '').trim();
+      const match = productId.match(new RegExp(`^${clientCode}-(\\d+)$`));
+      if (match) {
+        maxSequence = Math.max(maxSequence, Number(match[1]));
+      }
+    });
+  }
+
+  return `${clientCode}-${String(maxSequence + 1).padStart(4, '0')}`;
+}
+
+function makeClientCode_(clientName) {
+  const name = String(clientName || '').replace(/\s+/g, '');
+  const knownCodes = {
+    '아이원(아이텍)': 'ION',
+    '(주)리치코스': 'RCS',
+    '(주)장업시스템': 'JUS',
+    '(주)ANP': 'ANP',
+    '(주)정훈': 'JH',
+    '(주)케이알': 'KR',
+    '(주)코스엔텍': 'CNT',
+    '(주)금호ENG': 'KHE',
+    '뉴파트너스': 'NP',
+    '필림텍': 'PLT',
+    '이루팩': 'IRP',
+    '(주)디엠': 'DM',
+    '보경': 'BK',
+    'CPI': 'CPI',
+    '더승진(2공장)': 'SJ2'
+  };
+
+  if (knownCodes[name]) {
+    return knownCodes[name];
+  }
+
+  const asciiCode = name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase();
+  if (asciiCode) {
+    return asciiCode.padEnd(3, 'X');
+  }
+
+  const koreanSeed = Array.from(name.replace(/\(주\)|주식회사|[()]/g, '')).slice(0, 3);
+  const numericCode = koreanSeed
+    .map((letter) => letter.charCodeAt(0).toString(36).slice(-1).toUpperCase())
+    .join('');
+
+  return (numericCode || 'PRD').padEnd(3, 'X').slice(0, 3);
 }
 
 function readObjects_(sheet) {

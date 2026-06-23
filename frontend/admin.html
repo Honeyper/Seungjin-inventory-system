@@ -4,50 +4,187 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>(주)승진 관리 시스템</title>
-    <style>
-      body {
-        display: grid;
-        min-height: 100vh;
-        margin: 0;
-        place-items: center;
-        color: #061f4c;
-        font-family: "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
-        background: #f6f9fc;
-      }
-
-      main {
-        width: min(92vw, 720px);
-        padding: 48px;
-        text-align: center;
-        border: 1px solid #dbe2ec;
-        border-radius: 16px;
-        background: #fff;
-        box-shadow: 0 18px 48px rgba(8, 42, 98, 0.12);
-      }
-
-      h1 {
-        margin: 0 0 12px;
-        font-size: 32px;
-      }
-
-      p {
-        margin: 0;
-        color: #7a879a;
-        font-size: 18px;
-        font-weight: 700;
-      }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
-    <main>
-      <h1>관리 시스템</h1>
-      <p>관리자 로그인이 완료되었습니다.</p>
-    </main>
-    <script>
-      const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
-      if (!session || session.role !== "admin") {
-        location.replace("./index.html");
-      }
-    </script>
+  <body class="admin-body">
+    <div class="admin-shell">
+      <header class="admin-topbar">
+        <a class="admin-brand" href="./admin.html" aria-label="관리 시스템 홈">
+          <img src="./assets/logo-generated.png" alt="" />
+          <span>(주)승진 관리 시스템</span>
+        </a>
+
+        <div class="admin-actions">
+          <button class="icon-button" type="button" aria-label="알림">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          </button>
+          <div class="admin-user">
+            <span class="user-avatar" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M20 21a8 8 0 0 0-16 0" />
+                <circle cx="12" cy="8" r="4" />
+              </svg>
+            </span>
+            <span id="adminUserName">관리자</span>
+          </div>
+        </div>
+      </header>
+
+      <aside class="admin-sidebar" aria-label="관리 메뉴">
+        <nav class="side-nav">
+          <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <span class="side-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" /></svg>
+            </span>
+            대시보드
+          </a>
+          <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <span class="side-icon">
+              <svg viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" /><path d="M12 12 4.4 7.7M12 12l7.6-4.3M12 12v8.7" /></svg>
+            </span>
+            입고관리
+          </a>
+          <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <span class="side-icon">
+              <svg viewBox="0 0 24 24"><path d="M3 21h18V8l-9-5-9 5z" /><path d="M9 21v-7h6v7M7 10h10" /></svg>
+            </span>
+            재고관리
+          </a>
+          <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <span class="side-icon">
+              <svg viewBox="0 0 24 24"><path d="M3 7h11v10H3zM14 11h4l3 3v3h-7z" /><circle cx="7" cy="19" r="2" /><circle cx="18" cy="19" r="2" /></svg>
+            </span>
+            출고관리
+          </a>
+          <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <span class="side-icon">
+              <svg viewBox="0 0 24 24"><path d="M8 4h8l1 3H7z" /><path d="M6 7h12v14H6z" /><path d="M9 12h6M9 16h6" /></svg>
+            </span>
+            작업관리
+          </a>
+          <a class="side-nav-item active" href="./admin.html" aria-current="page">
+            <span class="side-icon product">
+              <img src="./assets/admin-product-icon-generated.png" alt="" />
+            </span>
+            제품관리
+          </a>
+          <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <span class="side-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15" /><path d="M9 21v-7h6v7M8 9h.01M12 9h.01M16 9h.01" /></svg>
+            </span>
+            거래처관리
+          </a>
+          <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <span class="side-icon">
+              <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2" /><circle cx="12" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M2 21v-2a4 4 0 0 1 3-3.87" /></svg>
+            </span>
+            직원관리
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <img src="./assets/logo-generated.png" alt="" />
+          <strong>SEUNG JIN</strong>
+          <span>실크인쇄 · 박인쇄 · 특수인쇄</span>
+        </div>
+      </aside>
+
+      <main class="admin-main">
+        <section class="page-heading">
+          <div>
+            <p class="eyebrow">Product Database</p>
+            <h1>제품관리</h1>
+            <p>입고, 출고, 작업에서 사용할 제품 정보를 등록하고 관리합니다.</p>
+          </div>
+          <button class="primary-action" type="button" id="newProductButton">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            신규 제품 등록
+          </button>
+        </section>
+
+        <section class="product-hero" aria-label="제품관리 요약">
+          <div class="product-hero-visual" aria-hidden="true">
+            <img src="./assets/admin-product-icon-generated.png" alt="" />
+          </div>
+          <div>
+            <strong id="productTotal">0</strong>
+            <span>등록 제품</span>
+          </div>
+          <div>
+            <strong id="clientTotal">0</strong>
+            <span>거래처</span>
+          </div>
+          <div>
+            <strong id="recentDate">-</strong>
+            <span>최근 등록일</span>
+          </div>
+        </section>
+
+        <section class="list-tools" aria-label="제품 검색 도구">
+          <label class="search-field">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m16 16 4 4" />
+            </svg>
+            <input id="productSearch" type="search" placeholder="제품명, 거래처명, 제품코드 검색" />
+          </label>
+          <button class="secondary-action" type="button" id="filterButton">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5h16l-6 7v5l-4 2v-7z" />
+            </svg>
+            검색 필터
+          </button>
+        </section>
+
+        <section class="table-panel" aria-label="제품 목록">
+          <div class="table-status" id="tableStatus">제품 정보를 불러오는 중입니다.</div>
+          <div class="table-scroll">
+            <table class="product-table">
+              <thead>
+                <tr>
+                  <th>순서</th>
+                  <th>거래처명</th>
+                  <th>제품코드</th>
+                  <th>제품명</th>
+                  <th>색상</th>
+                  <th>박스당수량</th>
+                  <th>트레이수량</th>
+                  <th>등록일</th>
+                  <th>비고</th>
+                  <th>관리</th>
+                </tr>
+              </thead>
+              <tbody id="productTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="table-footer">
+            <span id="productCountLabel">전체 0건</span>
+            <div class="pagination" id="pagination" aria-label="제품 목록 페이지"></div>
+            <label class="page-size">
+              <select id="pageSizeSelect">
+                <option value="10">10개씩 보기</option>
+                <option value="20">20개씩 보기</option>
+                <option value="50">50개씩 보기</option>
+              </select>
+            </label>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./admin.js"></script>
   </body>
 </html>

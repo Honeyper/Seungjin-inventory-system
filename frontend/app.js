@@ -4,7 +4,7 @@ const loginForm = document.querySelector("#loginForm");
 const loginMessage = document.querySelector("#loginMessage");
 const loginButton = document.querySelector(".login-button");
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyryTHFPQhG6X-SZZDA_69alfWrFcMCSVcTlo5lHnVnvMM9rKWe-bQyRZ0NABRy7DOSsw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyPiTM2wEZ5d549g0R8pqLQB2FKE0Hz-7h_GYGfA_MVUq45-F3tTyITbT4A-yJ1ZldOCA/exec";
 
 showPasswordButton.addEventListener("click", () => {
   const shouldShow = passwordInput.type === "password";
