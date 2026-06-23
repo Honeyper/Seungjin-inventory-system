@@ -7,7 +7,7 @@
 GitHub 저장소:
 
 ```text
-https://github.com/Honeyper/---------.git
+https://github.com/Honeyper/Seungjin-inventory-system.git
 ```
 
 Google Sheets DB:
@@ -100,8 +100,8 @@ Git이 없으면 Mac 안내에 따라 Xcode Command Line Tools를 설치합니�
 3. 저장소 clone
 
 ```bash
-git clone https://github.com/Honeyper/---------.git
-cd ---------
+git clone https://github.com/Honeyper/Seungjin-inventory-system.git
+cd Seungjin-inventory-system
 ```
 
 4. Node.js 설치 확인
