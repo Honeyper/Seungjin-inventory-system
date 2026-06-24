@@ -50,7 +50,6 @@ const productCodePreview = document.querySelector("#productCodePreview");
 const productClientName = document.querySelector("#productClientName");
 const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
-const productFinalProcess = document.querySelector("#productFinalProcess");
 const productBoxQuantity = document.querySelector("#productBoxQuantity");
 const productTrayQuantity = document.querySelector("#productTrayQuantity");
 const productNote = document.querySelector("#productNote");
@@ -307,7 +306,6 @@ function getProductFormPayload() {
     "제품명": productNameInput.value.trim(),
     "색상": productColor.value.trim(),
     "사용 여부": usage,
-    "최종공정": productFinalProcess.value.trim(),
     "박스당 수량": boxQuantity ? `${Number(boxQuantity).toLocaleString("ko-KR")} ea` : "",
     "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
     "비고": productNote.value.trim()
@@ -318,9 +316,7 @@ function validateProductPayload(payload) {
   const requiredFields = [
     ["업체명", "거래처명을 선택해주세요."],
     ["제품명", "제품명을 입력해주세요."],
-    ["색상", "색상을 선택해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
-    ["최종공정", "최종공정을 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
     ["트레이 수량", "트레이 수량을 입력해주세요."]
   ];
@@ -392,6 +388,7 @@ function renderColor(color) {
 function getColorValue(color) {
   const normalized = color.replace(/\s+/g, "");
   const map = {
+    투명: "linear-gradient(135deg, #ffffff 0 45%, #dbe4ef 45% 55%, #ffffff 55% 100%)",
     아이보리: "#eee6cf",
     화이트: "#ffffff",
     흰색: "#ffffff",

@@ -422,7 +422,7 @@ function getProducts() {
 }
 
 function createProduct(payload) {
-  const required = ['업체명', '제품명', '색상', '최종공정', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
   required.forEach((field) => {
     if (!payload[field]) {
       throw new Error(`${field} 값이 필요합니다.`);

@@ -1377,6 +1377,10 @@ input {
   font-weight: 900;
 }
 
+.form-field.full-span {
+  grid-column: 1 / -1;
+}
+
 .form-field > span,
 .usage-field legend {
   display: block;
@@ -1431,7 +1435,7 @@ input {
 }
 
 .form-field textarea {
-  min-height: 3.1rem;
+  min-height: 4.8rem;
   padding-top: 0.8rem;
   resize: vertical;
 }
