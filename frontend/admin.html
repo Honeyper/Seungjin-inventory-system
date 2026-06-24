@@ -145,8 +145,8 @@
                   </label>
                   <label class="form-field">
                     <span>제품명 <b>*</b></span>
-                    <span class="search-input">
-                      <input type="text" placeholder="제품명 검색" />
+                    <span class="search-input" id="inboundProductSearchTrigger">
+                      <input id="inboundProductName" type="text" placeholder="제품명 검색" readonly />
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <circle cx="11" cy="11" r="7" />
                         <path d="m16 16 4 4" />
@@ -155,7 +155,7 @@
                   </label>
                   <label class="form-field">
                     <span>제품 ID</span>
-                    <input type="text" value="RCS-0001" disabled />
+                    <input id="inboundProductId" type="text" placeholder="제품 선택 시 자동 입력" disabled />
                   </label>
                   <label class="form-field">
                     <span>등록자</span>
@@ -596,6 +596,35 @@
         <div class="modal-actions detail-actions">
           <button class="secondary-modal-action" type="button" id="closeProductDetailButton">닫기</button>
           <button class="primary-modal-action" type="button" id="editProductFromDetailButton">수정하기</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="inboundProductPickerModal" hidden>
+      <section class="product-modal picker-modal" role="dialog" aria-modal="true" aria-labelledby="inboundProductPickerTitle">
+        <header class="modal-header">
+          <div>
+            <h2 id="inboundProductPickerTitle">제품 선택</h2>
+            <p>제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeInboundProductPicker" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="picker-body">
+          <label class="search-field picker-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m16 16 4 4" />
+            </svg>
+            <input id="inboundProductPickerSearch" type="search" placeholder="제품명, 제품코드, 거래처명 검색" />
+          </label>
+
+          <div class="picker-list" id="inboundProductPickerList"></div>
+          <p class="picker-empty" id="inboundProductPickerEmpty" hidden>선택할 제품이 없습니다.</p>
         </div>
       </section>
     </div>

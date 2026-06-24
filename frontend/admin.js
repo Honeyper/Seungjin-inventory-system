@@ -37,7 +37,8 @@ const state = {
   editingProductCode: "",
   activeDetailProductCode: "",
   activeMenuProductCode: "",
-  activeMenuButton: null
+  activeMenuButton: null,
+  inboundProductPickerQuery: ""
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -69,6 +70,14 @@ const rowActionMenu = document.querySelector("#rowActionMenu");
 const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
 const inboundTime = document.querySelector("#inboundTime");
+const inboundClient = document.querySelector("#inboundClient");
+const inboundProductName = document.querySelector("#inboundProductName");
+const inboundProductId = document.querySelector("#inboundProductId");
+const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
+const inboundProductPickerModal = document.querySelector("#inboundProductPickerModal");
+const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
+const inboundProductPickerList = document.querySelector("#inboundProductPickerList");
+const inboundProductPickerEmpty = document.querySelector("#inboundProductPickerEmpty");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
 const inboundNumberInputs = [
@@ -114,6 +123,21 @@ inboundNumberInputs.forEach(({ input }) => {
 
 document.querySelector("#inboundSubmitButton").addEventListener("click", () => {
   showToast("입고 등록 저장은 시트 연결 단계에서 활성화됩니다.");
+});
+
+inboundProductSearchTrigger.addEventListener("click", openInboundProductPicker);
+inboundProductName.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    openInboundProductPicker();
+  }
+});
+
+document.querySelector("#closeInboundProductPicker").addEventListener("click", closeInboundProductPicker);
+
+inboundProductPickerSearch.addEventListener("input", (event) => {
+  state.inboundProductPickerQuery = event.target.value.trim().toLowerCase();
+  renderInboundProductPicker();
 });
 
 productSearch.addEventListener("input", (event) => {
@@ -163,6 +187,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!productDetailModal.hidden) {
     closeProductDetailModal();
+    return;
+  }
+
+  if (!inboundProductPickerModal.hidden) {
+    closeInboundProductPicker();
     return;
   }
 
@@ -229,6 +258,84 @@ function updateInboundSummary() {
   });
 }
 
+function openInboundProductPicker() {
+  state.inboundProductPickerQuery = "";
+  inboundProductPickerSearch.value = "";
+  renderInboundProductPicker();
+  inboundProductPickerModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => inboundProductPickerSearch.focus(), 0);
+}
+
+function closeInboundProductPicker() {
+  inboundProductPickerModal.hidden = true;
+  if (productModal.hidden && productDetailModal.hidden) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function renderInboundProductPicker() {
+  const query = state.inboundProductPickerQuery;
+  const products = state.products.filter((product) => {
+    if (!query) {
+      return true;
+    }
+
+    return [
+      product.productName,
+      product.productCode,
+      product.clientName,
+      product.color
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+  });
+
+  inboundProductPickerList.innerHTML = products.map((product) => `
+    <button class="picker-product" type="button" data-product="${escapeHtml(product.productCode)}">
+      <span class="picker-product-main">
+        <strong>${escapeHtml(product.productName)}</strong>
+        <em>${escapeHtml(product.productCode)}</em>
+      </span>
+      <span class="picker-product-meta">
+        <span>${escapeHtml(product.clientName)}</span>
+        <span>${renderColor(product.color)}</span>
+        <span>박스당 ${escapeHtml(product.boxQuantity || "-")}</span>
+        <span>트레이 ${escapeHtml(product.trayQuantity || "-")}</span>
+      </span>
+    </button>
+  `).join("");
+
+  inboundProductPickerEmpty.hidden = products.length > 0;
+
+  inboundProductPickerList.querySelectorAll(".picker-product").forEach((button) => {
+    button.addEventListener("click", () => {
+      const product = getProductByCode(button.dataset.product);
+      if (product) {
+        selectInboundProduct(product);
+      }
+    });
+  });
+}
+
+function selectInboundProduct(product) {
+  inboundProductName.value = normalizeDisplayValue(product.productName);
+  inboundProductId.value = normalizeDisplayValue(product.productCode);
+  setSelectValue(inboundClient, normalizeDisplayValue(product.clientName));
+
+  const boxQuantity = extractQuantityNumber(product.boxQuantity);
+  const trayQuantity = extractQuantityNumber(product.trayQuantity);
+
+  if (boxQuantity) {
+    document.querySelector("#inboundBoxQty").value = boxQuantity;
+  }
+
+  if (trayQuantity) {
+    document.querySelector("#inboundTrayQty").value = trayQuantity;
+  }
+
+  updateInboundSummary();
+  closeInboundProductPicker();
+}
+
 function setCurrentInboundTime() {
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, "0");
@@ -244,11 +351,13 @@ async function loadProducts() {
     state.products = Array.isArray(result.products) ? result.products : [];
     renderClientOptions();
     renderClientFilterOptions();
+    renderInboundProductPicker();
     applyFilters();
   } catch (error) {
     state.products = [];
     renderClientOptions();
     renderClientFilterOptions();
+    renderInboundProductPicker();
     applyFilters();
     setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
   }
