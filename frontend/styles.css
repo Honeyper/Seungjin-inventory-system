@@ -1252,16 +1252,23 @@ input {
 
 .page-size {
   justify-self: end;
+  display: block;
 }
 
 .page-size select {
+  appearance: none;
+  min-width: 9.8rem;
   height: 2.85rem;
-  padding: 0 2.4rem 0 1rem;
+  padding: 0 3rem 0 1.15rem;
   color: var(--navy-dark);
   font-weight: 900;
   border: 1px solid #dde5ef;
   border-radius: 0.38rem;
-  background: #fff;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m6 9 6 6 6-6' fill='none' stroke='%2308204a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1.05rem center;
+  background-size: 1rem;
 }
 
 .toast {
