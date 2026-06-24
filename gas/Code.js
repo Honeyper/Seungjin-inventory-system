@@ -33,7 +33,8 @@ function doPost(e) {
       login,
       setupSheets,
       getProducts,
-      createProduct
+      createProduct,
+      formatProductRows
     };
 
     if (!routes[action]) {
@@ -437,7 +438,7 @@ function createProduct(payload) {
     throw new Error('제품 DB 헤더를 찾을 수 없습니다.');
   }
 
-  const { headers } = headerInfo;
+  const { headers, rowIndex: headerRowIndex } = headerInfo;
   const indexes = indexHeaders_(headers);
   const now = new Date();
   const timezone = 'Asia/Seoul';
@@ -461,9 +462,52 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['비고'], payload['비고'] || '');
 
   sheet.appendRow(row);
+  applyProductRowTemplate_(sheet, headerRowIndex + 2, sheet.getLastRow(), headers.length);
+
   return {
     productId
   };
+}
+
+function formatProductRows() {
+  const sheet = getProductSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error('제품 DB 헤더를 찾을 수 없습니다.');
+  }
+
+  const templateRowNumber = headerInfo.rowIndex + 2;
+  const lastRow = sheet.getLastRow();
+  let formattedRows = 0;
+
+  for (let rowNumber = templateRowNumber + 1; rowNumber <= lastRow; rowNumber += 1) {
+    const rowValues = sheet.getRange(rowNumber, 1, 1, headerInfo.headers.length).getDisplayValues()[0];
+    const hasContent = rowValues.some((value) => String(value || '').trim());
+
+    if (hasContent) {
+      applyProductRowTemplate_(sheet, templateRowNumber, rowNumber, headerInfo.headers.length);
+      formattedRows += 1;
+    }
+  }
+
+  return {
+    formattedRows
+  };
+}
+
+function applyProductRowTemplate_(sheet, templateRowNumber, targetRowNumber, columnCount) {
+  if (targetRowNumber === templateRowNumber || templateRowNumber > sheet.getLastRow()) {
+    return;
+  }
+
+  const sourceRange = sheet.getRange(templateRowNumber, 1, 1, columnCount);
+  const targetRange = sheet.getRange(targetRowNumber, 1, 1, columnCount);
+
+  sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+  sheet.setRowHeight(targetRowNumber, sheet.getRowHeight(templateRowNumber));
 }
 
 function parseBody(e) {
