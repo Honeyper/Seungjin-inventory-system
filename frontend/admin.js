@@ -319,7 +319,7 @@ function renderInboundProductPicker() {
 function selectInboundProduct(product) {
   inboundProductName.value = normalizeDisplayValue(product.productName);
   inboundProductId.value = normalizeDisplayValue(product.productCode);
-  setSelectValue(inboundClient, normalizeDisplayValue(product.clientName));
+  inboundClient.value = normalizeDisplayValue(product.clientName);
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);
   const trayQuantity = extractQuantityNumber(product.trayQuantity);

@@ -135,15 +135,6 @@
                     <input type="date" />
                   </label>
                   <label class="form-field">
-                    <span>거래처명 <b>*</b></span>
-                    <select id="inboundClient">
-                      <option value="">거래처명 검색</option>
-                      <option>아이원(아이텍)</option>
-                      <option>(주)리치코스</option>
-                      <option>(주)정훈</option>
-                    </select>
-                  </label>
-                  <label class="form-field">
                     <span>제품명 <b>*</b></span>
                     <span class="search-input" id="inboundProductSearchTrigger">
                       <input id="inboundProductName" type="text" placeholder="제품명 검색" readonly />
@@ -152,6 +143,10 @@
                         <path d="m16 16 4 4" />
                       </svg>
                     </span>
+                  </label>
+                  <label class="form-field">
+                    <span>거래처명</span>
+                    <input id="inboundClient" type="text" placeholder="제품 선택 시 자동 입력" disabled />
                   </label>
                   <label class="form-field">
                     <span>제품 ID</span>
