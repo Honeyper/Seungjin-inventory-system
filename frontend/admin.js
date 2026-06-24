@@ -1,5 +1,23 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyPiTM2wEZ5d549g0R8pqLQB2FKE0Hz-7h_GYGfA_MVUq45-F3tTyITbT4A-yJ1ZldOCA/exec";
 
+const DEFAULT_CLIENTS = [
+  "아이원(아이텍)",
+  "(주)리치코스",
+  "(주)장업시스템",
+  "(주)ANP",
+  "(주)정훈",
+  "(주)케이알",
+  "(주)코스엔텍",
+  "(주)금호ENG",
+  "뉴파트너스",
+  "필림텍",
+  "이루팩",
+  "(주)디엠",
+  "보경",
+  "CPI",
+  "더승진(2공장)"
+];
+
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 
 if (!session || session.role !== "admin") {
@@ -11,7 +29,8 @@ const state = {
   filteredProducts: [],
   page: 1,
   pageSize: 10,
-  query: ""
+  query: "",
+  isSavingProduct: false
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -25,11 +44,23 @@ const pagination = document.querySelector("#pagination");
 const pageSizeSelect = document.querySelector("#pageSizeSelect");
 const tableStatus = document.querySelector("#tableStatus");
 const toast = document.querySelector("#toast");
+const productModal = document.querySelector("#productModal");
+const productForm = document.querySelector("#productForm");
+const productCodePreview = document.querySelector("#productCodePreview");
+const productClientName = document.querySelector("#productClientName");
+const productNameInput = document.querySelector("#productNameInput");
+const productColor = document.querySelector("#productColor");
+const productFinalProcess = document.querySelector("#productFinalProcess");
+const productBoxQuantity = document.querySelector("#productBoxQuantity");
+const productTrayQuantity = document.querySelector("#productTrayQuantity");
+const productNote = document.querySelector("#productNote");
+const productFormMessage = document.querySelector("#productFormMessage");
+const saveProductButton = document.querySelector("#saveProductButton");
 
 adminUserName.textContent = session?.name || "관리자";
 
 document.querySelector("#newProductButton").addEventListener("click", () => {
-  showToast("신규 제품 등록 화면은 다음 단계에서 연결됩니다.");
+  openProductModal();
 });
 
 document.querySelector("#filterButton").addEventListener("click", () => {
@@ -48,6 +79,26 @@ pageSizeSelect.addEventListener("change", (event) => {
   renderProducts();
 });
 
+document.querySelector("#closeProductModal").addEventListener("click", closeProductModal);
+document.querySelector("#cancelProductModal").addEventListener("click", closeProductModal);
+
+productModal.addEventListener("click", (event) => {
+  if (event.target === productModal) {
+    closeProductModal();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !productModal.hidden) {
+    closeProductModal();
+  }
+});
+
+productForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveProduct();
+});
+
 loadProducts();
 
 async function loadProducts() {
@@ -56,9 +107,11 @@ async function loadProducts() {
   try {
     const result = await requestApi("getProducts");
     state.products = Array.isArray(result.products) ? result.products : [];
+    renderClientOptions();
     applyFilters();
   } catch (error) {
     state.products = [];
+    renderClientOptions();
     applyFilters();
     setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
   }
@@ -171,6 +224,139 @@ function renderPagination(pageCount) {
       renderProducts();
     });
   });
+}
+
+function openProductModal() {
+  productForm.reset();
+  productFormMessage.textContent = "";
+  productFormMessage.classList.remove("success");
+  renderClientOptions();
+  setProductSaving(false);
+  productModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => productClientName.focus(), 0);
+}
+
+function closeProductModal() {
+  if (state.isSavingProduct) {
+    return;
+  }
+
+  productModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  productFormMessage.textContent = "";
+  productFormMessage.classList.remove("success");
+}
+
+function renderClientOptions() {
+  const clients = [...new Set([
+    ...state.products.map((product) => product.clientName).filter(Boolean),
+    ...DEFAULT_CLIENTS
+  ])].sort((left, right) => left.localeCompare(right, "ko-KR"));
+
+  const currentValue = productClientName.value;
+  productClientName.innerHTML = [
+    '<option value="">거래처를 선택하세요.</option>',
+    ...clients.map((client) => `<option value="${escapeHtml(client)}">${escapeHtml(client)}</option>`)
+  ].join("");
+
+  if (clients.includes(currentValue)) {
+    productClientName.value = currentValue;
+  }
+}
+
+async function saveProduct() {
+  if (state.isSavingProduct) {
+    return;
+  }
+
+  const payload = getProductFormPayload();
+  const validationMessage = validateProductPayload(payload);
+
+  if (validationMessage) {
+    setFormMessage(validationMessage);
+    return;
+  }
+
+  setProductSaving(true);
+  setFormMessage("");
+
+  try {
+    const result = await requestApi("createProduct", payload);
+    const productId = result?.productId ? ` (${result.productId})` : "";
+
+    setFormMessage("제품이 저장되었습니다.", "success");
+    await loadProducts();
+    closeProductModal();
+    showToast(`신규 제품이 등록되었습니다.${productId}`);
+  } catch (error) {
+    setFormMessage(error.message || "제품 저장에 실패했습니다.");
+  } finally {
+    setProductSaving(false);
+  }
+}
+
+function getProductFormPayload() {
+  const boxQuantity = productBoxQuantity.value.trim();
+  const trayQuantity = productTrayQuantity.value.trim();
+  const usage = productForm.querySelector('input[name="productUsage"]:checked')?.value || "사용중";
+
+  return {
+    "등록자": session?.name || "Admin",
+    "업체명": productClientName.value.trim(),
+    "제품명": productNameInput.value.trim(),
+    "색상": productColor.value.trim(),
+    "사용 여부": usage,
+    "최종공정": productFinalProcess.value.trim(),
+    "박스당 수량": boxQuantity ? `${Number(boxQuantity).toLocaleString("ko-KR")} ea` : "",
+    "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
+    "비고": productNote.value.trim()
+  };
+}
+
+function validateProductPayload(payload) {
+  const requiredFields = [
+    ["업체명", "거래처명을 선택해주세요."],
+    ["제품명", "제품명을 입력해주세요."],
+    ["색상", "색상을 선택해주세요."],
+    ["사용 여부", "사용 여부를 선택해주세요."],
+    ["최종공정", "최종공정을 선택해주세요."],
+    ["박스당 수량", "박스당 수량을 입력해주세요."],
+    ["트레이 수량", "트레이 수량을 입력해주세요."]
+  ];
+
+  const missing = requiredFields.find(([field]) => !payload[field]);
+  if (missing) {
+    return missing[1];
+  }
+
+  if (Number(productBoxQuantity.value) <= 0 || Number(productTrayQuantity.value) <= 0) {
+    return "수량은 1 이상의 숫자로 입력해주세요.";
+  }
+
+  return "";
+}
+
+function setProductSaving(isSaving) {
+  state.isSavingProduct = isSaving;
+  saveProductButton.disabled = isSaving;
+  saveProductButton.textContent = isSaving ? "저장 중" : "저장";
+  productForm.querySelectorAll("input, select, textarea, button").forEach((element) => {
+    if (element.id === "productCodePreview") {
+      element.disabled = true;
+      return;
+    }
+
+    if (element.id !== "saveProductButton") {
+      element.disabled = isSaving;
+    }
+  });
+  productCodePreview.disabled = true;
+}
+
+function setFormMessage(message, type = "error") {
+  productFormMessage.textContent = message;
+  productFormMessage.classList.toggle("success", type === "success");
 }
 
 function pageButton(label, page, disabled, icon, active = false) {

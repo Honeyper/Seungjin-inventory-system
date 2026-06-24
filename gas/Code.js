@@ -406,6 +406,8 @@ function getProducts() {
         clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
         productName: pickCell_(row, indexes, ['제품명']),
         color: pickCell_(row, indexes, ['색상']),
+        useStatus: pickCell_(row, indexes, ['사용 여부', '사용여부']),
+        finalProcess: pickCell_(row, indexes, ['최종공정', '최종 공정']),
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         trayQuantity: pickCell_(row, indexes, ['트레이 수량', '트레이수량']),
         updatedAt: pickCell_(row, indexes, ['최종 수정일', '수정일']),
@@ -420,7 +422,7 @@ function getProducts() {
 }
 
 function createProduct(payload) {
-  const required = ['업체명', '제품명'];
+  const required = ['업체명', '제품명', '색상', '최종공정', '박스당 수량', '트레이 수량'];
   required.forEach((field) => {
     if (!payload[field]) {
       throw new Error(`${field} 값이 필요합니다.`);
@@ -450,6 +452,8 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['업체명', '거래처명'], clientName);
   setRowValue_(row, indexes, ['제품명'], payload['제품명']);
   setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
+  setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
+  setRowValue_(row, indexes, ['최종공정', '최종 공정'], payload['최종공정'] || payload['최종 공정'] || '');
   setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
   setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
   setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));

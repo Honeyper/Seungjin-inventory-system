@@ -184,6 +184,118 @@
       </main>
     </div>
 
+    <div class="modal-backdrop" id="productModal" hidden>
+      <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+        <header class="modal-header">
+          <div>
+            <h2 id="productModalTitle">신규 제품 등록</h2>
+            <p>신규 제품 정보를 입력해주세요. * 표시는 필수 입력입니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeProductModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <form class="product-form" id="productForm">
+          <section class="form-section" aria-labelledby="productBaseTitle">
+            <h3 id="productBaseTitle">제품 기본 정보</h3>
+            <div class="form-grid">
+              <label class="form-field">
+                <span>제품코드 <b>*</b></span>
+                <input id="productCodePreview" type="text" placeholder="자동 생성됩니다." disabled />
+              </label>
+
+              <label class="form-field">
+                <span>거래처명 <b>*</b></span>
+                <select id="productClientName" required>
+                  <option value="">거래처를 선택하세요.</option>
+                </select>
+              </label>
+
+              <label class="form-field">
+                <span>제품명 <b>*</b></span>
+                <input id="productNameInput" type="text" placeholder="제품명을 입력하세요." required />
+              </label>
+
+              <label class="form-field">
+                <span>색상 <b>*</b></span>
+                <select id="productColor" required>
+                  <option value="">선택하세요</option>
+                  <option value="아이보리">아이보리</option>
+                  <option value="화이트">화이트</option>
+                  <option value="블랙">블랙</option>
+                  <option value="베이지">베이지</option>
+                  <option value="연두">연두</option>
+                  <option value="크라프트">크라프트</option>
+                  <option value="네이비">네이비</option>
+                  <option value="레드">레드</option>
+                </select>
+              </label>
+
+              <fieldset class="form-field usage-field">
+                <legend>사용 여부 <b>*</b></legend>
+                <label>
+                  <input type="radio" name="productUsage" value="사용중" checked />
+                  <span>사용중</span>
+                </label>
+                <label>
+                  <input type="radio" name="productUsage" value="미사용" />
+                  <span>미사용</span>
+                </label>
+              </fieldset>
+            </div>
+          </section>
+
+          <section class="form-section" aria-labelledby="productStandardTitle">
+            <h3 id="productStandardTitle">제품 기준 정보</h3>
+            <div class="form-grid">
+              <label class="form-field">
+                <span>최종공정 <b>*</b></span>
+                <select id="productFinalProcess" required>
+                  <option value="">선택하세요.</option>
+                  <option value="실크인쇄">실크인쇄</option>
+                  <option value="박인쇄">박인쇄</option>
+                  <option value="특수인쇄">특수인쇄</option>
+                  <option value="검수">검수</option>
+                  <option value="포장">포장</option>
+                </select>
+              </label>
+
+              <label class="form-field">
+                <span>박스당 수량 <b>*</b></span>
+                <span class="unit-input">
+                  <input id="productBoxQuantity" type="number" min="1" step="1" placeholder="숫자를 입력하세요." required />
+                  <i>EA</i>
+                </span>
+              </label>
+
+              <label class="form-field">
+                <span>트레이 수량 (한 판 수량) <b>*</b></span>
+                <span class="unit-input">
+                  <input id="productTrayQuantity" type="number" min="1" step="1" placeholder="숫자를 입력하세요." required />
+                  <i>EA</i>
+                </span>
+              </label>
+
+              <label class="form-field">
+                <span>비고</span>
+                <textarea id="productNote" rows="1" placeholder="비고를 입력하세요. (선택)"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <p class="form-message" id="productFormMessage" role="alert" aria-live="polite"></p>
+
+          <div class="modal-actions">
+            <button class="secondary-modal-action" type="button" id="cancelProductModal">취소</button>
+            <button class="primary-modal-action" type="submit" id="saveProductButton">저장</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./admin.js"></script>
   </body>
