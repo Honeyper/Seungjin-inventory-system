@@ -406,7 +406,7 @@ function detailItem(label, value, isHtml = false, className = "") {
 }
 
 function renderUsageStatus(status) {
-  const value = normalizeDisplayValue(status);
+  const value = normalizeUsageStatus(status);
   const isInactive = value.includes("미사용");
   const className = isInactive ? "inactive" : "active";
 
@@ -596,6 +596,11 @@ function renderColor(color) {
 function normalizeDisplayValue(value) {
   const normalized = String(value ?? "").trim();
   return normalized || "-";
+}
+
+function normalizeUsageStatus(value) {
+  const normalized = String(value ?? "").trim();
+  return normalized && normalized !== "-" ? normalized : "사용중";
 }
 
 function getColorValue(color) {

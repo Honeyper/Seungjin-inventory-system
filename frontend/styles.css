@@ -1418,18 +1418,25 @@ input {
 
 .detail-modal {
   width: min(58.5rem, calc(100vw - 2.5rem));
+  max-height: none;
+  overflow: visible;
+}
+
+.detail-modal .modal-header {
+  padding-top: 1.45rem;
+  padding-bottom: 1.15rem;
 }
 
 .detail-content {
-  padding: 1.35rem 2.1rem 0;
+  padding: 1.05rem 2.1rem 0;
 }
 
 .detail-section + .detail-section {
-  margin-top: 1.45rem;
+  margin-top: 1rem;
 }
 
 .detail-section h3 {
-  margin: 0 0 0.9rem;
+  margin: 0 0 0.65rem;
   color: var(--navy-dark);
   font-size: 1.05rem;
   font-weight: 900;
@@ -1447,7 +1454,7 @@ input {
 .detail-item {
   display: grid;
   grid-template-columns: minmax(6.4rem, 8.8rem) minmax(0, 1fr);
-  min-height: 4.05rem;
+  min-height: 3.25rem;
   border-bottom: 1px solid #e7edf5;
 }
 
@@ -1469,7 +1476,7 @@ input {
   display: flex;
   align-items: center;
   min-width: 0;
-  padding: 0.9rem 1rem;
+  padding: 0.65rem 1rem;
 }
 
 .detail-item span {
@@ -1489,10 +1496,10 @@ input {
   align-items: center;
   justify-content: center;
   min-width: 3.4rem;
-  min-height: 1.65rem;
-  padding: 0 0.72rem;
+  min-height: 1.45rem;
+  padding: 0 0.68rem;
   border-radius: 999px;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 900;
 }
 
@@ -1507,7 +1514,8 @@ input {
 }
 
 .detail-actions {
-  padding: 1.45rem 2.1rem 1.75rem;
+  margin-top: 0.8rem;
+  padding: 1rem 2.1rem 1.35rem;
 }
 
 .form-section {
@@ -1827,6 +1835,11 @@ input {
 
   .product-modal {
     width: min(44rem, calc(100vw - 1.5rem));
+  }
+
+  .detail-modal {
+    max-height: min(92vh, 58rem);
+    overflow: auto;
   }
 
   .modal-header,
