@@ -85,12 +85,6 @@ pageSizeSelect.addEventListener("change", (event) => {
 document.querySelector("#closeProductModal").addEventListener("click", closeProductModal);
 document.querySelector("#cancelProductModal").addEventListener("click", closeProductModal);
 
-productModal.addEventListener("click", (event) => {
-  if (event.target === productModal) {
-    closeProductModal();
-  }
-});
-
 document.addEventListener("click", (event) => {
   if (rowActionMenu.hidden) {
     return;
