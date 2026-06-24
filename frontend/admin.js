@@ -68,11 +68,51 @@ const saveProductButton = document.querySelector("#saveProductButton");
 const rowActionMenu = document.querySelector("#rowActionMenu");
 const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
+const viewLinks = document.querySelectorAll("[data-view-link]");
+const pageViews = document.querySelectorAll("[data-view]");
+const inboundNumberInputs = [
+  ["#inboundTotalQty", "#calcTotalQty"],
+  ["#inboundBoxQty", "#calcBoxQty"],
+  ["#inboundBoxCount", "#calcBoxCount"],
+  ["#inboundTrayQty", "#calcTrayQty"],
+  ["#inboundRemainQty", "#calcRemainQty"],
+  ["#inboundDefectQty", "#calcDefectQty"]
+].map(([inputSelector, outputSelector]) => ({
+  input: document.querySelector(inputSelector),
+  output: document.querySelector(outputSelector)
+}));
 
 adminUserName.textContent = session?.name || "관리자";
+document.querySelector("#inboundRegistrant").value = session?.name || "Admin";
 
 document.querySelector("#newProductButton").addEventListener("click", () => {
   openProductModal();
+});
+
+viewLinks.forEach((link) => {
+  link.addEventListener("click", (event) => {
+    const view = link.dataset.viewLink;
+
+    if (!view) {
+      return;
+    }
+
+    event.preventDefault();
+    location.hash = view;
+    setActiveView(view);
+  });
+});
+
+window.addEventListener("hashchange", () => {
+  setActiveView(getCurrentView());
+});
+
+inboundNumberInputs.forEach(({ input }) => {
+  input?.addEventListener("input", updateInboundSummary);
+});
+
+document.querySelector("#inboundSubmitButton").addEventListener("click", () => {
+  showToast("입고 등록 저장은 시트 연결 단계에서 활성화됩니다.");
 });
 
 productSearch.addEventListener("input", (event) => {
@@ -154,6 +194,38 @@ window.addEventListener("resize", closeRowActionMenu);
 window.addEventListener("scroll", closeRowActionMenu, true);
 
 loadProducts();
+setActiveView(getCurrentView());
+updateInboundSummary();
+
+function getCurrentView() {
+  const view = location.hash.replace("#", "");
+  return view === "products" ? "products" : "inbound";
+}
+
+function setActiveView(view) {
+  pageViews.forEach((pageView) => {
+    pageView.hidden = pageView.dataset.view !== view;
+  });
+
+  viewLinks.forEach((link) => {
+    const isActive = link.dataset.viewLink === view;
+    link.classList.toggle("active", isActive);
+    link.toggleAttribute("aria-current", isActive);
+  });
+
+  closeRowActionMenu();
+}
+
+function updateInboundSummary() {
+  inboundNumberInputs.forEach(({ input, output }) => {
+    if (!input || !output) {
+      return;
+    }
+
+    const value = Number(input.value || 0);
+    output.textContent = value.toLocaleString("ko-KR");
+  });
+}
 
 async function loadProducts() {
   setStatus("제품 정보를 불러오는 중입니다.");

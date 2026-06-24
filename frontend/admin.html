@@ -47,7 +47,7 @@
             </span>
             대시보드
           </a>
-          <a class="side-nav-item disabled" href="#" aria-disabled="true">
+          <a class="side-nav-item" href="#inbound" data-view-link="inbound">
             <span class="side-icon">
               <svg viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" /><path d="M12 12 4.4 7.7M12 12l7.6-4.3M12 12v8.7" /></svg>
             </span>
@@ -71,7 +71,7 @@
             </span>
             작업관리
           </a>
-          <a class="side-nav-item active" href="./admin.html" aria-current="page">
+          <a class="side-nav-item" href="#products" data-view-link="products">
             <span class="side-icon product">
               <img src="./assets/admin-product-icon-generated.png" alt="" />
             </span>
@@ -99,88 +99,364 @@
       </aside>
 
       <main class="admin-main">
-        <section class="page-heading">
-          <div>
-            <p class="eyebrow">Product Database</p>
-            <h1>제품관리</h1>
-            <p>입고, 출고, 작업에서 사용할 제품 정보를 등록하고 관리합니다.</p>
-          </div>
-          <button class="primary-action" type="button" id="newProductButton">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            신규 제품 등록
-          </button>
-        </section>
+        <div class="page-view inbound-view" id="inboundView" data-view="inbound">
+          <section class="page-heading">
+            <div>
+              <p class="eyebrow">Inbound Registration</p>
+              <h1>입고관리</h1>
+              <p>공장에 입고된 제품과 수량 정보를 등록합니다.</p>
+            </div>
+          </section>
 
-        <section class="product-hero" aria-label="제품관리 요약">
-          <div class="product-hero-visual" aria-hidden="true">
-            <img src="./assets/admin-product-icon-generated.png" alt="" />
-          </div>
-          <div>
-            <strong id="productTotal">0</strong>
-            <span>등록 제품</span>
-          </div>
-          <div>
-            <strong id="clientTotal">0</strong>
-            <span>거래처</span>
-          </div>
-          <div>
-            <strong id="recentDate">-</strong>
-            <span>최근 등록일</span>
-          </div>
-        </section>
+          <div class="inbound-layout">
+            <div class="inbound-workspace">
+              <section class="inbound-card" aria-labelledby="inboundBaseTitle">
+                <h2 id="inboundBaseTitle">기본 정보</h2>
+                <div class="inbound-form-grid">
+                  <label class="form-field">
+                    <span>입고일 <b>*</b></span>
+                    <input id="inboundDate" type="date" value="2026-06-24" />
+                  </label>
+                  <label class="form-field">
+                    <span>입고 시간 <b>*</b></span>
+                    <input id="inboundTime" type="time" value="09:00" />
+                  </label>
+                  <label class="form-field">
+                    <span>입고 유형 <b>*</b></span>
+                    <select id="inboundType">
+                      <option>정상 입고</option>
+                      <option>재입고</option>
+                      <option>샘플 입고</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>납기일</span>
+                    <input type="date" />
+                  </label>
+                  <label class="form-field">
+                    <span>거래처명 <b>*</b></span>
+                    <select id="inboundClient">
+                      <option value="">거래처명 검색</option>
+                      <option>아이원(아이텍)</option>
+                      <option>(주)리치코스</option>
+                      <option>(주)정훈</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>제품명 <b>*</b></span>
+                    <span class="search-input">
+                      <input type="text" placeholder="제품명 검색" />
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m16 16 4 4" />
+                      </svg>
+                    </span>
+                  </label>
+                  <label class="form-field">
+                    <span>제품 ID</span>
+                    <input type="text" value="RCS-0001" disabled />
+                  </label>
+                  <label class="form-field">
+                    <span>등록자</span>
+                    <input type="text" id="inboundRegistrant" value="Admin" disabled />
+                  </label>
+                  <label class="form-field">
+                    <span>차수 <b>*</b></span>
+                    <select>
+                      <option>1차</option>
+                      <option selected>2차</option>
+                      <option>3차</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>최종공정 <b>*</b></span>
+                    <select>
+                      <option>1도</option>
+                      <option selected>2도</option>
+                      <option>3도</option>
+                      <option>코팅</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>보관위치 <b>*</b></span>
+                    <select>
+                      <option>A-1</option>
+                      <option selected>B-2</option>
+                      <option>C-3</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
 
-        <section class="list-tools" aria-label="제품 검색 도구">
-          <label class="search-field">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m16 16 4 4" />
-            </svg>
-            <input id="productSearch" type="search" placeholder="제품명, 제품코드 검색" />
-          </label>
-          <label class="client-filter">
-            <span>업체명</span>
-            <select id="productClientFilter">
-              <option value="">전체 업체</option>
-            </select>
-          </label>
-        </section>
+              <section class="inbound-card" aria-labelledby="inboundQuantityTitle">
+                <h2 id="inboundQuantityTitle">수량 정보</h2>
+                <div class="inbound-form-grid quantity-grid">
+                  <label class="form-field">
+                    <span>입고 총 수량 (EA) <b>*</b></span>
+                    <span class="unit-input">
+                      <input id="inboundTotalQty" type="number" value="3800" min="0" />
+                      <i>ea</i>
+                    </span>
+                  </label>
+                  <label class="form-field">
+                    <span>박스당 수량 (EA) <b>*</b></span>
+                    <span class="unit-input">
+                      <input id="inboundBoxQty" type="number" value="300" min="0" />
+                      <i>ea</i>
+                    </span>
+                  </label>
+                  <label class="form-field">
+                    <span>입고 박스 수 (BOX) <b>*</b></span>
+                    <span class="unit-input">
+                      <input id="inboundBoxCount" type="number" value="12" min="0" />
+                      <i>box</i>
+                    </span>
+                  </label>
+                  <label class="form-field">
+                    <span>트레이 수량 (EA) <b>*</b></span>
+                    <span class="unit-input">
+                      <input id="inboundTrayQty" type="number" value="80" min="0" />
+                      <i>ea</i>
+                    </span>
+                  </label>
+                  <label class="form-field">
+                    <span>잔량 (EA) <b>*</b></span>
+                    <span class="unit-input">
+                      <input id="inboundRemainQty" type="number" value="7" min="0" />
+                      <i>ea</i>
+                    </span>
+                  </label>
+                  <label class="form-field">
+                    <span>불량 수량 (EA) <b>*</b></span>
+                    <span class="unit-input">
+                      <input id="inboundDefectQty" type="number" value="9" min="0" />
+                      <i>ea</i>
+                    </span>
+                  </label>
+                  <label class="form-field">
+                    <span>불량 사유</span>
+                    <select>
+                      <option>측정</option>
+                      <option>파손</option>
+                      <option>인쇄 불량</option>
+                      <option>기타</option>
+                    </select>
+                  </label>
+                  <label class="form-field full-span">
+                    <span>비고</span>
+                    <input type="text" placeholder="비고를 입력하세요." />
+                  </label>
+                </div>
 
-        <section class="table-panel" aria-label="제품 목록">
-          <div class="table-status" id="tableStatus">제품 정보를 불러오는 중입니다.</div>
-          <div class="table-scroll">
-            <table class="product-table">
-              <thead>
-                <tr>
-                  <th>순서</th>
-                  <th>거래처명</th>
-                  <th>제품코드</th>
-                  <th>제품명</th>
-                  <th>색상</th>
-                  <th>박스당수량</th>
-                  <th>트레이수량</th>
-                  <th>등록일</th>
-                  <th>비고</th>
-                  <th>관리</th>
-                </tr>
-              </thead>
-              <tbody id="productTableBody"></tbody>
-            </table>
+                <div class="inbound-file-actions">
+                  <button class="secondary-action" type="button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3v12m0-12 4 4m-4-4-4 4" />
+                      <path d="M5 15v4h14v-4" />
+                    </svg>
+                    거래명세서 등록
+                  </button>
+                  <button class="secondary-action" type="button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 7h3l2-2h6l2 2h3v12H4z" />
+                      <circle cx="12" cy="13" r="3" />
+                    </svg>
+                    불량 사진 등록
+                  </button>
+                </div>
+              </section>
+            </div>
+
+            <aside class="inbound-summary-card" aria-label="입고 계산 정보">
+              <h2>
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M6 3h12v18H6z" />
+                    <path d="M9 7h6M9 11h2M13 11h2M9 15h2M13 15h2" />
+                  </svg>
+                </span>
+                입고 계산 정보
+              </h2>
+              <dl>
+                <div><dt>박스당 수량</dt><dd><strong id="calcBoxQty">300</strong> ea</dd></div>
+                <div><dt>입고 박스 수</dt><dd><strong id="calcBoxCount">12</strong> box</dd></div>
+                <div><dt>트레이 수량</dt><dd><strong id="calcTrayQty">80</strong> ea</dd></div>
+                <div><dt>잔량 수량</dt><dd><strong id="calcRemainQty">7</strong> ea</dd></div>
+                <div><dt>불량 수량</dt><dd><strong id="calcDefectQty">9</strong> ea</dd></div>
+              </dl>
+              <div class="summary-total">
+                <span>입고 총 수량</span>
+                <strong><span id="calcTotalQty">3,800</span> ea</strong>
+              </div>
+              <button class="primary-action inbound-submit" type="button" id="inboundSubmitButton">등록</button>
+            </aside>
           </div>
 
-          <div class="table-footer">
-            <span id="productCountLabel">전체 0건</span>
-            <div class="pagination" id="pagination" aria-label="제품 목록 페이지"></div>
-            <label class="page-size">
-              <select id="pageSizeSelect">
-                <option value="10">10개씩 보기</option>
-                <option value="20">20개씩 보기</option>
-                <option value="50">50개씩 보기</option>
+          <section class="table-panel inbound-list-panel" aria-label="입고 목록">
+            <div class="panel-title-row">
+              <h2>입고 목록</h2>
+              <button class="secondary-action compact-action" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+                  <path d="M5 19h14" />
+                </svg>
+                엑셀 다운로드
+              </button>
+            </div>
+            <div class="table-scroll">
+              <table class="product-table inbound-table">
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>입고일</th>
+                    <th>제품명</th>
+                    <th>제품 ID</th>
+                    <th>거래처명</th>
+                    <th>입고 유형</th>
+                    <th>박스당 수량</th>
+                    <th>입고 박스 수</th>
+                    <th>트레이 수량</th>
+                    <th>잔량</th>
+                    <th>입고 총 수량</th>
+                    <th>불량 수량</th>
+                    <th>불량률</th>
+                    <th>등록자</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>2026-06-24 09:00</td>
+                    <td>ICD 더마톨로지 크림 외용기</td>
+                    <td><strong>ION-0001</strong></td>
+                    <td>아이원(아이텍)</td>
+                    <td>정상 입고</td>
+                    <td>300</td>
+                    <td>12</td>
+                    <td>80</td>
+                    <td>7</td>
+                    <td>3,800</td>
+                    <td>9</td>
+                    <td>0.24%</td>
+                    <td>Admin</td>
+                    <td>
+                      <button class="row-action" type="button" aria-label="입고 관리">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <circle cx="12" cy="5" r="1.6" />
+                          <circle cx="12" cy="12" r="1.6" />
+                          <circle cx="12" cy="19" r="1.6" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-footer">
+              <span>전체 1건</span>
+              <div class="pagination" aria-label="입고 목록 페이지">
+                <button type="button" disabled aria-label="이전">
+                  <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <button type="button" class="active">1</button>
+                <button type="button" disabled aria-label="다음">
+                  <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+              </div>
+              <label class="page-size">
+                <select>
+                  <option>10개씩 보기</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="page-view product-view" id="productView" data-view="products" hidden>
+          <section class="page-heading">
+            <div>
+              <p class="eyebrow">Product Database</p>
+              <h1>제품관리</h1>
+              <p>입고, 출고, 작업에서 사용할 제품 정보를 등록하고 관리합니다.</p>
+            </div>
+            <button class="primary-action" type="button" id="newProductButton">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              신규 제품 등록
+            </button>
+          </section>
+
+          <section class="product-hero" aria-label="제품관리 요약">
+            <div class="product-hero-visual" aria-hidden="true">
+              <img src="./assets/admin-product-icon-generated.png" alt="" />
+            </div>
+            <div>
+              <strong id="productTotal">0</strong>
+              <span>등록 제품</span>
+            </div>
+            <div>
+              <strong id="clientTotal">0</strong>
+              <span>거래처</span>
+            </div>
+            <div>
+              <strong id="recentDate">-</strong>
+              <span>최근 등록일</span>
+            </div>
+          </section>
+
+          <section class="list-tools" aria-label="제품 검색 도구">
+            <label class="search-field">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m16 16 4 4" />
+              </svg>
+              <input id="productSearch" type="search" placeholder="제품명, 제품코드 검색" />
+            </label>
+            <label class="client-filter">
+              <span>업체명</span>
+              <select id="productClientFilter">
+                <option value="">전체 업체</option>
               </select>
             </label>
-          </div>
-        </section>
+          </section>
+
+          <section class="table-panel" aria-label="제품 목록">
+            <div class="table-status" id="tableStatus">제품 정보를 불러오는 중입니다.</div>
+            <div class="table-scroll">
+              <table class="product-table">
+                <thead>
+                  <tr>
+                    <th>순서</th>
+                    <th>거래처명</th>
+                    <th>제품코드</th>
+                    <th>제품명</th>
+                    <th>색상</th>
+                    <th>박스당수량</th>
+                    <th>트레이수량</th>
+                    <th>등록일</th>
+                    <th>비고</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody id="productTableBody"></tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span id="productCountLabel">전체 0건</span>
+              <div class="pagination" id="pagination" aria-label="제품 목록 페이지"></div>
+              <label class="page-size">
+                <select id="pageSizeSelect">
+                  <option value="10">10개씩 보기</option>
+                  <option value="20">20개씩 보기</option>
+                  <option value="50">50개씩 보기</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        </div>
       </main>
     </div>
 
