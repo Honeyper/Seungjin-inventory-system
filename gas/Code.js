@@ -34,6 +34,7 @@ function doPost(e) {
       setupSheets,
       getProducts,
       createProduct,
+      deleteProduct,
       formatProductRows
     };
 
@@ -467,6 +468,43 @@ function createProduct(payload) {
   return {
     productId
   };
+}
+
+function deleteProduct(payload) {
+  const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
+
+  if (!productId) {
+    throw new Error('삭제할 제품 ID가 필요합니다.');
+  }
+
+  const sheet = getProductSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error('제품 DB 헤더를 찾을 수 없습니다.');
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const productIdIndex = findHeaderIndex_(indexes, ['제품 ID', '제품ID']);
+
+  if (productIdIndex < 0) {
+    throw new Error('제품 ID 컬럼을 찾을 수 없습니다.');
+  }
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const rowProductId = String(values[rowIndex][productIdIndex] || '').trim();
+
+    if (rowProductId === productId) {
+      sheet.deleteRow(rowIndex + 1);
+      return {
+        productId,
+        deleted: true
+      };
+    }
+  }
+
+  throw new Error('삭제할 제품을 찾을 수 없습니다.');
 }
 
 function formatProductRows() {

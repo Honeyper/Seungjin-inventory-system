@@ -30,7 +30,10 @@ const state = {
   page: 1,
   pageSize: 10,
   query: "",
-  isSavingProduct: false
+  isSavingProduct: false,
+  isDeletingProduct: false,
+  activeMenuProductCode: "",
+  activeMenuButton: null
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -55,6 +58,7 @@ const productTrayQuantity = document.querySelector("#productTrayQuantity");
 const productNote = document.querySelector("#productNote");
 const productFormMessage = document.querySelector("#productFormMessage");
 const saveProductButton = document.querySelector("#saveProductButton");
+const rowActionMenu = document.querySelector("#rowActionMenu");
 
 adminUserName.textContent = session?.name || "관리자";
 
@@ -87,8 +91,28 @@ productModal.addEventListener("click", (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  if (rowActionMenu.hidden) {
+    return;
+  }
+
+  const clickedActionButton = event.target.closest(".row-action");
+  if (!rowActionMenu.contains(event.target) && !clickedActionButton) {
+    closeRowActionMenu();
+  }
+});
+
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !productModal.hidden) {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  if (!rowActionMenu.hidden) {
+    closeRowActionMenu();
+    return;
+  }
+
+  if (!productModal.hidden) {
     closeProductModal();
   }
 });
@@ -97,6 +121,14 @@ productForm.addEventListener("submit", (event) => {
   event.preventDefault();
   saveProduct();
 });
+
+rowActionMenu.querySelector('[data-menu-action="delete"]').addEventListener("click", (event) => {
+  event.stopPropagation();
+  deleteActiveProduct();
+});
+
+window.addEventListener("resize", closeRowActionMenu);
+window.addEventListener("scroll", closeRowActionMenu, true);
 
 loadProducts();
 
@@ -161,6 +193,8 @@ function renderSummary() {
 }
 
 function renderProducts() {
+  closeRowActionMenu();
+
   const total = state.filteredProducts.length;
   const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
   state.page = Math.min(state.page, pageCount);
@@ -183,7 +217,7 @@ function renderProducts() {
         <td>${escapeHtml(product.registeredAt)}</td>
         <td class="note-cell">${escapeHtml(product.note)}</td>
         <td>
-          <button class="row-action" type="button" data-product="${escapeHtml(product.productCode)}" aria-label="제품 관리">
+          <button class="row-action" type="button" data-product="${escapeHtml(product.productCode)}" aria-label="제품 관리" aria-haspopup="menu" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="5" r="1.6" />
               <circle cx="12" cy="12" r="1.6" />
@@ -196,14 +230,97 @@ function renderProducts() {
   }).join("");
 
   productTableBody.querySelectorAll(".row-action").forEach((button) => {
-    button.addEventListener("click", () => {
-      showToast("제품 상세보기와 수정 화면은 다음 단계에서 연결됩니다.");
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleRowActionMenu(button);
     });
   });
 
   productCountLabel.textContent = `전체 ${total.toLocaleString("ko-KR")}건`;
   setStatus(total ? "" : "등록된 제품이 없습니다.");
   renderPagination(pageCount);
+}
+
+function toggleRowActionMenu(button) {
+  const productCode = button.dataset.product || "";
+  const isSameButton = state.activeMenuButton === button && !rowActionMenu.hidden;
+
+  closeRowActionMenu();
+
+  if (isSameButton || !productCode) {
+    return;
+  }
+
+  state.activeMenuProductCode = productCode;
+  state.activeMenuButton = button;
+  button.setAttribute("aria-expanded", "true");
+  rowActionMenu.hidden = false;
+  rowActionMenu.style.visibility = "hidden";
+
+  const buttonRect = button.getBoundingClientRect();
+  const menuRect = rowActionMenu.getBoundingClientRect();
+  const margin = 12;
+  const preferredLeft = buttonRect.right - menuRect.width + 10;
+  const left = Math.min(
+    window.innerWidth - menuRect.width - margin,
+    Math.max(margin, preferredLeft)
+  );
+  const belowTop = buttonRect.bottom + 9;
+  const aboveTop = buttonRect.top - menuRect.height - 9;
+  const top = belowTop + menuRect.height > window.innerHeight - margin
+    ? Math.max(margin, aboveTop)
+    : belowTop;
+
+  rowActionMenu.style.left = `${left}px`;
+  rowActionMenu.style.top = `${top}px`;
+  rowActionMenu.style.visibility = "";
+}
+
+function closeRowActionMenu() {
+  if (state.activeMenuButton) {
+    state.activeMenuButton.setAttribute("aria-expanded", "false");
+  }
+
+  state.activeMenuProductCode = "";
+  state.activeMenuButton = null;
+
+  if (rowActionMenu) {
+    rowActionMenu.hidden = true;
+    rowActionMenu.style.left = "";
+    rowActionMenu.style.top = "";
+    rowActionMenu.style.visibility = "";
+  }
+}
+
+async function deleteActiveProduct() {
+  if (state.isDeletingProduct || !state.activeMenuProductCode) {
+    return;
+  }
+
+  const productCode = state.activeMenuProductCode;
+  const product = state.products.find((item) => item.productCode === productCode);
+  const productLabel = product?.productName
+    ? `${product.productName} (${productCode})`
+    : productCode;
+
+  if (!window.confirm(`${productLabel} 제품을 삭제하시겠습니까?\n삭제하면 Google Sheet에서도 같이 삭제됩니다.`)) {
+    return;
+  }
+
+  state.isDeletingProduct = true;
+  closeRowActionMenu();
+  setStatus("제품을 삭제하는 중입니다.");
+
+  try {
+    await requestApi("deleteProduct", { productId: productCode });
+    await loadProducts();
+    showToast("제품이 삭제되었습니다.");
+  } catch (error) {
+    setStatus("");
+    showToast(error.message || "제품 삭제에 실패했습니다.");
+  } finally {
+    state.isDeletingProduct = false;
+  }
 }
 
 function renderPagination(pageCount) {
