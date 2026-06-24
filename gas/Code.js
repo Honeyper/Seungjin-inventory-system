@@ -89,6 +89,14 @@ function login(payload) {
     };
   }
 
+  if (!account.isActive) {
+    return {
+      success: false,
+      code: 'ACCOUNT_DISABLED',
+      message: '비활성화된 계정입니다. 관리자에게 문의해주세요.'
+    };
+  }
+
   if (account.role !== 'admin') {
     return {
       success: false,
@@ -110,7 +118,7 @@ function login(payload) {
 
 function getLoginAccounts_() {
   const sheet = getSheet_(CONFIG.SHEETS.ACCOUNTS);
-  const values = sheet.getDataRange().getDisplayValues();
+  const values = sheet.getDataRange().getValues();
   const accounts = [];
 
   collectAccountsFromBlock_(values, '관리자 계정', 'admin', accounts);
@@ -129,13 +137,14 @@ function collectAccountsFromBlock_(values, blockTitle, role, accounts) {
   const dataStartRowIndex = position.row + 2;
   const startColIndex = position.col;
   const headerRow = values[headerRowIndex] || [];
-  const headers = headerRow.slice(startColIndex, startColIndex + 3);
+  const headers = headerRow.slice(startColIndex, startColIndex + 4).map((header) => String(header || '').trim());
 
   const nameOffset = headers.indexOf('이름');
   const accountOffset = headers.indexOf('계정');
   const passwordOffset = headers.indexOf('비밀번호');
+  const activeOffset = headers.indexOf('활성화 여부');
 
-  if (nameOffset < 0 || accountOffset < 0 || passwordOffset < 0) {
+  if (nameOffset < 0 || accountOffset < 0 || passwordOffset < 0 || activeOffset < 0) {
     throw new Error(`${blockTitle} 영역의 헤더를 확인해주세요.`);
   }
 
@@ -144,8 +153,9 @@ function collectAccountsFromBlock_(values, blockTitle, role, accounts) {
     const name = String(row[startColIndex + nameOffset] || '').trim();
     const accountId = String(row[startColIndex + accountOffset] || '').trim();
     const password = String(row[startColIndex + passwordOffset] || '').trim();
+    const isActive = isChecked_(row[startColIndex + activeOffset]);
 
-    if (!name && !accountId && !password) {
+    if (!name && !accountId && !password && !isActive) {
       break;
     }
 
@@ -154,10 +164,20 @@ function collectAccountsFromBlock_(values, blockTitle, role, accounts) {
         name,
         accountId,
         password,
+        isActive,
         role
       });
     }
   }
+}
+
+function isChecked_(value) {
+  if (value === true) {
+    return true;
+  }
+
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['true', '1', 'yes', 'y', 'on', 'checked', '활성', '사용', '사용함', '예', 'o', '✓', '✔'].includes(normalized);
 }
 
 function findCell_(values, target) {
