@@ -906,6 +906,7 @@ input {
   color: #6d7a8d;
 }
 
+.side-icon.visual,
 .side-icon.product {
   width: 2.35rem;
   height: 2.35rem;
@@ -914,6 +915,7 @@ input {
   box-shadow: 0 0.45rem 1.1rem rgba(8, 42, 98, 0.1);
 }
 
+.side-icon.visual img,
 .side-icon.product img {
   width: 2.15rem;
   height: 2.15rem;
