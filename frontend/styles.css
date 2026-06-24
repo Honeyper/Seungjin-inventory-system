@@ -1960,8 +1960,12 @@ input {
 }
 
 .quantity-grid {
-  grid-template-columns: repeat(4, minmax(8.8rem, 11.4rem));
-  justify-content: space-between;
+  grid-template-columns: repeat(7, minmax(7.6rem, 1fr));
+  gap: 0.85rem;
+}
+
+.quantity-grid .full-span {
+  grid-column: 1 / -1;
 }
 
 .search-input {
