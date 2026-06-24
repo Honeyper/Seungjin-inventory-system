@@ -1416,6 +1416,100 @@ input {
   padding: 1.35rem 2.1rem 1.75rem;
 }
 
+.detail-modal {
+  width: min(58.5rem, calc(100vw - 2.5rem));
+}
+
+.detail-content {
+  padding: 1.35rem 2.1rem 0;
+}
+
+.detail-section + .detail-section {
+  margin-top: 1.45rem;
+}
+
+.detail-section h3 {
+  margin: 0 0 0.9rem;
+  color: var(--navy-dark);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #dfe6ef;
+  border-radius: 0.42rem;
+  background: #fff;
+}
+
+.detail-item {
+  display: grid;
+  grid-template-columns: minmax(6.4rem, 8.8rem) minmax(0, 1fr);
+  min-height: 4.05rem;
+  border-bottom: 1px solid #e7edf5;
+}
+
+.detail-item:nth-child(odd) {
+  border-right: 1px solid #e7edf5;
+}
+
+.detail-item.full-span {
+  grid-column: 1 / -1;
+  border-right: 0;
+}
+
+.detail-item:last-child {
+  border-bottom: 0;
+}
+
+.detail-item span,
+.detail-item strong {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0.9rem 1rem;
+}
+
+.detail-item span {
+  color: #63728a;
+  font-weight: 900;
+}
+
+.detail-item strong {
+  color: #263449;
+  font-weight: 900;
+  word-break: keep-all;
+  white-space: normal;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.4rem;
+  min-height: 1.65rem;
+  padding: 0 0.72rem;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.status-pill.active {
+  color: #1d7f3c;
+  background: #def5e5;
+}
+
+.status-pill.inactive {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.detail-actions {
+  padding: 1.45rem 2.1rem 1.75rem;
+}
+
 .form-section {
   padding-bottom: 1.2rem;
 }
@@ -1736,7 +1830,9 @@ input {
   }
 
   .modal-header,
-  .product-form {
+  .product-form,
+  .detail-content,
+  .detail-actions {
     padding-right: 1.25rem;
     padding-left: 1.25rem;
   }
@@ -1744,6 +1840,19 @@ input {
   .form-grid {
     grid-template-columns: 1fr;
     row-gap: 0.85rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-item {
+    grid-template-columns: minmax(5.6rem, 7.4rem) minmax(0, 1fr);
+    border-right: 0;
+  }
+
+  .detail-item:nth-child(odd) {
+    border-right: 0;
   }
 
   .table-footer {

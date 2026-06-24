@@ -59,6 +59,8 @@ const productNote = document.querySelector("#productNote");
 const productFormMessage = document.querySelector("#productFormMessage");
 const saveProductButton = document.querySelector("#saveProductButton");
 const rowActionMenu = document.querySelector("#rowActionMenu");
+const productDetailModal = document.querySelector("#productDetailModal");
+const productDetailContent = document.querySelector("#productDetailContent");
 
 adminUserName.textContent = session?.name || "관리자";
 
@@ -84,6 +86,8 @@ pageSizeSelect.addEventListener("change", (event) => {
 
 document.querySelector("#closeProductModal").addEventListener("click", closeProductModal);
 document.querySelector("#cancelProductModal").addEventListener("click", closeProductModal);
+document.querySelector("#closeProductDetailModal").addEventListener("click", closeProductDetailModal);
+document.querySelector("#closeProductDetailButton").addEventListener("click", closeProductDetailModal);
 
 document.addEventListener("click", (event) => {
   if (rowActionMenu.hidden) {
@@ -106,6 +110,11 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (!productDetailModal.hidden) {
+    closeProductDetailModal();
+    return;
+  }
+
   if (!productModal.hidden) {
     closeProductModal();
   }
@@ -119,6 +128,11 @@ productForm.addEventListener("submit", (event) => {
 rowActionMenu.querySelector('[data-menu-action="delete"]').addEventListener("click", (event) => {
   event.stopPropagation();
   deleteActiveProduct();
+});
+
+rowActionMenu.querySelector('[data-menu-action="view"]').addEventListener("click", (event) => {
+  event.stopPropagation();
+  openActiveProductDetail();
 });
 
 window.addEventListener("resize", closeRowActionMenu);
@@ -317,6 +331,88 @@ async function deleteActiveProduct() {
   }
 }
 
+function openActiveProductDetail() {
+  if (!state.activeMenuProductCode) {
+    return;
+  }
+
+  const product = state.products.find((item) => item.productCode === state.activeMenuProductCode);
+
+  if (!product) {
+    showToast("제품 정보를 찾을 수 없습니다.");
+    closeRowActionMenu();
+    return;
+  }
+
+  closeRowActionMenu();
+  renderProductDetail(product);
+  productDetailModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => document.querySelector("#closeProductDetailButton").focus(), 0);
+}
+
+function closeProductDetailModal() {
+  productDetailModal.hidden = true;
+  productDetailContent.innerHTML = "";
+
+  if (productModal.hidden) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function renderProductDetail(product) {
+  productDetailContent.innerHTML = `
+    <section class="detail-section" aria-labelledby="detailBaseTitle">
+      <h3 id="detailBaseTitle">제품 기본 정보</h3>
+      <div class="detail-grid">
+        ${detailItem("제품코드", product.productCode)}
+        ${detailItem("거래처명", product.clientName)}
+        ${detailItem("제품명", product.productName)}
+        ${detailItem("색상", renderColor(product.color), true)}
+        ${detailItem("사용 여부", renderUsageStatus(product.useStatus), true, "full-span")}
+      </div>
+    </section>
+
+    <section class="detail-section" aria-labelledby="detailStandardTitle">
+      <h3 id="detailStandardTitle">제품 기준 정보</h3>
+      <div class="detail-grid">
+        ${detailItem("박스당 수량", product.boxQuantity)}
+        ${detailItem("트레이 수량", product.trayQuantity)}
+        ${detailItem("비고", product.note, false, "full-span")}
+      </div>
+    </section>
+
+    <section class="detail-section" aria-labelledby="detailRegisterTitle">
+      <h3 id="detailRegisterTitle">등록 정보</h3>
+      <div class="detail-grid">
+        ${detailItem("등록일", product.registeredAt)}
+        ${detailItem("수정일", product.updatedAt)}
+        ${detailItem("등록자", product.createdBy, false, "full-span")}
+      </div>
+    </section>
+  `;
+}
+
+function detailItem(label, value, isHtml = false, className = "") {
+  const displayValue = normalizeDisplayValue(value);
+  const content = isHtml ? displayValue : escapeHtml(displayValue);
+
+  return `
+    <div class="detail-item ${className}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${content}</strong>
+    </div>
+  `;
+}
+
+function renderUsageStatus(status) {
+  const value = normalizeDisplayValue(status);
+  const isInactive = value.includes("미사용");
+  const className = isInactive ? "inactive" : "active";
+
+  return `<span class="status-pill ${className}">${escapeHtml(value)}</span>`;
+}
+
 function renderPagination(pageCount) {
   const pages = getPageNumbers(pageCount, state.page);
   const controls = [
@@ -495,6 +591,11 @@ function renderColor(color) {
   }
 
   return `<span class="color-chip"><i style="background:${getColorValue(value)}"></i>${escapeHtml(value)}</span>`;
+}
+
+function normalizeDisplayValue(value) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "-";
 }
 
 function getColorValue(color) {
