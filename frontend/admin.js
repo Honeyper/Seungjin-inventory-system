@@ -71,6 +71,7 @@ const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
 const inboundTime = document.querySelector("#inboundTime");
 const inboundClient = document.querySelector("#inboundClient");
+const editInboundClientButton = document.querySelector("#editInboundClientButton");
 const inboundProductName = document.querySelector("#inboundProductName");
 const inboundProductId = document.querySelector("#inboundProductId");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
@@ -125,6 +126,10 @@ document.querySelector("#inboundSubmitButton").addEventListener("click", () => {
   showToast("입고 등록 저장은 시트 연결 단계에서 활성화됩니다.");
 });
 
+editInboundClientButton.addEventListener("click", () => {
+  setInboundClientEditable(inboundClient.disabled);
+});
+
 inboundProductSearchTrigger.addEventListener("click", openInboundProductPicker);
 inboundProductName.addEventListener("keydown", (event) => {
   if (event.key === "Enter" || event.key === " ") {
@@ -134,7 +139,6 @@ inboundProductName.addEventListener("keydown", (event) => {
 });
 
 document.querySelector("#closeInboundProductPicker").addEventListener("click", closeInboundProductPicker);
-document.querySelector("#cancelInboundProductPicker").addEventListener("click", closeInboundProductPicker);
 
 inboundProductPickerSearch.addEventListener("input", (event) => {
   state.inboundProductPickerQuery = event.target.value.trim().toLowerCase();
@@ -259,6 +263,17 @@ function updateInboundSummary() {
   });
 }
 
+function setInboundClientEditable(isEditable) {
+  inboundClient.disabled = !isEditable;
+  editInboundClientButton.textContent = isEditable ? "잠금" : "수정";
+  editInboundClientButton.setAttribute("aria-pressed", String(isEditable));
+
+  if (isEditable) {
+    inboundClient.focus();
+    inboundClient.select();
+  }
+}
+
 function openInboundProductPicker() {
   state.inboundProductPickerQuery = "";
   inboundProductPickerSearch.value = "";
@@ -321,6 +336,7 @@ function selectInboundProduct(product) {
   inboundProductName.value = normalizeDisplayValue(product.productName);
   inboundProductId.value = normalizeDisplayValue(product.productCode);
   inboundClient.value = normalizeDisplayValue(product.clientName);
+  setInboundClientEditable(false);
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);
   const trayQuantity = extractQuantityNumber(product.trayQuantity);

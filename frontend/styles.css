@@ -1448,6 +1448,11 @@ input {
 .modal-close svg {
   width: 1.7rem;
   height: 1.7rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .product-form {
@@ -1557,10 +1562,6 @@ input {
   color: #7a879a;
   font-weight: 800;
   text-align: center;
-}
-
-.picker-actions {
-  padding-top: 1rem;
 }
 
 .detail-content {
@@ -1975,6 +1976,40 @@ input {
 .search-input input[readonly] {
   cursor: pointer;
   background-color: #fff;
+}
+
+.editable-lock-input {
+  position: relative;
+  display: block;
+  margin: 0 !important;
+}
+
+.editable-lock-input input {
+  padding-right: 4.6rem !important;
+}
+
+.editable-lock-input button {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  min-width: 3.15rem;
+  height: 2.18rem;
+  color: var(--navy-dark);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  border: 1px solid #dce4ef;
+  border-radius: 0.3rem;
+  background: #fff;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.editable-lock-input button:hover,
+.editable-lock-input button[aria-pressed="true"] {
+  color: #fff;
+  border-color: var(--navy-dark);
+  background: var(--navy-dark);
 }
 
 .search-input svg {
