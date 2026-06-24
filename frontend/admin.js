@@ -68,6 +68,7 @@ const saveProductButton = document.querySelector("#saveProductButton");
 const rowActionMenu = document.querySelector("#rowActionMenu");
 const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
+const inboundTime = document.querySelector("#inboundTime");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
 const inboundNumberInputs = [
@@ -194,6 +195,7 @@ window.addEventListener("resize", closeRowActionMenu);
 window.addEventListener("scroll", closeRowActionMenu, true);
 
 loadProducts();
+setCurrentInboundTime();
 setActiveView(getCurrentView());
 updateInboundSummary();
 
@@ -225,6 +227,13 @@ function updateInboundSummary() {
     const value = Number(input.value || 0);
     output.textContent = value.toLocaleString("ko-KR");
   });
+}
+
+function setCurrentInboundTime() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  inboundTime.value = `${hours}:${minutes}`;
 }
 
 async function loadProducts() {
