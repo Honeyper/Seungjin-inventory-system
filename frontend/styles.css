@@ -1559,6 +1559,10 @@ input {
   text-align: center;
 }
 
+.picker-actions {
+  padding-top: 1rem;
+}
+
 .detail-content {
   padding: 1.05rem 2.1rem 0;
 }

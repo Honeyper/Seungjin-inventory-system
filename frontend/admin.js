@@ -134,6 +134,7 @@ inboundProductName.addEventListener("keydown", (event) => {
 });
 
 document.querySelector("#closeInboundProductPicker").addEventListener("click", closeInboundProductPicker);
+document.querySelector("#cancelInboundProductPicker").addEventListener("click", closeInboundProductPicker);
 
 inboundProductPickerSearch.addEventListener("input", (event) => {
   state.inboundProductPickerQuery = event.target.value.trim().toLowerCase();
