@@ -403,6 +403,7 @@ async function saveProduct() {
 
     setFormMessage("제품이 저장되었습니다.", "success");
     await loadProducts();
+    setProductSaving(false);
     closeProductModal();
     showToast(`신규 제품이 등록되었습니다.${productId}`);
   } catch (error) {
@@ -495,7 +496,7 @@ function getPageNumbers(pageCount, currentPage) {
 
 function renderColor(color) {
   const value = String(color || "").trim();
-  if (!value) {
+  if (!value || value === "-") {
     return "-";
   }
 

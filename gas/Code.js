@@ -462,7 +462,7 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
   setRowValue_(row, indexes, ['비고'], payload['비고'] || '');
 
-  sheet.appendRow(row);
+  sheet.appendRow(fillBlankCells_(row));
   applyProductRowTemplate_(sheet, headerRowIndex + 2, sheet.getLastRow(), headers.length);
 
   return {
@@ -546,6 +546,10 @@ function applyProductRowTemplate_(sheet, templateRowNumber, targetRowNumber, col
   sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
   sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
   sheet.setRowHeight(targetRowNumber, sheet.getRowHeight(templateRowNumber));
+}
+
+function fillBlankCells_(row) {
+  return row.map((value) => String(value || '').trim() ? value : '-');
 }
 
 function parseBody(e) {
