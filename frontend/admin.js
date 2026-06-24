@@ -32,6 +32,9 @@ const state = {
   query: "",
   isSavingProduct: false,
   isDeletingProduct: false,
+  productFormMode: "create",
+  editingProductCode: "",
+  activeDetailProductCode: "",
   activeMenuProductCode: "",
   activeMenuButton: null
 };
@@ -48,6 +51,8 @@ const pageSizeSelect = document.querySelector("#pageSizeSelect");
 const tableStatus = document.querySelector("#tableStatus");
 const toast = document.querySelector("#toast");
 const productModal = document.querySelector("#productModal");
+const productModalTitle = document.querySelector("#productModalTitle");
+const productModalDescription = document.querySelector("#productModalDescription");
 const productForm = document.querySelector("#productForm");
 const productCodePreview = document.querySelector("#productCodePreview");
 const productClientName = document.querySelector("#productClientName");
@@ -88,6 +93,7 @@ document.querySelector("#closeProductModal").addEventListener("click", closeProd
 document.querySelector("#cancelProductModal").addEventListener("click", closeProductModal);
 document.querySelector("#closeProductDetailModal").addEventListener("click", closeProductDetailModal);
 document.querySelector("#closeProductDetailButton").addEventListener("click", closeProductDetailModal);
+document.querySelector("#editProductFromDetailButton").addEventListener("click", openDetailProductEdit);
 
 document.addEventListener("click", (event) => {
   if (rowActionMenu.hidden) {
@@ -133,6 +139,11 @@ rowActionMenu.querySelector('[data-menu-action="delete"]').addEventListener("cli
 rowActionMenu.querySelector('[data-menu-action="view"]').addEventListener("click", (event) => {
   event.stopPropagation();
   openActiveProductDetail();
+});
+
+rowActionMenu.querySelector('[data-menu-action="edit"]').addEventListener("click", (event) => {
+  event.stopPropagation();
+  openActiveProductEdit();
 });
 
 window.addEventListener("resize", closeRowActionMenu);
@@ -345,6 +356,7 @@ function openActiveProductDetail() {
   }
 
   closeRowActionMenu();
+  state.activeDetailProductCode = product.productCode;
   renderProductDetail(product);
   productDetailModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -354,10 +366,41 @@ function openActiveProductDetail() {
 function closeProductDetailModal() {
   productDetailModal.hidden = true;
   productDetailContent.innerHTML = "";
+  state.activeDetailProductCode = "";
 
   if (productModal.hidden) {
     document.body.classList.remove("modal-open");
   }
+}
+
+function openActiveProductEdit() {
+  const product = getProductByCode(state.activeMenuProductCode);
+
+  if (!product) {
+    showToast("수정할 제품 정보를 찾을 수 없습니다.");
+    closeRowActionMenu();
+    return;
+  }
+
+  closeRowActionMenu();
+  openProductModal("edit", product);
+}
+
+function openDetailProductEdit() {
+  const product = getProductByCode(state.activeDetailProductCode);
+
+  if (!product) {
+    showToast("수정할 제품 정보를 찾을 수 없습니다.");
+    closeProductDetailModal();
+    return;
+  }
+
+  closeProductDetailModal();
+  openProductModal("edit", product);
+}
+
+function getProductByCode(productCode) {
+  return state.products.find((item) => item.productCode === productCode);
 }
 
 function renderProductDetail(product) {
@@ -432,11 +475,32 @@ function renderPagination(pageCount) {
   });
 }
 
-function openProductModal() {
+function openProductModal(mode = "create", product = null) {
+  state.productFormMode = mode;
+  state.editingProductCode = mode === "edit" ? product?.productCode || "" : "";
+
   productForm.reset();
   productFormMessage.textContent = "";
   productFormMessage.classList.remove("success");
+  productModalTitle.textContent = mode === "edit" ? "제품 정보 수정" : "신규 제품 등록";
+  productModalDescription.textContent = mode === "edit"
+    ? "제품코드를 제외한 제품 정보를 수정할 수 있습니다."
+    : "신규 제품 정보를 입력해주세요. * 표시는 필수 입력입니다.";
+  saveProductButton.textContent = mode === "edit" ? "수정 저장" : "저장";
+  productCodePreview.placeholder = mode === "edit" ? "제품코드는 수정할 수 없습니다." : "자동 생성됩니다.";
   renderClientOptions();
+
+  if (mode === "edit" && product) {
+    productCodePreview.value = product.productCode || "";
+    setSelectValue(productClientName, product.clientName);
+    productNameInput.value = normalizeEditableValue(product.productName);
+    setSelectValue(productColor, normalizeEditableValue(product.color));
+    productForm.querySelector(`input[name="productUsage"][value="${normalizeUsageStatus(product.useStatus)}"]`)?.click();
+    productBoxQuantity.value = extractQuantityNumber(product.boxQuantity);
+    productTrayQuantity.value = extractQuantityNumber(product.trayQuantity);
+    productNote.value = normalizeEditableValue(product.note);
+  }
+
   setProductSaving(false);
   productModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -450,6 +514,11 @@ function closeProductModal() {
 
   productModal.hidden = true;
   document.body.classList.remove("modal-open");
+  state.productFormMode = "create";
+  state.editingProductCode = "";
+  productModalTitle.textContent = "신규 제품 등록";
+  productModalDescription.textContent = "신규 제품 정보를 입력해주세요. * 표시는 필수 입력입니다.";
+  saveProductButton.textContent = "저장";
   productFormMessage.textContent = "";
   productFormMessage.classList.remove("success");
 }
@@ -471,6 +540,33 @@ function renderClientOptions() {
   }
 }
 
+function setSelectValue(select, value) {
+  const normalized = normalizeEditableValue(value);
+
+  if (!normalized) {
+    select.value = "";
+    return;
+  }
+
+  const hasOption = Array.from(select.options).some((option) => option.value === normalized);
+
+  if (!hasOption) {
+    select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(normalized)}">${escapeHtml(normalized)}</option>`);
+  }
+
+  select.value = normalized;
+}
+
+function normalizeEditableValue(value) {
+  const normalized = String(value ?? "").trim();
+  return normalized === "-" ? "" : normalized;
+}
+
+function extractQuantityNumber(value) {
+  const matched = String(value ?? "").replaceAll(",", "").match(/\d+/);
+  return matched ? matched[0] : "";
+}
+
 async function saveProduct() {
   if (state.isSavingProduct) {
     return;
@@ -488,14 +584,18 @@ async function saveProduct() {
   setFormMessage("");
 
   try {
-    const result = await requestApi("createProduct", payload);
+    const isEdit = state.productFormMode === "edit";
+    const result = await requestApi(
+      isEdit ? "updateProduct" : "createProduct",
+      isEdit ? { ...payload, productId: state.editingProductCode } : payload
+    );
     const productId = result?.productId ? ` (${result.productId})` : "";
 
-    setFormMessage("제품이 저장되었습니다.", "success");
+    setFormMessage(isEdit ? "제품이 수정되었습니다." : "제품이 저장되었습니다.", "success");
     await loadProducts();
     setProductSaving(false);
     closeProductModal();
-    showToast(`신규 제품이 등록되었습니다.${productId}`);
+    showToast(isEdit ? `제품 정보가 수정되었습니다.${productId}` : `신규 제품이 등록되었습니다.${productId}`);
   } catch (error) {
     setFormMessage(error.message || "제품 저장에 실패했습니다.");
   } finally {
@@ -544,7 +644,9 @@ function validateProductPayload(payload) {
 function setProductSaving(isSaving) {
   state.isSavingProduct = isSaving;
   saveProductButton.disabled = isSaving;
-  saveProductButton.textContent = isSaving ? "저장 중" : "저장";
+  saveProductButton.textContent = isSaving
+    ? "저장 중"
+    : state.productFormMode === "edit" ? "수정 저장" : "저장";
   productForm.querySelectorAll("input, select, textarea, button").forEach((element) => {
     if (element.id === "productCodePreview") {
       element.disabled = true;

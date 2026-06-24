@@ -34,6 +34,7 @@ function doPost(e) {
       setupSheets,
       getProducts,
       createProduct,
+      updateProduct,
       deleteProduct,
       formatProductRows
     };
@@ -468,6 +469,67 @@ function createProduct(payload) {
   return {
     productId
   };
+}
+
+function updateProduct(payload) {
+  const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
+  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
+
+  if (!productId) {
+    throw new Error('수정할 제품 ID가 필요합니다.');
+  }
+
+  required.forEach((field) => {
+    if (!payload[field]) {
+      throw new Error(`${field} 값이 필요합니다.`);
+    }
+  });
+
+  const sheet = getProductSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error('제품 DB 헤더를 찾을 수 없습니다.');
+  }
+
+  const { headers, rowIndex: headerRowIndex } = headerInfo;
+  const indexes = indexHeaders_(headers);
+  const productIdIndex = findHeaderIndex_(indexes, ['제품 ID', '제품ID']);
+
+  if (productIdIndex < 0) {
+    throw new Error('제품 ID 컬럼을 찾을 수 없습니다.');
+  }
+
+  for (let rowIndex = headerRowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const rowProductId = String(values[rowIndex][productIdIndex] || '').trim();
+
+    if (rowProductId === productId) {
+      const now = new Date();
+      const timezone = 'Asia/Seoul';
+      const row = headers.map((_, columnIndex) => values[rowIndex][columnIndex] || '');
+
+      setRowValue_(row, indexes, ['업체명', '거래처명'], payload['업체명']);
+      setRowValue_(row, indexes, ['제품명'], payload['제품명']);
+      setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
+      setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
+      setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
+      setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
+      setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
+      setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
+      setRowValue_(row, indexes, ['비고'], payload['비고'] || '');
+
+      sheet.getRange(rowIndex + 1, 1, 1, headers.length).setValues([fillBlankCells_(row)]);
+      applyProductRowTemplate_(sheet, headerRowIndex + 2, rowIndex + 1, headers.length);
+
+      return {
+        productId,
+        updated: true
+      };
+    }
+  }
+
+  throw new Error('수정할 제품을 찾을 수 없습니다.');
 }
 
 function deleteProduct(payload) {
