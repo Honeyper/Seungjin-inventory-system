@@ -30,6 +30,7 @@ const state = {
   page: 1,
   pageSize: 10,
   query: "",
+  clientFilter: "",
   isSavingProduct: false,
   isDeletingProduct: false,
   productFormMode: "create",
@@ -44,6 +45,7 @@ const productTotal = document.querySelector("#productTotal");
 const clientTotal = document.querySelector("#clientTotal");
 const recentDate = document.querySelector("#recentDate");
 const productSearch = document.querySelector("#productSearch");
+const productClientFilter = document.querySelector("#productClientFilter");
 const productTableBody = document.querySelector("#productTableBody");
 const productCountLabel = document.querySelector("#productCountLabel");
 const pagination = document.querySelector("#pagination");
@@ -73,12 +75,14 @@ document.querySelector("#newProductButton").addEventListener("click", () => {
   openProductModal();
 });
 
-document.querySelector("#filterButton").addEventListener("click", () => {
-  showToast("상세 검색 필터는 다음 단계에서 연결됩니다.");
-});
-
 productSearch.addEventListener("input", (event) => {
   state.query = event.target.value.trim().toLowerCase();
+  state.page = 1;
+  applyFilters();
+});
+
+productClientFilter.addEventListener("change", (event) => {
+  state.clientFilter = event.target.value;
   state.page = 1;
   applyFilters();
 });
@@ -158,10 +162,12 @@ async function loadProducts() {
     const result = await requestApi("getProducts");
     state.products = Array.isArray(result.products) ? result.products : [];
     renderClientOptions();
+    renderClientFilterOptions();
     applyFilters();
   } catch (error) {
     state.products = [];
     renderClientOptions();
+    renderClientFilterOptions();
     applyFilters();
     setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
   }
@@ -183,18 +189,20 @@ async function requestApi(action, payload = {}) {
 
 function applyFilters() {
   const query = state.query;
+  const clientFilter = state.clientFilter;
 
   state.filteredProducts = state.products.filter((product) => {
+    if (clientFilter && product.clientName !== clientFilter) {
+      return false;
+    }
+
     if (!query) {
       return true;
     }
 
     return [
-      product.clientName,
       product.productCode,
-      product.productName,
-      product.color,
-      product.note
+      product.productName
     ].some((value) => String(value || "").toLowerCase().includes(query));
   });
 
@@ -538,6 +546,25 @@ function renderClientOptions() {
   if (clients.includes(currentValue)) {
     productClientName.value = currentValue;
   }
+}
+
+function renderClientFilterOptions() {
+  const clients = [...new Set(state.products.map((product) => product.clientName).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, "ko-KR"));
+  const currentValue = state.clientFilter;
+
+  productClientFilter.innerHTML = [
+    '<option value="">전체 업체</option>',
+    ...clients.map((client) => `<option value="${escapeHtml(client)}">${escapeHtml(client)}</option>`)
+  ].join("");
+
+  if (clients.includes(currentValue)) {
+    productClientFilter.value = currentValue;
+    return;
+  }
+
+  state.clientFilter = "";
+  productClientFilter.value = "";
 }
 
 function setSelectValue(select, value) {
