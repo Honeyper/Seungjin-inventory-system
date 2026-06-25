@@ -1999,6 +1999,7 @@ input {
   grid-template-areas:
     "box box-count remain file-actions file-actions"
     "tray defect reason file-actions file-actions";
+  align-items: stretch;
   gap: 0.58rem;
 }
 
@@ -2122,6 +2123,7 @@ input {
   display: grid;
   grid-area: file-actions;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 1fr;
   align-self: stretch;
   justify-content: stretch;
   margin-top: 0;
@@ -2130,7 +2132,9 @@ input {
 }
 
 .upload-field {
+  display: flex;
   min-width: 0;
+  min-height: 0;
 }
 
 .inbound-file-actions .secondary-action {
@@ -2150,14 +2154,15 @@ input {
 .upload-tile {
   position: relative;
   overflow: hidden;
-  min-height: 5.45rem !important;
+  height: 100%;
+  min-height: 0 !important;
   color: var(--navy-dark);
-  font-size: 0.93rem;
+  font-size: 0.96rem;
 }
 
 .upload-tile svg {
-  width: 1.42rem;
-  height: 1.42rem;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .upload-tile > img {
