@@ -2383,6 +2383,7 @@ input {
   color: var(--navy-dark);
   font-size: 1rem;
   font-weight: 900;
+  padding-right: 0.65rem;
   white-space: nowrap;
 }
 
