@@ -1930,6 +1930,18 @@ input {
   padding-right: 3.2rem;
 }
 
+.unit-input input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.unit-input input[type="number"]::-webkit-outer-spin-button,
+.unit-input input[type="number"]::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .unit-input i {
   position: absolute;
   top: 50%;
