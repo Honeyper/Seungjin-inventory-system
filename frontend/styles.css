@@ -2224,6 +2224,9 @@ input {
 .inbound-summary-card {
   position: sticky;
   top: 4.45rem;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
   padding: 0.75rem;
 }
 
@@ -2298,9 +2301,38 @@ input {
   align-items: flex-end;
   justify-content: space-between;
   gap: 0.55rem;
-  margin: 0.68rem 0;
+  margin: 0.7rem 0 0.62rem;
   padding-top: 0.7rem;
   border-top: 1px solid #dfe6ef;
+}
+
+.summary-formulas {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.65rem;
+}
+
+.summary-formula-card {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.58rem 0.65rem;
+  color: #4f5f75;
+  border: 1px dashed #dbe5f2;
+  border-radius: 0.45rem;
+  background: rgba(247, 250, 254, 0.86);
+}
+
+.summary-formula-card span {
+  color: var(--navy-dark);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.summary-formula-card strong {
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .summary-total span {

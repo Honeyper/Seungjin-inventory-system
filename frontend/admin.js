@@ -293,13 +293,18 @@ function updateInboundSummary() {
   });
 
   const totalOutput = document.querySelector("#calcTotalQty");
+  const totalBoxOutput = document.querySelector("#calcTotalBoxCount");
   const boxQuantity = Number(document.querySelector("#inboundBoxQty")?.value || 0);
   const boxCount = Number(document.querySelector("#inboundBoxCount")?.value || 0);
-  const trayQuantity = Number(document.querySelector("#inboundTrayQty")?.value || 0);
   const remainQuantity = Number(document.querySelector("#inboundRemainQty")?.value || 0);
+  const totalBoxCount = boxCount + (remainQuantity > 0 ? 1 : 0);
 
   if (totalOutput) {
-    totalOutput.textContent = (boxQuantity * boxCount + trayQuantity + remainQuantity).toLocaleString("ko-KR");
+    totalOutput.textContent = (boxQuantity * boxCount + remainQuantity).toLocaleString("ko-KR");
+  }
+
+  if (totalBoxOutput) {
+    totalBoxOutput.textContent = totalBoxCount.toLocaleString("ko-KR");
   }
 }
 
