@@ -2343,12 +2343,13 @@ input {
 
 .summary-total span {
   color: var(--navy-dark);
+  font-size: 0.9rem;
   font-weight: 900;
 }
 
 .summary-total strong {
   color: var(--navy-dark);
-  font-size: 1.18rem;
+  font-size: 1.34rem;
   font-weight: 900;
   white-space: nowrap;
 }
@@ -2359,6 +2360,8 @@ input {
 
 .summary-total strong em {
   color: var(--navy-dark);
+  font-size: inherit;
+  font-weight: inherit;
   font-style: normal;
 }
 
