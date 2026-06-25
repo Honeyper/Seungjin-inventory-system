@@ -2428,13 +2428,70 @@ input {
 }
 
 .inbound-table {
-  min-width: 102rem;
-  font-size: 0.82rem;
+  min-width: 84rem;
+  table-layout: fixed;
+  font-size: 0.78rem;
 }
 
 .inbound-table th,
 .inbound-table td {
+  padding: 0 0.38rem;
   text-align: center;
+}
+
+.inbound-table th:nth-child(1),
+.inbound-table td:nth-child(1),
+.inbound-table th:nth-child(6),
+.inbound-table td:nth-child(6),
+.inbound-table th:nth-child(7),
+.inbound-table td:nth-child(7),
+.inbound-table th:nth-child(10),
+.inbound-table td:nth-child(10),
+.inbound-table th:nth-child(17),
+.inbound-table td:nth-child(17) {
+  width: 3.2rem;
+}
+
+.inbound-table th:nth-child(2),
+.inbound-table td:nth-child(2) {
+  width: 7rem;
+}
+
+.inbound-table th:nth-child(3),
+.inbound-table td:nth-child(3) {
+  width: 7.2rem;
+}
+
+.inbound-table th:nth-child(4),
+.inbound-table td:nth-child(4) {
+  width: 5.2rem;
+}
+
+.inbound-table th:nth-child(5),
+.inbound-table td:nth-child(5) {
+  width: 10.8rem;
+}
+
+.inbound-table th:nth-child(8),
+.inbound-table td:nth-child(8),
+.inbound-table th:nth-child(9),
+.inbound-table td:nth-child(9),
+.inbound-table th:nth-child(11),
+.inbound-table td:nth-child(11),
+.inbound-table th:nth-child(12),
+.inbound-table td:nth-child(12),
+.inbound-table th:nth-child(13),
+.inbound-table td:nth-child(13),
+.inbound-table th:nth-child(14),
+.inbound-table td:nth-child(14),
+.inbound-table th:nth-child(15),
+.inbound-table td:nth-child(15) {
+  width: 5.4rem;
+}
+
+.inbound-table th:nth-child(16),
+.inbound-table td:nth-child(16) {
+  width: 4.8rem;
 }
 
 .qr-action {
