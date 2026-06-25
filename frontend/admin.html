@@ -362,17 +362,19 @@
               <table class="product-table inbound-table">
                 <thead>
                   <tr>
-                    <th>No.</th>
+                    <th>QR</th>
                     <th>입고일</th>
-                    <th>제품명</th>
-                    <th>제품 ID</th>
                     <th>거래처명</th>
                     <th>입고 유형</th>
+                    <th>제품명</th>
+                    <th>차수</th>
+                    <th>최종공정</th>
                     <th>박스당 수량</th>
-                    <th>입고 박스 수</th>
-                    <th>검수 수량</th>
+                    <th>입고박스수</th>
                     <th>잔량</th>
                     <th>입고 총 수량</th>
+                    <th>박스 총 수량</th>
+                    <th>검수 수량</th>
                     <th>불량 수량</th>
                     <th>불량률</th>
                     <th>등록자</th>
@@ -381,17 +383,26 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td>1</td>
+                    <td>
+                      <button class="qr-action" type="button" aria-label="입고 QR 보기">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
+                          <path d="M14 14h2v2h-2zM18 14h2v6h-2zM14 18h2v2h-2z" />
+                        </svg>
+                      </button>
+                    </td>
                     <td>2026-06-24 09:00</td>
-                    <td>ICD 더마톨로지 크림 외용기</td>
-                    <td><strong>ION-0001</strong></td>
                     <td>아이원(아이텍)</td>
                     <td>정상입고</td>
+                    <td>ICD 더마톨로지 크림 외용기</td>
+                    <td>2차</td>
+                    <td>2도</td>
                     <td>300</td>
                     <td>12</td>
-                    <td>80</td>
                     <td>7</td>
                     <td>3,800</td>
+                    <td>13</td>
+                    <td>80</td>
                     <td>9</td>
                     <td>0.24%</td>
                     <td>Admin</td>
