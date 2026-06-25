@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="sheet" x1="31" x2="93" y1="14" y2="114" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dfe9f6"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="34" x2="98" y1="20" y2="111" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#123e82"/>
+      <stop offset="1" stop-color="#041a3e"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="42" x2="89" y1="65" y2="111" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f5d58b"/>
+      <stop offset="1" stop-color="#c9953c"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="145%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#082a62" flood-opacity=".2"/>
+    </filter>
+  </defs>
+  <rect x="28" y="13" width="72" height="102" rx="14" fill="url(#sheet)" filter="url(#shadow)"/>
+  <rect x="40" y="31" width="48" height="34" rx="5" fill="#eef4fb"/>
+  <path d="M40 42h48M40 53h48M52 31v34M64 31v34M76 31v34" fill="none" stroke="#9aa8bb" stroke-width="3"/>
+  <circle cx="64" cy="86" r="25" fill="url(#navy)"/>
+  <path d="M64 70v26m0 0 10-10m-10 10L54 86" fill="none" stroke="url(#gold)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M49 101h30" fill="none" stroke="#f7e0a4" stroke-width="6" stroke-linecap="round"/>
+</svg>
