@@ -2579,7 +2579,7 @@ input {
 }
 
 .inbound-table {
-  min-width: 118rem;
+  min-width: 124rem;
   table-layout: fixed;
   font-size: 0.84rem;
 }
@@ -2590,13 +2590,17 @@ input {
   text-align: center;
 }
 
+.inbound-table th {
+  height: 3rem;
+}
+
 .sort-header-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.34rem;
   width: 100%;
-  min-height: 2.85rem;
+  min-height: 2.45rem;
   padding: 0 0.15rem;
   color: inherit;
   font: inherit;
@@ -2664,7 +2668,7 @@ input {
 
 .inbound-table th:nth-child(5),
 .inbound-table td:nth-child(5) {
-  width: 15rem;
+  width: 21rem;
 }
 
 .inbound-table th:nth-child(8),
