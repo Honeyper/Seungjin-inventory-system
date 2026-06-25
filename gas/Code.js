@@ -500,13 +500,19 @@ function getTodayInbounds(payload) {
     .filter((row) => normalizeDateKey_(pickCell_(row, indexes, ['입고일'])) === targetDate)
     .map((row) => ({
       managementId: pickCell_(row, indexes, ['관리 ID', '관리ID']),
+      category: pickCell_(row, indexes, ['구분']),
+      status: pickCell_(row, indexes, ['상태']),
+      registeredAt: pickCell_(row, indexes, ['등록 일시', '등록일시']),
       inboundDate: pickCell_(row, indexes, ['입고일']),
       inboundTime: pickCell_(row, indexes, ['입고 시간', '입고시간']),
+      dueDate: pickCell_(row, indexes, ['납기일']),
       clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
       inboundType: pickCell_(row, indexes, ['입고 유형', '입고유형']),
+      productId: pickCell_(row, indexes, ['제품ID', '제품 ID']),
       productName: pickCell_(row, indexes, ['제품명']),
       batch: pickCell_(row, indexes, ['차수']),
       process: pickCell_(row, indexes, ['최종공정', '최종 공정']),
+      storage: pickCell_(row, indexes, ['보관위치', '보관 위치']),
       boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
       inboundBoxCount: pickCell_(row, indexes, ['입고 박스 수', '입고박스수']),
       remainQuantity: pickCell_(row, indexes, ['잔량 수량', '잔량']),
@@ -515,6 +521,8 @@ function getTodayInbounds(payload) {
       inspectionQuantity: pickCell_(row, indexes, ['검수 수량', '검수수량']),
       defectQuantity: pickCell_(row, indexes, ['불량 수량', '불량수량']),
       defectRate: pickCell_(row, indexes, ['불량률']),
+      defectReason: pickCell_(row, indexes, ['불량 사유', '불량사유']),
+      note: pickCell_(row, indexes, ['비고']),
       registrant: pickCell_(row, indexes, ['등록자'])
     }))
     .reverse();

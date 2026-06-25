@@ -50,6 +50,7 @@ const state = {
   productFormMode: "create",
   editingProductCode: "",
   activeDetailProductCode: "",
+  activeDetailInboundId: "",
   activeMenuProductCode: "",
   activeMenuButton: null,
   activeInboundMenuRecord: "",
@@ -95,6 +96,8 @@ const rowActionMenu = document.querySelector("#rowActionMenu");
 const inboundRowActionMenu = document.querySelector("#inboundRowActionMenu");
 const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
+const inboundDetailModal = document.querySelector("#inboundDetailModal");
+const inboundDetailContent = document.querySelector("#inboundDetailContent");
 const inboundTime = document.querySelector("#inboundTime");
 const inboundDate = document.querySelector("#inboundDate");
 const inboundType = document.querySelector("#inboundType");
@@ -270,6 +273,8 @@ document.querySelector("#cancelProductModal").addEventListener("click", closePro
 document.querySelector("#closeProductDetailModal").addEventListener("click", closeProductDetailModal);
 document.querySelector("#closeProductDetailButton").addEventListener("click", closeProductDetailModal);
 document.querySelector("#editProductFromDetailButton").addEventListener("click", openDetailProductEdit);
+document.querySelector("#closeInboundDetailModal").addEventListener("click", closeInboundDetailModal);
+document.querySelector("#closeInboundDetailButton").addEventListener("click", closeInboundDetailModal);
 
 document.addEventListener("click", (event) => {
   if (
@@ -328,6 +333,11 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (!inboundDetailModal.hidden) {
+    closeInboundDetailModal();
+    return;
+  }
+
   if (!inboundProductPickerModal.hidden) {
     closeInboundProductPicker();
     return;
@@ -365,6 +375,11 @@ inboundRowActionMenu.querySelectorAll("[data-inbound-menu-action]").forEach((but
 
     if (action === "delete") {
       deleteActiveInbound();
+      return;
+    }
+
+    if (action === "view") {
+      openActiveInboundDetail();
       return;
     }
 
@@ -1235,6 +1250,37 @@ function closeProductDetailModal() {
   }
 }
 
+function openActiveInboundDetail() {
+  if (!state.activeInboundMenuRecord) {
+    return;
+  }
+
+  const inbound = state.todayInbounds.find((item) => item.managementId === state.activeInboundMenuRecord);
+
+  if (!inbound) {
+    showToast("입고 정보를 찾을 수 없습니다.");
+    closeInboundRowActionMenu();
+    return;
+  }
+
+  closeInboundRowActionMenu();
+  state.activeDetailInboundId = inbound.managementId;
+  renderInboundDetail(inbound);
+  inboundDetailModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => document.querySelector("#closeInboundDetailButton").focus(), 0);
+}
+
+function closeInboundDetailModal() {
+  inboundDetailModal.hidden = true;
+  inboundDetailContent.innerHTML = "";
+  state.activeDetailInboundId = "";
+
+  if (productModal.hidden && productDetailModal.hidden && inboundProductPickerModal.hidden) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
 function openActiveProductEdit() {
   const product = getProductByCode(state.activeMenuProductCode);
 
@@ -1293,6 +1339,50 @@ function renderProductDetail(product) {
         ${detailItem("등록일", product.registeredAt)}
         ${detailItem("수정일", product.updatedAt)}
         ${detailItem("등록자", product.createdBy, false, "full-span")}
+      </div>
+    </section>
+  `;
+}
+
+function renderInboundDetail(inbound) {
+  inboundDetailContent.innerHTML = `
+    <section class="detail-section" aria-labelledby="inboundDetailBaseTitle">
+      <h3 id="inboundDetailBaseTitle">입고 기본 정보</h3>
+      <div class="detail-grid">
+        ${detailItem("관리 ID", inbound.managementId)}
+        ${detailItem("입고 유형", inbound.inboundType)}
+        ${detailItem("입고일", inbound.inboundDate)}
+        ${detailItem("입고 시간", inbound.inboundTime)}
+        ${detailItem("납기일", inbound.dueDate)}
+        ${detailItem("등록자", inbound.registrant)}
+      </div>
+    </section>
+
+    <section class="detail-section" aria-labelledby="inboundDetailProductTitle">
+      <h3 id="inboundDetailProductTitle">제품 정보</h3>
+      <div class="detail-grid">
+        ${detailItem("제품 ID", inbound.productId)}
+        ${detailItem("거래처명", inbound.clientName)}
+        ${detailItem("제품명", inbound.productName, false, "full-span")}
+        ${detailItem("차수", inbound.batch)}
+        ${detailItem("최종공정", inbound.process)}
+        ${detailItem("보관위치", inbound.storage)}
+      </div>
+    </section>
+
+    <section class="detail-section" aria-labelledby="inboundDetailQuantityTitle">
+      <h3 id="inboundDetailQuantityTitle">수량 정보</h3>
+      <div class="detail-grid">
+        ${detailItem("박스당 수량", inbound.boxQuantity)}
+        ${detailItem("입고 박스 수", inbound.inboundBoxCount)}
+        ${detailItem("잔량", inbound.remainQuantity)}
+        ${detailItem("박스 총 수량", inbound.boxTotalCount)}
+        ${detailItem("입고 총 수량", inbound.inboundTotalQuantity)}
+        ${detailItem("검수 수량", inbound.inspectionQuantity)}
+        ${detailItem("불량 수량", inbound.defectQuantity)}
+        ${detailItem("불량률", inbound.defectRate)}
+        ${detailItem("불량 사유", inbound.defectReason, false, "full-span")}
+        ${detailItem("비고", inbound.note, false, "full-span")}
       </div>
     </section>
   `;
