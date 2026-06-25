@@ -744,6 +744,7 @@ input {
   display: grid;
   grid-template-columns: 13.2rem minmax(0, 1fr);
   grid-template-rows: 5.7rem minmax(0, 1fr);
+  height: 100vh;
   min-height: 100vh;
 }
 
@@ -2221,6 +2222,7 @@ input {
   .admin-shell {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto minmax(0, 1fr);
+    height: auto;
   }
 
   .admin-topbar {
