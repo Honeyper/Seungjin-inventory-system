@@ -2107,6 +2107,18 @@ input {
   stroke-linejoin: round;
 }
 
+.editable-lock-input button .lock-icon {
+  display: none;
+}
+
+.editable-lock-input button[aria-pressed="true"] .edit-icon {
+  display: none;
+}
+
+.editable-lock-input button[aria-pressed="true"] .lock-icon {
+  display: block;
+}
+
 .editable-unit-input input {
   padding-right: 5.45rem !important;
 }
