@@ -4,6 +4,8 @@ const CONFIG = {
     PRODUCTS: '제품DB',
     INBOUND: '입고내역',
     INBOUND_BOXES: '입고박스내역',
+    STOCK_DB: '재고 DB',
+    BOX_DB: '박스관리 DB',
     INVENTORY: '재고목록',
     INVENTORY_HISTORY: '재고변경이력',
     OUTBOUND: '출고내역',
@@ -36,6 +38,7 @@ function doPost(e) {
       createProduct,
       updateProduct,
       deleteProduct,
+      createInbound,
       formatProductRows
     };
 
@@ -597,6 +600,119 @@ function formatProductRows() {
   };
 }
 
+function createInbound(payload) {
+  const required = [
+    ['productId', '제품 ID'],
+    ['productName', '제품명'],
+    ['clientName', '거래처명'],
+    ['inboundDate', '입고일'],
+    ['inboundTime', '입고 시간'],
+    ['inboundType', '입고 유형'],
+    ['process', '최종공정'],
+    ['storage', '보관위치']
+  ];
+
+  required.forEach(([key, label]) => {
+    if (!String(payload[key] || '').trim()) {
+      throw new Error(`${label} 값이 필요합니다.`);
+    }
+  });
+
+  const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
+  const inboundBoxCount = toPositiveNumber_(payload.inboundBoxCount, '입고 박스 수');
+  const remainQuantity = toNumber_(payload.remainQuantity);
+  const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
+  const defectQuantity = toNumber_(payload.defectQuantity);
+
+  if (remainQuantity < 0 || defectQuantity < 0) {
+    throw new Error('수량은 0 이상의 숫자로 입력해주세요.');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const stockSheet = getSheet_(CONFIG.SHEETS.STOCK_DB);
+    const boxSheet = getSheet_(CONFIG.SHEETS.BOX_DB);
+    const now = new Date();
+    const timezone = 'Asia/Seoul';
+    const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
+    const managementDate = Utilities.formatDate(now, timezone, 'yyMMdd');
+    const managementId = generateInboundManagementId_(stockSheet, managementDate);
+    const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
+    const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
+    const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
+    const note = dash_(payload.note);
+
+    const stockValues = [
+      '신규입고',
+      '보관',
+      managementId,
+      dash_(payload.clientName),
+      dash_(payload.registrant || 'Admin'),
+      registeredDate,
+      dash_(payload.inboundDate),
+      dash_(payload.inboundTime),
+      dash_(payload.inboundType),
+      dash_(payload.dueDate),
+      dash_(payload.productId),
+      dash_(payload.productName),
+      dash_(payload.batch),
+      dash_(payload.process),
+      dash_(payload.storage),
+      formatEa_(boxQuantity),
+      formatBox_(inboundBoxCount),
+      formatEa_(remainQuantity),
+      formatBox_(totalBoxCount),
+      formatEa_(totalQuantity),
+      formatEa_(inspectionQuantity),
+      formatEa_(defectQuantity),
+      `${defectRate}%`,
+      dash_(payload.defectReason),
+      note
+    ];
+
+    const stockRow = appendStyledRangeRow_(stockSheet, 2, stockValues, 6);
+    const boxRows = [];
+
+    for (let index = 1; index <= totalBoxCount; index += 1) {
+      const isRemainderBox = remainQuantity > 0 && index === totalBoxCount;
+      const currentQuantity = isRemainderBox ? remainQuantity : boxQuantity;
+      const boxId = `${managementId}-B${String(index).padStart(3, '0')}`;
+
+      boxRows.push([
+        boxId,
+        managementId,
+        index,
+        dash_(payload.productId),
+        dash_(payload.productName),
+        formatEa_(boxQuantity),
+        formatEa_(currentQuantity),
+        dash_(payload.storage),
+        '보관',
+        registeredDate,
+        '',
+        '',
+        '',
+        '',
+        note
+      ]);
+    }
+
+    const boxStartRow = appendStyledRangeRows_(boxSheet, 2, boxRows, 6);
+
+    return {
+      managementId,
+      stockRow,
+      boxStartRow,
+      boxCount: boxRows.length,
+      boxIds: boxRows.map((row) => row[0])
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function applyProductRowTemplate_(sheet, templateRowNumber, targetRowNumber, columnCount) {
   if (targetRowNumber === templateRowNumber || templateRowNumber > sheet.getLastRow()) {
     return;
@@ -608,6 +724,32 @@ function applyProductRowTemplate_(sheet, templateRowNumber, targetRowNumber, col
   sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
   sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
   sheet.setRowHeight(targetRowNumber, sheet.getRowHeight(templateRowNumber));
+}
+
+function appendStyledRangeRow_(sheet, startColumn, rowValues, templateRowNumber) {
+  return appendStyledRangeRows_(sheet, startColumn, [rowValues], templateRowNumber);
+}
+
+function appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber) {
+  if (!rows.length) {
+    return 0;
+  }
+
+  const targetStartRow = Math.max(sheet.getLastRow() + 1, templateRowNumber + 1);
+  const columnCount = rows[0].length;
+  const templateRange = sheet.getRange(templateRowNumber, startColumn, 1, columnCount);
+
+  rows.forEach((row, index) => {
+    const targetRowNumber = targetStartRow + index;
+    const targetRange = sheet.getRange(targetRowNumber, startColumn, 1, columnCount);
+
+    templateRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    templateRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+    sheet.setRowHeight(targetRowNumber, sheet.getRowHeight(templateRowNumber));
+  });
+
+  sheet.getRange(targetStartRow, startColumn, rows.length, columnCount).setValues(rows);
+  return targetStartRow;
 }
 
 function fillBlankCells_(row) {
@@ -773,4 +915,60 @@ function makeId_(prefix) {
   const date = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyMMdd');
   const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
   return `${prefix}-${date}-${random}`;
+}
+
+function generateInboundManagementId_(sheet, datePart) {
+  const lastRow = sheet.getLastRow();
+  const prefix = `IN-${datePart}-`;
+  let maxSequence = 0;
+
+  if (lastRow >= 6) {
+    const ids = sheet.getRange(6, 4, lastRow - 5, 1).getDisplayValues().flat();
+    ids.forEach((value) => {
+      const id = String(value || '').trim();
+
+      if (id.startsWith(prefix)) {
+        const sequence = Number(id.slice(prefix.length));
+        if (!Number.isNaN(sequence)) {
+          maxSequence = Math.max(maxSequence, sequence);
+        }
+      }
+    });
+  }
+
+  return `${prefix}${String(maxSequence + 1).padStart(3, '0')}`;
+}
+
+function toNumber_(value) {
+  const normalized = String(value ?? '').replace(/,/g, '').trim();
+  const number = Number(normalized || 0);
+
+  if (!Number.isFinite(number)) {
+    throw new Error('수량은 숫자로 입력해주세요.');
+  }
+
+  return number;
+}
+
+function toPositiveNumber_(value, label) {
+  const number = toNumber_(value);
+
+  if (number <= 0) {
+    throw new Error(`${label}은 1 이상의 숫자로 입력해주세요.`);
+  }
+
+  return number;
+}
+
+function dash_(value) {
+  const normalized = String(value ?? '').trim();
+  return normalized || '-';
+}
+
+function formatEa_(value) {
+  return `${Number(value || 0).toLocaleString('ko-KR')} ea`;
+}
+
+function formatBox_(value) {
+  return `${Number(value || 0).toLocaleString('ko-KR')} box`;
 }

@@ -43,6 +43,7 @@ const state = {
   query: "",
   clientFilter: "",
   isSavingProduct: false,
+  isSavingInbound: false,
   isDeletingProduct: false,
   productFormMode: "create",
   editingProductCode: "",
@@ -93,6 +94,9 @@ const inboundRowActionMenu = document.querySelector("#inboundRowActionMenu");
 const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
 const inboundTime = document.querySelector("#inboundTime");
+const inboundDate = document.querySelector("#inboundDate");
+const inboundType = document.querySelector("#inboundType");
+const inboundDueDate = document.querySelector("#inboundDueDate");
 const inboundClient = document.querySelector("#inboundClient");
 const editInboundClientButton = document.querySelector("#editInboundClientButton");
 const inboundBoxQty = document.querySelector("#inboundBoxQty");
@@ -103,6 +107,14 @@ const inboundNote = document.querySelector("#inboundNote");
 const editInboundNoteButton = document.querySelector("#editInboundNoteButton");
 const inboundProductName = document.querySelector("#inboundProductName");
 const inboundProductId = document.querySelector("#inboundProductId");
+const inboundRegistrant = document.querySelector("#inboundRegistrant");
+const inboundBatch = document.querySelector("#inboundBatch");
+const inboundProcess = document.querySelector("#inboundProcess");
+const inboundStorage = document.querySelector("#inboundStorage");
+const inboundBoxCount = document.querySelector("#inboundBoxCount");
+const inboundRemainQty = document.querySelector("#inboundRemainQty");
+const inboundDefectQty = document.querySelector("#inboundDefectQty");
+const inboundSubmitButton = document.querySelector("#inboundSubmitButton");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
 const inboundProductPickerModal = document.querySelector("#inboundProductPickerModal");
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
@@ -136,7 +148,7 @@ const inboundNumberInputs = [
 }));
 
 adminUserName.textContent = session?.name || "관리자";
-document.querySelector("#inboundRegistrant").value = session?.name || "Admin";
+inboundRegistrant.value = session?.name || "Admin";
 
 document.querySelector("#newProductButton").addEventListener("click", () => {
   openProductModal();
@@ -188,9 +200,7 @@ inboundDefectReasonPanel?.querySelectorAll("[data-defect-reason]").forEach((butt
   });
 });
 
-document.querySelector("#inboundSubmitButton").addEventListener("click", () => {
-  showToast("입고 등록 저장은 시트 연결 단계에서 활성화됩니다.");
-});
+inboundSubmitButton?.addEventListener("click", saveInbound);
 
 inboundInvoiceUploadButton?.addEventListener("click", () => inboundInvoiceFile?.click());
 inboundDefectUploadButton?.addEventListener("click", () => inboundDefectFiles?.click());
@@ -419,6 +429,119 @@ function updateInboundSummary() {
   if (totalBoxOutput) {
     totalBoxOutput.textContent = totalBoxCount.toLocaleString("ko-KR");
   }
+}
+
+async function saveInbound() {
+  if (state.isSavingInbound) {
+    return;
+  }
+
+  const payload = getInboundPayload();
+  const validationMessage = validateInboundPayload(payload);
+
+  if (validationMessage) {
+    showToast(validationMessage);
+    return;
+  }
+
+  setInboundSaving(true);
+
+  try {
+    const result = await requestApi("createInbound", payload);
+    const managementId = result?.managementId ? ` (${result.managementId})` : "";
+    showToast(`입고 등록이 저장되었습니다.${managementId}`);
+  } catch (error) {
+    showToast(error.message || "입고 등록 저장에 실패했습니다.");
+  } finally {
+    setInboundSaving(false);
+  }
+}
+
+function getInboundPayload() {
+  const boxQuantity = getNumberValue(inboundBoxQty);
+  const inboundBoxValue = getNumberValue(inboundBoxCount);
+  const remainQuantity = getNumberValue(inboundRemainQty);
+  const inspectionQuantity = getNumberValue(inboundTrayQty);
+  const defectQuantity = getNumberValue(inboundDefectQty);
+  const totalBoxCount = inboundBoxValue + (remainQuantity > 0 ? 1 : 0);
+  const totalQuantity = boxQuantity * inboundBoxValue + remainQuantity;
+
+  return {
+    registrant: inboundRegistrant.value.trim() || session?.name || "Admin",
+    inboundDate: inboundDate.value.trim(),
+    inboundTime: inboundTime.value.trim(),
+    inboundType: inboundType.value.trim(),
+    dueDate: inboundDueDate.value.trim(),
+    productName: inboundProductName.value.trim(),
+    productId: inboundProductId.value.trim(),
+    clientName: inboundClient.value.trim(),
+    batch: inboundBatch.value.trim(),
+    process: inboundProcess.value.trim(),
+    storage: inboundStorage.value.trim(),
+    note: inboundNote.value.trim(),
+    boxQuantity,
+    inboundBoxCount: inboundBoxValue,
+    remainQuantity,
+    boxTotalCount: totalBoxCount,
+    inboundTotalQuantity: totalQuantity,
+    inspectionQuantity,
+    defectQuantity,
+    defectReason: inboundDefectReasonInput.value.trim()
+  };
+}
+
+function validateInboundPayload(payload) {
+  const requiredFields = [
+    ["inboundDate", "입고일을 입력해주세요."],
+    ["inboundTime", "입고 시간을 입력해주세요."],
+    ["inboundType", "입고 유형을 선택해주세요."],
+    ["productName", "제품을 선택해주세요."],
+    ["productId", "제품 ID를 확인해주세요."],
+    ["clientName", "거래처명을 입력해주세요."],
+    ["process", "최종공정을 선택해주세요."],
+    ["storage", "보관위치를 선택해주세요."]
+  ];
+
+  const missing = requiredFields.find(([field]) => !payload[field]);
+  if (missing) {
+    return missing[1];
+  }
+
+  const positiveNumberFields = [
+    ["boxQuantity", "박스당 수량"],
+    ["inboundBoxCount", "입고 박스 수"],
+    ["inspectionQuantity", "검수 수량"]
+  ];
+
+  const invalidPositive = positiveNumberFields.find(([field]) => !Number.isFinite(payload[field]) || payload[field] <= 0);
+  if (invalidPositive) {
+    return `${invalidPositive[1]}은 1 이상의 숫자로 입력해주세요.`;
+  }
+
+  const zeroNumberFields = [
+    ["remainQuantity", "잔량"],
+    ["defectQuantity", "불량 수량"]
+  ];
+
+  const invalidZero = zeroNumberFields.find(([field]) => !Number.isFinite(payload[field]) || payload[field] < 0);
+  if (invalidZero) {
+    return `${invalidZero[1]}은 0 이상의 숫자로 입력해주세요.`;
+  }
+
+  return "";
+}
+
+function setInboundSaving(isSaving) {
+  state.isSavingInbound = isSaving;
+
+  if (inboundSubmitButton) {
+    inboundSubmitButton.disabled = isSaving;
+    inboundSubmitButton.textContent = isSaving ? "등록 중" : "등록";
+  }
+}
+
+function getNumberValue(input) {
+  return Number(String(input?.value || 0).replaceAll(",", ""));
 }
 
 function setInboundDefectReasonOpen(isOpen) {

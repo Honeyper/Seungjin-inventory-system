@@ -132,7 +132,7 @@
                   </label>
                   <label class="form-field">
                     <span>납기일</span>
-                    <input type="date" />
+                    <input id="inboundDueDate" type="date" />
                   </label>
                   <label class="form-field">
                     <span>제품명 <b>*</b></span>
@@ -170,11 +170,11 @@
                   </label>
                   <label class="form-field">
                     <span>차수</span>
-                    <input type="text" placeholder="차수를 입력하세요." />
+                    <input id="inboundBatch" type="text" placeholder="차수를 입력하세요." />
                   </label>
                   <label class="form-field">
                     <span>최종공정 <b>*</b></span>
-                    <select>
+                    <select id="inboundProcess">
                       <option>1도</option>
                       <option selected>2도</option>
                       <option>3도</option>
@@ -183,7 +183,7 @@
                   </label>
                   <label class="form-field">
                     <span>보관위치 <b>*</b></span>
-                    <select>
+                    <select id="inboundStorage">
                       <option>미지정</option>
                       <option>현장</option>
                       <option>A</option>
