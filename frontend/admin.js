@@ -82,7 +82,6 @@ const inboundProductPickerEmpty = document.querySelector("#inboundProductPickerE
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
 const inboundNumberInputs = [
-  ["#inboundTotalQty", "#calcTotalQty"],
   ["#inboundBoxQty", "#calcBoxQty"],
   ["#inboundBoxCount", "#calcBoxCount"],
   ["#inboundTrayQty", "#calcTrayQty"],
@@ -261,6 +260,16 @@ function updateInboundSummary() {
     const value = Number(input.value || 0);
     output.textContent = value.toLocaleString("ko-KR");
   });
+
+  const totalOutput = document.querySelector("#calcTotalQty");
+  const boxQuantity = Number(document.querySelector("#inboundBoxQty")?.value || 0);
+  const boxCount = Number(document.querySelector("#inboundBoxCount")?.value || 0);
+  const trayQuantity = Number(document.querySelector("#inboundTrayQty")?.value || 0);
+  const remainQuantity = Number(document.querySelector("#inboundRemainQty")?.value || 0);
+
+  if (totalOutput) {
+    totalOutput.textContent = (boxQuantity * boxCount + trayQuantity + remainQuantity).toLocaleString("ko-KR");
+  }
 }
 
 function setInboundClientEditable(isEditable) {

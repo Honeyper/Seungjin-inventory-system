@@ -190,49 +190,42 @@
               <section class="inbound-card" aria-labelledby="inboundQuantityTitle">
                 <h2 id="inboundQuantityTitle">수량 정보</h2>
                 <div class="inbound-form-grid quantity-grid">
-                  <label class="form-field">
+                  <label class="form-field quantity-box">
                     <span>박스당 수량 (EA) <b>*</b></span>
                     <span class="unit-input">
                       <input id="inboundBoxQty" type="number" value="300" min="0" />
                       <i>ea</i>
                     </span>
                   </label>
-                  <label class="form-field">
+                  <label class="form-field quantity-box-count">
                     <span>입고 박스 수 (BOX) <b>*</b></span>
                     <span class="unit-input">
                       <input id="inboundBoxCount" type="number" value="12" min="0" />
                       <i>box</i>
                     </span>
                   </label>
-                  <label class="form-field">
-                    <span>검수 수량(트레이 수량) (EA) <b>*</b></span>
-                    <span class="unit-input">
-                      <input id="inboundTrayQty" type="number" value="80" min="0" />
-                      <i>ea</i>
-                    </span>
-                  </label>
-                  <label class="form-field">
-                    <span>입고 총 수량 (EA) <b>*</b></span>
-                    <span class="unit-input">
-                      <input id="inboundTotalQty" type="number" value="3800" min="0" />
-                      <i>ea</i>
-                    </span>
-                  </label>
-                  <label class="form-field">
+                  <label class="form-field quantity-remain">
                     <span>잔량 (EA) <b>*</b></span>
                     <span class="unit-input">
                       <input id="inboundRemainQty" type="number" value="7" min="0" />
                       <i>ea</i>
                     </span>
                   </label>
-                  <label class="form-field">
+                  <label class="form-field quantity-tray">
+                    <span>검수 수량(트레이 수량) (EA) <b>*</b></span>
+                    <span class="unit-input">
+                      <input id="inboundTrayQty" type="number" value="80" min="0" />
+                      <i>ea</i>
+                    </span>
+                  </label>
+                  <label class="form-field quantity-defect">
                     <span>불량 수량 (EA) <b>*</b></span>
                     <span class="unit-input">
                       <input id="inboundDefectQty" type="number" value="9" min="0" />
                       <i>ea</i>
                     </span>
                   </label>
-                  <label class="form-field">
+                  <label class="form-field quantity-reason">
                     <span>불량 사유</span>
                     <select>
                       <option>측정</option>
@@ -241,27 +234,22 @@
                       <option>기타</option>
                     </select>
                   </label>
-                  <label class="form-field">
-                    <span>비고</span>
-                    <input type="text" placeholder="비고를 입력하세요." />
-                  </label>
-                </div>
-
-                <div class="inbound-file-actions">
-                  <button class="secondary-action" type="button">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 3v12m0-12 4 4m-4-4-4 4" />
-                      <path d="M5 15v4h14v-4" />
-                    </svg>
-                    거래명세서 등록
-                  </button>
-                  <button class="secondary-action" type="button">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 7h3l2-2h6l2 2h3v12H4z" />
-                      <circle cx="12" cy="13" r="3" />
-                    </svg>
-                    불량 사진 등록
-                  </button>
+                  <div class="inbound-file-actions quantity-file-actions">
+                    <button class="secondary-action" type="button">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3v12m0-12 4 4m-4-4-4 4" />
+                        <path d="M5 15v4h14v-4" />
+                      </svg>
+                      거래명세서 등록
+                    </button>
+                    <button class="secondary-action" type="button">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7h3l2-2h6l2 2h3v12H4z" />
+                        <circle cx="12" cy="13" r="3" />
+                      </svg>
+                      불량 사진 등록
+                    </button>
+                  </div>
                 </div>
               </section>
             </div>

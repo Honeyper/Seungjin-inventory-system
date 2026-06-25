@@ -1984,8 +1984,35 @@ input {
 }
 
 .quantity-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) repeat(2, minmax(8.2rem, 0.82fr));
+  grid-template-areas:
+    "box box-count remain file-actions file-actions"
+    "tray defect reason file-actions file-actions";
   gap: 0.58rem;
+}
+
+.quantity-box {
+  grid-area: box;
+}
+
+.quantity-box-count {
+  grid-area: box-count;
+}
+
+.quantity-remain {
+  grid-area: remain;
+}
+
+.quantity-tray {
+  grid-area: tray;
+}
+
+.quantity-defect {
+  grid-area: defect;
+}
+
+.quantity-reason {
+  grid-area: reason;
 }
 
 .inbound-view .form-field {
@@ -2080,10 +2107,29 @@ input {
   margin-top: 0.65rem;
 }
 
+.quantity-file-actions {
+  display: grid;
+  grid-area: file-actions;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-self: stretch;
+  justify-content: stretch;
+  margin-top: 0;
+  padding-left: 0.58rem;
+  border-left: 1px solid #e5ebf2;
+}
+
 .inbound-file-actions .secondary-action {
   min-width: 10rem;
   min-height: 2.25rem;
   font-size: 0.8rem;
+}
+
+.quantity-file-actions .secondary-action {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  padding: 0 0.75rem;
+  white-space: nowrap;
 }
 
 .inbound-summary-card {
@@ -2268,6 +2314,21 @@ input {
   .inbound-form-grid,
   .quantity-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quantity-grid {
+    grid-template-areas: none;
+  }
+
+  .quantity-grid .form-field,
+  .quantity-file-actions {
+    grid-area: auto;
+  }
+
+  .quantity-file-actions {
+    grid-column: 1 / -1;
+    padding-left: 0;
+    border-left: 0;
   }
 }
 
