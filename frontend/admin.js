@@ -38,6 +38,7 @@ if (!session || session.role !== "admin") {
 const state = {
   products: [],
   filteredProducts: [],
+  todayInbounds: [],
   page: 1,
   pageSize: 10,
   query: "",
@@ -115,6 +116,9 @@ const inboundBoxCount = document.querySelector("#inboundBoxCount");
 const inboundRemainQty = document.querySelector("#inboundRemainQty");
 const inboundDefectQty = document.querySelector("#inboundDefectQty");
 const inboundSubmitButton = document.querySelector("#inboundSubmitButton");
+const inboundTableBody = document.querySelector("#inboundTableBody");
+const inboundCountLabel = document.querySelector("#inboundCountLabel");
+const inboundPagination = document.querySelector("#inboundPagination");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
 const inboundProductPickerModal = document.querySelector("#inboundProductPickerModal");
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
@@ -135,7 +139,6 @@ const inboundDefectReasonInput = document.querySelector("#inboundDefectReason");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
 const inboundSortButtons = document.querySelectorAll("[data-inbound-sort]");
-const inboundRowActionButtons = document.querySelectorAll("[data-inbound-record]");
 const inboundNumberInputs = [
   ["#inboundBoxQty", "#calcBoxQty"],
   ["#inboundBoxCount", "#calcBoxCount"],
@@ -179,13 +182,6 @@ inboundNumberInputs.forEach(({ input }) => {
 inboundSortButtons.forEach((button) => {
   button.addEventListener("click", () => {
     sortInboundRows(Number(button.dataset.inboundSort), button);
-  });
-});
-
-inboundRowActionButtons.forEach((button) => {
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    toggleInboundRowActionMenu(button);
   });
 });
 
@@ -380,6 +376,8 @@ window.addEventListener("scroll", () => {
 }, true);
 
 loadProducts();
+loadTodayInbounds();
+setCurrentInboundDate();
 setCurrentInboundTime();
 setActiveView(getCurrentView());
 updateInboundSummary();
@@ -449,6 +447,7 @@ async function saveInbound() {
   try {
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
+    await loadTodayInbounds();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
   } catch (error) {
     showToast(error.message || "입고 등록 저장에 실패했습니다.");
@@ -589,6 +588,88 @@ function renderInboundDefectReasons() {
 function renderDefectReasonPill(reason) {
   const tone = DEFECT_REASON_TONES[reason] || "gray";
   return `<span class="defect-pill defect-pill-${tone}">${escapeHtml(reason)}</span>`;
+}
+
+function renderTodayInbounds(message = "") {
+  if (!inboundTableBody || !inboundCountLabel) {
+    return;
+  }
+
+  closeInboundRowActionMenu();
+
+  const inbounds = state.todayInbounds;
+
+  if (!inbounds.length) {
+    inboundTableBody.innerHTML = `
+      <tr>
+        <td colspan="17" class="empty-cell">${escapeHtml(message || "금일 입고 내역이 없습니다.")}</td>
+      </tr>
+    `;
+  } else {
+    inboundTableBody.innerHTML = inbounds.map((item) => `
+      <tr>
+        <td>
+          <button class="qr-action" type="button" aria-label="입고 QR 보기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
+              <path d="M14 14h2v2h-2zM18 14h2v6h-2zM14 18h2v2h-2z" />
+            </svg>
+          </button>
+        </td>
+        <td>${escapeHtml(formatInboundDateTime(item.inboundDate, item.inboundTime))}</td>
+        <td>${escapeHtml(item.clientName)}</td>
+        <td>${escapeHtml(item.inboundType)}</td>
+        <td>${escapeHtml(item.productName)}</td>
+        <td>${escapeHtml(item.batch)}</td>
+        <td>${escapeHtml(item.process)}</td>
+        <td>${escapeHtml(item.boxQuantity)}</td>
+        <td>${escapeHtml(item.inboundBoxCount)}</td>
+        <td>${escapeHtml(item.remainQuantity)}</td>
+        <td>${escapeHtml(item.inboundTotalQuantity)}</td>
+        <td>${escapeHtml(item.boxTotalCount)}</td>
+        <td>${escapeHtml(item.inspectionQuantity)}</td>
+        <td>${escapeHtml(item.defectQuantity)}</td>
+        <td>${escapeHtml(item.defectRate)}</td>
+        <td>${escapeHtml(item.registrant)}</td>
+        <td>
+          <button class="row-action inbound-row-action" type="button" data-inbound-record="${escapeHtml(item.managementId)}" aria-label="입고 관리" aria-haspopup="menu" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.6" />
+              <circle cx="12" cy="12" r="1.6" />
+              <circle cx="12" cy="19" r="1.6" />
+            </svg>
+          </button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  inboundTableBody.querySelectorAll("[data-inbound-record]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleInboundRowActionMenu(button);
+    });
+  });
+
+  inboundCountLabel.textContent = `전체 ${inbounds.length.toLocaleString("ko-KR")}건`;
+
+  if (inboundPagination) {
+    inboundPagination.innerHTML = `
+      <button type="button" disabled aria-label="이전">
+        <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+      </button>
+      <button type="button" class="active">1</button>
+      <button type="button" disabled aria-label="다음">
+        <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+      </button>
+    `;
+  }
+}
+
+function formatInboundDateTime(date, time) {
+  const dateText = normalizeDisplayValue(date);
+  const timeText = normalizeDisplayValue(time);
+  return timeText === "-" ? dateText : `${dateText} ${timeText}`;
 }
 
 function sortInboundRows(columnIndex, activeButton) {
@@ -811,6 +892,18 @@ function setCurrentInboundTime() {
   inboundTime.value = `${hours}:${minutes}`;
 }
 
+function setCurrentInboundDate() {
+  if (!inboundDate || inboundDate.value) {
+    return;
+  }
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  inboundDate.value = `${year}-${month}-${day}`;
+}
+
 async function loadProducts() {
   setStatus("제품 정보를 불러오는 중입니다.");
 
@@ -828,6 +921,17 @@ async function loadProducts() {
     renderInboundProductPicker();
     applyFilters();
     setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
+  }
+}
+
+async function loadTodayInbounds() {
+  try {
+    const result = await requestApi("getTodayInbounds");
+    state.todayInbounds = Array.isArray(result.inbounds) ? result.inbounds : [];
+    renderTodayInbounds();
+  } catch (error) {
+    state.todayInbounds = [];
+    renderTodayInbounds("금일 입고 목록을 불러오지 못했습니다.");
   }
 }
 

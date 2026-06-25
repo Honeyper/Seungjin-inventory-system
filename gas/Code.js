@@ -39,6 +39,7 @@ function doPost(e) {
       login,
       setupSheets,
       getProducts,
+      getTodayInbounds,
       createProduct,
       updateProduct,
       deleteProduct,
@@ -475,6 +476,51 @@ function createProduct(payload) {
 
   return {
     productId
+  };
+}
+
+function getTodayInbounds(payload) {
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const values = stockSheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
+
+  if (!headerInfo) {
+    return {
+      inbounds: []
+    };
+  }
+
+  const { headers, rowIndex: headerRowIndex } = headerInfo;
+  const indexes = indexHeaders_(headers);
+  const timezone = 'Asia/Seoul';
+  const targetDate = normalizeDateKey_(payload?.date || Utilities.formatDate(new Date(), timezone, 'yyyy-MM-dd'));
+  const inbounds = values.slice(headerRowIndex + 1)
+    .filter((row) => row.some((cell) => String(cell || '').trim()))
+    .filter((row) => normalizeDateKey_(pickCell_(row, indexes, ['입고일'])) === targetDate)
+    .map((row) => ({
+      managementId: pickCell_(row, indexes, ['관리 ID', '관리ID']),
+      inboundDate: pickCell_(row, indexes, ['입고일']),
+      inboundTime: pickCell_(row, indexes, ['입고 시간', '입고시간']),
+      clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
+      inboundType: pickCell_(row, indexes, ['입고 유형', '입고유형']),
+      productName: pickCell_(row, indexes, ['제품명']),
+      batch: pickCell_(row, indexes, ['차수']),
+      process: pickCell_(row, indexes, ['최종공정', '최종 공정']),
+      boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
+      inboundBoxCount: pickCell_(row, indexes, ['입고 박스 수', '입고박스수']),
+      remainQuantity: pickCell_(row, indexes, ['잔량 수량', '잔량']),
+      inboundTotalQuantity: pickCell_(row, indexes, ['입고 총 수량', '입고총수량']),
+      boxTotalCount: pickCell_(row, indexes, ['박스 총 수량', '박스총수량']),
+      inspectionQuantity: pickCell_(row, indexes, ['검수 수량', '검수수량']),
+      defectQuantity: pickCell_(row, indexes, ['불량 수량', '불량수량']),
+      defectRate: pickCell_(row, indexes, ['불량률']),
+      registrant: pickCell_(row, indexes, ['등록자'])
+    }))
+    .reverse();
+
+  return {
+    date: targetDate,
+    inbounds
   };
 }
 
@@ -992,4 +1038,19 @@ function formatEa_(value) {
 
 function formatBox_(value) {
   return `${Number(value || 0).toLocaleString('ko-KR')} box`;
+}
+
+function normalizeDateKey_(value) {
+  const normalized = String(value || '').trim();
+  const matched = normalized.match(/(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})/);
+
+  if (!matched) {
+    return normalized;
+  }
+
+  return [
+    matched[1],
+    String(matched[2]).padStart(2, '0'),
+    String(matched[3]).padStart(2, '0')
+  ].join('-');
 }

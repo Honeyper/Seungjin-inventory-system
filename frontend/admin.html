@@ -115,7 +115,7 @@
                 <div class="inbound-form-grid">
                   <label class="form-field">
                     <span>입고일 <b>*</b></span>
-                    <input id="inboundDate" type="date" value="2026-06-24" />
+                    <input id="inboundDate" type="date" />
                   </label>
                   <label class="form-field">
                     <span>입고 시간 <b>*</b></span>
@@ -398,9 +398,9 @@
             </aside>
           </div>
 
-          <section class="table-panel inbound-list-panel" aria-label="입고 목록">
+          <section class="table-panel inbound-list-panel" aria-label="금일 입고 목록">
             <div class="panel-title-row">
-              <h2>입고 목록</h2>
+              <h2>금일 입고 목록</h2>
               <button class="secondary-action compact-action" type="button">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
@@ -552,47 +552,12 @@
                     <th>관리</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <button class="qr-action" type="button" aria-label="입고 QR 보기">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
-                          <path d="M14 14h2v2h-2zM18 14h2v6h-2zM14 18h2v2h-2z" />
-                        </svg>
-                      </button>
-                    </td>
-                    <td>2026-06-24 09:00</td>
-                    <td>아이원(아이텍)</td>
-                    <td>정상입고</td>
-                    <td>ICD 더마톨로지 크림 외용기</td>
-                    <td>2차</td>
-                    <td>2도</td>
-                    <td>300 ea</td>
-                    <td>12 box</td>
-                    <td>7 ea</td>
-                    <td>3,800 ea</td>
-                    <td>13 box</td>
-                    <td>80 ea</td>
-                    <td>9 ea</td>
-                    <td>0.24%</td>
-                    <td>Admin</td>
-                    <td>
-                      <button class="row-action inbound-row-action" type="button" data-inbound-record="sample-1" aria-label="입고 관리" aria-haspopup="menu" aria-expanded="false">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <circle cx="12" cy="5" r="1.6" />
-                          <circle cx="12" cy="12" r="1.6" />
-                          <circle cx="12" cy="19" r="1.6" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
+                <tbody id="inboundTableBody"></tbody>
               </table>
             </div>
             <div class="table-footer">
-              <span>전체 1건</span>
-              <div class="pagination" aria-label="입고 목록 페이지">
+              <span id="inboundCountLabel">전체 0건</span>
+              <div class="pagination" id="inboundPagination" aria-label="금일 입고 목록 페이지">
                 <button type="button" disabled aria-label="이전">
                   <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
                 </button>

@@ -1208,6 +1208,13 @@ input {
   text-align: center;
 }
 
+.product-table .empty-cell {
+  height: 4.2rem;
+  color: #66758d;
+  font-weight: 900;
+  text-align: center;
+}
+
 .product-table tbody tr:hover {
   background: #f8fbff;
 }
