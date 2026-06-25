@@ -45,6 +45,7 @@ const state = {
   clientFilter: "",
   isSavingProduct: false,
   isSavingInbound: false,
+  isSavingInboundEdit: false,
   isDeletingProduct: false,
   isDeletingInbound: false,
   productFormMode: "create",
@@ -61,6 +62,7 @@ const state = {
     defect: ""
   },
   selectedDefectReasons: ["양호", "흑점"],
+  inboundEditDefectReasons: [],
   inboundSort: {
     column: null,
     direction: "asc"
@@ -98,6 +100,11 @@ const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
 const inboundDetailModal = document.querySelector("#inboundDetailModal");
 const inboundDetailContent = document.querySelector("#inboundDetailContent");
+const inboundDetailTitle = document.querySelector("#inboundDetailTitle");
+const inboundDetailDescription = document.querySelector("#inboundDetailTitle")?.nextElementSibling;
+const closeInboundDetailButton = document.querySelector("#closeInboundDetailButton");
+const editInboundFromDetailButton = document.querySelector("#editInboundFromDetailButton");
+const saveInboundEditButton = document.querySelector("#saveInboundEditButton");
 const inboundTime = document.querySelector("#inboundTime");
 const inboundDate = document.querySelector("#inboundDate");
 const inboundType = document.querySelector("#inboundType");
@@ -274,7 +281,9 @@ document.querySelector("#closeProductDetailModal").addEventListener("click", clo
 document.querySelector("#closeProductDetailButton").addEventListener("click", closeProductDetailModal);
 document.querySelector("#editProductFromDetailButton").addEventListener("click", openDetailProductEdit);
 document.querySelector("#closeInboundDetailModal").addEventListener("click", closeInboundDetailModal);
-document.querySelector("#closeInboundDetailButton").addEventListener("click", closeInboundDetailModal);
+closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
+editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
+saveInboundEditButton?.addEventListener("click", saveInboundEdit);
 
 document.addEventListener("click", (event) => {
   if (
@@ -283,6 +292,19 @@ document.addEventListener("click", (event) => {
     !inboundDefectReasonSelect.contains(event.target)
   ) {
     setInboundDefectReasonOpen(false);
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const editReasonSelect = document.querySelector("#inboundEditDefectReasonSelect");
+  const editReasonButton = document.querySelector("#inboundEditDefectReasonButton");
+
+  if (
+    editReasonSelect &&
+    editReasonButton?.getAttribute("aria-expanded") === "true" &&
+    !editReasonSelect.contains(event.target)
+  ) {
+    setInboundEditDefectReasonOpen(false);
   }
 });
 
@@ -330,6 +352,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!productDetailModal.hidden) {
     closeProductDetailModal();
+    return;
+  }
+
+  if (document.querySelector("#inboundEditDefectReasonButton")?.getAttribute("aria-expanded") === "true") {
+    setInboundEditDefectReasonOpen(false);
     return;
   }
 
@@ -383,7 +410,11 @@ inboundRowActionMenu.querySelectorAll("[data-inbound-menu-action]").forEach((but
       return;
     }
 
-    showToast(`${getInboundMenuActionLabel(action)} 기능은 입고 시트 연결 단계에서 활성화됩니다.`);
+    if (action === "edit") {
+      openActiveInboundEdit();
+      return;
+    }
+
     closeInboundRowActionMenu();
   });
 });
@@ -1265,6 +1296,7 @@ function openActiveInboundDetail() {
 
   closeInboundRowActionMenu();
   state.activeDetailInboundId = inbound.managementId;
+  setInboundDetailMode("view");
   renderInboundDetail(inbound);
   inboundDetailModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -1275,9 +1307,79 @@ function closeInboundDetailModal() {
   inboundDetailModal.hidden = true;
   inboundDetailContent.innerHTML = "";
   state.activeDetailInboundId = "";
+  state.inboundEditDefectReasons = [];
+  setInboundDetailMode("view");
 
   if (productModal.hidden && productDetailModal.hidden && inboundProductPickerModal.hidden) {
     document.body.classList.remove("modal-open");
+  }
+}
+
+function openActiveInboundEdit() {
+  if (!state.activeInboundMenuRecord) {
+    return;
+  }
+
+  const inbound = state.todayInbounds.find((item) => item.managementId === state.activeInboundMenuRecord);
+
+  if (!inbound) {
+    showToast("수정할 입고 정보를 찾을 수 없습니다.");
+    closeInboundRowActionMenu();
+    return;
+  }
+
+  closeInboundRowActionMenu();
+  state.activeDetailInboundId = inbound.managementId;
+  setInboundDetailMode("edit");
+  renderInboundEditForm(inbound);
+  inboundDetailModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => document.querySelector("#inboundEditBatch")?.focus(), 0);
+}
+
+function openDetailInboundEdit() {
+  const inbound = getInboundByManagementId(state.activeDetailInboundId);
+
+  if (!inbound) {
+    showToast("수정할 입고 정보를 찾을 수 없습니다.");
+    closeInboundDetailModal();
+    return;
+  }
+
+  setInboundDetailMode("edit");
+  renderInboundEditForm(inbound);
+  window.setTimeout(() => document.querySelector("#inboundEditBatch")?.focus(), 0);
+}
+
+function getInboundByManagementId(managementId) {
+  return state.todayInbounds.find((item) => item.managementId === managementId);
+}
+
+function setInboundDetailMode(mode) {
+  const isEdit = mode === "edit";
+
+  if (inboundDetailTitle) {
+    inboundDetailTitle.textContent = isEdit ? "입고 수정" : "입고 상세보기";
+  }
+
+  if (inboundDetailDescription) {
+    inboundDetailDescription.textContent = isEdit
+      ? "수정 가능한 입고 정보와 수량 정보를 변경할 수 있습니다."
+      : "등록된 입고 정보와 수량 정보를 확인할 수 있습니다.";
+  }
+
+  if (closeInboundDetailButton) {
+    closeInboundDetailButton.textContent = isEdit ? "취소" : "닫기";
+  }
+
+  if (editInboundFromDetailButton) {
+    editInboundFromDetailButton.hidden = isEdit;
+  }
+
+  if (saveInboundEditButton) {
+    saveInboundEditButton.hidden = !isEdit;
+    saveInboundEditButton.disabled = false;
+    saveInboundEditButton.textContent = "저장";
   }
 }
 
@@ -1386,6 +1488,323 @@ function renderInboundDetail(inbound) {
       </div>
     </section>
   `;
+}
+
+function renderInboundEditForm(inbound) {
+  state.inboundEditDefectReasons = parseDefectReasonList(inbound.defectReason);
+
+  inboundDetailContent.innerHTML = `
+    <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditReadonlyTitle">
+      <h3 id="inboundEditReadonlyTitle">입고 기본 정보</h3>
+      <div class="detail-grid">
+        ${detailItem("관리 ID", inbound.managementId)}
+        ${detailItem("입고 유형", inbound.inboundType)}
+        ${detailItem("입고일", inbound.inboundDate)}
+        ${detailItem("입고 시간", inbound.inboundTime)}
+        ${detailItem("납기일", inbound.dueDate)}
+        ${detailItem("등록자", inbound.registrant)}
+        ${detailItem("제품 ID", inbound.productId)}
+        ${detailItem("거래처명", inbound.clientName)}
+        ${detailItem("제품명", inbound.productName, false, "full-span")}
+      </div>
+    </section>
+
+    <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditProductTitle">
+      <h3 id="inboundEditProductTitle">수정 정보</h3>
+      <div class="inbound-edit-grid">
+        <label class="form-field">
+          <span>차수</span>
+          <input id="inboundEditBatch" type="text" value="${escapeAttribute(normalizeEditableValue(inbound.batch))}" placeholder="차수를 입력하세요." />
+        </label>
+        <label class="form-field">
+          <span>최종공정 <b>*</b></span>
+          <select id="inboundEditProcess">
+            ${renderOptionList(["", "1도", "2도", "3도", "코팅"], normalizeEditableValue(inbound.process), "선택하세요.")}
+          </select>
+        </label>
+        <label class="form-field">
+          <span>보관위치 <b>*</b></span>
+          <select id="inboundEditStorage">
+            ${renderOptionList(["", "미지정", "현장", "A", "B-1", "B-2", "C-1", "C-2", "D-1", "D-2", "E-1", "E-2", "F-1", "F-2", "G-1", "G[출고대기]", "H-1", "I"], normalizeEditableValue(inbound.storage), "선택하세요.")}
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditQuantityTitle">
+      <h3 id="inboundEditQuantityTitle">수량 정보</h3>
+      <div class="inbound-edit-grid">
+        <label class="form-field">
+          <span>박스당 수량 (EA) <b>*</b></span>
+          ${renderEditableUnitInput("inboundEditBoxQty", "박스당 수량 수정", extractQuantityNumber(inbound.boxQuantity), "ea", true)}
+        </label>
+        <label class="form-field">
+          <span>입고 박스 수 (BOX) <b>*</b></span>
+          ${renderUnitInput("inboundEditBoxCount", extractQuantityNumber(inbound.inboundBoxCount), "box")}
+        </label>
+        <label class="form-field">
+          <span>잔량 (EA) <b>*</b></span>
+          ${renderUnitInput("inboundEditRemainQty", extractQuantityNumber(inbound.remainQuantity), "ea")}
+        </label>
+        <label class="form-field">
+          <span>검수 수량 (EA) <b>*</b></span>
+          ${renderEditableUnitInput("inboundEditInspectionQty", "검수 수량 수정", extractQuantityNumber(inbound.inspectionQuantity), "ea", true)}
+        </label>
+        <label class="form-field">
+          <span>불량 수량 (EA) <b>*</b></span>
+          ${renderUnitInput("inboundEditDefectQty", extractQuantityNumber(inbound.defectQuantity), "ea")}
+        </label>
+        <label class="form-field">
+          <span>불량 사유</span>
+          <div class="multi-select" id="inboundEditDefectReasonSelect">
+            <button class="multi-select-trigger" id="inboundEditDefectReasonButton" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="multi-select-value" id="inboundEditDefectReasonValue"></span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            <div class="multi-select-panel" id="inboundEditDefectReasonPanel" role="listbox" aria-label="불량 사유 선택" hidden>
+              ${Object.keys(DEFECT_REASON_TONES).map((reason) => `
+                <button class="multi-select-option" type="button" data-edit-defect-reason="${escapeAttribute(reason)}" aria-pressed="false">
+                  ${renderDefectReasonPill(reason)}
+                  <span class="option-check" aria-hidden="true">✓</span>
+                </button>
+              `).join("")}
+            </div>
+            <input id="inboundEditDefectReason" type="hidden" value="" />
+          </div>
+        </label>
+      </div>
+    </section>
+  `;
+
+  bindInboundEditFormEvents();
+  renderInboundEditDefectReasons();
+}
+
+function bindInboundEditFormEvents() {
+  inboundDetailContent.querySelectorAll("[data-edit-lock-target]").forEach((button) => {
+    const input = inboundDetailContent.querySelector(`#${button.dataset.editLockTarget}`);
+
+    button.addEventListener("click", () => {
+      setInboundLockedFieldEditable(input, button, input?.disabled);
+    });
+  });
+
+  inboundDetailContent.querySelector("#inboundEditDefectReasonButton")?.addEventListener("click", () => {
+    const button = inboundDetailContent.querySelector("#inboundEditDefectReasonButton");
+    const isOpen = button?.getAttribute("aria-expanded") === "true";
+    setInboundEditDefectReasonOpen(!isOpen);
+  });
+
+  inboundDetailContent.querySelectorAll("[data-edit-defect-reason]").forEach((button) => {
+    button.addEventListener("click", () => {
+      toggleInboundEditDefectReason(button.dataset.editDefectReason);
+    });
+  });
+}
+
+function renderUnitInput(id, value, unit) {
+  return `
+    <span class="unit-input">
+      <input id="${escapeAttribute(id)}" type="number" value="${escapeAttribute(value)}" min="0" />
+      <i>${escapeHtml(unit)}</i>
+    </span>
+  `;
+}
+
+function renderEditableUnitInput(id, label, value, unit, isLocked) {
+  return `
+    <span class="unit-input editable-lock-input editable-unit-input">
+      <input id="${escapeAttribute(id)}" type="number" value="${escapeAttribute(value)}" min="0" ${isLocked ? "disabled" : ""} />
+      <i>${escapeHtml(unit)}</i>
+      <button type="button" aria-label="${escapeAttribute(label)}" title="${isLocked ? "수정" : "잠금"}" aria-pressed="${isLocked ? "false" : "true"}" data-edit-lock-target="${escapeAttribute(id)}">
+        ${renderEditLockIcons()}
+      </button>
+    </span>
+  `;
+}
+
+function renderEditLockIcons() {
+  return `
+    <svg class="edit-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20z" />
+      <path d="m13.5 7.5 3 3" />
+    </svg>
+    <svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="10" width="14" height="10" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </svg>
+  `;
+}
+
+function renderOptionList(options, currentValue, placeholder) {
+  const normalizedCurrent = normalizeEditableValue(currentValue);
+  const values = options.includes(normalizedCurrent) || !normalizedCurrent
+    ? options
+    : [...options, normalizedCurrent];
+
+  return values.map((option) => {
+    const value = String(option || "");
+    const label = value || placeholder;
+    const selected = value === normalizedCurrent ? " selected" : "";
+    const disabled = value ? "" : " disabled";
+    return `<option value="${escapeAttribute(value)}"${selected}${disabled}>${escapeHtml(label)}</option>`;
+  }).join("");
+}
+
+function setInboundEditDefectReasonOpen(isOpen) {
+  const button = inboundDetailContent.querySelector("#inboundEditDefectReasonButton");
+  const panel = inboundDetailContent.querySelector("#inboundEditDefectReasonPanel");
+
+  if (!button || !panel) {
+    return;
+  }
+
+  button.setAttribute("aria-expanded", String(isOpen));
+  panel.hidden = !isOpen;
+}
+
+function toggleInboundEditDefectReason(reason) {
+  if (!reason) {
+    return;
+  }
+
+  const selectedReasons = new Set(state.inboundEditDefectReasons);
+
+  if (selectedReasons.has(reason)) {
+    selectedReasons.delete(reason);
+  } else {
+    selectedReasons.add(reason);
+  }
+
+  state.inboundEditDefectReasons = Array.from(selectedReasons);
+  renderInboundEditDefectReasons();
+}
+
+function renderInboundEditDefectReasons() {
+  const value = inboundDetailContent.querySelector("#inboundEditDefectReasonValue");
+  const input = inboundDetailContent.querySelector("#inboundEditDefectReason");
+  const panel = inboundDetailContent.querySelector("#inboundEditDefectReasonPanel");
+
+  if (!value || !input || !panel) {
+    return;
+  }
+
+  input.value = state.inboundEditDefectReasons.join(", ");
+  value.innerHTML = state.inboundEditDefectReasons.length
+    ? state.inboundEditDefectReasons.map(renderDefectReasonPill).join("")
+    : '<span class="multi-select-placeholder">선택하세요</span>';
+
+  panel.querySelectorAll("[data-edit-defect-reason]").forEach((button) => {
+    const isSelected = state.inboundEditDefectReasons.includes(button.dataset.editDefectReason);
+    button.setAttribute("aria-pressed", String(isSelected));
+  });
+}
+
+async function saveInboundEdit() {
+  if (state.isSavingInboundEdit || !state.activeDetailInboundId) {
+    return;
+  }
+
+  const payload = getInboundEditPayload();
+  const validationMessage = validateInboundEditPayload(payload);
+
+  if (validationMessage) {
+    showToast(validationMessage);
+    return;
+  }
+
+  state.isSavingInboundEdit = true;
+
+  if (saveInboundEditButton) {
+    saveInboundEditButton.disabled = true;
+    saveInboundEditButton.textContent = "저장 중";
+  }
+
+  try {
+    await requestApi("updateInbound", payload);
+    await loadTodayInbounds();
+    state.activeDetailInboundId = payload.managementId;
+    setInboundDetailMode("view");
+
+    const detailInbound = getInboundByManagementId(payload.managementId);
+    if (detailInbound) {
+      renderInboundDetail(detailInbound);
+    } else {
+      closeInboundDetailModal();
+    }
+
+    showToast("입고 내역이 수정되었습니다.");
+  } catch (error) {
+    showToast(error.message || "입고 내역 수정에 실패했습니다.");
+  } finally {
+    state.isSavingInboundEdit = false;
+
+    if (saveInboundEditButton) {
+      saveInboundEditButton.disabled = false;
+      saveInboundEditButton.textContent = "저장";
+    }
+  }
+}
+
+function getInboundEditPayload() {
+  return {
+    managementId: state.activeDetailInboundId,
+    batch: inboundDetailContent.querySelector("#inboundEditBatch")?.value.trim() || "",
+    process: inboundDetailContent.querySelector("#inboundEditProcess")?.value.trim() || "",
+    storage: inboundDetailContent.querySelector("#inboundEditStorage")?.value.trim() || "",
+    boxQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditBoxQty")),
+    inboundBoxCount: getNumberValue(inboundDetailContent.querySelector("#inboundEditBoxCount")),
+    remainQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditRemainQty")),
+    inspectionQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditInspectionQty")),
+    defectQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditDefectQty")),
+    defectReason: inboundDetailContent.querySelector("#inboundEditDefectReason")?.value.trim() || ""
+  };
+}
+
+function validateInboundEditPayload(payload) {
+  if (!payload.managementId) {
+    return "수정할 입고 관리 ID가 필요합니다.";
+  }
+
+  if (!payload.process) {
+    return "최종공정을 선택해주세요.";
+  }
+
+  if (!payload.storage) {
+    return "보관위치를 선택해주세요.";
+  }
+
+  const positiveNumberFields = [
+    ["boxQuantity", "박스당 수량"],
+    ["inboundBoxCount", "입고 박스 수"],
+    ["inspectionQuantity", "검수 수량"]
+  ];
+
+  const invalidPositive = positiveNumberFields.find(([field]) => !Number.isFinite(payload[field]) || payload[field] <= 0);
+  if (invalidPositive) {
+    return `${invalidPositive[1]}은 1 이상의 숫자로 입력해주세요.`;
+  }
+
+  const zeroNumberFields = [
+    ["remainQuantity", "잔량"],
+    ["defectQuantity", "불량 수량"]
+  ];
+
+  const invalidZero = zeroNumberFields.find(([field]) => !Number.isFinite(payload[field]) || payload[field] < 0);
+  if (invalidZero) {
+    return `${invalidZero[1]}은 0 이상의 숫자로 입력해주세요.`;
+  }
+
+  return "";
+}
+
+function parseDefectReasonList(value) {
+  return String(value || "")
+    .split(",")
+    .map((reason) => reason.trim())
+    .filter((reason) => reason && reason !== "-");
 }
 
 function detailItem(label, value, isHtml = false, className = "") {
@@ -1718,4 +2137,8 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
 }

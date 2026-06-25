@@ -44,6 +44,7 @@ function doPost(e) {
       updateProduct,
       deleteProduct,
       createInbound,
+      updateInbound,
       deleteInbound,
       formatProductRows
     };
@@ -802,6 +803,114 @@ function createInbound(payload) {
   }
 }
 
+function updateInbound(payload) {
+  const managementId = String(payload.managementId || payload['관리 ID'] || payload['관리ID'] || '').trim();
+
+  if (!managementId) {
+    throw new Error('수정할 입고 관리 ID가 필요합니다.');
+  }
+
+  const process = String(payload.process || payload['최종공정'] || '').trim();
+  const storage = String(payload.storage || payload['보관위치'] || '').trim();
+
+  if (!process) {
+    throw new Error('최종공정 값이 필요합니다.');
+  }
+
+  if (!storage) {
+    throw new Error('보관위치 값이 필요합니다.');
+  }
+
+  const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
+  const inboundBoxCount = toPositiveNumber_(payload.inboundBoxCount, '입고 박스 수');
+  const remainQuantity = toNumber_(payload.remainQuantity);
+  const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
+  const defectQuantity = toNumber_(payload.defectQuantity);
+
+  if (remainQuantity < 0 || defectQuantity < 0) {
+    throw new Error('수량은 0 이상의 숫자로 입력해주세요.');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+    const rowInfo = findRowByHeaderValue_(stockSheet, ['관리 ID', '관리ID'], managementId, ['관리 ID', '입고일', '제품명']);
+
+    if (!rowInfo) {
+      throw new Error('수정할 입고 내역을 찾을 수 없습니다.');
+    }
+
+    const row = rowInfo.rowValues.slice();
+    const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
+    const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
+    const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
+    const note = dash_(pickCell_(row, rowInfo.indexes, ['비고']));
+    const productId = dash_(pickCell_(row, rowInfo.indexes, ['제품ID', '제품 ID']));
+    const productName = dash_(pickCell_(row, rowInfo.indexes, ['제품명']));
+    const registeredDate = dash_(pickCell_(row, rowInfo.indexes, ['등록 일시', '등록일시']));
+
+    setRowValue_(row, rowInfo.indexes, ['차수'], dash_(payload.batch));
+    setRowValue_(row, rowInfo.indexes, ['최종공정'], process);
+    setRowValue_(row, rowInfo.indexes, ['보관위치'], storage);
+    setRowValue_(row, rowInfo.indexes, ['박스당 수량', '박스당수량'], formatEa_(boxQuantity));
+    setRowValue_(row, rowInfo.indexes, ['입고 박스 수', '입고박스수'], formatBox_(inboundBoxCount));
+    setRowValue_(row, rowInfo.indexes, ['잔량 수량', '잔량수량'], formatEa_(remainQuantity));
+    setRowValue_(row, rowInfo.indexes, ['박스 총 수량', '박스총수량'], formatBox_(totalBoxCount));
+    setRowValue_(row, rowInfo.indexes, ['입고 총 수량', '입고총수량'], formatEa_(totalQuantity));
+    setRowValue_(row, rowInfo.indexes, ['검수 수량', '검수수량'], formatEa_(inspectionQuantity));
+    setRowValue_(row, rowInfo.indexes, ['불량 수량', '불량수량'], formatEa_(defectQuantity));
+    setRowValue_(row, rowInfo.indexes, ['불량률'], `${defectRate}%`);
+    setRowValue_(row, rowInfo.indexes, ['불량 사유', '불량사유'], dash_(payload.defectReason));
+
+    stockSheet.getRange(rowInfo.rowNumber, 1, 1, rowInfo.headers.length).setValues([row]);
+    applyProductRowTemplate_(stockSheet, rowInfo.headerRowIndex + 2, rowInfo.rowNumber, rowInfo.headers.length);
+
+    deleteRowsByHeaderValue_(boxSheet, ['관리ID', '관리 ID'], managementId, ['박스ID', '관리ID', '제품명']);
+
+    const boxRows = [];
+
+    for (let index = 1; index <= totalBoxCount; index += 1) {
+      const isRemainderBox = remainQuantity > 0 && index === totalBoxCount;
+      const currentQuantity = isRemainderBox ? remainQuantity : boxQuantity;
+      const boxId = `${managementId}-B${String(index).padStart(3, '0')}`;
+
+      boxRows.push([
+        boxId,
+        managementId,
+        index,
+        productId,
+        productName,
+        formatEa_(boxQuantity),
+        formatEa_(currentQuantity),
+        storage,
+        '보관',
+        registeredDate,
+        '',
+        '',
+        '',
+        '',
+        note
+      ]);
+    }
+
+    const boxStartRow = appendStyledRangeRows_(boxSheet, 2, boxRows, 6);
+
+    return {
+      managementId,
+      updated: true,
+      stockRow: rowInfo.rowNumber,
+      boxStartRow,
+      boxCount: boxRows.length,
+      boxIds: boxRows.map((boxRow) => boxRow[0])
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function applyProductRowTemplate_(sheet, templateRowNumber, targetRowNumber, columnCount) {
   if (targetRowNumber === templateRowNumber || templateRowNumber > sheet.getLastRow()) {
     return;
@@ -871,6 +980,38 @@ function deleteRowsByHeaderValue_(sheet, headerNames, targetValue, requiredHeade
   });
 
   return rowNumbers.length;
+}
+
+function findRowByHeaderValue_(sheet, headerNames, targetValue, requiredHeaders) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, requiredHeaders);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const targetIndex = findHeaderIndex_(indexes, headerNames);
+
+  if (targetIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const value = String(values[rowIndex][targetIndex] || '').trim();
+
+    if (value === targetValue) {
+      return {
+        rowNumber: rowIndex + 1,
+        rowValues: values[rowIndex],
+        headerRowIndex: headerInfo.rowIndex,
+        headers: headerInfo.headers,
+        indexes
+      };
+    }
+  }
+
+  return null;
 }
 
 function fillBlankCells_(row) {

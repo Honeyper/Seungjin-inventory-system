@@ -1802,6 +1802,30 @@ input {
   padding-bottom: 1rem;
 }
 
+.inbound-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.68rem 0.85rem;
+}
+
+.inbound-edit-section .form-field {
+  font-size: 0.82rem;
+}
+
+.inbound-edit-section .form-field > span:first-child {
+  margin-bottom: 0.28rem;
+}
+
+.inbound-edit-section .form-field input:not([type="radio"]),
+.inbound-edit-section .form-field select,
+.inbound-edit-section .multi-select-trigger {
+  min-height: 2.45rem;
+}
+
+.inbound-edit-section .multi-select-panel {
+  z-index: 50;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
