@@ -1366,7 +1366,7 @@ function validateProductPayload(payload) {
     ["제품명", "제품명을 입력해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
-    ["트레이 수량", "검수 수량을 입력해주세요."]
+    ["트레이 수량", "트레이 수량을 입력해주세요."]
   ];
 
   const missing = requiredFields.find(([field]) => !payload[field]);
