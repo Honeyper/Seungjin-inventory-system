@@ -46,6 +46,7 @@ const state = {
   isSavingProduct: false,
   isSavingInbound: false,
   isDeletingProduct: false,
+  isDeletingInbound: false,
   productFormMode: "create",
   editingProductCode: "",
   activeDetailProductCode: "",
@@ -361,8 +362,14 @@ inboundRowActionMenu.querySelectorAll("[data-inbound-menu-action]").forEach((but
   button.addEventListener("click", (event) => {
     event.stopPropagation();
     const action = button.dataset.inboundMenuAction;
-    closeInboundRowActionMenu();
+
+    if (action === "delete") {
+      deleteActiveInbound();
+      return;
+    }
+
     showToast(`${getInboundMenuActionLabel(action)} 기능은 입고 시트 연결 단계에서 활성화됩니다.`);
+    closeInboundRowActionMenu();
   });
 });
 
@@ -1164,6 +1171,36 @@ async function deleteActiveProduct() {
     showToast(error.message || "제품 삭제에 실패했습니다.");
   } finally {
     state.isDeletingProduct = false;
+  }
+}
+
+async function deleteActiveInbound() {
+  if (state.isDeletingInbound || !state.activeInboundMenuRecord) {
+    return;
+  }
+
+  const managementId = state.activeInboundMenuRecord;
+  const inbound = state.todayInbounds.find((item) => item.managementId === managementId);
+  const inboundLabel = inbound?.productName
+    ? `${inbound.productName} (${managementId})`
+    : managementId;
+
+  if (!window.confirm(`${inboundLabel} 입고 내역을 삭제하시겠습니까?\n재고 DB와 박스관리 DB에서도 같이 삭제됩니다.`)) {
+    return;
+  }
+
+  state.isDeletingInbound = true;
+  closeInboundRowActionMenu();
+
+  try {
+    const result = await requestApi("deleteInbound", { managementId });
+    await loadTodayInbounds();
+    const deletedBoxes = Number(result?.deletedBoxRows || 0);
+    showToast(`입고 내역이 삭제되었습니다. 박스 ${deletedBoxes.toLocaleString("ko-KR")}건 삭제`);
+  } catch (error) {
+    showToast(error.message || "입고 내역 삭제에 실패했습니다.");
+  } finally {
+    state.isDeletingInbound = false;
   }
 }
 

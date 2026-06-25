@@ -44,6 +44,7 @@ function doPost(e) {
       updateProduct,
       deleteProduct,
       createInbound,
+      deleteInbound,
       formatProductRows
     };
 
@@ -622,6 +623,36 @@ function deleteProduct(payload) {
   throw new Error('삭제할 제품을 찾을 수 없습니다.');
 }
 
+function deleteInbound(payload) {
+  const managementId = String(payload.managementId || payload['관리 ID'] || payload['관리ID'] || '').trim();
+
+  if (!managementId) {
+    throw new Error('삭제할 입고 관리 ID가 필요합니다.');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+    const deletedStockRows = deleteRowsByHeaderValue_(stockSheet, ['관리 ID', '관리ID'], managementId, ['관리 ID', '입고일', '제품명']);
+    const deletedBoxRows = deleteRowsByHeaderValue_(boxSheet, ['관리ID', '관리 ID'], managementId, ['박스ID', '관리ID', '제품명']);
+
+    if (!deletedStockRows) {
+      throw new Error('삭제할 입고 내역을 찾을 수 없습니다.');
+    }
+
+    return {
+      managementId,
+      deletedStockRows,
+      deletedBoxRows
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function formatProductRows() {
   const sheet = getProductSheet_();
   const values = sheet.getDataRange().getDisplayValues();
@@ -800,6 +831,38 @@ function appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber) {
 
   sheet.getRange(targetStartRow, startColumn, rows.length, columnCount).setValues(rows);
   return targetStartRow;
+}
+
+function deleteRowsByHeaderValue_(sheet, headerNames, targetValue, requiredHeaders) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, requiredHeaders);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const targetIndex = findHeaderIndex_(indexes, headerNames);
+
+  if (targetIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  const rowNumbers = [];
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const value = String(values[rowIndex][targetIndex] || '').trim();
+
+    if (value === targetValue) {
+      rowNumbers.push(rowIndex + 1);
+    }
+  }
+
+  rowNumbers.reverse().forEach((rowNumber) => {
+    sheet.deleteRow(rowNumber);
+  });
+
+  return rowNumbers.length;
 }
 
 function fillBlankCells_(row) {
