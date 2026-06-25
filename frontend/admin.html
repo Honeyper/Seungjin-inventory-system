@@ -160,12 +160,8 @@
                     <input type="text" id="inboundRegistrant" value="Admin" disabled />
                   </label>
                   <label class="form-field">
-                    <span>차수 <b>*</b></span>
-                    <select>
-                      <option>1차</option>
-                      <option selected>2차</option>
-                      <option>3차</option>
-                    </select>
+                    <span>차수</span>
+                    <input type="text" placeholder="차수를 입력하세요." />
                   </label>
                   <label class="form-field">
                     <span>최종공정 <b>*</b></span>
@@ -184,6 +180,13 @@
                       <option>C-3</option>
                     </select>
                   </label>
+                  <label class="form-field">
+                    <span>비고</span>
+                    <span class="editable-lock-input">
+                      <input id="inboundNote" type="text" placeholder="비고를 입력하세요." disabled />
+                      <button id="editInboundNoteButton" type="button">수정</button>
+                    </span>
+                  </label>
                 </div>
               </section>
 
@@ -192,9 +195,10 @@
                 <div class="inbound-form-grid quantity-grid">
                   <label class="form-field quantity-box">
                     <span>박스당 수량 (EA) <b>*</b></span>
-                    <span class="unit-input">
-                      <input id="inboundBoxQty" type="number" value="300" min="0" />
+                    <span class="unit-input editable-lock-input editable-unit-input">
+                      <input id="inboundBoxQty" type="number" value="300" min="0" disabled />
                       <i>ea</i>
+                      <button id="editInboundBoxQtyButton" type="button">수정</button>
                     </span>
                   </label>
                   <label class="form-field quantity-box-count">
@@ -212,10 +216,11 @@
                     </span>
                   </label>
                   <label class="form-field quantity-tray">
-                    <span>검수 수량(트레이 수량) (EA) <b>*</b></span>
-                    <span class="unit-input">
-                      <input id="inboundTrayQty" type="number" value="80" min="0" />
+                    <span>검수 수량 (EA) <b>*</b></span>
+                    <span class="unit-input editable-lock-input editable-unit-input">
+                      <input id="inboundTrayQty" type="number" value="80" min="0" disabled />
                       <i>ea</i>
+                      <button id="editInboundTrayQtyButton" type="button">수정</button>
                     </span>
                   </label>
                   <label class="form-field quantity-defect">
@@ -329,7 +334,7 @@
                     <th>입고 유형</th>
                     <th>박스당 수량</th>
                     <th>입고 박스 수</th>
-                    <th>검수 수량(트레이 수량)</th>
+                    <th>검수 수량</th>
                     <th>잔량</th>
                     <th>입고 총 수량</th>
                     <th>불량 수량</th>
@@ -448,7 +453,7 @@
                     <th>제품명</th>
                     <th>색상</th>
                     <th>박스당수량</th>
-                    <th>검수 수량(트레이 수량)</th>
+                    <th>검수 수량</th>
                     <th>등록일</th>
                     <th>비고</th>
                     <th>관리</th>
@@ -566,7 +571,7 @@
               </label>
 
               <label class="form-field">
-                <span>검수 수량(트레이 수량) <b>*</b></span>
+                <span>검수 수량 <b>*</b></span>
                 <span class="unit-input">
                   <input id="productTrayQuantity" type="number" min="1" step="1" placeholder="숫자를 입력하세요." required />
                   <i>EA</i>

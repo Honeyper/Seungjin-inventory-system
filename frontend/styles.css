@@ -2097,6 +2097,14 @@ input {
   background: var(--navy-dark);
 }
 
+.editable-unit-input input {
+  padding-right: 6.6rem !important;
+}
+
+.editable-unit-input i {
+  right: 3.75rem;
+}
+
 .search-input svg {
   position: absolute;
   top: 50%;

@@ -76,6 +76,12 @@ const productDetailContent = document.querySelector("#productDetailContent");
 const inboundTime = document.querySelector("#inboundTime");
 const inboundClient = document.querySelector("#inboundClient");
 const editInboundClientButton = document.querySelector("#editInboundClientButton");
+const inboundBoxQty = document.querySelector("#inboundBoxQty");
+const editInboundBoxQtyButton = document.querySelector("#editInboundBoxQtyButton");
+const inboundTrayQty = document.querySelector("#inboundTrayQty");
+const editInboundTrayQtyButton = document.querySelector("#editInboundTrayQtyButton");
+const inboundNote = document.querySelector("#inboundNote");
+const editInboundNoteButton = document.querySelector("#editInboundNoteButton");
 const inboundProductName = document.querySelector("#inboundProductName");
 const inboundProductId = document.querySelector("#inboundProductId");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
@@ -158,6 +164,15 @@ inboundDefectFiles?.addEventListener("change", () => {
 
 editInboundClientButton.addEventListener("click", () => {
   setInboundClientEditable(inboundClient.disabled);
+});
+editInboundBoxQtyButton.addEventListener("click", () => {
+  setInboundLockedFieldEditable(inboundBoxQty, editInboundBoxQtyButton, inboundBoxQty.disabled);
+});
+editInboundTrayQtyButton.addEventListener("click", () => {
+  setInboundLockedFieldEditable(inboundTrayQty, editInboundTrayQtyButton, inboundTrayQty.disabled);
+});
+editInboundNoteButton.addEventListener("click", () => {
+  setInboundLockedFieldEditable(inboundNote, editInboundNoteButton, inboundNote.disabled);
 });
 
 inboundProductSearchTrigger.addEventListener("click", openInboundProductPicker);
@@ -350,13 +365,17 @@ function renderInboundFilePreview({ input, preview, tile, key, badge = null }) {
 }
 
 function setInboundClientEditable(isEditable) {
-  inboundClient.disabled = !isEditable;
-  editInboundClientButton.textContent = isEditable ? "잠금" : "수정";
-  editInboundClientButton.setAttribute("aria-pressed", String(isEditable));
+  setInboundLockedFieldEditable(inboundClient, editInboundClientButton, isEditable);
+}
+
+function setInboundLockedFieldEditable(input, button, isEditable) {
+  input.disabled = !isEditable;
+  button.textContent = isEditable ? "잠금" : "수정";
+  button.setAttribute("aria-pressed", String(isEditable));
 
   if (isEditable) {
-    inboundClient.focus();
-    inboundClient.select();
+    input.focus();
+    input.select();
   }
 }
 
@@ -428,13 +447,15 @@ function selectInboundProduct(product) {
   const trayQuantity = extractQuantityNumber(product.trayQuantity);
 
   if (boxQuantity) {
-    document.querySelector("#inboundBoxQty").value = boxQuantity;
+    inboundBoxQty.value = boxQuantity;
   }
 
   if (trayQuantity) {
-    document.querySelector("#inboundTrayQty").value = trayQuantity;
+    inboundTrayQty.value = trayQuantity;
   }
 
+  setInboundLockedFieldEditable(inboundBoxQty, editInboundBoxQtyButton, false);
+  setInboundLockedFieldEditable(inboundTrayQty, editInboundTrayQtyButton, false);
   updateInboundSummary();
   closeInboundProductPicker();
 }
@@ -721,7 +742,7 @@ function renderProductDetail(product) {
       <h3 id="detailStandardTitle">제품 기준 정보</h3>
       <div class="detail-grid">
         ${detailItem("박스당 수량", product.boxQuantity)}
-        ${detailItem("검수 수량(트레이 수량)", product.trayQuantity)}
+        ${detailItem("검수 수량", product.trayQuantity)}
         ${detailItem("비고", product.note, false, "full-span")}
       </div>
     </section>
@@ -946,7 +967,7 @@ function validateProductPayload(payload) {
     ["제품명", "제품명을 입력해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
-    ["트레이 수량", "검수 수량(트레이 수량)을 입력해주세요."]
+    ["트레이 수량", "검수 수량을 입력해주세요."]
   ];
 
   const missing = requiredFields.find(([field]) => !payload[field]);
