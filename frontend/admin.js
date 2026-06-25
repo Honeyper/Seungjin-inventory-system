@@ -54,7 +54,11 @@ const state = {
     invoice: "",
     defect: ""
   },
-  selectedDefectReasons: ["양호", "흑점"]
+  selectedDefectReasons: ["양호", "흑점"],
+  inboundSort: {
+    column: null,
+    direction: "asc"
+  }
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -115,6 +119,7 @@ const inboundDefectReasonValue = document.querySelector("#inboundDefectReasonVal
 const inboundDefectReasonInput = document.querySelector("#inboundDefectReason");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
+const inboundSortButtons = document.querySelectorAll("[data-inbound-sort]");
 const inboundNumberInputs = [
   ["#inboundBoxQty", "#calcBoxQty"],
   ["#inboundBoxCount", "#calcBoxCount"],
@@ -153,6 +158,12 @@ window.addEventListener("hashchange", () => {
 
 inboundNumberInputs.forEach(({ input }) => {
   input?.addEventListener("input", updateInboundSummary);
+});
+
+inboundSortButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    sortInboundRows(Number(button.dataset.inboundSort), button);
+  });
 });
 
 inboundDefectReasonButton?.addEventListener("click", () => {
@@ -412,6 +423,79 @@ function renderInboundDefectReasons() {
 function renderDefectReasonPill(reason) {
   const tone = DEFECT_REASON_TONES[reason] || "gray";
   return `<span class="defect-pill defect-pill-${tone}">${escapeHtml(reason)}</span>`;
+}
+
+function sortInboundRows(columnIndex, activeButton) {
+  const table = activeButton.closest("table");
+  const tbody = table?.querySelector("tbody");
+
+  if (!tbody || Number.isNaN(columnIndex)) {
+    return;
+  }
+
+  const direction = state.inboundSort.column === columnIndex && state.inboundSort.direction === "asc"
+    ? "desc"
+    : "asc";
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+
+  rows.sort((leftRow, rightRow) => {
+    const leftValue = getInboundSortValue(leftRow.children[columnIndex]?.textContent || "");
+    const rightValue = getInboundSortValue(rightRow.children[columnIndex]?.textContent || "");
+    const result = compareInboundSortValues(leftValue, rightValue);
+    return direction === "asc" ? result : -result;
+  });
+
+  rows.forEach((row) => tbody.appendChild(row));
+  state.inboundSort = { column: columnIndex, direction };
+  updateInboundSortButtons(activeButton, direction);
+}
+
+function getInboundSortValue(value) {
+  const normalized = String(value || "").trim();
+  const dateValue = normalized.match(/^\d{4}[-.]\d{1,2}[-.]\d{1,2}/)
+    ? Date.parse(normalized.replace(/\./g, "-").replace(" ", "T"))
+    : Number.NaN;
+
+  if (!Number.isNaN(dateValue)) {
+    return dateValue;
+  }
+
+  const numericValue = Number(normalized.replace(/,/g, "").match(/-?\d+(\.\d+)?/)?.[0]);
+
+  if (!Number.isNaN(numericValue)) {
+    return numericValue;
+  }
+
+  return normalized;
+}
+
+function compareInboundSortValues(leftValue, rightValue) {
+  if (typeof leftValue === "number" && typeof rightValue === "number") {
+    return leftValue - rightValue;
+  }
+
+  return String(leftValue).localeCompare(String(rightValue), "ko-KR", {
+    numeric: true,
+    sensitivity: "base"
+  });
+}
+
+function updateInboundSortButtons(activeButton, direction) {
+  inboundSortButtons.forEach((button) => {
+    const isActive = button === activeButton;
+    const th = button.closest("th");
+    const label = button.textContent.trim();
+
+    button.dataset.direction = isActive ? direction : "";
+    button.setAttribute(
+      "aria-label",
+      isActive ? `${label} ${direction === "asc" ? "오름차순" : "내림차순"} 정렬` : `${label} 정렬`
+    );
+
+    if (th) {
+      th.setAttribute("aria-sort", isActive ? (direction === "asc" ? "ascending" : "descending") : "none");
+    }
+  });
 }
 
 function renderInboundFilePreview({ input, preview, tile, key, badge = null }) {

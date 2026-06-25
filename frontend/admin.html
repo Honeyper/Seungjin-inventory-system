@@ -414,21 +414,141 @@
                 <thead>
                   <tr>
                     <th>QR</th>
-                    <th>입고일</th>
-                    <th>거래처명</th>
-                    <th>입고 유형</th>
-                    <th>제품명</th>
-                    <th>차수</th>
-                    <th>최종공정</th>
-                    <th>박스당 수량</th>
-                    <th>입고 박스 수</th>
-                    <th>잔량</th>
-                    <th>입고 총 수량</th>
-                    <th>박스 총 수량</th>
-                    <th>검수 수량</th>
-                    <th>불량 수량</th>
-                    <th>불량률</th>
-                    <th>등록자</th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="1" aria-label="입고일 정렬">
+                        입고일
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="2" aria-label="거래처명 정렬">
+                        거래처명
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="3" aria-label="입고 유형 정렬">
+                        입고 유형
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="4" aria-label="제품명 정렬">
+                        제품명
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="5" aria-label="차수 정렬">
+                        차수
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="6" aria-label="최종공정 정렬">
+                        최종공정
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="7" aria-label="박스당 수량 정렬">
+                        박스당 수량
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="8" aria-label="입고 박스 수 정렬">
+                        입고 박스 수
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="9" aria-label="잔량 정렬">
+                        잔량
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="10" aria-label="입고 총 수량 정렬">
+                        입고 총 수량
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="11" aria-label="박스 총 수량 정렬">
+                        박스 총 수량
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="12" aria-label="검수 수량 정렬">
+                        검수 수량
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="13" aria-label="불량 수량 정렬">
+                        불량 수량
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="14" aria-label="불량률 정렬">
+                        불량률
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="sort-header-button" type="button" data-inbound-sort="15" aria-label="등록자 정렬">
+                        등록자
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
+                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
+                        </svg>
+                      </button>
+                    </th>
                     <th>관리</th>
                   </tr>
                 </thead>

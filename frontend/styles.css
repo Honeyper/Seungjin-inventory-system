@@ -2579,15 +2579,59 @@ input {
 }
 
 .inbound-table {
-  min-width: 84rem;
+  min-width: 118rem;
   table-layout: fixed;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
 }
 
 .inbound-table th,
 .inbound-table td {
-  padding: 0 0.38rem;
+  padding: 0 0.7rem;
   text-align: center;
+}
+
+.sort-header-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+  width: 100%;
+  min-height: 2.85rem;
+  padding: 0 0.15rem;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sort-header-button:hover,
+.sort-header-button:focus-visible {
+  color: var(--gold);
+  outline: none;
+}
+
+.sort-header-button svg {
+  flex: 0 0 auto;
+  width: 0.92rem;
+  height: 0.92rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.62;
+}
+
+.sort-header-button[data-direction="asc"] .sort-icon-down,
+.sort-header-button[data-direction="desc"] .sort-icon-up {
+  opacity: 0.24;
+}
+
+.sort-header-button[data-direction="asc"] .sort-icon-up,
+.sort-header-button[data-direction="desc"] .sort-icon-down {
+  opacity: 1;
 }
 
 .inbound-table th:nth-child(1),
@@ -2600,27 +2644,27 @@ input {
 .inbound-table td:nth-child(10),
 .inbound-table th:nth-child(17),
 .inbound-table td:nth-child(17) {
-  width: 3.2rem;
+  width: 4.4rem;
 }
 
 .inbound-table th:nth-child(2),
 .inbound-table td:nth-child(2) {
-  width: 7rem;
+  width: 10rem;
 }
 
 .inbound-table th:nth-child(3),
 .inbound-table td:nth-child(3) {
-  width: 7.2rem;
+  width: 9.5rem;
 }
 
 .inbound-table th:nth-child(4),
 .inbound-table td:nth-child(4) {
-  width: 5.2rem;
+  width: 7rem;
 }
 
 .inbound-table th:nth-child(5),
 .inbound-table td:nth-child(5) {
-  width: 10.8rem;
+  width: 15rem;
 }
 
 .inbound-table th:nth-child(8),
@@ -2637,12 +2681,12 @@ input {
 .inbound-table td:nth-child(14),
 .inbound-table th:nth-child(15),
 .inbound-table td:nth-child(15) {
-  width: 5.4rem;
+  width: 7.4rem;
 }
 
 .inbound-table th:nth-child(16),
 .inbound-table td:nth-child(16) {
-  width: 4.8rem;
+  width: 6rem;
 }
 
 .qr-action {
