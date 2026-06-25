@@ -2269,7 +2269,7 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 0.55rem;
-  min-height: 2.55rem;
+  min-height: 2.38rem;
   padding: 0 0.65rem;
   border-bottom: 1px solid #edf1f6;
 }
@@ -2308,15 +2308,15 @@ input {
 
 .summary-formulas {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.42rem;
   margin-top: auto;
-  padding-top: 0.65rem;
+  padding-top: 0.55rem;
 }
 
 .summary-formula-card {
   display: grid;
   gap: 0.28rem;
-  padding: 0.58rem 0.65rem;
+  padding: 0.5rem 0.62rem;
   color: #4f5f75;
   border: 1px dashed #dbe5f2;
   border-radius: 0.45rem;
