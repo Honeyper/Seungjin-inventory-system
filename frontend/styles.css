@@ -2070,19 +2070,19 @@ input {
 }
 
 .editable-lock-input input {
-  padding-right: 3.9rem !important;
+  padding-right: 3.2rem !important;
 }
 
 .editable-lock-input button {
   position: absolute;
   top: 50%;
   right: 0.45rem;
-  min-width: 2.75rem;
+  display: inline-grid;
+  place-items: center;
+  width: 1.88rem;
+  min-width: 0;
   height: 1.82rem;
   color: var(--navy-dark);
-  font: inherit;
-  font-size: 0.74rem;
-  font-weight: 900;
   border: 1px solid #dce4ef;
   border-radius: 0.3rem;
   background: #fff;
@@ -2097,12 +2097,22 @@ input {
   background: var(--navy-dark);
 }
 
+.editable-lock-input button svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .editable-unit-input input {
-  padding-right: 6.6rem !important;
+  padding-right: 5.45rem !important;
 }
 
 .editable-unit-input i {
-  right: 3.75rem;
+  right: 3.1rem;
 }
 
 .search-input svg {

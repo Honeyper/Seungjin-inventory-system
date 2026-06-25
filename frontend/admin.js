@@ -370,7 +370,10 @@ function setInboundClientEditable(isEditable) {
 
 function setInboundLockedFieldEditable(input, button, isEditable) {
   input.disabled = !isEditable;
-  button.textContent = isEditable ? "잠금" : "수정";
+  const actionLabel = isEditable ? "잠금" : "수정";
+  const fieldLabel = button.getAttribute("aria-label")?.replace(/\s?(수정|잠금)$/, "") || "입력값";
+  button.setAttribute("aria-label", `${fieldLabel} ${actionLabel}`);
+  button.title = actionLabel;
   button.setAttribute("aria-pressed", String(isEditable));
 
   if (isEditable) {
