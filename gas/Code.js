@@ -1,5 +1,9 @@
 const CONFIG = {
   SPREADSHEET_ID: '1XkrXqPFpB2dtGrT8KiV3OyUzM6PbVAxHlZlQeDUFQAI',
+  SHEET_IDS: {
+    STOCK_DB: 425625267,
+    BOX_DB: 523859013
+  },
   SHEETS: {
     PRODUCTS: '제품DB',
     INBOUND: '입고내역',
@@ -632,8 +636,8 @@ function createInbound(payload) {
   lock.waitLock(30000);
 
   try {
-    const stockSheet = getSheet_(CONFIG.SHEETS.STOCK_DB);
-    const boxSheet = getSheet_(CONFIG.SHEETS.BOX_DB);
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
     const now = new Date();
     const timezone = 'Asia/Seoul';
     const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
@@ -779,6 +783,23 @@ function getSheet_(sheetName) {
     throw new Error(`${sheetName} 시트를 찾을 수 없습니다. setupSheets를 먼저 실행하세요.`);
   }
   return sheet;
+}
+
+function getSheetByNameOrId_(sheetName, sheetId, displayName) {
+  const ss = getSpreadsheet_();
+  const byName = ss.getSheetByName(sheetName);
+
+  if (byName) {
+    return byName;
+  }
+
+  const byId = ss.getSheets().find((sheet) => sheet.getSheetId() === sheetId);
+
+  if (byId) {
+    return byId;
+  }
+
+  throw new Error(`${displayName || sheetName} 시트를 찾을 수 없습니다. 시트 탭 이름 또는 gid를 확인해주세요.`);
 }
 
 function getProductSheet_() {
