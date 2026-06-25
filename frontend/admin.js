@@ -38,7 +38,11 @@ const state = {
   activeDetailProductCode: "",
   activeMenuProductCode: "",
   activeMenuButton: null,
-  inboundProductPickerQuery: ""
+  inboundProductPickerQuery: "",
+  inboundPreviewUrls: {
+    invoice: "",
+    defect: ""
+  }
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -79,6 +83,13 @@ const inboundProductPickerModal = document.querySelector("#inboundProductPickerM
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
 const inboundProductPickerList = document.querySelector("#inboundProductPickerList");
 const inboundProductPickerEmpty = document.querySelector("#inboundProductPickerEmpty");
+const inboundInvoiceFile = document.querySelector("#inboundInvoiceFile");
+const inboundInvoiceUploadButton = document.querySelector("#inboundInvoiceUploadButton");
+const inboundInvoicePreview = document.querySelector("#inboundInvoicePreview");
+const inboundDefectFiles = document.querySelector("#inboundDefectFiles");
+const inboundDefectUploadButton = document.querySelector("#inboundDefectUploadButton");
+const inboundDefectPreview = document.querySelector("#inboundDefectPreview");
+const inboundDefectCount = document.querySelector("#inboundDefectCount");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
 const inboundNumberInputs = [
@@ -123,6 +134,26 @@ inboundNumberInputs.forEach(({ input }) => {
 
 document.querySelector("#inboundSubmitButton").addEventListener("click", () => {
   showToast("입고 등록 저장은 시트 연결 단계에서 활성화됩니다.");
+});
+
+inboundInvoiceUploadButton?.addEventListener("click", () => inboundInvoiceFile?.click());
+inboundDefectUploadButton?.addEventListener("click", () => inboundDefectFiles?.click());
+inboundInvoiceFile?.addEventListener("change", () => {
+  renderInboundFilePreview({
+    input: inboundInvoiceFile,
+    preview: inboundInvoicePreview,
+    tile: inboundInvoiceUploadButton,
+    key: "invoice"
+  });
+});
+inboundDefectFiles?.addEventListener("change", () => {
+  renderInboundFilePreview({
+    input: inboundDefectFiles,
+    preview: inboundDefectPreview,
+    tile: inboundDefectUploadButton,
+    key: "defect",
+    badge: inboundDefectCount
+  });
 });
 
 editInboundClientButton.addEventListener("click", () => {
@@ -269,6 +300,47 @@ function updateInboundSummary() {
 
   if (totalOutput) {
     totalOutput.textContent = (boxQuantity * boxCount + trayQuantity + remainQuantity).toLocaleString("ko-KR");
+  }
+}
+
+function renderInboundFilePreview({ input, preview, tile, key, badge = null }) {
+  const files = Array.from(input?.files || []);
+  const file = files[0];
+
+  if (state.inboundPreviewUrls[key]) {
+    URL.revokeObjectURL(state.inboundPreviewUrls[key]);
+    state.inboundPreviewUrls[key] = "";
+  }
+
+  if (!file) {
+    preview.hidden = true;
+    preview.removeAttribute("src");
+    tile.classList.remove("has-preview");
+    if (badge) {
+      badge.hidden = true;
+      badge.textContent = "대표";
+    }
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    input.value = "";
+    preview.hidden = true;
+    preview.removeAttribute("src");
+    tile.classList.remove("has-preview");
+    showToast("이미지 파일만 미리보기할 수 있습니다.");
+    return;
+  }
+
+  const previewUrl = URL.createObjectURL(file);
+  state.inboundPreviewUrls[key] = previewUrl;
+  preview.src = previewUrl;
+  preview.hidden = false;
+  tile.classList.add("has-preview");
+
+  if (badge) {
+    badge.hidden = false;
+    badge.textContent = files.length > 1 ? `대표 1/${files.length}` : "대표";
   }
 }
 

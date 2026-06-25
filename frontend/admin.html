@@ -235,20 +235,33 @@
                     </select>
                   </label>
                   <div class="inbound-file-actions quantity-file-actions">
-                    <button class="secondary-action" type="button">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 3v12m0-12 4 4m-4-4-4 4" />
-                        <path d="M5 15v4h14v-4" />
-                      </svg>
-                      거래명세서 등록
-                    </button>
-                    <button class="secondary-action" type="button">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 7h3l2-2h6l2 2h3v12H4z" />
-                        <circle cx="12" cy="13" r="3" />
-                      </svg>
-                      불량 사진 등록
-                    </button>
+                    <div class="upload-field">
+                      <input class="visually-hidden" id="inboundInvoiceFile" type="file" accept="image/*" />
+                      <button class="secondary-action upload-tile" type="button" id="inboundInvoiceUploadButton">
+                        <img id="inboundInvoicePreview" alt="거래명세서 미리보기" hidden />
+                        <span class="upload-tile-content">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 3v12m0-12 4 4m-4-4-4 4" />
+                            <path d="M5 15v4h14v-4" />
+                          </svg>
+                          <span>거래명세서 등록</span>
+                        </span>
+                      </button>
+                    </div>
+                    <div class="upload-field">
+                      <input class="visually-hidden" id="inboundDefectFiles" type="file" accept="image/*" multiple />
+                      <button class="secondary-action upload-tile" type="button" id="inboundDefectUploadButton">
+                        <img id="inboundDefectPreview" alt="불량 사진 대표 미리보기" hidden />
+                        <span class="upload-preview-badge" id="inboundDefectCount" hidden>대표</span>
+                        <span class="upload-tile-content">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7h3l2-2h6l2 2h3v12H4z" />
+                            <circle cx="12" cy="13" r="3" />
+                          </svg>
+                          <span>불량 사진 등록</span>
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>
