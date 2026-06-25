@@ -2296,14 +2296,20 @@ input {
   font-weight: 900;
 }
 
+.summary-totals {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.7rem 0 0.62rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #dfe6ef;
+}
+
 .summary-total {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 0.55rem;
-  margin: 0.7rem 0 0.62rem;
-  padding-top: 0.7rem;
-  border-top: 1px solid #dfe6ef;
+  min-height: 2rem;
 }
 
 .summary-formulas {
@@ -2341,10 +2347,19 @@ input {
 }
 
 .summary-total strong {
-  color: var(--gold);
+  color: var(--navy-dark);
   font-size: 1.18rem;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.summary-total strong span {
+  color: var(--gold);
+}
+
+.summary-total strong em {
+  color: var(--navy-dark);
+  font-style: normal;
 }
 
 .inbound-submit {
