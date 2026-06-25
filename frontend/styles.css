@@ -1596,6 +1596,25 @@ input {
   padding-bottom: 1.15rem;
 }
 
+.inbound-detail-modal {
+  width: min(54rem, calc(100vw - 2.5rem));
+  max-height: min(90vh, 48rem);
+  overflow: auto;
+}
+
+.inbound-detail-modal .modal-header {
+  padding: 1.15rem 1.55rem 0.95rem;
+}
+
+.inbound-detail-modal .modal-header h2 {
+  font-size: 1.32rem;
+}
+
+.inbound-detail-modal .modal-header p {
+  margin-top: 0.32rem;
+  font-size: 0.9rem;
+}
+
 .picker-modal {
   width: min(54rem, calc(100vw - 2.5rem));
 }
@@ -1752,6 +1771,35 @@ input {
   font-weight: 900;
   word-break: keep-all;
   white-space: normal;
+}
+
+.inbound-detail-modal .detail-content {
+  padding: 0.85rem 1.55rem 0;
+}
+
+.inbound-detail-modal .detail-section + .detail-section {
+  margin-top: 0.72rem;
+}
+
+.inbound-detail-modal .detail-section h3 {
+  margin-bottom: 0.46rem;
+  font-size: 0.96rem;
+}
+
+.inbound-detail-modal .detail-item {
+  grid-template-columns: minmax(5.3rem, 7.3rem) minmax(0, 1fr);
+  min-height: 2.56rem;
+}
+
+.inbound-detail-modal .detail-item span,
+.inbound-detail-modal .detail-item strong {
+  padding: 0.42rem 0.78rem;
+  font-size: 0.88rem;
+}
+
+.inbound-detail-modal .detail-actions {
+  padding-top: 0.8rem;
+  padding-bottom: 1rem;
 }
 
 .status-pill {
@@ -2961,6 +3009,11 @@ input {
     overflow: auto;
   }
 
+  .inbound-detail-modal {
+    width: min(44rem, calc(100vw - 1.5rem));
+    max-height: min(90vh, 48rem);
+  }
+
   .modal-header,
   .product-form,
   .detail-content,
@@ -2985,6 +3038,10 @@ input {
 
   .detail-item:nth-child(odd) {
     border-right: 0;
+  }
+
+  .inbound-detail-modal .detail-item {
+    grid-template-columns: minmax(5.4rem, 7rem) minmax(0, 1fr);
   }
 
   .table-footer {
