@@ -1234,6 +1234,122 @@ input {
   text-overflow: ellipsis;
 }
 
+.product-view {
+  font-size: 0.82rem;
+}
+
+.product-view .page-heading {
+  margin-bottom: 0.95rem;
+}
+
+.product-view .page-heading h1 {
+  margin-bottom: 0.35rem;
+  font-size: clamp(1.55rem, 1.75vw, 2.08rem);
+}
+
+.product-view .page-heading p {
+  font-size: 0.86rem;
+}
+
+.product-view .eyebrow {
+  font-size: 0.68rem;
+}
+
+.product-view .primary-action {
+  min-height: 2.55rem;
+  padding: 0 1.05rem;
+  font-size: 0.86rem;
+}
+
+.product-view .primary-action svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.product-view .product-hero {
+  grid-template-columns: 4.6rem repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.95rem;
+  border-radius: 0.55rem;
+}
+
+.product-view .product-hero-visual {
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: 0.78rem;
+}
+
+.product-view .product-hero-visual img {
+  width: 2.95rem;
+  height: 2.95rem;
+}
+
+.product-view .product-hero strong {
+  font-size: 1.18rem;
+}
+
+.product-view .product-hero span {
+  margin-top: 0.16rem;
+  font-size: 0.78rem;
+}
+
+.product-view .list-tools {
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.95rem;
+}
+
+.product-view .search-field svg {
+  left: 0.85rem;
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.product-view .search-field input,
+.product-view .client-filter select {
+  height: 2.55rem;
+  font-size: 0.82rem;
+}
+
+.product-view .search-field input {
+  padding-left: 2.65rem;
+}
+
+.product-view .client-filter select {
+  padding-left: 0.85rem;
+}
+
+.product-view .product-table {
+  min-width: 58rem;
+  font-size: 0.82rem;
+}
+
+.product-view .product-table th,
+.product-view .product-table td {
+  height: 3rem;
+  padding: 0 0.75rem;
+}
+
+.product-view .product-table th {
+  font-size: 0.78rem;
+}
+
+.product-view .table-footer {
+  padding: 0.72rem 0.95rem;
+}
+
+.product-view .pagination button {
+  min-width: 2.05rem;
+  height: 2.05rem;
+}
+
+.product-view .page-size select {
+  min-width: 8.7rem;
+  height: 2.35rem;
+  padding-left: 0.9rem;
+}
+
 .row-action {
   width: 2.1rem;
   height: 2.1rem;
