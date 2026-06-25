@@ -184,9 +184,23 @@
                   <label class="form-field">
                     <span>보관위치 <b>*</b></span>
                     <select>
-                      <option>A-1</option>
+                      <option>미지정</option>
+                      <option>현장</option>
+                      <option>A</option>
+                      <option>B-1</option>
                       <option selected>B-2</option>
-                      <option>C-3</option>
+                      <option>C-1</option>
+                      <option>C-2</option>
+                      <option>D-1</option>
+                      <option>D-2</option>
+                      <option>E-1</option>
+                      <option>E-2</option>
+                      <option>F-1</option>
+                      <option>F-2</option>
+                      <option>G-1</option>
+                      <option>G[출고대기]</option>
+                      <option>H-1</option>
+                      <option>I</option>
                     </select>
                   </label>
                   <label class="form-field">
@@ -268,12 +282,49 @@
                   </label>
                   <label class="form-field quantity-reason">
                     <span>불량 사유</span>
-                    <select>
-                      <option>측정</option>
-                      <option>파손</option>
-                      <option>인쇄 불량</option>
-                      <option>기타</option>
-                    </select>
+                    <div class="multi-select" id="inboundDefectReasonSelect">
+                      <button class="multi-select-trigger" id="inboundDefectReasonButton" type="button" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="multi-select-value" id="inboundDefectReasonValue"></span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      </button>
+                      <div class="multi-select-panel" id="inboundDefectReasonPanel" role="listbox" aria-label="불량 사유 선택" hidden>
+                        <button class="multi-select-option" type="button" data-defect-reason="미검수" aria-pressed="false">
+                          <span class="defect-pill defect-pill-dark">미검수</span>
+                          <span class="option-check" aria-hidden="true">✓</span>
+                        </button>
+                        <button class="multi-select-option" type="button" data-defect-reason="양호" aria-pressed="false">
+                          <span class="defect-pill defect-pill-good">양호</span>
+                          <span class="option-check" aria-hidden="true">✓</span>
+                        </button>
+                        <button class="multi-select-option" type="button" data-defect-reason="스크레치" aria-pressed="false">
+                          <span class="defect-pill defect-pill-pink">스크레치</span>
+                          <span class="option-check" aria-hidden="true">✓</span>
+                        </button>
+                        <button class="multi-select-option" type="button" data-defect-reason="흑점" aria-pressed="false">
+                          <span class="defect-pill defect-pill-coral">흑점</span>
+                          <span class="option-check" aria-hidden="true">✓</span>
+                        </button>
+                        <button class="multi-select-option" type="button" data-defect-reason="돌돌이" aria-pressed="false">
+                          <span class="defect-pill defect-pill-red">돌돌이</span>
+                          <span class="option-check" aria-hidden="true">✓</span>
+                        </button>
+                        <button class="multi-select-option" type="button" data-defect-reason="미상의 얼룩" aria-pressed="false">
+                          <span class="defect-pill defect-pill-red">미상의 얼룩</span>
+                          <span class="option-check" aria-hidden="true">✓</span>
+                        </button>
+                        <button class="multi-select-option" type="button" data-defect-reason="오목/볼록" aria-pressed="false">
+                          <span class="defect-pill defect-pill-light">오목/볼록</span>
+                          <span class="option-check" aria-hidden="true">✓</span>
+                        </button>
+                        <button class="multi-select-option" type="button" data-defect-reason="가스 불량" aria-pressed="false">
+                          <span class="defect-pill defect-pill-gray">가스 불량</span>
+                          <span class="option-check" aria-hidden="true">✓</span>
+                        </button>
+                      </div>
+                      <input id="inboundDefectReason" type="hidden" value="양호, 흑점" />
+                    </div>
                   </label>
                   <div class="inbound-file-actions quantity-file-actions">
                     <div class="upload-field">

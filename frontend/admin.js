@@ -18,6 +18,17 @@ const DEFAULT_CLIENTS = [
   "더승진(2공장)"
 ];
 
+const DEFECT_REASON_TONES = {
+  "미검수": "dark",
+  "양호": "good",
+  "스크레치": "pink",
+  "흑점": "coral",
+  "돌돌이": "red",
+  "미상의 얼룩": "red",
+  "오목/볼록": "light",
+  "가스 불량": "gray"
+};
+
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 
 if (!session || session.role !== "admin") {
@@ -42,7 +53,8 @@ const state = {
   inboundPreviewUrls: {
     invoice: "",
     defect: ""
-  }
+  },
+  selectedDefectReasons: ["양호", "흑점"]
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -96,6 +108,11 @@ const inboundDefectFiles = document.querySelector("#inboundDefectFiles");
 const inboundDefectUploadButton = document.querySelector("#inboundDefectUploadButton");
 const inboundDefectPreview = document.querySelector("#inboundDefectPreview");
 const inboundDefectCount = document.querySelector("#inboundDefectCount");
+const inboundDefectReasonSelect = document.querySelector("#inboundDefectReasonSelect");
+const inboundDefectReasonButton = document.querySelector("#inboundDefectReasonButton");
+const inboundDefectReasonPanel = document.querySelector("#inboundDefectReasonPanel");
+const inboundDefectReasonValue = document.querySelector("#inboundDefectReasonValue");
+const inboundDefectReasonInput = document.querySelector("#inboundDefectReason");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
 const inboundNumberInputs = [
@@ -136,6 +153,17 @@ window.addEventListener("hashchange", () => {
 
 inboundNumberInputs.forEach(({ input }) => {
   input?.addEventListener("input", updateInboundSummary);
+});
+
+inboundDefectReasonButton?.addEventListener("click", () => {
+  const isOpen = inboundDefectReasonButton.getAttribute("aria-expanded") === "true";
+  setInboundDefectReasonOpen(!isOpen);
+});
+
+inboundDefectReasonPanel?.querySelectorAll("[data-defect-reason]").forEach((button) => {
+  button.addEventListener("click", () => {
+    toggleInboundDefectReason(button.dataset.defectReason);
+  });
 });
 
 document.querySelector("#inboundSubmitButton").addEventListener("click", () => {
@@ -215,6 +243,16 @@ document.querySelector("#closeProductDetailButton").addEventListener("click", cl
 document.querySelector("#editProductFromDetailButton").addEventListener("click", openDetailProductEdit);
 
 document.addEventListener("click", (event) => {
+  if (
+    inboundDefectReasonSelect &&
+    inboundDefectReasonButton?.getAttribute("aria-expanded") === "true" &&
+    !inboundDefectReasonSelect.contains(event.target)
+  ) {
+    setInboundDefectReasonOpen(false);
+  }
+});
+
+document.addEventListener("click", (event) => {
   if (rowActionMenu.hidden) {
     return;
   }
@@ -232,6 +270,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!rowActionMenu.hidden) {
     closeRowActionMenu();
+    return;
+  }
+
+  if (inboundDefectReasonButton?.getAttribute("aria-expanded") === "true") {
+    setInboundDefectReasonOpen(false);
     return;
   }
 
@@ -277,6 +320,7 @@ loadProducts();
 setCurrentInboundTime();
 setActiveView(getCurrentView());
 updateInboundSummary();
+renderInboundDefectReasons();
 
 function getCurrentView() {
   const view = location.hash.replace("#", "");
@@ -321,6 +365,53 @@ function updateInboundSummary() {
   if (totalBoxOutput) {
     totalBoxOutput.textContent = totalBoxCount.toLocaleString("ko-KR");
   }
+}
+
+function setInboundDefectReasonOpen(isOpen) {
+  if (!inboundDefectReasonButton || !inboundDefectReasonPanel) {
+    return;
+  }
+
+  inboundDefectReasonButton.setAttribute("aria-expanded", String(isOpen));
+  inboundDefectReasonPanel.hidden = !isOpen;
+}
+
+function toggleInboundDefectReason(reason) {
+  if (!reason) {
+    return;
+  }
+
+  const selectedReasons = new Set(state.selectedDefectReasons);
+
+  if (selectedReasons.has(reason)) {
+    selectedReasons.delete(reason);
+  } else {
+    selectedReasons.add(reason);
+  }
+
+  state.selectedDefectReasons = Array.from(selectedReasons);
+  renderInboundDefectReasons();
+}
+
+function renderInboundDefectReasons() {
+  if (!inboundDefectReasonValue || !inboundDefectReasonInput || !inboundDefectReasonPanel) {
+    return;
+  }
+
+  inboundDefectReasonInput.value = state.selectedDefectReasons.join(", ");
+  inboundDefectReasonValue.innerHTML = state.selectedDefectReasons.length
+    ? state.selectedDefectReasons.map(renderDefectReasonPill).join("")
+    : '<span class="multi-select-placeholder">선택하세요</span>';
+
+  inboundDefectReasonPanel.querySelectorAll("[data-defect-reason]").forEach((button) => {
+    const isSelected = state.selectedDefectReasons.includes(button.dataset.defectReason);
+    button.setAttribute("aria-pressed", String(isSelected));
+  });
+}
+
+function renderDefectReasonPill(reason) {
+  const tone = DEFECT_REASON_TONES[reason] || "gray";
+  return `<span class="defect-pill defect-pill-${tone}">${escapeHtml(reason)}</span>`;
 }
 
 function renderInboundFilePreview({ input, preview, tile, key, badge = null }) {
