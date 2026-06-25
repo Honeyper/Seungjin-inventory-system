@@ -578,7 +578,7 @@
                     <td>0.24%</td>
                     <td>Admin</td>
                     <td>
-                      <button class="row-action" type="button" aria-label="입고 관리">
+                      <button class="row-action inbound-row-action" type="button" data-inbound-record="sample-1" aria-label="입고 관리" aria-haspopup="menu" aria-expanded="false">
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <circle cx="12" cy="5" r="1.6" />
                           <circle cx="12" cy="12" r="1.6" />
@@ -707,6 +707,21 @@
         <span>수정</span>
       </button>
       <button class="row-menu-item danger" type="button" role="menuitem" data-menu-action="delete">
+        <img src="./assets/menu-icon-delete-generated.png" alt="" />
+        <span>삭제</span>
+      </button>
+    </div>
+
+    <div class="row-action-menu" id="inboundRowActionMenu" role="menu" aria-label="입고 관리 메뉴" hidden>
+      <button class="row-menu-item" type="button" role="menuitem" data-inbound-menu-action="view">
+        <img src="./assets/menu-icon-view-generated.png" alt="" />
+        <span>상세보기</span>
+      </button>
+      <button class="row-menu-item" type="button" role="menuitem" data-inbound-menu-action="edit">
+        <img src="./assets/menu-icon-edit-generated.png" alt="" />
+        <span>수정</span>
+      </button>
+      <button class="row-menu-item danger" type="button" role="menuitem" data-inbound-menu-action="delete">
         <img src="./assets/menu-icon-delete-generated.png" alt="" />
         <span>삭제</span>
       </button>

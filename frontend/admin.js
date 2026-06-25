@@ -49,6 +49,8 @@ const state = {
   activeDetailProductCode: "",
   activeMenuProductCode: "",
   activeMenuButton: null,
+  activeInboundMenuRecord: "",
+  activeInboundMenuButton: null,
   inboundProductPickerQuery: "",
   inboundPreviewUrls: {
     invoice: "",
@@ -87,6 +89,7 @@ const productNote = document.querySelector("#productNote");
 const productFormMessage = document.querySelector("#productFormMessage");
 const saveProductButton = document.querySelector("#saveProductButton");
 const rowActionMenu = document.querySelector("#rowActionMenu");
+const inboundRowActionMenu = document.querySelector("#inboundRowActionMenu");
 const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
 const inboundTime = document.querySelector("#inboundTime");
@@ -120,6 +123,7 @@ const inboundDefectReasonInput = document.querySelector("#inboundDefectReason");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
 const inboundSortButtons = document.querySelectorAll("[data-inbound-sort]");
+const inboundRowActionButtons = document.querySelectorAll("[data-inbound-record]");
 const inboundNumberInputs = [
   ["#inboundBoxQty", "#calcBoxQty"],
   ["#inboundBoxCount", "#calcBoxCount"],
@@ -163,6 +167,13 @@ inboundNumberInputs.forEach(({ input }) => {
 inboundSortButtons.forEach((button) => {
   button.addEventListener("click", () => {
     sortInboundRows(Number(button.dataset.inboundSort), button);
+  });
+});
+
+inboundRowActionButtons.forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleInboundRowActionMenu(button);
   });
 });
 
@@ -268,9 +279,20 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const clickedActionButton = event.target.closest(".row-action");
+  const clickedActionButton = event.target.closest("[data-product]");
   if (!rowActionMenu.contains(event.target) && !clickedActionButton) {
     closeRowActionMenu();
+  }
+});
+
+document.addEventListener("click", (event) => {
+  if (inboundRowActionMenu.hidden) {
+    return;
+  }
+
+  const clickedActionButton = event.target.closest("[data-inbound-record]");
+  if (!inboundRowActionMenu.contains(event.target) && !clickedActionButton) {
+    closeInboundRowActionMenu();
   }
 });
 
@@ -281,6 +303,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!rowActionMenu.hidden) {
     closeRowActionMenu();
+    return;
+  }
+
+  if (!inboundRowActionMenu.hidden) {
+    closeInboundRowActionMenu();
     return;
   }
 
@@ -324,8 +351,23 @@ rowActionMenu.querySelector('[data-menu-action="edit"]').addEventListener("click
   openActiveProductEdit();
 });
 
-window.addEventListener("resize", closeRowActionMenu);
-window.addEventListener("scroll", closeRowActionMenu, true);
+inboundRowActionMenu.querySelectorAll("[data-inbound-menu-action]").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const action = button.dataset.inboundMenuAction;
+    closeInboundRowActionMenu();
+    showToast(`${getInboundMenuActionLabel(action)} 기능은 입고 시트 연결 단계에서 활성화됩니다.`);
+  });
+});
+
+window.addEventListener("resize", () => {
+  closeRowActionMenu();
+  closeInboundRowActionMenu();
+});
+window.addEventListener("scroll", () => {
+  closeRowActionMenu();
+  closeInboundRowActionMenu();
+}, true);
 
 loadProducts();
 setCurrentInboundTime();
@@ -350,6 +392,7 @@ function setActiveView(view) {
   });
 
   closeRowActionMenu();
+  closeInboundRowActionMenu();
 }
 
 function updateInboundSummary() {
@@ -765,6 +808,7 @@ function toggleRowActionMenu(button) {
   const isSameButton = state.activeMenuButton === button && !rowActionMenu.hidden;
 
   closeRowActionMenu();
+  closeInboundRowActionMenu();
 
   if (isSameButton || !productCode) {
     return;
@@ -775,9 +819,31 @@ function toggleRowActionMenu(button) {
   button.setAttribute("aria-expanded", "true");
   rowActionMenu.hidden = false;
   rowActionMenu.style.visibility = "hidden";
+  positionActionMenu(rowActionMenu, button);
+}
 
+function toggleInboundRowActionMenu(button) {
+  const recordId = button.dataset.inboundRecord || "";
+  const isSameButton = state.activeInboundMenuButton === button && !inboundRowActionMenu.hidden;
+
+  closeInboundRowActionMenu();
+  closeRowActionMenu();
+
+  if (isSameButton || !recordId) {
+    return;
+  }
+
+  state.activeInboundMenuRecord = recordId;
+  state.activeInboundMenuButton = button;
+  button.setAttribute("aria-expanded", "true");
+  inboundRowActionMenu.hidden = false;
+  inboundRowActionMenu.style.visibility = "hidden";
+  positionActionMenu(inboundRowActionMenu, button);
+}
+
+function positionActionMenu(menu, button) {
   const buttonRect = button.getBoundingClientRect();
-  const menuRect = rowActionMenu.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
   const margin = 12;
   const preferredLeft = buttonRect.right - menuRect.width + 10;
   const left = Math.min(
@@ -790,9 +856,9 @@ function toggleRowActionMenu(button) {
     ? Math.max(margin, aboveTop)
     : belowTop;
 
-  rowActionMenu.style.left = `${left}px`;
-  rowActionMenu.style.top = `${top}px`;
-  rowActionMenu.style.visibility = "";
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  menu.style.visibility = "";
 }
 
 function closeRowActionMenu() {
@@ -809,6 +875,38 @@ function closeRowActionMenu() {
     rowActionMenu.style.top = "";
     rowActionMenu.style.visibility = "";
   }
+}
+
+function closeInboundRowActionMenu() {
+  if (state.activeInboundMenuButton) {
+    state.activeInboundMenuButton.setAttribute("aria-expanded", "false");
+  }
+
+  state.activeInboundMenuRecord = "";
+  state.activeInboundMenuButton = null;
+
+  if (inboundRowActionMenu) {
+    inboundRowActionMenu.hidden = true;
+    inboundRowActionMenu.style.left = "";
+    inboundRowActionMenu.style.top = "";
+    inboundRowActionMenu.style.visibility = "";
+  }
+}
+
+function getInboundMenuActionLabel(action) {
+  if (action === "view") {
+    return "입고 상세보기";
+  }
+
+  if (action === "edit") {
+    return "입고 수정";
+  }
+
+  if (action === "delete") {
+    return "입고 삭제";
+  }
+
+  return "입고 관리";
 }
 
 async function deleteActiveProduct() {
