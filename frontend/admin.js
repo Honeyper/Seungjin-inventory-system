@@ -635,7 +635,7 @@ function renderProductDetail(product) {
       <h3 id="detailStandardTitle">제품 기준 정보</h3>
       <div class="detail-grid">
         ${detailItem("박스당 수량", product.boxQuantity)}
-        ${detailItem("트레이 수량", product.trayQuantity)}
+        ${detailItem("검수 수량(트레이 수량)", product.trayQuantity)}
         ${detailItem("비고", product.note, false, "full-span")}
       </div>
     </section>
@@ -860,7 +860,7 @@ function validateProductPayload(payload) {
     ["제품명", "제품명을 입력해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
-    ["트레이 수량", "트레이 수량을 입력해주세요."]
+    ["트레이 수량", "검수 수량(트레이 수량)을 입력해주세요."]
   ];
 
   const missing = requiredFields.find(([field]) => !payload[field]);
