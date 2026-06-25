@@ -810,8 +810,23 @@ function updateInbound(payload) {
     throw new Error('수정할 입고 관리 ID가 필요합니다.');
   }
 
+  const inboundDate = String(payload.inboundDate || payload['입고일'] || '').trim();
+  const inboundTime = String(payload.inboundTime || payload['입고 시간'] || payload['입고시간'] || '').trim();
+  const inboundType = String(payload.inboundType || payload['입고 유형'] || payload['입고유형'] || '').trim();
   const process = String(payload.process || payload['최종공정'] || '').trim();
   const storage = String(payload.storage || payload['보관위치'] || '').trim();
+
+  if (!inboundDate) {
+    throw new Error('입고일 값이 필요합니다.');
+  }
+
+  if (!inboundTime) {
+    throw new Error('입고 시간 값이 필요합니다.');
+  }
+
+  if (!inboundType) {
+    throw new Error('입고 유형 값이 필요합니다.');
+  }
 
   if (!process) {
     throw new Error('최종공정 값이 필요합니다.');
@@ -852,6 +867,10 @@ function updateInbound(payload) {
     const productName = dash_(pickCell_(row, rowInfo.indexes, ['제품명']));
     const registeredDate = dash_(pickCell_(row, rowInfo.indexes, ['등록 일시', '등록일시']));
 
+    setRowValue_(row, rowInfo.indexes, ['입고일'], inboundDate);
+    setRowValue_(row, rowInfo.indexes, ['입고 시간', '입고시간'], inboundTime);
+    setRowValue_(row, rowInfo.indexes, ['입고 유형', '입고유형'], inboundType);
+    setRowValue_(row, rowInfo.indexes, ['납기일'], dash_(payload.dueDate));
     setRowValue_(row, rowInfo.indexes, ['차수'], dash_(payload.batch));
     setRowValue_(row, rowInfo.indexes, ['최종공정'], process);
     setRowValue_(row, rowInfo.indexes, ['보관위치'], storage);

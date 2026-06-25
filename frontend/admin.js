@@ -1498,10 +1498,6 @@ function renderInboundEditForm(inbound) {
       <h3 id="inboundEditReadonlyTitle">입고 기본 정보</h3>
       <div class="detail-grid">
         ${detailItem("관리 ID", inbound.managementId)}
-        ${detailItem("입고 유형", inbound.inboundType)}
-        ${detailItem("입고일", inbound.inboundDate)}
-        ${detailItem("입고 시간", inbound.inboundTime)}
-        ${detailItem("납기일", inbound.dueDate)}
         ${detailItem("등록자", inbound.registrant)}
         ${detailItem("제품 ID", inbound.productId)}
         ${detailItem("거래처명", inbound.clientName)}
@@ -1512,6 +1508,24 @@ function renderInboundEditForm(inbound) {
     <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditProductTitle">
       <h3 id="inboundEditProductTitle">수정 정보</h3>
       <div class="inbound-edit-grid">
+        <label class="form-field">
+          <span>입고일 <b>*</b></span>
+          <input id="inboundEditDate" type="date" value="${escapeAttribute(toDateInputValue(inbound.inboundDate))}" />
+        </label>
+        <label class="form-field">
+          <span>입고 시간 <b>*</b></span>
+          <input id="inboundEditTime" type="time" value="${escapeAttribute(toTimeInputValue(inbound.inboundTime))}" />
+        </label>
+        <label class="form-field">
+          <span>입고 유형 <b>*</b></span>
+          <select id="inboundEditType">
+            ${renderOptionList(["", "정상입고", "반품입고", "이관", "외주"], normalizeEditableValue(inbound.inboundType), "선택하세요.")}
+          </select>
+        </label>
+        <label class="form-field">
+          <span>납기일</span>
+          <input id="inboundEditDueDate" type="date" value="${escapeAttribute(toDateInputValue(inbound.dueDate))}" />
+        </label>
         <label class="form-field">
           <span>차수</span>
           <input id="inboundEditBatch" type="text" value="${escapeAttribute(normalizeEditableValue(inbound.batch))}" placeholder="차수를 입력하세요." />
@@ -1751,6 +1765,10 @@ async function saveInboundEdit() {
 function getInboundEditPayload() {
   return {
     managementId: state.activeDetailInboundId,
+    inboundDate: inboundDetailContent.querySelector("#inboundEditDate")?.value.trim() || "",
+    inboundTime: inboundDetailContent.querySelector("#inboundEditTime")?.value.trim() || "",
+    inboundType: inboundDetailContent.querySelector("#inboundEditType")?.value.trim() || "",
+    dueDate: inboundDetailContent.querySelector("#inboundEditDueDate")?.value.trim() || "",
     batch: inboundDetailContent.querySelector("#inboundEditBatch")?.value.trim() || "",
     process: inboundDetailContent.querySelector("#inboundEditProcess")?.value.trim() || "",
     storage: inboundDetailContent.querySelector("#inboundEditStorage")?.value.trim() || "",
@@ -1766,6 +1784,18 @@ function getInboundEditPayload() {
 function validateInboundEditPayload(payload) {
   if (!payload.managementId) {
     return "수정할 입고 관리 ID가 필요합니다.";
+  }
+
+  if (!payload.inboundDate) {
+    return "입고일을 입력해주세요.";
+  }
+
+  if (!payload.inboundTime) {
+    return "입고 시간을 입력해주세요.";
+  }
+
+  if (!payload.inboundType) {
+    return "입고 유형을 선택해주세요.";
   }
 
   if (!payload.process) {
@@ -1798,6 +1828,42 @@ function validateInboundEditPayload(payload) {
   }
 
   return "";
+}
+
+function toDateInputValue(value) {
+  const normalized = normalizeEditableValue(value);
+  const matched = normalized.match(/(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})/);
+
+  if (!matched) {
+    return "";
+  }
+
+  const [, year, month, day] = matched;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
+
+function toTimeInputValue(value) {
+  const source = normalizeEditableValue(value);
+  const isPm = source.startsWith("오후");
+  const isAm = source.startsWith("오전");
+  const normalized = source.replace(/^오전\s*/, "").replace(/^오후\s*/, "");
+  const matched = normalized.match(/(\d{1,2}):(\d{2})/);
+
+  if (!matched) {
+    return "";
+  }
+
+  let hour = Number(matched[1]);
+
+  if (isPm && hour < 12) {
+    hour += 12;
+  }
+
+  if (isAm && hour === 12) {
+    hour = 0;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${matched[2]}`;
 }
 
 function parseDefectReasonList(value) {
