@@ -1973,11 +1973,13 @@ input {
   font-weight: 900;
 }
 
-.inbound-card h2 {
+.inbound-card h2,
+.inbound-list-panel .panel-title-row h2 {
   padding-left: 0.55rem;
 }
 
-.inbound-card h2::before {
+.inbound-card h2::before,
+.inbound-list-panel .panel-title-row h2::before {
   position: absolute;
   top: 0.15rem;
   bottom: 0.15rem;
