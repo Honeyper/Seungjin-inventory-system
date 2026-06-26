@@ -37,6 +37,7 @@ function doPost(e) {
 
     const routes = {
       healthCheck,
+      authorizeDrive,
       login,
       setupSheets,
       getProducts,
@@ -76,6 +77,18 @@ function healthCheck() {
   return {
     spreadsheetId: ss.getId(),
     spreadsheetName: ss.getName(),
+    checkedAt: new Date().toISOString()
+  };
+}
+
+function authorizeDrive() {
+  const ss = getSpreadsheet_();
+  const folder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+
+  return {
+    spreadsheetName: ss.getName(),
+    folderId: folder.getId(),
+    folderName: folder.getName(),
     checkedAt: new Date().toISOString()
   };
 }
