@@ -268,6 +268,31 @@ function setupSheets() {
       '등록일시',
       '수정일시'
     ],
+    [CONFIG.SHEETS.BOX_DB]: [
+      '박스ID',
+      '관리ID',
+      '박스순번',
+      '제품ID',
+      '제품명',
+      '박스당 수량',
+      '현재 수량',
+      '보관 위치',
+      '상태',
+      '등록 일시',
+      'QR 생성 여부',
+      'QR 생성 일시',
+      'QR 데이터',
+      '작업자',
+      '출고일',
+      '출고시간',
+      '출고자',
+      '검수일',
+      '검수시간',
+      '검수자',
+      '검수수량',
+      '불량률',
+      '비고'
+    ],
     [CONFIG.SHEETS.INVENTORY]: [
       '관리ID',
       '업체명',
@@ -763,40 +788,35 @@ function createInbound(payload) {
     ];
 
     const stockRow = appendStyledRangeRow_(stockSheet, 2, stockValues, 6);
-    const boxRows = [];
+    const boxRecords = [];
 
     for (let index = 1; index <= totalBoxCount; index += 1) {
       const isRemainderBox = remainQuantity > 0 && index === totalBoxCount;
       const currentQuantity = isRemainderBox ? remainQuantity : boxQuantity;
       const boxId = `${managementId}-B${String(index).padStart(3, '0')}`;
 
-      boxRows.push([
+      boxRecords.push({
         boxId,
         managementId,
-        index,
-        dash_(payload.productId),
-        dash_(payload.productName),
-        formatEa_(boxQuantity),
-        formatEa_(currentQuantity),
-        dash_(payload.storage),
-        '보관',
-        registeredDate,
-        '',
-        '',
-        '',
-        '',
-        note
-      ]);
+        sequence: index,
+        productId: dash_(payload.productId),
+        productName: dash_(payload.productName),
+        boxQuantity: formatEa_(boxQuantity),
+        currentQuantity: formatEa_(currentQuantity),
+        storage: dash_(payload.storage),
+        status: '보관',
+        registeredDate
+      });
     }
 
-    const boxStartRow = appendStyledRangeRows_(boxSheet, 2, boxRows, 6);
+    const boxStartRow = appendBoxManagementRows_(boxSheet, boxRecords);
 
     return {
       managementId,
       stockRow,
       boxStartRow,
-      boxCount: boxRows.length,
-      boxIds: boxRows.map((row) => row[0])
+      boxCount: boxRecords.length,
+      boxIds: boxRecords.map((record) => record.boxId)
     };
   } finally {
     lock.releaseLock();
@@ -862,7 +882,6 @@ function updateInbound(payload) {
     const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
-    const note = dash_(pickCell_(row, rowInfo.indexes, ['비고']));
     const productId = dash_(pickCell_(row, rowInfo.indexes, ['제품ID', '제품 ID']));
     const productName = dash_(pickCell_(row, rowInfo.indexes, ['제품명']));
     const registeredDate = dash_(pickCell_(row, rowInfo.indexes, ['등록 일시', '등록일시']));
@@ -889,41 +908,36 @@ function updateInbound(payload) {
 
     deleteRowsByHeaderValue_(boxSheet, ['관리ID', '관리 ID'], managementId, ['박스ID', '관리ID', '제품명']);
 
-    const boxRows = [];
+    const boxRecords = [];
 
     for (let index = 1; index <= totalBoxCount; index += 1) {
       const isRemainderBox = remainQuantity > 0 && index === totalBoxCount;
       const currentQuantity = isRemainderBox ? remainQuantity : boxQuantity;
       const boxId = `${managementId}-B${String(index).padStart(3, '0')}`;
 
-      boxRows.push([
+      boxRecords.push({
         boxId,
         managementId,
-        index,
+        sequence: index,
         productId,
         productName,
-        formatEa_(boxQuantity),
-        formatEa_(currentQuantity),
+        boxQuantity: formatEa_(boxQuantity),
+        currentQuantity: formatEa_(currentQuantity),
         storage,
-        '보관',
-        registeredDate,
-        '',
-        '',
-        '',
-        '',
-        note
-      ]);
+        status: '보관',
+        registeredDate
+      });
     }
 
-    const boxStartRow = appendStyledRangeRows_(boxSheet, 2, boxRows, 6);
+    const boxStartRow = appendBoxManagementRows_(boxSheet, boxRecords);
 
     return {
       managementId,
       updated: true,
       stockRow: rowInfo.rowNumber,
       boxStartRow,
-      boxCount: boxRows.length,
-      boxIds: boxRows.map((boxRow) => boxRow[0])
+      boxCount: boxRecords.length,
+      boxIds: boxRecords.map((record) => record.boxId)
     };
   } finally {
     lock.releaseLock();
@@ -967,6 +981,54 @@ function appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber) {
 
   sheet.getRange(targetStartRow, startColumn, rows.length, columnCount).setValues(rows);
   return targetStartRow;
+}
+
+function appendBoxManagementRows_(sheet, boxRecords) {
+  if (!boxRecords.length) {
+    return 0;
+  }
+
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['박스ID', '관리ID', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const startColumn = 2;
+  const templateRowNumber = headerInfo.rowIndex + 2;
+  const indexes = indexHeaders_(headerInfo.headers);
+  const rows = boxRecords.map((record) => {
+    const row = new Array(headerInfo.headers.length).fill('');
+
+    setRowValue_(row, indexes, ['박스ID'], record.boxId);
+    setRowValue_(row, indexes, ['관리ID', '관리 ID'], record.managementId);
+    setRowValue_(row, indexes, ['박스순번', '박스 순번', '박스 번호'], record.sequence);
+    setRowValue_(row, indexes, ['제품ID', '제품 ID'], record.productId);
+    setRowValue_(row, indexes, ['제품명'], record.productName);
+    setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], record.boxQuantity);
+    setRowValue_(row, indexes, ['현재 수량', '현재수량'], record.currentQuantity);
+    setRowValue_(row, indexes, ['보관 위치', '보관위치', '보관 장소'], record.storage);
+    setRowValue_(row, indexes, ['상태', '재고 상태'], record.status || '보관');
+    setRowValue_(row, indexes, ['등록 일시', '등록일시'], record.registeredDate);
+    setRowValue_(row, indexes, ['QR 생성 여부', 'QR 출력 여부'], '');
+    setRowValue_(row, indexes, ['QR 생성 일시'], '');
+    setRowValue_(row, indexes, ['QR 데이터'], '');
+    setRowValue_(row, indexes, ['작업자'], '');
+    setRowValue_(row, indexes, ['출고일'], '');
+    setRowValue_(row, indexes, ['출고시간'], '');
+    setRowValue_(row, indexes, ['출고자'], '');
+    setRowValue_(row, indexes, ['검수일'], '');
+    setRowValue_(row, indexes, ['검수시간'], '');
+    setRowValue_(row, indexes, ['검수자'], '');
+    setRowValue_(row, indexes, ['검수수량'], '');
+    setRowValue_(row, indexes, ['불량률'], '');
+    setRowValue_(row, indexes, ['비고'], '-');
+
+    return row.slice(startColumn - 1);
+  });
+
+  return appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber);
 }
 
 function deleteRowsByHeaderValue_(sheet, headerNames, targetValue, requiredHeaders) {
