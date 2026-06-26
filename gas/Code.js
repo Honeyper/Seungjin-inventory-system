@@ -74,9 +74,13 @@ function doPost(e) {
 
 function healthCheck() {
   const ss = getSpreadsheet_();
+  const driveFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+
   return {
     spreadsheetId: ss.getId(),
     spreadsheetName: ss.getName(),
+    driveFolderId: driveFolder.getId(),
+    driveFolderName: driveFolder.getName(),
     checkedAt: new Date().toISOString()
   };
 }
