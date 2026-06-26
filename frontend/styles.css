@@ -2913,6 +2913,37 @@ input {
   font-size: 0.86rem;
 }
 
+.refresh-action-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  color: #082e6c;
+  border-radius: 50%;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 248, 253, 0.86)),
+    rgba(208, 161, 75, 0.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(8, 46, 108, 0.08),
+    0 0.28rem 0.7rem rgba(8, 42, 98, 0.09);
+}
+
+.compact-action .refresh-action-icon svg {
+  width: 1.02rem;
+  height: 1.02rem;
+  stroke-width: 2.35;
+  stroke-linejoin: round;
+}
+
+.compact-action:hover .refresh-action-icon {
+  background:
+    linear-gradient(180deg, #fff, #f0f5fb),
+    rgba(208, 161, 75, 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(8, 46, 108, 0.12),
+    0 0.38rem 0.85rem rgba(8, 42, 98, 0.12);
+}
+
 .inbound-table {
   min-width: 124rem;
   table-layout: fixed;
