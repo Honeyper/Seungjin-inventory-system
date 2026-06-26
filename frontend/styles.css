@@ -2986,6 +2986,26 @@ input {
   margin-left: auto;
 }
 
+.inbound-list-search {
+  width: min(20rem, 30vw);
+  min-width: 15rem;
+}
+
+.inbound-list-search svg {
+  left: 0.85rem;
+  width: 1.08rem;
+  height: 1.08rem;
+}
+
+.inbound-list-search input {
+  height: 2.35rem;
+  padding-left: 2.55rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  border-radius: 0.38rem;
+  box-shadow: 0 0.25rem 0.75rem rgba(8, 42, 98, 0.04);
+}
+
 .date-range-field {
   display: flex;
   align-items: center;
@@ -3609,6 +3629,11 @@ input {
   .inbound-list-tools {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .inbound-list-search {
+    width: 100%;
+    min-width: 0;
   }
 
   .date-range-field {

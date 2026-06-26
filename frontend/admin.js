@@ -46,6 +46,7 @@ const state = {
   inboundPageSize: 10,
   query: "",
   clientFilter: "",
+  inboundListQuery: "",
   isSavingProduct: false,
   isSavingInbound: false,
   isSavingInboundEdit: false,
@@ -147,6 +148,7 @@ const inboundCountLabel = document.querySelector("#inboundCountLabel");
 const inboundPagination = document.querySelector("#inboundPagination");
 const inboundPageSizeSelect = document.querySelector("#inboundPageSizeSelect");
 const refreshInboundListButton = document.querySelector("#refreshInboundListButton");
+const inboundListSearch = document.querySelector("#inboundListSearch");
 const inboundListStartDate = document.querySelector("#inboundListStartDate");
 const inboundListEndDate = document.querySelector("#inboundListEndDate");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
@@ -228,6 +230,10 @@ inboundDefectReasonPanel?.querySelectorAll("[data-defect-reason]").forEach((butt
 
 inboundSubmitButton?.addEventListener("click", saveInbound);
 refreshInboundListButton?.addEventListener("click", refreshTodayInbounds);
+inboundListSearch?.addEventListener("input", (event) => {
+  state.inboundListQuery = event.target.value.trim().toLowerCase();
+  renderTodayInbounds();
+});
 inboundPageSizeSelect?.addEventListener("change", (event) => {
   state.inboundPageSize = Number(event.target.value) || 10;
   renderTodayInbounds();
@@ -778,6 +784,28 @@ function renderDefectReasonPill(reason) {
   return `<span class="defect-pill defect-pill-${tone}">${escapeHtml(reason)}</span>`;
 }
 
+function getFilteredInbounds() {
+  const query = state.inboundListQuery;
+
+  if (!query) {
+    return state.todayInbounds;
+  }
+
+  return state.todayInbounds.filter((item) => [
+    item.managementId,
+    item.clientName,
+    item.inboundType,
+    item.productId,
+    item.productName,
+    item.batch,
+    item.process,
+    item.storage,
+    item.registrant,
+    item.defectReason,
+    item.note
+  ].some((value) => String(value || "").toLowerCase().includes(query)));
+}
+
 function renderTodayInbounds(message = "") {
   if (!inboundTableBody || !inboundCountLabel) {
     return;
@@ -785,13 +813,20 @@ function renderTodayInbounds(message = "") {
 
   closeInboundRowActionMenu();
 
-  const inbounds = state.todayInbounds;
+  const sourceCount = state.todayInbounds.length;
+  const inbounds = getFilteredInbounds();
   const visibleInbounds = inbounds.slice(0, state.inboundPageSize);
 
-  if (!inbounds.length) {
+  if (!sourceCount) {
     inboundTableBody.innerHTML = `
       <tr>
         <td colspan="17" class="empty-cell">${escapeHtml(message || "입고 내역이 없습니다.")}</td>
+      </tr>
+    `;
+  } else if (!inbounds.length) {
+    inboundTableBody.innerHTML = `
+      <tr>
+        <td colspan="17" class="empty-cell">검색 결과가 없습니다.</td>
       </tr>
     `;
   } else {
@@ -847,7 +882,9 @@ function renderTodayInbounds(message = "") {
     });
   });
 
-  inboundCountLabel.textContent = `전체 ${inbounds.length.toLocaleString("ko-KR")}건`;
+  inboundCountLabel.textContent = state.inboundListQuery
+    ? `검색 ${inbounds.length.toLocaleString("ko-KR")}건 / 전체 ${sourceCount.toLocaleString("ko-KR")}건`
+    : `전체 ${sourceCount.toLocaleString("ko-KR")}건`;
 
   if (inboundPagination) {
     inboundPagination.innerHTML = `
