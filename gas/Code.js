@@ -475,6 +475,7 @@ function getProducts() {
 
   const { headers, rowIndex: headerRowIndex } = headerInfo;
   const indexes = indexHeaders_(headers);
+  const accumulatedInboundQuantityMap = getProductInboundQuantityMap_();
   const products = values.slice(headerRowIndex + 1)
     .filter((row) => row.some((cell) => String(cell || '').trim()))
     .map((row) => {
@@ -493,6 +494,7 @@ function getProducts() {
         useStatus: pickCell_(row, indexes, ['사용 여부', '사용여부']),
         finalProcess: pickCell_(row, indexes, ['최종공정', '최종 공정']),
         orderQuantity: pickCell_(row, indexes, ['발주량', '주문량']),
+        accumulatedInboundQuantity: formatEa_(accumulatedInboundQuantityMap[productCode] || 0),
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         trayQuantity: pickCell_(row, indexes, ['트레이 수량', '트레이수량']),
         dueDate: pickCell_(row, indexes, ['납기일']),
@@ -522,6 +524,28 @@ function getProductDueDateMap_() {
 
     if (productId) {
       map[productId] = pickCell_(row, indexes, ['납기일']);
+    }
+
+    return map;
+  }, {});
+}
+
+function getProductInboundQuantityMap_() {
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const values = stockSheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품ID', '입고 총 수량'])
+    || findHeaderRow_(values, ['제품 ID', '입고 총 수량']);
+
+  if (!headerInfo) {
+    return {};
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  return values.slice(headerInfo.rowIndex + 1).reduce((map, row) => {
+    const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
+
+    if (productId) {
+      map[productId] = (map[productId] || 0) + displayQuantityToNumber_(pickCell_(row, indexes, ['입고 총 수량', '입고총수량']));
     }
 
     return map;
@@ -1596,6 +1620,11 @@ function toNumber_(value) {
   }
 
   return number;
+}
+
+function displayQuantityToNumber_(value) {
+  const matched = String(value ?? '').replace(/,/g, '').match(/-?\d+(\.\d+)?/);
+  return matched ? Number(matched[0]) : 0;
 }
 
 function toPositiveNumber_(value, label) {

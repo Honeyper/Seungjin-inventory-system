@@ -486,6 +486,10 @@ function updateInboundSummary() {
 
   const totalOutput = document.querySelector("#calcTotalQty");
   const totalBoxOutput = document.querySelector("#calcTotalBoxCount");
+  const orderQuantityOutput = document.querySelector("#calcOrderQty");
+  const accumulatedOrderQuantityOutput = document.querySelector("#calcAccumulatedOrderQty");
+  const orderProgressBar = document.querySelector("#calcOrderProgressBar");
+  const orderProgressText = document.querySelector("#calcOrderProgressText");
   const boxQuantityInput = document.querySelector("#inboundBoxQty");
   const boxCountInput = document.querySelector("#inboundBoxCount");
   const remainQuantityInput = document.querySelector("#inboundRemainQty");
@@ -501,6 +505,30 @@ function updateInboundSummary() {
 
   if (totalBoxOutput) {
     totalBoxOutput.textContent = hasQuantityValue ? totalBoxCount.toLocaleString("ko-KR") : "-";
+  }
+
+  const selectedProduct = getProductByCode(inboundProductId?.value.trim());
+  const orderQuantity = selectedProduct ? getQuantityNumberFromText(selectedProduct.orderQuantity) : 0;
+  const accumulatedQuantity = selectedProduct ? getQuantityNumberFromText(selectedProduct.accumulatedInboundQuantity) : 0;
+  const progressRate = orderQuantity > 0 ? Math.round((accumulatedQuantity / orderQuantity) * 100) : 0;
+  const progressWidth = Math.max(0, Math.min(progressRate, 100));
+
+  if (orderQuantityOutput) {
+    orderQuantityOutput.textContent = orderQuantity > 0 ? orderQuantity.toLocaleString("ko-KR") : "-";
+  }
+
+  if (accumulatedOrderQuantityOutput) {
+    accumulatedOrderQuantityOutput.textContent = selectedProduct ? accumulatedQuantity.toLocaleString("ko-KR") : "-";
+  }
+
+  if (orderProgressBar) {
+    orderProgressBar.style.width = `${progressWidth}%`;
+  }
+
+  if (orderProgressText) {
+    orderProgressText.textContent = selectedProduct
+      ? `발주량 대비 ${progressRate.toLocaleString("ko-KR")}% 진행`
+      : "제품을 선택해주세요.";
   }
 }
 
@@ -524,7 +552,9 @@ async function saveInbound() {
     payload.defectFiles = await getInboundDefectFilePayloads();
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
+    await loadProducts();
     await loadTodayInbounds();
+    updateInboundSummary();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
   } catch (error) {
     showToast(error.message || "입고 등록 저장에 실패했습니다.");
@@ -2338,8 +2368,13 @@ function normalizeEditableValue(value) {
 }
 
 function extractQuantityNumber(value) {
-  const matched = String(value ?? "").replaceAll(",", "").match(/\d+/);
-  return matched ? matched[0] : "";
+  const matched = String(value ?? "").match(/\d[\d,]*/);
+  return matched ? matched[0].replaceAll(",", "") : "";
+}
+
+function getQuantityNumberFromText(value) {
+  const quantity = extractQuantityNumber(value);
+  return quantity ? Number(quantity) : 0;
 }
 
 async function saveProduct() {
