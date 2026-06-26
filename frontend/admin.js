@@ -568,7 +568,7 @@ function updateInboundSummary() {
 
   if (orderProgressText) {
     orderProgressText.innerHTML = selectedProduct
-      ? `입고량 대비 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""} 진행`
+      ? `입고량 대비 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""} 진행`
       : "제품을 선택해주세요.";
   }
 }
