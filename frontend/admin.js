@@ -43,6 +43,7 @@ const state = {
   todayInbounds: [],
   page: 1,
   pageSize: 10,
+  inboundPageSize: 10,
   query: "",
   clientFilter: "",
   isSavingProduct: false,
@@ -144,6 +145,7 @@ const inboundSubmitButton = document.querySelector("#inboundSubmitButton");
 const inboundTableBody = document.querySelector("#inboundTableBody");
 const inboundCountLabel = document.querySelector("#inboundCountLabel");
 const inboundPagination = document.querySelector("#inboundPagination");
+const inboundPageSizeSelect = document.querySelector("#inboundPageSizeSelect");
 const refreshInboundListButton = document.querySelector("#refreshInboundListButton");
 const inboundListStartDate = document.querySelector("#inboundListStartDate");
 const inboundListEndDate = document.querySelector("#inboundListEndDate");
@@ -226,6 +228,10 @@ inboundDefectReasonPanel?.querySelectorAll("[data-defect-reason]").forEach((butt
 
 inboundSubmitButton?.addEventListener("click", saveInbound);
 refreshInboundListButton?.addEventListener("click", refreshTodayInbounds);
+inboundPageSizeSelect?.addEventListener("change", (event) => {
+  state.inboundPageSize = Number(event.target.value) || 10;
+  renderTodayInbounds();
+});
 inboundListStartDate?.addEventListener("change", () => {
   normalizeInboundListDateRange("start");
   refreshTodayInbounds();
@@ -780,6 +786,7 @@ function renderTodayInbounds(message = "") {
   closeInboundRowActionMenu();
 
   const inbounds = state.todayInbounds;
+  const visibleInbounds = inbounds.slice(0, state.inboundPageSize);
 
   if (!inbounds.length) {
     inboundTableBody.innerHTML = `
@@ -788,7 +795,7 @@ function renderTodayInbounds(message = "") {
       </tr>
     `;
   } else {
-    inboundTableBody.innerHTML = inbounds.map((item) => `
+    inboundTableBody.innerHTML = visibleInbounds.map((item) => `
       <tr>
         <td>
           <button class="qr-action" type="button" data-qr-inbound="${escapeAttribute(item.managementId)}" aria-label="입고 QR 보기">
