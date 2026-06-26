@@ -2898,7 +2898,24 @@ input {
   font-style: normal;
 }
 
+.summary-current-inbound-row {
+  margin-top: -0.08rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.38rem;
+  background: rgba(208, 161, 75, 0.08);
+}
+
+.summary-current-inbound-row span {
+  color: #7b8797;
+}
+
+.summary-current-inbound-row > span {
+  color: var(--gold);
+  font-size: 0.82rem;
+}
+
 .summary-progress-meter {
+  position: relative;
   overflow: hidden;
   height: 0.55rem;
   margin-top: 0.08rem;
@@ -2908,12 +2925,23 @@ input {
 }
 
 .summary-progress-meter span {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   width: 0;
   height: 100%;
   border-radius: inherit;
+  transition: left 0.24s ease, width 0.24s ease;
+}
+
+#calcOrderProgressBar {
   background: linear-gradient(90deg, #d5a34d, #0c5fd8);
-  transition: width 0.24s ease;
+}
+
+#calcOrderProgressAddBar {
+  background: linear-gradient(90deg, rgba(213, 163, 77, 0.72), rgba(213, 163, 77, 0.98));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.48) inset;
 }
 
 .summary-order-progress p {

@@ -512,7 +512,9 @@ function updateInboundSummary() {
   const totalBoxOutput = document.querySelector("#calcTotalBoxCount");
   const orderQuantityOutput = document.querySelector("#calcOrderQty");
   const accumulatedOrderQuantityOutput = document.querySelector("#calcAccumulatedOrderQty");
+  const currentInboundQuantityOutput = document.querySelector("#calcCurrentInboundQty");
   const orderProgressBar = document.querySelector("#calcOrderProgressBar");
+  const orderProgressAddBar = document.querySelector("#calcOrderProgressAddBar");
   const orderProgressText = document.querySelector("#calcOrderProgressText");
   const boxQuantityInput = document.querySelector("#inboundBoxQty");
   const boxCountInput = document.querySelector("#inboundBoxCount");
@@ -522,9 +524,10 @@ function updateInboundSummary() {
   const boxCount = Number(boxCountInput?.value || 0);
   const remainQuantity = Number(remainQuantityInput?.value || 0);
   const totalBoxCount = boxCount + (remainQuantity > 0 ? 1 : 0);
+  const currentInboundQuantity = boxQuantity * boxCount + remainQuantity;
 
   if (totalOutput) {
-    totalOutput.textContent = hasQuantityValue ? (boxQuantity * boxCount + remainQuantity).toLocaleString("ko-KR") : "-";
+    totalOutput.textContent = hasQuantityValue ? currentInboundQuantity.toLocaleString("ko-KR") : "-";
   }
 
   if (totalBoxOutput) {
@@ -535,7 +538,12 @@ function updateInboundSummary() {
   const orderQuantity = selectedProduct ? getQuantityNumberFromText(selectedProduct.orderQuantity) : 0;
   const accumulatedQuantity = selectedProduct ? getQuantityNumberFromText(selectedProduct.accumulatedInboundQuantity) : 0;
   const progressRate = orderQuantity > 0 ? Math.round((accumulatedQuantity / orderQuantity) * 100) : 0;
+  const incomingQuantity = selectedProduct && hasQuantityValue ? currentInboundQuantity : 0;
+  const nextAccumulatedQuantity = accumulatedQuantity + incomingQuantity;
+  const nextProgressRate = orderQuantity > 0 ? Math.round((nextAccumulatedQuantity / orderQuantity) * 100) : 0;
   const progressWidth = Math.max(0, Math.min(progressRate, 100));
+  const nextProgressWidth = Math.max(0, Math.min(nextProgressRate, 100));
+  const incomingProgressWidth = Math.max(0, nextProgressWidth - progressWidth);
 
   if (orderQuantityOutput) {
     orderQuantityOutput.textContent = orderQuantity > 0 ? orderQuantity.toLocaleString("ko-KR") : "-";
@@ -545,13 +553,22 @@ function updateInboundSummary() {
     accumulatedOrderQuantityOutput.textContent = selectedProduct ? accumulatedQuantity.toLocaleString("ko-KR") : "-";
   }
 
+  if (currentInboundQuantityOutput) {
+    currentInboundQuantityOutput.textContent = incomingQuantity > 0 ? incomingQuantity.toLocaleString("ko-KR") : "-";
+  }
+
   if (orderProgressBar) {
     orderProgressBar.style.width = `${progressWidth}%`;
   }
 
+  if (orderProgressAddBar) {
+    orderProgressAddBar.style.left = `${progressWidth}%`;
+    orderProgressAddBar.style.width = `${incomingProgressWidth}%`;
+  }
+
   if (orderProgressText) {
     orderProgressText.innerHTML = selectedProduct
-      ? `입고량 대비 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span> 진행`
+      ? `입고량 대비 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""} 진행`
       : "제품을 선택해주세요.";
   }
 }
