@@ -2919,8 +2919,13 @@ input {
 .summary-order-progress p {
   margin: 0;
   color: #5f6f85;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 850;
+}
+
+.summary-progress-rate {
+  color: var(--gold);
+  font-weight: 950;
 }
 
 .summary-total > span {
