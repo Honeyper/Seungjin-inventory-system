@@ -1250,8 +1250,8 @@ function renderSummary() {
   const uniqueClients = new Set(state.products.map((item) => item.clientName).filter(Boolean));
   const dates = state.products.map((item) => item.registeredAt).filter(Boolean).sort().reverse();
 
-  productTotal.textContent = state.products.length.toLocaleString("ko-KR");
-  clientTotal.textContent = uniqueClients.size.toLocaleString("ko-KR");
+  productTotal.textContent = `${state.products.length.toLocaleString("ko-KR")} Sku`;
+  clientTotal.textContent = `${uniqueClients.size.toLocaleString("ko-KR")} 거래처`;
   recentDate.textContent = dates[0] || "-";
 }
 
