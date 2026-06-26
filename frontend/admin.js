@@ -134,6 +134,8 @@ const inboundTableBody = document.querySelector("#inboundTableBody");
 const inboundCountLabel = document.querySelector("#inboundCountLabel");
 const inboundPagination = document.querySelector("#inboundPagination");
 const refreshInboundListButton = document.querySelector("#refreshInboundListButton");
+const inboundListStartDate = document.querySelector("#inboundListStartDate");
+const inboundListEndDate = document.querySelector("#inboundListEndDate");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
 const inboundProductPickerModal = document.querySelector("#inboundProductPickerModal");
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
@@ -213,6 +215,14 @@ inboundDefectReasonPanel?.querySelectorAll("[data-defect-reason]").forEach((butt
 
 inboundSubmitButton?.addEventListener("click", saveInbound);
 refreshInboundListButton?.addEventListener("click", refreshTodayInbounds);
+inboundListStartDate?.addEventListener("change", () => {
+  normalizeInboundListDateRange("start");
+  refreshTodayInbounds();
+});
+inboundListEndDate?.addEventListener("change", () => {
+  normalizeInboundListDateRange("end");
+  refreshTodayInbounds();
+});
 
 inboundInvoiceUploadButton?.addEventListener("click", () => inboundInvoiceFile?.click());
 inboundDefectUploadButton?.addEventListener("click", () => inboundDefectFiles?.click());
@@ -433,9 +443,10 @@ window.addEventListener("scroll", () => {
   closeInboundRowActionMenu();
 }, true);
 
+setCurrentInboundDate();
+setCurrentInboundListDateRange();
 loadProducts();
 loadTodayInbounds();
-setCurrentInboundDate();
 setCurrentInboundTime();
 setActiveView(getCurrentView());
 updateInboundSummary();
@@ -729,7 +740,7 @@ function renderTodayInbounds(message = "") {
   if (!inbounds.length) {
     inboundTableBody.innerHTML = `
       <tr>
-        <td colspan="17" class="empty-cell">${escapeHtml(message || "금일 입고 내역이 없습니다.")}</td>
+        <td colspan="17" class="empty-cell">${escapeHtml(message || "입고 내역이 없습니다.")}</td>
       </tr>
     `;
   } else {
@@ -1024,11 +1035,63 @@ function setCurrentInboundDate() {
     return;
   }
 
+  inboundDate.value = getLocalDateInputValue();
+}
+
+function setCurrentInboundListDateRange() {
+  const today = getLocalDateInputValue();
+
+  if (inboundListStartDate && !inboundListStartDate.value) {
+    inboundListStartDate.value = today;
+  }
+
+  if (inboundListEndDate && !inboundListEndDate.value) {
+    inboundListEndDate.value = inboundListStartDate?.value || today;
+  }
+}
+
+function getLocalDateInputValue() {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
-  inboundDate.value = `${year}-${month}-${day}`;
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeInboundListDateRange(changedField = "") {
+  if (!inboundListStartDate || !inboundListEndDate) {
+    return;
+  }
+
+  if (!inboundListStartDate.value && !inboundListEndDate.value) {
+    setCurrentInboundListDateRange();
+    return;
+  }
+
+  if (!inboundListStartDate.value) {
+    inboundListStartDate.value = inboundListEndDate.value;
+  }
+
+  if (!inboundListEndDate.value) {
+    inboundListEndDate.value = inboundListStartDate.value;
+  }
+
+  if (inboundListStartDate.value > inboundListEndDate.value) {
+    if (changedField === "start") {
+      inboundListEndDate.value = inboundListStartDate.value;
+    } else {
+      inboundListStartDate.value = inboundListEndDate.value;
+    }
+  }
+}
+
+function getInboundListDatePayload() {
+  normalizeInboundListDateRange();
+
+  return {
+    startDate: inboundListStartDate?.value || getLocalDateInputValue(),
+    endDate: inboundListEndDate?.value || inboundListStartDate?.value || getLocalDateInputValue()
+  };
 }
 
 async function loadProducts() {
@@ -1053,13 +1116,13 @@ async function loadProducts() {
 
 async function loadTodayInbounds() {
   try {
-    const result = await requestApi("getTodayInbounds");
+    const result = await requestApi("getTodayInbounds", getInboundListDatePayload());
     state.todayInbounds = Array.isArray(result.inbounds) ? result.inbounds : [];
     renderTodayInbounds();
     return true;
   } catch (error) {
     state.todayInbounds = [];
-    renderTodayInbounds("금일 입고 목록을 불러오지 못했습니다.");
+    renderTodayInbounds("입고 목록을 불러오지 못했습니다.");
     return false;
   }
 }
@@ -1074,7 +1137,7 @@ async function refreshTodayInbounds() {
 
   try {
     const refreshed = await loadTodayInbounds();
-    showToast(refreshed ? "금일 입고 목록을 새로고침했습니다." : "금일 입고 목록을 불러오지 못했습니다.");
+    showToast(refreshed ? "입고 목록을 새로고침했습니다." : "입고 목록을 불러오지 못했습니다.");
   } finally {
     state.isRefreshingInbounds = false;
     setInboundRefreshButtonLoading(false);
@@ -1087,7 +1150,7 @@ function setInboundRefreshButtonLoading(isLoading) {
   }
 
   refreshInboundListButton.disabled = isLoading;
-  const label = refreshInboundListButton.querySelector("span");
+  const label = refreshInboundListButton.querySelector("span:last-child");
   if (label) {
     label.textContent = isLoading ? "새로고침 중" : "새로고침";
   }

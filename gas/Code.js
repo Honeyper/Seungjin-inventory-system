@@ -566,10 +566,17 @@ function getTodayInbounds(payload) {
   const { headers, rowIndex: headerRowIndex } = headerInfo;
   const indexes = indexHeaders_(headers);
   const timezone = 'Asia/Seoul';
-  const targetDate = normalizeDateKey_(payload?.date || Utilities.formatDate(new Date(), timezone, 'yyyy-MM-dd'));
+  const defaultDate = Utilities.formatDate(new Date(), timezone, 'yyyy-MM-dd');
+  const requestedStartDate = normalizeDateKey_(payload?.startDate || payload?.date || defaultDate);
+  const requestedEndDate = normalizeDateKey_(payload?.endDate || payload?.date || requestedStartDate);
+  const startDate = requestedStartDate <= requestedEndDate ? requestedStartDate : requestedEndDate;
+  const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
   const inbounds = values.slice(headerRowIndex + 1)
     .filter((row) => row.some((cell) => String(cell || '').trim()))
-    .filter((row) => normalizeDateKey_(pickCell_(row, indexes, ['입고일'])) === targetDate)
+    .filter((row) => {
+      const inboundDate = normalizeDateKey_(pickCell_(row, indexes, ['입고일']));
+      return inboundDate >= startDate && inboundDate <= endDate;
+    })
     .map((row) => ({
       managementId: pickCell_(row, indexes, ['관리 ID', '관리ID']),
       category: pickCell_(row, indexes, ['구분']),
@@ -602,7 +609,8 @@ function getTodayInbounds(payload) {
     .reverse();
 
   return {
-    date: targetDate,
+    startDate,
+    endDate,
     inbounds
   };
 }
