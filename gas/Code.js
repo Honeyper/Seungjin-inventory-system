@@ -286,6 +286,7 @@ function setupSheets() {
       '불량 사유',
       '보관 장소',
       '거래명세표',
+      '불량 사진',
       'QR 출력 여부',
       '비고',
       '등록일시',
@@ -593,6 +594,8 @@ function getTodayInbounds(payload) {
       defectQuantity: pickCell_(row, indexes, ['불량 수량', '불량수량']),
       defectRate: pickCell_(row, indexes, ['불량률']),
       defectReason: pickCell_(row, indexes, ['불량 사유', '불량사유']),
+      invoiceFileUrl: pickCell_(row, indexes, ['거래명세표', '거래명세서']),
+      defectPhotoUrls: pickCell_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']),
       note: pickCell_(row, indexes, ['비고']),
       registrant: pickCell_(row, indexes, ['등록자'])
     }))
@@ -794,6 +797,7 @@ function createInbound(payload) {
   try {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+    ensureStockDbAttachmentHeaders_(stockSheet);
     const now = new Date();
     const timezone = 'Asia/Seoul';
     const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
@@ -926,6 +930,7 @@ function updateInbound(payload) {
   try {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+    ensureStockDbAttachmentHeaders_(stockSheet);
     const rowInfo = findRowByHeaderValue_(stockSheet, ['관리 ID', '관리ID'], managementId, ['관리 ID', '입고일', '제품명']);
 
     if (!rowInfo) {
@@ -938,7 +943,21 @@ function updateInbound(payload) {
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
     const productId = dash_(pickCell_(row, rowInfo.indexes, ['제품ID', '제품 ID']));
     const productName = dash_(pickCell_(row, rowInfo.indexes, ['제품명']));
+    const clientName = dash_(pickCell_(row, rowInfo.indexes, ['업체명', '거래처명']));
     const registeredDate = dash_(pickCell_(row, rowInfo.indexes, ['등록 일시', '등록일시']));
+    const filePayload = Object.assign({}, payload, {
+      productName,
+      clientName,
+      inboundDate
+    });
+    const invoiceFileUrl = uploadInboundInvoice_(filePayload, {
+      managementId,
+      registeredDate
+    });
+    const defectPhotoUrls = uploadInboundDefectPhotos_(filePayload, {
+      managementId,
+      registeredDate
+    });
 
     setRowValue_(row, rowInfo.indexes, ['입고일'], inboundDate);
     setRowValue_(row, rowInfo.indexes, ['입고 시간', '입고시간'], inboundTime);
@@ -956,6 +975,12 @@ function updateInbound(payload) {
     setRowValue_(row, rowInfo.indexes, ['불량 수량', '불량수량'], formatEa_(defectQuantity));
     setRowValue_(row, rowInfo.indexes, ['불량률'], `${defectRate}%`);
     setRowValue_(row, rowInfo.indexes, ['불량 사유', '불량사유'], dash_(payload.defectReason));
+    if (invoiceFileUrl) {
+      setRowValue_(row, rowInfo.indexes, ['거래명세표', '거래명세서'], invoiceFileUrl);
+    }
+    if (defectPhotoUrls) {
+      setRowValue_(row, rowInfo.indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], defectPhotoUrls);
+    }
 
     stockSheet.getRange(rowInfo.rowNumber, 1, 1, rowInfo.headers.length).setValues([row]);
     applyProductRowTemplate_(stockSheet, rowInfo.headerRowIndex + 2, rowInfo.rowNumber, rowInfo.headers.length);
@@ -1079,6 +1104,29 @@ function appendStockDbRow_(sheet, record) {
   setRowValue_(row, indexes, ['비고'], record.note);
 
   return appendStyledRangeRows_(sheet, startColumn, [row.slice(startColumn - 1)], templateRowNumber);
+}
+
+function ensureStockDbAttachmentHeaders_(sheet) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
+
+  if (!headerInfo) {
+    return;
+  }
+
+  const requiredHeaders = ['거래명세표', '불량 사진'];
+  const existingHeaders = headerInfo.headers.map((header) => String(header || '').trim());
+  let nextColumn = existingHeaders.length + 1;
+
+  requiredHeaders.forEach((header) => {
+    if (existingHeaders.includes(header)) {
+      return;
+    }
+
+    sheet.getRange(headerInfo.rowIndex + 1, nextColumn).setValue(header);
+    existingHeaders.push(header);
+    nextColumn += 1;
+  });
 }
 
 function appendBoxManagementRows_(sheet, boxRecords) {

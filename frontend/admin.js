@@ -554,18 +554,46 @@ function getInboundPayload() {
 }
 
 async function getInboundInvoicePayload() {
-  const file = inboundInvoiceFile?.files?.[0];
+  return getFilePayloadFromInput(inboundInvoiceFile, {
+    label: "거래명세서",
+    maxSize: MAX_INVOICE_FILE_SIZE
+  });
+}
+
+async function getInboundDefectFilePayloads() {
+  return getFilePayloadsFromInput(inboundDefectFiles, {
+    label: "불량사진",
+    maxSize: MAX_DEFECT_PHOTO_FILE_SIZE
+  });
+}
+
+async function getFilePayloadFromInput(input, { label, maxSize }) {
+  const file = input?.files?.[0];
 
   if (!file) {
     return null;
   }
 
-  if (!file.type.startsWith("image/")) {
-    throw new Error("거래명세서는 이미지 파일만 업로드할 수 있습니다.");
+  return getFilePayload(file, { label, maxSize });
+}
+
+async function getFilePayloadsFromInput(input, { label, maxSize }) {
+  const files = Array.from(input?.files || []);
+
+  if (!files.length) {
+    return [];
   }
 
-  if (file.size > MAX_INVOICE_FILE_SIZE) {
-    throw new Error("거래명세서 파일은 10MB 이하로 등록해주세요.");
+  return Promise.all(files.map((file) => getFilePayload(file, { label, maxSize })));
+}
+
+async function getFilePayload(file, { label, maxSize }) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error(`${label}는 이미지 파일만 업로드할 수 있습니다.`);
+  }
+
+  if (file.size > maxSize) {
+    throw new Error(`${label} 파일은 개별 10MB 이하로 등록해주세요.`);
   }
 
   const dataUrl = await readFileAsDataUrl(file);
@@ -576,33 +604,6 @@ async function getInboundInvoicePayload() {
     mimeType: file.type || "application/octet-stream",
     data: base64Data
   };
-}
-
-async function getInboundDefectFilePayloads() {
-  const files = Array.from(inboundDefectFiles?.files || []);
-
-  if (!files.length) {
-    return [];
-  }
-
-  return Promise.all(files.map(async (file) => {
-    if (!file.type.startsWith("image/")) {
-      throw new Error("불량사진은 이미지 파일만 업로드할 수 있습니다.");
-    }
-
-    if (file.size > MAX_DEFECT_PHOTO_FILE_SIZE) {
-      throw new Error("불량사진 파일은 개별 10MB 이하로 등록해주세요.");
-    }
-
-    const dataUrl = await readFileAsDataUrl(file);
-    const base64Data = dataUrl.split(",")[1] || "";
-
-    return {
-      name: file.name,
-      mimeType: file.type || "application/octet-stream",
-      data: base64Data
-    };
-  }));
 }
 
 function readFileAsDataUrl(file) {
@@ -1590,7 +1591,108 @@ function renderInboundDetail(inbound) {
         ${detailItem("비고", inbound.note, false, "full-span")}
       </div>
     </section>
+
+    ${renderInboundAttachmentDetail(inbound)}
   `;
+}
+
+function renderInboundAttachmentDetail(inbound) {
+  return `
+    <section class="detail-section inbound-attachment-section" aria-labelledby="inboundDetailAttachmentTitle">
+      <h3 id="inboundDetailAttachmentTitle">첨부 정보</h3>
+      <div class="inbound-attachment-grid">
+        ${renderAttachmentViewCard("거래명세서", inbound.invoiceFileUrl, "등록된 거래명세서가 없습니다.")}
+        ${renderAttachmentViewCard("불량사진", inbound.defectPhotoUrls, "등록된 불량사진이 없습니다.")}
+      </div>
+    </section>
+  `;
+}
+
+function renderInboundAttachmentEdit(inbound) {
+  return `
+    <section class="detail-section inbound-edit-section inbound-attachment-section" aria-labelledby="inboundEditAttachmentTitle">
+      <h3 id="inboundEditAttachmentTitle">첨부 정보</h3>
+      <div class="inbound-attachment-grid">
+        ${renderAttachmentEditCard({
+          title: "거래명세서",
+          urls: inbound.invoiceFileUrl,
+          inputId: "inboundEditInvoiceFile",
+          buttonId: "inboundEditInvoiceUploadButton",
+          fileNameId: "inboundEditInvoiceFileName",
+          multiple: false,
+          emptyText: "등록된 거래명세서가 없습니다.",
+          buttonText: "거래명세서 변경"
+        })}
+        ${renderAttachmentEditCard({
+          title: "불량사진",
+          urls: inbound.defectPhotoUrls,
+          inputId: "inboundEditDefectFiles",
+          buttonId: "inboundEditDefectUploadButton",
+          fileNameId: "inboundEditDefectFileName",
+          multiple: true,
+          emptyText: "등록된 불량사진이 없습니다.",
+          buttonText: "불량사진 변경"
+        })}
+      </div>
+    </section>
+  `;
+}
+
+function renderAttachmentViewCard(title, urls, emptyText) {
+  return `
+    <div class="attachment-card">
+      <div class="attachment-card-header">
+        <strong>${escapeHtml(title)}</strong>
+      </div>
+      ${renderAttachmentLinks(urls, emptyText)}
+    </div>
+  `;
+}
+
+function renderAttachmentEditCard({ title, urls, inputId, buttonId, fileNameId, multiple, emptyText, buttonText }) {
+  return `
+    <div class="attachment-card attachment-edit-card">
+      <div class="attachment-card-header">
+        <strong>${escapeHtml(title)}</strong>
+      </div>
+      ${renderAttachmentLinks(urls, emptyText)}
+      <input class="visually-hidden" id="${escapeAttribute(inputId)}" type="file" accept="image/*" ${multiple ? "multiple" : ""} />
+      <button class="attachment-upload-button" id="${escapeAttribute(buttonId)}" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 16V4" />
+          <path d="m7 9 5-5 5 5" />
+          <path d="M5 20h14" />
+        </svg>
+        <span>${escapeHtml(buttonText)}</span>
+      </button>
+      <p class="attachment-file-name" id="${escapeAttribute(fileNameId)}">새 파일을 선택하지 않으면 기존 파일이 유지됩니다.</p>
+    </div>
+  `;
+}
+
+function renderAttachmentLinks(urls, emptyText) {
+  const links = parseAttachmentUrls(urls);
+
+  if (!links.length) {
+    return `<p class="attachment-empty">${escapeHtml(emptyText)}</p>`;
+  }
+
+  return `
+    <div class="attachment-link-list">
+      ${links.map((url, index) => `
+        <a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer">
+          ${links.length > 1 ? `파일 ${index + 1}` : "파일 보기"}
+        </a>
+      `).join("")}
+    </div>
+  `;
+}
+
+function parseAttachmentUrls(value) {
+  return String(value || "")
+    .split(/\s+/)
+    .map((url) => url.trim())
+    .filter((url) => url && url !== "-");
 }
 
 function renderInboundEditForm(inbound) {
@@ -1693,6 +1795,8 @@ function renderInboundEditForm(inbound) {
         </label>
       </div>
     </section>
+
+    ${renderInboundAttachmentEdit(inbound)}
   `;
 
   bindInboundEditFormEvents();
@@ -1718,6 +1822,31 @@ function bindInboundEditFormEvents() {
     button.addEventListener("click", () => {
       toggleInboundEditDefectReason(button.dataset.editDefectReason);
     });
+  });
+
+  bindInboundEditFilePicker("inboundEditInvoiceFile", "inboundEditInvoiceUploadButton", "inboundEditInvoiceFileName");
+  bindInboundEditFilePicker("inboundEditDefectFiles", "inboundEditDefectUploadButton", "inboundEditDefectFileName");
+}
+
+function bindInboundEditFilePicker(inputId, buttonId, fileNameId) {
+  const input = inboundDetailContent.querySelector(`#${inputId}`);
+  const button = inboundDetailContent.querySelector(`#${buttonId}`);
+  const fileName = inboundDetailContent.querySelector(`#${fileNameId}`);
+
+  if (!input || !button || !fileName) {
+    return;
+  }
+
+  button.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => {
+    const files = Array.from(input.files || []);
+
+    if (!files.length) {
+      fileName.textContent = "새 파일을 선택하지 않으면 기존 파일이 유지됩니다.";
+      return;
+    }
+
+    fileName.textContent = files.length === 1 ? files[0].name : `${files[0].name} 외 ${files.length - 1}개`;
   });
 }
 
@@ -1824,14 +1953,6 @@ async function saveInboundEdit() {
     return;
   }
 
-  const payload = getInboundEditPayload();
-  const validationMessage = validateInboundEditPayload(payload);
-
-  if (validationMessage) {
-    showToast(validationMessage);
-    return;
-  }
-
   state.isSavingInboundEdit = true;
 
   if (saveInboundEditButton) {
@@ -1840,6 +1961,14 @@ async function saveInboundEdit() {
   }
 
   try {
+    const payload = await getInboundEditPayload();
+    const validationMessage = validateInboundEditPayload(payload);
+
+    if (validationMessage) {
+      showToast(validationMessage);
+      return;
+    }
+
     await requestApi("updateInbound", payload);
     await loadTodayInbounds();
     state.activeDetailInboundId = payload.managementId;
@@ -1865,8 +1994,8 @@ async function saveInboundEdit() {
   }
 }
 
-function getInboundEditPayload() {
-  return {
+async function getInboundEditPayload() {
+  const payload = {
     managementId: state.activeDetailInboundId,
     inboundDate: inboundDetailContent.querySelector("#inboundEditDate")?.value.trim() || "",
     inboundTime: inboundDetailContent.querySelector("#inboundEditTime")?.value.trim() || "",
@@ -1882,6 +2011,17 @@ function getInboundEditPayload() {
     defectQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditDefectQty")),
     defectReason: inboundDetailContent.querySelector("#inboundEditDefectReason")?.value.trim() || ""
   };
+
+  payload.invoiceFile = await getFilePayloadFromInput(inboundDetailContent.querySelector("#inboundEditInvoiceFile"), {
+    label: "거래명세서",
+    maxSize: MAX_INVOICE_FILE_SIZE
+  });
+  payload.defectFiles = await getFilePayloadsFromInput(inboundDetailContent.querySelector("#inboundEditDefectFiles"), {
+    label: "불량사진",
+    maxSize: MAX_DEFECT_PHOTO_FILE_SIZE
+  });
+
+  return payload;
 }
 
 function validateInboundEditPayload(payload) {
