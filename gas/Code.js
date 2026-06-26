@@ -492,8 +492,10 @@ function getProducts() {
         color: pickCell_(row, indexes, ['색상']),
         useStatus: pickCell_(row, indexes, ['사용 여부', '사용여부']),
         finalProcess: pickCell_(row, indexes, ['최종공정', '최종 공정']),
+        orderQuantity: pickCell_(row, indexes, ['발주량', '주문량']),
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         trayQuantity: pickCell_(row, indexes, ['트레이 수량', '트레이수량']),
+        dueDate: pickCell_(row, indexes, ['납기일']),
         updatedAt: pickCell_(row, indexes, ['최종 수정일', '수정일']),
         updatedTime: pickCell_(row, indexes, ['최종 수정시간', '수정시간']),
         note: pickCell_(row, indexes, ['비고'])
@@ -505,8 +507,29 @@ function getProducts() {
   };
 }
 
+function getProductDueDateMap_() {
+  const sheet = getProductSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    return {};
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  return values.slice(headerInfo.rowIndex + 1).reduce((map, row) => {
+    const productId = pickCell_(row, indexes, ['제품 ID', '제품ID']);
+
+    if (productId) {
+      map[productId] = pickCell_(row, indexes, ['납기일']);
+    }
+
+    return map;
+  }, {});
+}
+
 function createProduct(payload) {
-  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '발주량', '납기일', '박스당 수량', '트레이 수량'];
   required.forEach((field) => {
     if (!payload[field]) {
       throw new Error(`${field} 값이 필요합니다.`);
@@ -538,8 +561,10 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
   setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
   setRowValue_(row, indexes, ['최종공정', '최종 공정'], payload['최종공정'] || payload['최종 공정'] || '');
+  setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
   setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
   setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
+  setRowValue_(row, indexes, ['납기일'], payload['납기일'] || '');
   setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
   setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
   setRowValue_(row, indexes, ['비고'], payload['비고'] || '');
@@ -571,41 +596,46 @@ function getTodayInbounds(payload) {
   const requestedEndDate = normalizeDateKey_(payload?.endDate || payload?.date || requestedStartDate);
   const startDate = requestedStartDate <= requestedEndDate ? requestedStartDate : requestedEndDate;
   const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
+  const productDueDateMap = getProductDueDateMap_();
   const inbounds = values.slice(headerRowIndex + 1)
     .filter((row) => row.some((cell) => String(cell || '').trim()))
     .filter((row) => {
       const inboundDate = normalizeDateKey_(pickCell_(row, indexes, ['입고일']));
       return inboundDate >= startDate && inboundDate <= endDate;
     })
-    .map((row) => ({
-      managementId: pickCell_(row, indexes, ['관리 ID', '관리ID']),
-      category: pickCell_(row, indexes, ['구분']),
-      status: pickCell_(row, indexes, ['상태']),
-      registeredAt: pickCell_(row, indexes, ['등록 일시', '등록일시']),
-      inboundDate: pickCell_(row, indexes, ['입고일']),
-      inboundTime: pickCell_(row, indexes, ['입고 시간', '입고시간']),
-      dueDate: pickCell_(row, indexes, ['납기일']),
-      clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
-      inboundType: pickCell_(row, indexes, ['입고 유형', '입고유형']),
-      productId: pickCell_(row, indexes, ['제품ID', '제품 ID']),
-      productName: pickCell_(row, indexes, ['제품명']),
-      batch: pickCell_(row, indexes, ['차수']),
-      process: pickCell_(row, indexes, ['최종공정', '최종 공정']),
-      storage: pickCell_(row, indexes, ['보관위치', '보관 위치']),
-      boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
-      inboundBoxCount: pickCell_(row, indexes, ['입고 박스 수', '입고박스수']),
-      remainQuantity: pickCell_(row, indexes, ['잔량 수량', '잔량']),
-      inboundTotalQuantity: pickCell_(row, indexes, ['입고 총 수량', '입고총수량']),
-      boxTotalCount: pickCell_(row, indexes, ['박스 총 수량', '박스총수량']),
-      inspectionQuantity: pickCell_(row, indexes, ['검수 수량', '검수수량']),
-      defectQuantity: pickCell_(row, indexes, ['불량 수량', '불량수량']),
-      defectRate: pickCell_(row, indexes, ['불량률']),
-      defectReason: pickCell_(row, indexes, ['불량 사유', '불량사유']),
-      invoiceFileUrl: pickCell_(row, indexes, ['거래명세표', '거래명세서']),
-      defectPhotoUrls: pickCell_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']),
-      note: pickCell_(row, indexes, ['비고']),
-      registrant: pickCell_(row, indexes, ['등록자'])
-    }))
+    .map((row) => {
+      const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
+
+      return {
+        managementId: pickCell_(row, indexes, ['관리 ID', '관리ID']),
+        category: pickCell_(row, indexes, ['구분']),
+        status: pickCell_(row, indexes, ['상태']),
+        registeredAt: pickCell_(row, indexes, ['등록 일시', '등록일시']),
+        inboundDate: pickCell_(row, indexes, ['입고일']),
+        inboundTime: pickCell_(row, indexes, ['입고 시간', '입고시간']),
+        dueDate: pickCell_(row, indexes, ['납기일']) || productDueDateMap[productId] || '',
+        clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
+        inboundType: pickCell_(row, indexes, ['입고 유형', '입고유형']),
+        productId,
+        productName: pickCell_(row, indexes, ['제품명']),
+        batch: pickCell_(row, indexes, ['차수']),
+        process: pickCell_(row, indexes, ['최종공정', '최종 공정']),
+        storage: pickCell_(row, indexes, ['보관위치', '보관 위치']),
+        boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
+        inboundBoxCount: pickCell_(row, indexes, ['입고 박스 수', '입고박스수']),
+        remainQuantity: pickCell_(row, indexes, ['잔량 수량', '잔량']),
+        inboundTotalQuantity: pickCell_(row, indexes, ['입고 총 수량', '입고총수량']),
+        boxTotalCount: pickCell_(row, indexes, ['박스 총 수량', '박스총수량']),
+        inspectionQuantity: pickCell_(row, indexes, ['검수 수량', '검수수량']),
+        defectQuantity: pickCell_(row, indexes, ['불량 수량', '불량수량']),
+        defectRate: pickCell_(row, indexes, ['불량률']),
+        defectReason: pickCell_(row, indexes, ['불량 사유', '불량사유']),
+        invoiceFileUrl: pickCell_(row, indexes, ['거래명세표', '거래명세서']),
+        defectPhotoUrls: pickCell_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']),
+        note: pickCell_(row, indexes, ['비고']),
+        registrant: pickCell_(row, indexes, ['등록자'])
+      };
+    })
     .reverse();
 
   return {
@@ -617,7 +647,7 @@ function getTodayInbounds(payload) {
 
 function updateProduct(payload) {
   const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
-  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '발주량', '납기일', '박스당 수량', '트레이 수량'];
 
   if (!productId) {
     throw new Error('수정할 제품 ID가 필요합니다.');
@@ -657,8 +687,10 @@ function updateProduct(payload) {
       setRowValue_(row, indexes, ['제품명'], payload['제품명']);
       setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
       setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
+      setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
       setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
       setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
+      setRowValue_(row, indexes, ['납기일'], payload['납기일'] || '');
       setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
       setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
       setRowValue_(row, indexes, ['비고'], payload['비고'] || '');

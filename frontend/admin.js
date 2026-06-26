@@ -92,6 +92,8 @@ const productCodePreview = document.querySelector("#productCodePreview");
 const productClientName = document.querySelector("#productClientName");
 const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
+const productOrderQuantity = document.querySelector("#productOrderQuantity");
+const productDueDate = document.querySelector("#productDueDate");
 const productBoxQuantity = document.querySelector("#productBoxQuantity");
 const productTrayQuantity = document.querySelector("#productTrayQuantity");
 const productNote = document.querySelector("#productNote");
@@ -1017,6 +1019,8 @@ function selectInboundProduct(product) {
     inboundTrayQty.value = trayQuantity;
   }
 
+  inboundDueDate.value = toDateInputValue(product.dueDate);
+
   setInboundLockedFieldEditable(inboundBoxQty, editInboundBoxQtyButton, false);
   setInboundLockedFieldEditable(inboundTrayQty, editInboundTrayQtyButton, false);
   updateInboundSummary();
@@ -1597,8 +1601,10 @@ function renderProductDetail(product) {
     <section class="detail-section" aria-labelledby="detailStandardTitle">
       <h3 id="detailStandardTitle">제품 기준 정보</h3>
       <div class="detail-grid">
+        ${detailItem("발주량", product.orderQuantity)}
+        ${detailItem("납기일", product.dueDate)}
         ${detailItem("박스당 수량", product.boxQuantity)}
-        ${detailItem("검수 수량", product.trayQuantity)}
+        ${detailItem("트레이 수량", product.trayQuantity)}
         ${detailItem("비고", product.note, false, "full-span")}
       </div>
     </section>
@@ -1793,7 +1799,7 @@ function renderInboundEditForm(inbound) {
         </label>
         <label class="form-field">
           <span>납기일</span>
-          <input id="inboundEditDueDate" type="date" value="${escapeAttribute(toDateInputValue(inbound.dueDate))}" />
+          <input id="inboundEditDueDate" type="date" value="${escapeAttribute(toDateInputValue(inbound.dueDate))}" disabled />
         </label>
         <label class="form-field">
           <span>차수</span>
@@ -2244,6 +2250,8 @@ function openProductModal(mode = "create", product = null) {
     productNameInput.value = normalizeEditableValue(product.productName);
     setSelectValue(productColor, normalizeEditableValue(product.color));
     productForm.querySelector(`input[name="productUsage"][value="${normalizeUsageStatus(product.useStatus)}"]`)?.click();
+    productOrderQuantity.value = extractQuantityNumber(product.orderQuantity);
+    productDueDate.value = toDateInputValue(product.dueDate);
     productBoxQuantity.value = extractQuantityNumber(product.boxQuantity);
     productTrayQuantity.value = extractQuantityNumber(product.trayQuantity);
     productNote.value = normalizeEditableValue(product.note);
@@ -2371,6 +2379,7 @@ async function saveProduct() {
 }
 
 function getProductFormPayload() {
+  const orderQuantity = productOrderQuantity.value.trim();
   const boxQuantity = productBoxQuantity.value.trim();
   const trayQuantity = productTrayQuantity.value.trim();
   const usage = productForm.querySelector('input[name="productUsage"]:checked')?.value || "사용중";
@@ -2381,6 +2390,8 @@ function getProductFormPayload() {
     "제품명": productNameInput.value.trim(),
     "색상": productColor.value.trim(),
     "사용 여부": usage,
+    "발주량": orderQuantity ? `${Number(orderQuantity).toLocaleString("ko-KR")} ea` : "",
+    "납기일": productDueDate.value.trim(),
     "박스당 수량": boxQuantity ? `${Number(boxQuantity).toLocaleString("ko-KR")} ea` : "",
     "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
     "비고": productNote.value.trim()
@@ -2392,6 +2403,8 @@ function validateProductPayload(payload) {
     ["업체명", "거래처명을 선택해주세요."],
     ["제품명", "제품명을 입력해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
+    ["발주량", "발주량을 입력해주세요."],
+    ["납기일", "납기일을 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
     ["트레이 수량", "트레이 수량을 입력해주세요."]
   ];
@@ -2401,7 +2414,7 @@ function validateProductPayload(payload) {
     return missing[1];
   }
 
-  if (Number(productBoxQuantity.value) <= 0 || Number(productTrayQuantity.value) <= 0) {
+  if (Number(productOrderQuantity.value) <= 0 || Number(productBoxQuantity.value) <= 0 || Number(productTrayQuantity.value) <= 0) {
     return "수량은 1 이상의 숫자로 입력해주세요.";
   }
 
