@@ -410,9 +410,14 @@
           <section class="table-panel inbound-list-panel" aria-label="금일 입고 목록">
             <div class="panel-title-row">
               <h2>금일 입고 목록</h2>
-              <button class="secondary-action compact-action" type="button">
-                <img class="button-image-icon" src="./assets/inbound-excel-download-icon-generated.svg" alt="" aria-hidden="true" />
-                엑셀 다운로드
+              <button class="secondary-action compact-action" type="button" id="refreshInboundListButton">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 6v5h-5" />
+                  <path d="M4 18v-5h5" />
+                  <path d="M18.7 9A7 7 0 0 0 6.3 6.8L4 13" />
+                  <path d="M5.3 15A7 7 0 0 0 17.7 17.2L20 11" />
+                </svg>
+                <span>새로고침</span>
               </button>
             </div>
             <div class="table-scroll">

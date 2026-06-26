@@ -46,6 +46,7 @@ const state = {
   isSavingProduct: false,
   isSavingInbound: false,
   isSavingInboundEdit: false,
+  isRefreshingInbounds: false,
   isDeletingProduct: false,
   isDeletingInbound: false,
   productFormMode: "create",
@@ -130,6 +131,7 @@ const inboundSubmitButton = document.querySelector("#inboundSubmitButton");
 const inboundTableBody = document.querySelector("#inboundTableBody");
 const inboundCountLabel = document.querySelector("#inboundCountLabel");
 const inboundPagination = document.querySelector("#inboundPagination");
+const refreshInboundListButton = document.querySelector("#refreshInboundListButton");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
 const inboundProductPickerModal = document.querySelector("#inboundProductPickerModal");
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
@@ -208,6 +210,7 @@ inboundDefectReasonPanel?.querySelectorAll("[data-defect-reason]").forEach((butt
 });
 
 inboundSubmitButton?.addEventListener("click", saveInbound);
+refreshInboundListButton?.addEventListener("click", refreshTodayInbounds);
 
 inboundInvoiceUploadButton?.addEventListener("click", () => inboundInvoiceFile?.click());
 inboundDefectUploadButton?.addEventListener("click", () => inboundDefectFiles?.click());
@@ -986,9 +989,40 @@ async function loadTodayInbounds() {
     const result = await requestApi("getTodayInbounds");
     state.todayInbounds = Array.isArray(result.inbounds) ? result.inbounds : [];
     renderTodayInbounds();
+    return true;
   } catch (error) {
     state.todayInbounds = [];
     renderTodayInbounds("금일 입고 목록을 불러오지 못했습니다.");
+    return false;
+  }
+}
+
+async function refreshTodayInbounds() {
+  if (state.isRefreshingInbounds) {
+    return;
+  }
+
+  state.isRefreshingInbounds = true;
+  setInboundRefreshButtonLoading(true);
+
+  try {
+    const refreshed = await loadTodayInbounds();
+    showToast(refreshed ? "금일 입고 목록을 새로고침했습니다." : "금일 입고 목록을 불러오지 못했습니다.");
+  } finally {
+    state.isRefreshingInbounds = false;
+    setInboundRefreshButtonLoading(false);
+  }
+}
+
+function setInboundRefreshButtonLoading(isLoading) {
+  if (!refreshInboundListButton) {
+    return;
+  }
+
+  refreshInboundListButton.disabled = isLoading;
+  const label = refreshInboundListButton.querySelector("span");
+  if (label) {
+    label.textContent = isLoading ? "새로고침 중" : "새로고침";
   }
 }
 

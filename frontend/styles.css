@@ -1028,6 +1028,13 @@ input {
   transform: translateY(-1px);
 }
 
+.primary-action:disabled,
+.secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
+}
+
 .secondary-action {
   color: var(--navy-dark);
   border: 1px solid #dde5ef;
