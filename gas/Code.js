@@ -1,6 +1,7 @@
 const CONFIG = {
   SPREADSHEET_ID: '1XkrXqPFpB2dtGrT8KiV3OyUzM6PbVAxHlZlQeDUFQAI',
   DRIVE_ROOT_FOLDER_ID: '1qxRR-t6_msWtfnXTd3PCMqsut7uYXRt1',
+  DEFECT_PHOTO_ROOT_FOLDER_ID: '1vE9xIY3OA2dCoCWgnPZDWfuBgd_oo34U',
   SHEET_IDS: {
     STOCK_DB: 425625267,
     BOX_DB: 523859013
@@ -74,29 +75,39 @@ function doPost(e) {
 
 function healthCheck() {
   const ss = getSpreadsheet_();
-  const driveFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
-  const driveWriteCheck = verifyDriveWriteAccess_(driveFolder);
+  const invoiceFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+  const defectPhotoFolder = DriveApp.getFolderById(CONFIG.DEFECT_PHOTO_ROOT_FOLDER_ID);
+  const invoiceDriveWriteCheck = verifyDriveWriteAccess_(invoiceFolder);
+  const defectPhotoDriveWriteCheck = verifyDriveWriteAccess_(defectPhotoFolder);
 
   return {
     spreadsheetId: ss.getId(),
     spreadsheetName: ss.getName(),
-    driveFolderId: driveFolder.getId(),
-    driveFolderName: driveFolder.getName(),
-    driveWriteCheck,
+    invoiceDriveFolderId: invoiceFolder.getId(),
+    invoiceDriveFolderName: invoiceFolder.getName(),
+    invoiceDriveWriteCheck,
+    defectPhotoDriveFolderId: defectPhotoFolder.getId(),
+    defectPhotoDriveFolderName: defectPhotoFolder.getName(),
+    defectPhotoDriveWriteCheck,
     checkedAt: new Date().toISOString()
   };
 }
 
 function authorizeDrive() {
   const ss = getSpreadsheet_();
-  const folder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
-  const driveWriteCheck = verifyDriveWriteAccess_(folder);
+  const invoiceFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+  const defectPhotoFolder = DriveApp.getFolderById(CONFIG.DEFECT_PHOTO_ROOT_FOLDER_ID);
+  const invoiceDriveWriteCheck = verifyDriveWriteAccess_(invoiceFolder);
+  const defectPhotoDriveWriteCheck = verifyDriveWriteAccess_(defectPhotoFolder);
 
   return {
     spreadsheetName: ss.getName(),
-    folderId: folder.getId(),
-    folderName: folder.getName(),
-    driveWriteCheck,
+    invoiceDriveFolderId: invoiceFolder.getId(),
+    invoiceDriveFolderName: invoiceFolder.getName(),
+    invoiceDriveWriteCheck,
+    defectPhotoDriveFolderId: defectPhotoFolder.getId(),
+    defectPhotoDriveFolderName: defectPhotoFolder.getName(),
+    defectPhotoDriveWriteCheck,
     checkedAt: new Date().toISOString()
   };
 }
@@ -796,6 +807,10 @@ function createInbound(payload) {
       managementId,
       registeredDate
     });
+    const defectPhotoUrls = uploadInboundDefectPhotos_(payload, {
+      managementId,
+      registeredDate
+    });
     const stockRecord = {
       category: '신규입고',
       status: '보관',
@@ -822,6 +837,7 @@ function createInbound(payload) {
       defectRate: `${defectRate}%`,
       defectReason: dash_(payload.defectReason),
       invoiceFileUrl,
+      defectPhotoUrls,
       note
     };
 
@@ -1059,6 +1075,7 @@ function appendStockDbRow_(sheet, record) {
   setRowValue_(row, indexes, ['불량률'], record.defectRate);
   setRowValue_(row, indexes, ['불량 사유', '불량사유'], record.defectReason);
   setRowValue_(row, indexes, ['거래명세표', '거래명세서'], record.invoiceFileUrl || '-');
+  setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], record.defectPhotoUrls || '-');
   setRowValue_(row, indexes, ['비고'], record.note);
 
   return appendStyledRangeRows_(sheet, startColumn, [row.slice(startColumn - 1)], templateRowNumber);
@@ -1257,6 +1274,41 @@ function uploadInboundInvoice_(payload, context) {
 
   createdFile.setDescription(`관리ID: ${context.managementId}`);
   return createdFile.getUrl();
+}
+
+function uploadInboundDefectPhotos_(payload, context) {
+  const files = Array.isArray(payload.defectFiles) ? payload.defectFiles : [];
+
+  if (!files.length) {
+    return '';
+  }
+
+  const productName = dash_(payload.productName);
+  const clientName = dash_(payload.clientName);
+  const dateFolderName = sanitizeDriveName_(dash_(payload.inboundDate || context.registeredDate));
+  const rootFolder = DriveApp.getFolderById(CONFIG.DEFECT_PHOTO_ROOT_FOLDER_ID);
+  const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
+    '입고',
+    dateFolderName,
+    sanitizeDriveName_(clientName)
+  ]);
+  const baseFileName = sanitizeDriveName_(productName);
+
+  return files.map((file, index) => {
+    if (!file || !String(file.data || '').trim()) {
+      return '';
+    }
+
+    const extension = getFileExtension_(file.name, file.mimeType);
+    const fileName = `${baseFileName}_${index + 1}${extension}`;
+    const bytes = Utilities.base64Decode(String(file.data).trim());
+    const mimeType = String(file.mimeType || 'application/octet-stream').trim();
+    const blob = Utilities.newBlob(bytes, mimeType, fileName);
+    const createdFile = targetFolder.createFile(blob);
+
+    createdFile.setDescription(`관리ID: ${context.managementId}, 불량사진 ${index + 1}`);
+    return createdFile.getUrl();
+  }).filter(Boolean).join('\n');
 }
 
 function getOrCreateDriveFolderPath_(rootFolder, folderNames) {

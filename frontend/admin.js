@@ -1,5 +1,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyPiTM2wEZ5d549g0R8pqLQB2FKE0Hz-7h_GYGfA_MVUq45-F3tTyITbT4A-yJ1ZldOCA/exec";
 const MAX_INVOICE_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_DEFECT_PHOTO_FILE_SIZE = 10 * 1024 * 1024;
 
 const DEFAULT_CLIENTS = [
   "아이원(아이텍)",
@@ -507,6 +508,7 @@ async function saveInbound() {
 
   try {
     payload.invoiceFile = await getInboundInvoicePayload();
+    payload.defectFiles = await getInboundDefectFilePayloads();
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
     await loadTodayInbounds();
@@ -574,6 +576,33 @@ async function getInboundInvoicePayload() {
     mimeType: file.type || "application/octet-stream",
     data: base64Data
   };
+}
+
+async function getInboundDefectFilePayloads() {
+  const files = Array.from(inboundDefectFiles?.files || []);
+
+  if (!files.length) {
+    return [];
+  }
+
+  return Promise.all(files.map(async (file) => {
+    if (!file.type.startsWith("image/")) {
+      throw new Error("불량사진은 이미지 파일만 업로드할 수 있습니다.");
+    }
+
+    if (file.size > MAX_DEFECT_PHOTO_FILE_SIZE) {
+      throw new Error("불량사진 파일은 개별 10MB 이하로 등록해주세요.");
+    }
+
+    const dataUrl = await readFileAsDataUrl(file);
+    const base64Data = dataUrl.split(",")[1] || "";
+
+    return {
+      name: file.name,
+      mimeType: file.type || "application/octet-stream",
+      data: base64Data
+    };
+  }));
 }
 
 function readFileAsDataUrl(file) {
