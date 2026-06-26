@@ -2816,7 +2816,7 @@ input {
 .summary-totals {
   display: grid;
   gap: 0.2rem;
-  margin: 0.7rem 0 0.62rem;
+  margin: auto 0 0.62rem;
   padding-top: 0.7rem;
   border-top: 1px solid #dfe6ef;
 }
@@ -2952,7 +2952,7 @@ input {
 
 .inbound-submit {
   width: 100%;
-  min-height: 2.55rem;
+  min-height: 3rem;
 }
 
 .inbound-list-panel {
