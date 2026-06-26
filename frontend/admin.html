@@ -246,7 +246,7 @@
                   <label class="form-field quantity-box">
                     <span>박스당 수량 (EA) <b>*</b></span>
                     <span class="unit-input editable-lock-input editable-unit-input">
-                      <input id="inboundBoxQty" type="number" value="300" min="0" disabled />
+                      <input id="inboundBoxQty" type="number" min="0" disabled />
                       <i>ea</i>
                       <button id="editInboundBoxQtyButton" type="button" aria-label="박스당 수량 수정" title="수정" aria-pressed="false">
                         <svg class="edit-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -263,21 +263,21 @@
                   <label class="form-field quantity-box-count">
                     <span>입고 박스 수 (BOX) <b>*</b></span>
                     <span class="unit-input">
-                      <input id="inboundBoxCount" type="number" value="12" min="0" />
+                      <input id="inboundBoxCount" type="number" min="0" />
                       <i>box</i>
                     </span>
                   </label>
                   <label class="form-field quantity-remain">
                     <span>잔량 (EA) <b>*</b></span>
                     <span class="unit-input">
-                      <input id="inboundRemainQty" type="number" value="7" min="0" />
+                      <input id="inboundRemainQty" type="number" min="0" />
                       <i>ea</i>
                     </span>
                   </label>
                   <label class="form-field quantity-tray">
                     <span>검수 수량 (EA) <b>*</b></span>
                     <span class="unit-input editable-lock-input editable-unit-input">
-                      <input id="inboundTrayQty" type="number" value="80" min="0" disabled />
+                      <input id="inboundTrayQty" type="number" min="0" disabled />
                       <i>ea</i>
                       <button id="editInboundTrayQtyButton" type="button" aria-label="검수 수량 수정" title="수정" aria-pressed="false">
                         <svg class="edit-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -294,7 +294,7 @@
                   <label class="form-field quantity-defect">
                     <span>불량 수량 (EA) <b>*</b></span>
                     <span class="unit-input">
-                      <input id="inboundDefectQty" type="number" value="9" min="0" />
+                      <input id="inboundDefectQty" type="number" min="0" />
                       <i>ea</i>
                     </span>
                   </label>
@@ -341,7 +341,7 @@
                           <span class="option-check" aria-hidden="true">✓</span>
                         </button>
                       </div>
-                      <input id="inboundDefectReason" type="hidden" value="양호, 흑점" />
+                      <input id="inboundDefectReason" type="hidden" />
                     </div>
                   </label>
                   <div class="inbound-file-actions quantity-file-actions">
@@ -379,9 +379,9 @@
                 입고 계산 정보
               </h2>
               <dl>
-                <div><dt>박스당 수량</dt><dd><strong id="calcBoxQty">300</strong> ea</dd></div>
-                <div><dt>입고 박스 수</dt><dd><strong id="calcBoxCount">12</strong> box</dd></div>
-                <div><dt>잔량 수량</dt><dd><strong id="calcRemainQty">7</strong> ea</dd></div>
+                <div><dt>박스당 수량</dt><dd><strong id="calcBoxQty">-</strong> ea</dd></div>
+                <div><dt>입고 박스 수</dt><dd><strong id="calcBoxCount">-</strong> box</dd></div>
+                <div><dt>잔량 수량</dt><dd><strong id="calcRemainQty">-</strong> ea</dd></div>
               </dl>
               <div class="summary-formulas" aria-label="입고 계산식">
                 <div class="summary-formula-card">
@@ -396,11 +396,11 @@
               <div class="summary-totals">
                 <div class="summary-total">
                   <span>박스 총 수량</span>
-                  <strong><span id="calcTotalBoxCount">13</span> <em>box</em></strong>
+                  <strong><span id="calcTotalBoxCount">-</span> <em>box</em></strong>
                 </div>
                 <div class="summary-total">
                   <span>입고 총 수량</span>
-                  <strong><span id="calcTotalQty">3,607</span> <em>ea</em></strong>
+                  <strong><span id="calcTotalQty">-</span> <em>ea</em></strong>
                 </div>
               </div>
               <button class="primary-action inbound-submit" type="button" id="inboundSubmitButton">등록</button>

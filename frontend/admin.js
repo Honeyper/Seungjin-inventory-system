@@ -61,7 +61,7 @@ const state = {
     invoice: "",
     defect: ""
   },
-  selectedDefectReasons: ["양호", "흑점"],
+  selectedDefectReasons: [],
   inboundEditDefectReasons: [],
   inboundSort: {
     column: null,
@@ -462,23 +462,27 @@ function updateInboundSummary() {
       return;
     }
 
-    const value = Number(input.value || 0);
-    output.textContent = value.toLocaleString("ko-KR");
+    const rawValue = input.value.trim();
+    output.textContent = rawValue ? Number(rawValue).toLocaleString("ko-KR") : "-";
   });
 
   const totalOutput = document.querySelector("#calcTotalQty");
   const totalBoxOutput = document.querySelector("#calcTotalBoxCount");
-  const boxQuantity = Number(document.querySelector("#inboundBoxQty")?.value || 0);
-  const boxCount = Number(document.querySelector("#inboundBoxCount")?.value || 0);
-  const remainQuantity = Number(document.querySelector("#inboundRemainQty")?.value || 0);
+  const boxQuantityInput = document.querySelector("#inboundBoxQty");
+  const boxCountInput = document.querySelector("#inboundBoxCount");
+  const remainQuantityInput = document.querySelector("#inboundRemainQty");
+  const hasQuantityValue = [boxQuantityInput, boxCountInput, remainQuantityInput].some((input) => input?.value.trim());
+  const boxQuantity = Number(boxQuantityInput?.value || 0);
+  const boxCount = Number(boxCountInput?.value || 0);
+  const remainQuantity = Number(remainQuantityInput?.value || 0);
   const totalBoxCount = boxCount + (remainQuantity > 0 ? 1 : 0);
 
   if (totalOutput) {
-    totalOutput.textContent = (boxQuantity * boxCount + remainQuantity).toLocaleString("ko-KR");
+    totalOutput.textContent = hasQuantityValue ? (boxQuantity * boxCount + remainQuantity).toLocaleString("ko-KR") : "-";
   }
 
   if (totalBoxOutput) {
-    totalBoxOutput.textContent = totalBoxCount.toLocaleString("ko-KR");
+    totalBoxOutput.textContent = hasQuantityValue ? totalBoxCount.toLocaleString("ko-KR") : "-";
   }
 }
 
