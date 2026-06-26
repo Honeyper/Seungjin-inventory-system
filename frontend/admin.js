@@ -624,7 +624,8 @@ function validateInboundPayload(payload) {
     ["productId", "제품 ID를 확인해주세요."],
     ["clientName", "거래처명을 입력해주세요."],
     ["process", "최종공정을 선택해주세요."],
-    ["storage", "보관위치를 선택해주세요."]
+    ["storage", "보관위치를 선택해주세요."],
+    ["defectReason", "불량 사유를 선택해주세요."]
   ];
 
   const missing = requiredFields.find(([field]) => !payload[field]);
@@ -1774,7 +1775,7 @@ function renderInboundEditForm(inbound) {
           ${renderUnitInput("inboundEditDefectQty", extractQuantityNumber(inbound.defectQuantity), "ea")}
         </label>
         <label class="form-field">
-          <span>불량 사유</span>
+          <span>불량 사유 <b>*</b></span>
           <div class="multi-select" id="inboundEditDefectReasonSelect">
             <button class="multi-select-trigger" id="inboundEditDefectReasonButton" type="button" aria-haspopup="listbox" aria-expanded="false">
               <span class="multi-select-value" id="inboundEditDefectReasonValue"></span>
@@ -2047,6 +2048,10 @@ function validateInboundEditPayload(payload) {
 
   if (!payload.storage) {
     return "보관위치를 선택해주세요.";
+  }
+
+  if (!payload.defectReason) {
+    return "불량 사유를 선택해주세요.";
   }
 
   const positiveNumberFields = [

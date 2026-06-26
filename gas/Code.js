@@ -772,7 +772,8 @@ function createInbound(payload) {
     ['inboundTime', '입고 시간'],
     ['inboundType', '입고 유형'],
     ['process', '최종공정'],
-    ['storage', '보관위치']
+    ['storage', '보관위치'],
+    ['defectReason', '불량 사유']
   ];
 
   required.forEach(([key, label]) => {
@@ -893,6 +894,7 @@ function updateInbound(payload) {
   const inboundType = String(payload.inboundType || payload['입고 유형'] || payload['입고유형'] || '').trim();
   const process = String(payload.process || payload['최종공정'] || '').trim();
   const storage = String(payload.storage || payload['보관위치'] || '').trim();
+  const defectReason = String(payload.defectReason || payload['불량 사유'] || payload['불량사유'] || '').trim();
 
   if (!inboundDate) {
     throw new Error('입고일 값이 필요합니다.');
@@ -912,6 +914,10 @@ function updateInbound(payload) {
 
   if (!storage) {
     throw new Error('보관위치 값이 필요합니다.');
+  }
+
+  if (!defectReason) {
+    throw new Error('불량 사유 값이 필요합니다.');
   }
 
   const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
@@ -974,7 +980,7 @@ function updateInbound(payload) {
     setRowValue_(row, rowInfo.indexes, ['검수 수량', '검수수량'], formatEa_(inspectionQuantity));
     setRowValue_(row, rowInfo.indexes, ['불량 수량', '불량수량'], formatEa_(defectQuantity));
     setRowValue_(row, rowInfo.indexes, ['불량률'], `${defectRate}%`);
-    setRowValue_(row, rowInfo.indexes, ['불량 사유', '불량사유'], dash_(payload.defectReason));
+    setRowValue_(row, rowInfo.indexes, ['불량 사유', '불량사유'], dash_(defectReason));
     if (invoiceFileUrl) {
       setRowValue_(row, rowInfo.indexes, ['거래명세표', '거래명세서'], invoiceFileUrl);
     }
