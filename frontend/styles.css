@@ -3265,7 +3265,7 @@ input {
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
-  padding: 14mm;
+  padding: 0;
   background: #fff;
   box-shadow: 0 0.75rem 2rem rgba(8, 28, 64, 0.12);
 }
@@ -3391,6 +3391,11 @@ input {
 }
 
 @media print {
+  @page {
+    margin: 0;
+    size: A4 portrait;
+  }
+
   body * {
     visibility: hidden;
   }
@@ -3429,7 +3434,7 @@ input {
     width: 210mm;
     min-height: 297mm;
     margin: 0;
-    padding: 14mm;
+    padding: 0;
     box-shadow: none;
   }
 }
