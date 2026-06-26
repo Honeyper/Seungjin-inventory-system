@@ -51,10 +51,12 @@ const state = {
   isRefreshingInbounds: false,
   isDeletingProduct: false,
   isDeletingInbound: false,
+  isLoadingInboundQrs: false,
   productFormMode: "create",
   editingProductCode: "",
   activeDetailProductCode: "",
   activeDetailInboundId: "",
+  activeQrInboundId: "",
   activeMenuProductCode: "",
   activeMenuButton: null,
   activeInboundMenuRecord: "",
@@ -110,6 +112,13 @@ const inboundDetailDescription = document.querySelector("#inboundDetailTitle")?.
 const closeInboundDetailButton = document.querySelector("#closeInboundDetailButton");
 const editInboundFromDetailButton = document.querySelector("#editInboundFromDetailButton");
 const saveInboundEditButton = document.querySelector("#saveInboundEditButton");
+const inboundQrModal = document.querySelector("#inboundQrModal");
+const inboundQrTitle = document.querySelector("#inboundQrTitle");
+const inboundQrSubtitle = document.querySelector("#inboundQrSubtitle");
+const inboundQrSheet = document.querySelector("#inboundQrSheet");
+const closeInboundQrModalButton = document.querySelector("#closeInboundQrModal");
+const closeInboundQrButton = document.querySelector("#closeInboundQrButton");
+const printInboundQrButton = document.querySelector("#printInboundQrButton");
 const inboundTime = document.querySelector("#inboundTime");
 const inboundDate = document.querySelector("#inboundDate");
 const inboundType = document.querySelector("#inboundType");
@@ -301,6 +310,9 @@ document.querySelector("#closeInboundDetailModal").addEventListener("click", clo
 closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
 editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
 saveInboundEditButton?.addEventListener("click", saveInboundEdit);
+closeInboundQrModalButton?.addEventListener("click", closeInboundQrModal);
+closeInboundQrButton?.addEventListener("click", closeInboundQrModal);
+printInboundQrButton?.addEventListener("click", () => window.print());
 
 document.addEventListener("click", (event) => {
   if (
@@ -779,7 +791,7 @@ function renderTodayInbounds(message = "") {
     inboundTableBody.innerHTML = inbounds.map((item) => `
       <tr>
         <td>
-          <button class="qr-action" type="button" aria-label="입고 QR 보기">
+          <button class="qr-action" type="button" data-qr-inbound="${escapeAttribute(item.managementId)}" aria-label="입고 QR 보기">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
               <path d="M14 14h2v2h-2zM18 14h2v6h-2zM14 18h2v2h-2z" />
@@ -818,6 +830,13 @@ function renderTodayInbounds(message = "") {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       toggleInboundRowActionMenu(button);
+    });
+  });
+
+  inboundTableBody.querySelectorAll("[data-qr-inbound]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openInboundQrModal(button.dataset.qrInbound);
     });
   });
 
@@ -1512,9 +1531,117 @@ function closeInboundDetailModal() {
   state.inboundEditDefectReasons = [];
   setInboundDetailMode("view");
 
-  if (productModal.hidden && productDetailModal.hidden && inboundProductPickerModal.hidden) {
+  if (productModal.hidden && productDetailModal.hidden && inboundProductPickerModal.hidden && inboundQrModal?.hidden !== false) {
     document.body.classList.remove("modal-open");
   }
+}
+
+async function openInboundQrModal(managementId) {
+  if (!managementId || !inboundQrModal || state.isLoadingInboundQrs) {
+    return;
+  }
+
+  const inbound = state.todayInbounds.find((item) => item.managementId === managementId);
+
+  if (!inbound) {
+    showToast("QR을 만들 입고 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  state.activeQrInboundId = managementId;
+  state.isLoadingInboundQrs = true;
+  closeInboundRowActionMenu();
+  inboundQrTitle.textContent = `${inbound.productName || "입고"} 박스 QR`;
+  inboundQrSubtitle.textContent = `${managementId} · ${inbound.process || "-"} · ${inbound.inboundDate || "-"} · QR 데이터를 준비 중입니다.`;
+  inboundQrSheet.innerHTML = '<p class="qr-loading">박스 QR 데이터를 불러오는 중입니다.</p>';
+  inboundQrModal.hidden = false;
+  document.body.classList.add("modal-open");
+
+  try {
+    const result = await requestApi("getInboundBoxQrs", { managementId });
+    const boxes = Array.isArray(result.boxes) ? result.boxes : [];
+    inboundQrSubtitle.textContent = `${managementId} · ${inbound.process || "-"} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
+    renderInboundQrSheet(inbound, boxes);
+  } catch (error) {
+    inboundQrSheet.innerHTML = `<p class="qr-loading qr-error">${escapeHtml(error.message || "QR 데이터를 불러오지 못했습니다.")}</p>`;
+    showToast(error.message || "QR 데이터를 불러오지 못했습니다.");
+  } finally {
+    state.isLoadingInboundQrs = false;
+  }
+}
+
+function closeInboundQrModal() {
+  if (!inboundQrModal) {
+    return;
+  }
+
+  inboundQrModal.hidden = true;
+  inboundQrSheet.innerHTML = "";
+  state.activeQrInboundId = "";
+
+  if (productModal.hidden && productDetailModal.hidden && inboundDetailModal.hidden && inboundProductPickerModal.hidden) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function renderInboundQrSheet(inbound, boxes) {
+  if (!inboundQrSheet) {
+    return;
+  }
+
+  if (!boxes.length) {
+    inboundQrSheet.innerHTML = '<p class="qr-loading">출력할 박스 QR이 없습니다.</p>';
+    return;
+  }
+
+  const total = boxes.length;
+  const processText = inbound.process || "-";
+  const productName = inbound.productName || boxes[0]?.productName || "-";
+
+  inboundQrSheet.innerHTML = boxes.map((box) => {
+    const sequence = Number(box.sequence) || 0;
+    const qrData = box.qrData || box.boxId || "";
+
+    return `
+      <article class="box-qr-label">
+        <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
+        <div class="box-qr-main">
+          <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
+          <div class="box-qr-checks" aria-label="공정 체크">
+            ${renderQrProcessCheck("1도", processText)}
+            ${renderQrProcessCheck("2도", processText)}
+            ${renderQrProcessCheck("3도", processText)}
+          </div>
+        </div>
+        <dl class="box-qr-meta">
+          <div>
+            <dt>제품명</dt>
+            <dd>${escapeHtml(productName)}</dd>
+          </div>
+          <div>
+            <dt>박스 정보</dt>
+            <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
+          </div>
+        </dl>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderQrProcessCheck(label, processText) {
+  const checked = String(processText || "").includes(label) ? "checked" : "";
+
+  return `
+    <span>
+      ${escapeHtml(label)}
+      <i class="${checked}" aria-hidden="true"></i>
+    </span>
+  `;
+}
+
+function getQrImageUrl(value) {
+  const data = String(value || "-");
+  return `https://api.qrserver.com/v1/create-qr-code/?size=128x128&margin=1&data=${encodeURIComponent(data)}`;
 }
 
 function openActiveInboundEdit() {

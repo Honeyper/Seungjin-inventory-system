@@ -43,6 +43,7 @@ function doPost(e) {
       setupSheets,
       getProducts,
       getTodayInbounds,
+      getInboundBoxQrs,
       createProduct,
       updateProduct,
       deleteProduct,
@@ -669,6 +670,98 @@ function getTodayInbounds(payload) {
   };
 }
 
+function getInboundBoxQrs(payload) {
+  const managementId = String(payload?.managementId || payload?.['관리ID'] || payload?.['관리 ID'] || '').trim();
+
+  if (!managementId) {
+    throw new Error('입고 관리 ID가 필요합니다.');
+  }
+
+  const sheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['박스ID', '관리ID', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error('박스관리 DB 헤더를 찾을 수 없습니다.');
+  }
+
+  const { headers, rowIndex: headerRowIndex } = headerInfo;
+  const indexes = indexHeaders_(headers);
+  const managementIndex = findHeaderIndex_(indexes, ['관리ID', '관리 ID']);
+
+  if (managementIndex < 0) {
+    throw new Error('박스관리 DB의 관리ID 컬럼을 찾을 수 없습니다.');
+  }
+
+  const generatedAt = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy. M. d HH:mm');
+  const boxes = [];
+
+  for (let rowIndex = headerRowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const sourceRow = values[rowIndex];
+
+    if (!sourceRow.some((cell) => String(cell || '').trim())) {
+      continue;
+    }
+
+    if (String(sourceRow[managementIndex] || '').trim() !== managementId) {
+      continue;
+    }
+
+    const row = sourceRow.slice(0, headers.length);
+    const boxId = pickCell_(row, indexes, ['박스ID']);
+    const sequenceText = pickCell_(row, indexes, ['박스순번', '박스 순번', '박스 번호']);
+    const sequence = Number(sequenceText) || boxes.length + 1;
+    const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
+    const productName = pickCell_(row, indexes, ['제품명']);
+    const boxQuantity = pickCell_(row, indexes, ['박스당 수량', '박스당수량']);
+    const currentQuantity = pickCell_(row, indexes, ['현재 수량', '현재수량']);
+    const storage = pickCell_(row, indexes, ['보관 위치', '보관위치', '보관 장소']);
+    const status = pickCell_(row, indexes, ['상태', '재고 상태']);
+    let qrData = pickCell_(row, indexes, ['QR 데이터']);
+
+    if (!qrData || qrData === '-') {
+      qrData = buildBoxQrData_({
+        boxId,
+        managementId,
+        sequence,
+        productId,
+        productName
+      });
+    }
+
+    setRowValue_(row, indexes, ['QR 생성 여부', 'QR 출력 여부'], '생성');
+    setRowValue_(row, indexes, ['QR 생성 일시'], pickCell_(row, indexes, ['QR 생성 일시']) || generatedAt);
+    setRowValue_(row, indexes, ['QR 데이터'], qrData);
+    sheet.getRange(rowIndex + 1, 1, 1, headers.length).setValues([row]);
+
+    boxes.push({
+      boxId,
+      managementId,
+      sequence,
+      productId,
+      productName,
+      boxQuantity,
+      currentQuantity,
+      storage,
+      status,
+      qrData
+    });
+  }
+
+  if (!boxes.length) {
+    throw new Error('해당 입고 내역의 박스 QR 데이터를 찾을 수 없습니다.');
+  }
+
+  boxes.sort((left, right) => Number(left.sequence) - Number(right.sequence));
+
+  return {
+    managementId,
+    generatedAt,
+    boxCount: boxes.length,
+    boxes
+  };
+}
+
 function updateProduct(payload) {
   const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
   const required = ['업체명', '제품명', '발주량', '납기일', '박스당 수량', '트레이 수량'];
@@ -1245,6 +1338,16 @@ function appendBoxManagementRows_(sheet, boxRecords) {
   });
 
   return appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber);
+}
+
+function buildBoxQrData_(record) {
+  return JSON.stringify({
+    t: 'SJ_BOX',
+    b: record.boxId,
+    m: record.managementId,
+    p: record.productId,
+    n: record.sequence
+  });
 }
 
 function deleteRowsByHeaderValue_(sheet, headerNames, targetValue, requiredHeaders) {

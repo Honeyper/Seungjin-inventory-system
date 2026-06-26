@@ -3203,6 +3203,237 @@ input {
   stroke-linejoin: round;
 }
 
+.qr-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(70rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 3rem);
+  overflow: hidden;
+  border-radius: 0.45rem;
+  background: #fff;
+  box-shadow: 0 1.4rem 3.8rem rgba(8, 28, 64, 0.22);
+}
+
+.qr-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #dbe5f0;
+}
+
+.qr-modal-header h2 {
+  margin: 0;
+  color: var(--navy-dark);
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.qr-modal-header p {
+  margin: 0.3rem 0 0;
+  color: #66758a;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.qr-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qr-modal-actions .secondary-modal-action,
+.qr-modal-actions .primary-modal-action {
+  min-width: 3.6rem;
+  height: 2.15rem;
+  padding: 0 0.85rem;
+  font-size: 0.82rem;
+}
+
+.qr-print-area {
+  flex: 1;
+  overflow: auto;
+  padding: 1.35rem;
+  background: #f2f5f9;
+}
+
+.qr-sheet {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-content: start;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 14mm;
+  background: #fff;
+  box-shadow: 0 0.75rem 2rem rgba(8, 28, 64, 0.12);
+}
+
+.qr-loading {
+  grid-column: 1 / -1;
+  align-self: start;
+  margin: 0;
+  padding: 2rem 0;
+  color: #66758a;
+  text-align: center;
+  font-weight: 900;
+}
+
+.qr-error {
+  color: #b42318;
+}
+
+.box-qr-label {
+  min-height: 34mm;
+  padding: 1.7mm 1.8mm;
+  border: 1px dashed #7c899b;
+  color: var(--navy-dark);
+  break-inside: avoid;
+}
+
+.box-qr-process {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 6mm;
+  margin-bottom: 1.7mm;
+  border-radius: 0.8mm;
+  background: #090f19;
+  color: #fff;
+  font-size: 7.5pt;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.box-qr-main {
+  display: grid;
+  grid-template-columns: 19mm 1fr;
+  gap: 1.6mm;
+  align-items: start;
+}
+
+.box-qr-image {
+  width: 19mm;
+  height: 19mm;
+  image-rendering: crisp-edges;
+}
+
+.box-qr-checks {
+  display: grid;
+  gap: 1.1mm;
+  padding-top: 0.5mm;
+}
+
+.box-qr-checks span {
+  display: grid;
+  grid-template-columns: 1fr 4.4mm;
+  align-items: center;
+  height: 4.1mm;
+  padding: 0 1.1mm;
+  border: 0.4pt solid #8792a2;
+  border-radius: 0.6mm;
+  color: #111827;
+  font-size: 5.8pt;
+  font-weight: 800;
+}
+
+.box-qr-checks i {
+  display: block;
+  width: 3mm;
+  height: 3mm;
+  margin-left: auto;
+  border: 0.45pt solid #111827;
+  background: #fff;
+}
+
+.box-qr-checks i.checked::after {
+  content: "";
+  display: block;
+  width: 1.8mm;
+  height: 1mm;
+  margin: 0.55mm auto 0;
+  border-bottom: 0.55pt solid #111827;
+  border-left: 0.55pt solid #111827;
+  transform: rotate(-45deg);
+}
+
+.box-qr-meta {
+  margin: 1.8mm 0 0;
+  border-top: 0.45pt solid #cbd5e1;
+}
+
+.box-qr-meta div {
+  display: grid;
+  grid-template-columns: 17mm 1fr;
+  align-items: center;
+  min-height: 5.5mm;
+  border-bottom: 0.45pt solid #cbd5e1;
+}
+
+.box-qr-meta dt,
+.box-qr-meta dd {
+  margin: 0;
+  font-size: 5.6pt;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.box-qr-meta dt {
+  color: #46566b;
+}
+
+.box-qr-meta dd {
+  color: #111827;
+  text-align: center;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #inboundQrModal,
+  #inboundQrModal * {
+    visibility: visible;
+  }
+
+  #inboundQrModal {
+    position: absolute;
+    inset: 0;
+    display: block;
+    background: #fff;
+  }
+
+  .qr-modal {
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .qr-modal-header {
+    display: none;
+  }
+
+  .qr-print-area {
+    overflow: visible;
+    padding: 0;
+    background: #fff;
+  }
+
+  .qr-sheet {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    padding: 14mm;
+    box-shadow: none;
+  }
+}
+
 @media (max-width: 1100px) {
   .inbound-list-panel .panel-title-row {
     align-items: flex-start;
