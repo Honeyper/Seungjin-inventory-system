@@ -1669,9 +1669,9 @@ function renderInboundQrSheet(inbound, boxes) {
         <div class="box-qr-main">
           <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
           <div class="box-qr-checks" aria-label="공정 체크">
-            ${renderQrProcessCheck("1도", processText)}
-            ${renderQrProcessCheck("2도", processText)}
-            ${renderQrProcessCheck("3도", processText)}
+            ${renderQrProcessCheck("1도")}
+            ${renderQrProcessCheck("2도")}
+            ${renderQrProcessCheck("3도")}
           </div>
         </div>
         <dl class="box-qr-meta">
@@ -1689,13 +1689,11 @@ function renderInboundQrSheet(inbound, boxes) {
   }).join("");
 }
 
-function renderQrProcessCheck(label, processText) {
-  const checked = String(processText || "").includes(label) ? "checked" : "";
-
+function renderQrProcessCheck(label) {
   return `
     <span>
       ${escapeHtml(label)}
-      <i class="${checked}" aria-hidden="true"></i>
+      <i aria-hidden="true"></i>
     </span>
   `;
 }
