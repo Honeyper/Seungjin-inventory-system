@@ -1,4 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyPiTM2wEZ5d549g0R8pqLQB2FKE0Hz-7h_GYGfA_MVUq45-F3tTyITbT4A-yJ1ZldOCA/exec";
+const MAX_INVOICE_FILE_SIZE = 10 * 1024 * 1024;
 
 const DEFAULT_CLIENTS = [
   "아이원(아이텍)",
@@ -505,6 +506,7 @@ async function saveInbound() {
   setInboundSaving(true);
 
   try {
+    payload.invoiceFile = await getInboundInvoicePayload();
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
     await loadTodayInbounds();
@@ -547,6 +549,40 @@ function getInboundPayload() {
     defectQuantity,
     defectReason: inboundDefectReasonInput.value.trim()
   };
+}
+
+async function getInboundInvoicePayload() {
+  const file = inboundInvoiceFile?.files?.[0];
+
+  if (!file) {
+    return null;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("거래명세서는 이미지 파일만 업로드할 수 있습니다.");
+  }
+
+  if (file.size > MAX_INVOICE_FILE_SIZE) {
+    throw new Error("거래명세서 파일은 10MB 이하로 등록해주세요.");
+  }
+
+  const dataUrl = await readFileAsDataUrl(file);
+  const base64Data = dataUrl.split(",")[1] || "";
+
+  return {
+    name: file.name,
+    mimeType: file.type || "application/octet-stream",
+    data: base64Data
+  };
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(new Error("파일을 읽지 못했습니다.")));
+    reader.readAsDataURL(file);
+  });
 }
 
 function validateInboundPayload(payload) {

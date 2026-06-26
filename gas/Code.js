@@ -1,5 +1,6 @@
 const CONFIG = {
   SPREADSHEET_ID: '1XkrXqPFpB2dtGrT8KiV3OyUzM6PbVAxHlZlQeDUFQAI',
+  DRIVE_ROOT_FOLDER_ID: '1qxRR-t6_msWtfnXTd3PCMqsut7uYXRt1',
   SHEET_IDS: {
     STOCK_DB: 425625267,
     BOX_DB: 523859013
@@ -758,36 +759,40 @@ function createInbound(payload) {
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
     const note = dash_(payload.note);
-
-    const stockValues = [
-      '신규입고',
-      '보관',
+    const invoiceFileUrl = uploadInboundInvoice_(payload, {
       managementId,
-      dash_(payload.clientName),
-      dash_(payload.registrant || 'Admin'),
+      registeredDate
+    });
+    const stockRecord = {
+      category: '신규입고',
+      status: '보관',
+      managementId,
+      clientName: dash_(payload.clientName),
+      registrant: dash_(payload.registrant || 'Admin'),
       registeredDate,
-      dash_(payload.inboundDate),
-      dash_(payload.inboundTime),
-      dash_(payload.inboundType),
-      dash_(payload.dueDate),
-      dash_(payload.productId),
-      dash_(payload.productName),
-      dash_(payload.batch),
-      dash_(payload.process),
-      dash_(payload.storage),
-      formatEa_(boxQuantity),
-      formatBox_(inboundBoxCount),
-      formatEa_(remainQuantity),
-      formatBox_(totalBoxCount),
-      formatEa_(totalQuantity),
-      formatEa_(inspectionQuantity),
-      formatEa_(defectQuantity),
-      `${defectRate}%`,
-      dash_(payload.defectReason),
+      inboundDate: dash_(payload.inboundDate),
+      inboundTime: dash_(payload.inboundTime),
+      inboundType: dash_(payload.inboundType),
+      dueDate: dash_(payload.dueDate),
+      productId: dash_(payload.productId),
+      productName: dash_(payload.productName),
+      batch: dash_(payload.batch),
+      process: dash_(payload.process),
+      storage: dash_(payload.storage),
+      boxQuantity: formatEa_(boxQuantity),
+      inboundBoxCount: formatBox_(inboundBoxCount),
+      remainQuantity: formatEa_(remainQuantity),
+      boxTotalCount: formatBox_(totalBoxCount),
+      inboundTotalQuantity: formatEa_(totalQuantity),
+      inspectionQuantity: formatEa_(inspectionQuantity),
+      defectQuantity: formatEa_(defectQuantity),
+      defectRate: `${defectRate}%`,
+      defectReason: dash_(payload.defectReason),
+      invoiceFileUrl,
       note
-    ];
+    };
 
-    const stockRow = appendStyledRangeRow_(stockSheet, 2, stockValues, 6);
+    const stockRow = appendStockDbRow_(stockSheet, stockRecord);
     const boxRecords = [];
 
     for (let index = 1; index <= totalBoxCount; index += 1) {
@@ -983,6 +988,49 @@ function appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber) {
   return targetStartRow;
 }
 
+function appendStockDbRow_(sheet, record) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const startColumn = 2;
+  const templateRowNumber = headerInfo.rowIndex + 2;
+  const indexes = indexHeaders_(headerInfo.headers);
+  const row = new Array(headerInfo.headers.length).fill('');
+
+  setRowValue_(row, indexes, ['구분'], record.category);
+  setRowValue_(row, indexes, ['상태'], record.status);
+  setRowValue_(row, indexes, ['관리 ID', '관리ID'], record.managementId);
+  setRowValue_(row, indexes, ['업체명'], record.clientName);
+  setRowValue_(row, indexes, ['등록자'], record.registrant);
+  setRowValue_(row, indexes, ['등록 일시', '등록일시'], record.registeredDate);
+  setRowValue_(row, indexes, ['입고일'], record.inboundDate);
+  setRowValue_(row, indexes, ['입고 시간', '입고시간'], record.inboundTime);
+  setRowValue_(row, indexes, ['입고 유형', '입고유형'], record.inboundType);
+  setRowValue_(row, indexes, ['납기일'], record.dueDate);
+  setRowValue_(row, indexes, ['제품ID', '제품 ID'], record.productId);
+  setRowValue_(row, indexes, ['제품명'], record.productName);
+  setRowValue_(row, indexes, ['차수'], record.batch);
+  setRowValue_(row, indexes, ['최종공정'], record.process);
+  setRowValue_(row, indexes, ['보관위치', '보관 위치'], record.storage);
+  setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], record.boxQuantity);
+  setRowValue_(row, indexes, ['입고 박스 수', '입고박스수'], record.inboundBoxCount);
+  setRowValue_(row, indexes, ['잔량 수량', '잔량수량'], record.remainQuantity);
+  setRowValue_(row, indexes, ['박스 총 수량', '박스총수량'], record.boxTotalCount);
+  setRowValue_(row, indexes, ['입고 총 수량', '입고총수량'], record.inboundTotalQuantity);
+  setRowValue_(row, indexes, ['검수 수량', '검수수량', '검사 수량'], record.inspectionQuantity);
+  setRowValue_(row, indexes, ['불량 수량', '불량수량'], record.defectQuantity);
+  setRowValue_(row, indexes, ['불량률'], record.defectRate);
+  setRowValue_(row, indexes, ['불량 사유', '불량사유'], record.defectReason);
+  setRowValue_(row, indexes, ['거래명세표', '거래명세서'], record.invoiceFileUrl || '-');
+  setRowValue_(row, indexes, ['비고'], record.note);
+
+  return appendStyledRangeRows_(sheet, startColumn, [row.slice(startColumn - 1)], templateRowNumber);
+}
+
 function appendBoxManagementRows_(sheet, boxRecords) {
   if (!boxRecords.length) {
     return 0;
@@ -1148,6 +1196,67 @@ function getProductSheet_() {
     throw new Error('제품DB 시트를 찾을 수 없습니다.');
   }
   return sheet;
+}
+
+function uploadInboundInvoice_(payload, context) {
+  const file = payload.invoiceFile;
+
+  if (!file || !String(file.data || '').trim()) {
+    return '';
+  }
+
+  const productName = dash_(payload.productName);
+  const clientName = dash_(payload.clientName);
+  const dateFolderName = sanitizeDriveName_(dash_(payload.inboundDate || context.registeredDate));
+  const extension = getFileExtension_(file.name, file.mimeType);
+  const fileName = `${sanitizeDriveName_(productName)}${extension}`;
+  const bytes = Utilities.base64Decode(String(file.data).trim());
+  const mimeType = String(file.mimeType || 'application/octet-stream').trim();
+  const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+  const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
+    '거래명세서',
+    '입고',
+    dateFolderName,
+    sanitizeDriveName_(clientName)
+  ]);
+  const blob = Utilities.newBlob(bytes, mimeType, fileName);
+  const createdFile = targetFolder.createFile(blob);
+
+  createdFile.setDescription(`관리ID: ${context.managementId}`);
+  return createdFile.getUrl();
+}
+
+function getOrCreateDriveFolderPath_(rootFolder, folderNames) {
+  return folderNames.reduce((parentFolder, folderName) => {
+    const safeName = sanitizeDriveName_(folderName);
+    const folders = parentFolder.getFoldersByName(safeName);
+    return folders.hasNext() ? folders.next() : parentFolder.createFolder(safeName);
+  }, rootFolder);
+}
+
+function sanitizeDriveName_(value) {
+  const name = String(value || '').trim().replace(/[\\/:*?"<>|#{}\[\]]/g, ' ').replace(/\s+/g, ' ');
+  return name || '-';
+}
+
+function getFileExtension_(fileName, mimeType) {
+  const name = String(fileName || '').trim();
+  const match = name.match(/(\.[A-Za-z0-9]{1,8})$/);
+
+  if (match) {
+    return match[1].toLowerCase();
+  }
+
+  const extensionByMime = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'image/heic': '.heic',
+    'image/heif': '.heif'
+  };
+
+  return extensionByMime[String(mimeType || '').toLowerCase()] || '';
 }
 
 function getOrCreateSheet_(ss, sheetName) {
