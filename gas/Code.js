@@ -75,12 +75,14 @@ function doPost(e) {
 function healthCheck() {
   const ss = getSpreadsheet_();
   const driveFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+  const driveWriteCheck = verifyDriveWriteAccess_(driveFolder);
 
   return {
     spreadsheetId: ss.getId(),
     spreadsheetName: ss.getName(),
     driveFolderId: driveFolder.getId(),
     driveFolderName: driveFolder.getName(),
+    driveWriteCheck,
     checkedAt: new Date().toISOString()
   };
 }
@@ -88,13 +90,27 @@ function healthCheck() {
 function authorizeDrive() {
   const ss = getSpreadsheet_();
   const folder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+  const driveWriteCheck = verifyDriveWriteAccess_(folder);
 
   return {
     spreadsheetName: ss.getName(),
     folderId: folder.getId(),
     folderName: folder.getName(),
+    driveWriteCheck,
     checkedAt: new Date().toISOString()
   };
+}
+
+function verifyDriveWriteAccess_(folder) {
+  const tempFolderName = `_permission_check_${Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyyMMdd_HHmmss')}`;
+  const tempFolder = folder.createFolder(tempFolderName);
+  const result = {
+    tempFolderId: tempFolder.getId(),
+    tempFolderName
+  };
+
+  tempFolder.setTrashed(true);
+  return result;
 }
 
 function login(payload) {
