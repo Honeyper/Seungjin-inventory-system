@@ -58,7 +58,7 @@
             </a>
           </div>
           <div class="side-nav-row">
-            <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <a class="side-nav-item" href="#inventory" data-view-link="inventory">
               <span class="side-icon">
                 <svg viewBox="0 0 24 24"><path d="M3 21h18V8l-9-5-9 5z" /><path d="M9 21v-7h6v7M7 10h10" /></svg>
               </span>
@@ -611,6 +611,375 @@
                   <option value="10">10개씩 보기</option>
                   <option value="20">20개씩 보기</option>
                   <option value="30">30개씩 보기</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="page-view inventory-view" id="inventoryView" data-view="inventory" hidden>
+          <section class="page-heading inventory-heading">
+            <div>
+              <p class="eyebrow">Inventory Control</p>
+              <h1>재고관리</h1>
+              <p>현재 보유 중인 제품의 재고 현황을 확인하고 관리합니다.</p>
+            </div>
+            <div class="inventory-heading-actions" aria-label="재고관리 빠른 작업">
+              <button class="secondary-action inventory-reset-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+                  <path d="M19 5v5h-5" />
+                </svg>
+                초기화
+              </button>
+              <button class="primary-action inventory-search-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m16 16 4 4" />
+                </svg>
+                조회
+              </button>
+            </div>
+          </section>
+
+          <section class="inventory-summary-grid" aria-label="재고 요약">
+            <article class="inventory-summary-card blue">
+              <span class="inventory-stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" />
+                  <path d="M12 12 4.4 7.8M12 12l7.6-4.2M12 12v8.5" />
+                  <path d="m8.2 5.4 8 4.5" />
+                </svg>
+              </span>
+              <div>
+                <span>전체 품목 수</span>
+                <strong>120 <em>개</em></strong>
+              </div>
+            </article>
+            <article class="inventory-summary-card green">
+              <span class="inventory-stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 8.2 12 4l7 4.2v7.6L12 20l-7-4.2z" />
+                  <path d="M12 12 5.3 8.4M12 12l6.7-3.6M12 12v7.6" />
+                </svg>
+              </span>
+              <div>
+                <span>전체 박스 수</span>
+                <strong>1,240 <em>box</em></strong>
+              </div>
+            </article>
+            <article class="inventory-summary-card amber">
+              <span class="inventory-stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="m12 4 8 4-8 4-8-4z" />
+                  <path d="m4 12 8 4 8-4" />
+                  <path d="m4 16 8 4 8-4" />
+                </svg>
+              </span>
+              <div>
+                <span>현재 총 수량</span>
+                <strong>152,400 <em>ea</em></strong>
+              </div>
+            </article>
+            <article class="inventory-summary-card violet">
+              <span class="inventory-stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M7 4v3M17 4v3M4 9h16" />
+                  <rect x="4" y="6" width="16" height="14" rx="2" />
+                  <path d="M8 13h4M8 16h8" />
+                </svg>
+              </span>
+              <div>
+                <span>납기 임박</span>
+                <strong>7 <em>건</em> <small>D-3 이하</small></strong>
+              </div>
+            </article>
+          </section>
+
+          <section class="inventory-filter-panel" aria-label="검색 필터">
+            <h2>검색 필터</h2>
+            <div class="inventory-filter-grid">
+              <label class="inventory-filter-field wide-search">
+                <span>제품명</span>
+                <div class="inventory-search-input">
+                  <input type="search" placeholder="제품명을 검색하세요." />
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m16 16 4 4" />
+                  </svg>
+                </div>
+              </label>
+              <label class="inventory-filter-field">
+                <span>거래처명</span>
+                <select>
+                  <option>전체</option>
+                </select>
+              </label>
+              <label class="inventory-filter-field">
+                <span>보관 위치</span>
+                <select>
+                  <option>보관 위치 검색</option>
+                </select>
+              </label>
+              <label class="inventory-filter-field">
+                <span>재고 상태</span>
+                <select>
+                  <option>전체</option>
+                </select>
+              </label>
+              <label class="inventory-filter-field">
+                <span>공정 상태</span>
+                <select>
+                  <option>전체</option>
+                </select>
+              </label>
+            </div>
+            <div class="inventory-filter-actions">
+              <button class="secondary-action detail-filter-button" type="button">
+                상세 필터
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              <span></span>
+              <button class="secondary-action inventory-reset-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+                  <path d="M19 5v5h-5" />
+                </svg>
+                초기화
+              </button>
+              <button class="primary-action inventory-search-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m16 16 4 4" />
+                </svg>
+                조회
+              </button>
+            </div>
+          </section>
+
+          <section class="inventory-insight-grid" aria-label="재고 현황">
+            <article class="inventory-chart-card">
+              <div class="inventory-card-title">
+                <h2>보관 장소별 보유 현황 (박스 수 TOP 8)</h2>
+                <span>단위 : box</span>
+              </div>
+              <div class="inventory-bars blue-bars">
+                <div class="inventory-bar-row"><span>B-2</span><i style="--value: 61%"></i><strong>240</strong></div>
+                <div class="inventory-bar-row"><span>G (출고대기)</span><i style="--value: 45%"></i><strong>180</strong></div>
+                <div class="inventory-bar-row"><span>A</span><i style="--value: 38%"></i><strong>150</strong></div>
+                <div class="inventory-bar-row"><span>C-1</span><i style="--value: 25%"></i><strong>98</strong></div>
+                <div class="inventory-bar-row"><span>D-2</span><i style="--value: 20%"></i><strong>78</strong></div>
+                <div class="inventory-bar-row"><span>E-1</span><i style="--value: 15%"></i><strong>60</strong></div>
+                <div class="inventory-bar-row"><span>현장</span><i style="--value: 11%"></i><strong>42</strong></div>
+                <div class="inventory-bar-row"><span>미지정</span><i style="--value: 8%"></i><strong>30</strong></div>
+                <div class="inventory-bar-row muted"><span>기타</span><i style="--value: 92%"></i><strong>362</strong></div>
+              </div>
+              <button class="inventory-link-button" type="button">
+                전체 보관장소 보기
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+            </article>
+
+            <article class="inventory-chart-card">
+              <div class="inventory-card-title">
+                <h2>보관 장소별 보유 현황 (총 수량 TOP 8)</h2>
+                <span>단위 : ea</span>
+              </div>
+              <div class="inventory-bars green-bars">
+                <div class="inventory-bar-row"><span>B-2</span><i style="--value: 57%"></i><strong>28,750</strong></div>
+                <div class="inventory-bar-row"><span>A</span><i style="--value: 49%"></i><strong>24,300</strong></div>
+                <div class="inventory-bar-row"><span>C-1</span><i style="--value: 37%"></i><strong>18,600</strong></div>
+                <div class="inventory-bar-row"><span>G (출고대기)</span><i style="--value: 30%"></i><strong>15,200</strong></div>
+                <div class="inventory-bar-row"><span>D-2</span><i style="--value: 25%"></i><strong>12,450</strong></div>
+                <div class="inventory-bar-row"><span>E-1</span><i style="--value: 18%"></i><strong>8,900</strong></div>
+                <div class="inventory-bar-row"><span>현장</span><i style="--value: 13%"></i><strong>6,400</strong></div>
+                <div class="inventory-bar-row"><span>미지정</span><i style="--value: 8%"></i><strong>3,800</strong></div>
+                <div class="inventory-bar-row muted"><span>기타</span><i style="--value: 68%"></i><strong>33,800</strong></div>
+              </div>
+              <button class="inventory-link-button" type="button">
+                전체 보관장소 보기
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+            </article>
+
+            <article class="inventory-attention-card">
+              <h2>관리 필요 재고</h2>
+              <button class="attention-item purple" type="button">
+                <span class="attention-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M6 9V4h12v5" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    <path d="M6 14h12v7H6z" />
+                  </svg>
+                </span>
+                <span><b>인쇄 대기</b><strong>38 <em>box</em></strong></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+              <button class="attention-item orange" type="button">
+                <span class="attention-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M7 3v4M17 3v4M4 9h16" />
+                    <rect x="4" y="5" width="16" height="16" rx="2" />
+                    <path d="m9 15 2 2 4-5" />
+                  </svg>
+                </span>
+                <span><b>미지정 보관</b><strong>16 <em>건</em></strong></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+              <button class="attention-item red" type="button">
+                <span class="attention-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 3 2.8 20h18.4z" />
+                    <path d="M12 9v5M12 17h.01" />
+                  </svg>
+                </span>
+                <span><b>보류 / 폐기</b><strong>2 <em>건</em></strong></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+            </article>
+          </section>
+
+          <section class="table-panel inventory-list-panel" aria-label="재고 목록">
+            <div class="inventory-list-header">
+              <h2>재고 목록</h2>
+              <div>
+                <button class="secondary-action inventory-export-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 21h14" />
+                  </svg>
+                  엑셀 다운로드
+                </button>
+                <label class="page-size">
+                  <select>
+                    <option>10개씩 보기</option>
+                    <option>20개씩 보기</option>
+                    <option>30개씩 보기</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="product-table inventory-table">
+                <thead>
+                  <tr>
+                    <th>QR</th>
+                    <th>관리ID</th>
+                    <th>거래처명</th>
+                    <th>제품명</th>
+                    <th>차수</th>
+                    <th>최종공정</th>
+                    <th>현재 박스 수</th>
+                    <th>현재 총 수량 (EA)</th>
+                    <th>보관 위치</th>
+                    <th>재고 상태</th>
+                    <th>공정 상태</th>
+                    <th>납기일</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><button class="inventory-qr-button" type="button">QR 보기</button></td>
+                    <td>IN-260611-001</td>
+                    <td>(주)리치코스</td>
+                    <td>Spresso Energizing Eye Balm 상캡</td>
+                    <td>2차</td>
+                    <td>2도</td>
+                    <td>13 box</td>
+                    <td>3,800 ea</td>
+                    <td>B-2</td>
+                    <td><span class="inventory-badge blue">보관</span></td>
+                    <td><span class="inventory-badge gray">미인쇄</span></td>
+                    <td><span class="inventory-badge amber">D-2</span></td>
+                    <td><button class="inventory-detail-button" type="button">상세</button></td>
+                  </tr>
+                  <tr>
+                    <td><button class="inventory-qr-button" type="button">QR 보기</button></td>
+                    <td>IN-260610-001</td>
+                    <td>(주)리치코스</td>
+                    <td>Spresso Energizing Eye Balm 하캡</td>
+                    <td>2차</td>
+                    <td>2도</td>
+                    <td>10 box</td>
+                    <td>2,400 ea</td>
+                    <td>B-2</td>
+                    <td><span class="inventory-badge blue">보관</span></td>
+                    <td><span class="inventory-badge green">1도 완료</span></td>
+                    <td><span class="inventory-badge amber">D-5</span></td>
+                    <td><button class="inventory-detail-button" type="button">상세</button></td>
+                  </tr>
+                  <tr>
+                    <td><button class="inventory-qr-button" type="button">QR 보기</button></td>
+                    <td>IN-260609-001</td>
+                    <td>(주)청훈</td>
+                    <td>퍼펙트 커버 쿠션 21호</td>
+                    <td>2차</td>
+                    <td>1도</td>
+                    <td>20 box</td>
+                    <td>4,000 ea</td>
+                    <td>A-1</td>
+                    <td><span class="inventory-badge blue">보관</span></td>
+                    <td><span class="inventory-badge gray">미인쇄</span></td>
+                    <td><span class="inventory-badge red">오늘</span></td>
+                    <td><button class="inventory-detail-button" type="button">상세</button></td>
+                  </tr>
+                  <tr>
+                    <td><button class="inventory-qr-button" type="button">QR 보기</button></td>
+                    <td>IN-260608-001</td>
+                    <td>(주)코스앤텍</td>
+                    <td>리바이탈 앰플 50ml</td>
+                    <td>2차</td>
+                    <td>2도</td>
+                    <td>15 box</td>
+                    <td>1,500 ea</td>
+                    <td>B-1</td>
+                    <td><span class="inventory-badge blue">보관</span></td>
+                    <td><span class="inventory-badge green">1도 완료</span></td>
+                    <td><span class="inventory-badge red">D-1</span></td>
+                    <td><button class="inventory-detail-button" type="button">상세</button></td>
+                  </tr>
+                  <tr>
+                    <td><button class="inventory-qr-button" type="button">QR 보기</button></td>
+                    <td>IN-260607-001</td>
+                    <td>(주)케이알</td>
+                    <td>보라이트닝 토너 150ml</td>
+                    <td>2차</td>
+                    <td>1도</td>
+                    <td>10 box</td>
+                    <td>1,000 ea</td>
+                    <td>A-2</td>
+                    <td><span class="inventory-badge blue">보관</span></td>
+                    <td><span class="inventory-badge gray">미인쇄</span></td>
+                    <td><span class="inventory-badge amber">D-3</span></td>
+                    <td><button class="inventory-detail-button" type="button">상세</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-footer inventory-table-footer">
+              <span>전체 120건</span>
+              <div class="pagination" aria-label="재고 목록 페이지">
+                <button type="button" aria-label="처음"><svg viewBox="0 0 24 24"><path d="M11 18 5 12l6-6M19 18l-6-6 6-6" /></svg></button>
+                <button type="button" aria-label="이전"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg></button>
+                <button type="button" class="active">1</button>
+                <button type="button">2</button>
+                <button type="button">3</button>
+                <button type="button">4</button>
+                <button type="button">5</button>
+                <span>...</span>
+                <button type="button">12</button>
+                <button type="button" aria-label="다음"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg></button>
+                <button type="button" aria-label="마지막"><svg viewBox="0 0 24 24"><path d="m13 18 6-6-6-6M5 18l6-6-6-6" /></svg></button>
+              </div>
+              <label class="page-size">
+                <select>
+                  <option>10개씩 보기</option>
+                  <option>20개씩 보기</option>
+                  <option>30개씩 보기</option>
                 </select>
               </label>
             </div>
