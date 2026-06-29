@@ -1425,8 +1425,10 @@ function renderInventoryBars(container, stats, unit) {
     return;
   }
 
-  const topStats = stats.slice(0, 8);
-  const otherValue = stats.slice(8).reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const hasOther = stats.length > 8;
+  const topLimit = hasOther ? 7 : 8;
+  const topStats = stats.slice(0, topLimit);
+  const otherValue = stats.slice(topLimit).reduce((sum, item) => sum + Number(item.value || 0), 0);
   const displayStats = otherValue > 0
     ? [...topStats, { label: "기타", value: otherValue, muted: true }]
     : topStats;
