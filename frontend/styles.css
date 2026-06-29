@@ -2208,39 +2208,35 @@ input {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 3.85rem;
-  height: 3.85rem;
-  border-radius: 50%;
+  width: 4.15rem;
+  height: 4.15rem;
+  border-radius: 1rem;
 }
 
-.shipping-summary-icon svg {
-  width: 1.75rem;
-  height: 1.75rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.shipping-summary-icon img {
+  width: 4.15rem;
+  height: 4.15rem;
+  object-fit: contain;
 }
 
 .shipping-summary-card.amber .shipping-summary-icon {
   color: #d79b20;
-  background: #fff3e1;
+  background: transparent;
 }
 
 .shipping-summary-card.green .shipping-summary-icon {
   color: #15944a;
-  background: #e9f8ef;
+  background: transparent;
 }
 
 .shipping-summary-card.red .shipping-summary-icon {
   color: #ef4444;
-  background: #fff1f0;
+  background: transparent;
 }
 
 .shipping-summary-card.blue .shipping-summary-icon {
   color: #0b4ea2;
-  background: #e8f3ff;
+  background: transparent;
 }
 
 .shipping-summary-card span {
