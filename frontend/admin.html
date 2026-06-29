@@ -66,7 +66,7 @@
             </a>
           </div>
           <div class="side-nav-row">
-            <a class="side-nav-item disabled" href="#" aria-disabled="true">
+            <a class="side-nav-item" href="#shipping" data-view-link="shipping">
               <span class="side-icon">
                 <svg viewBox="0 0 24 24"><path d="M3 7h11v10H3zM14 11h4l3 3v3h-7z" /><circle cx="7" cy="19" r="2" /><circle cx="18" cy="19" r="2" /></svg>
               </span>
@@ -916,6 +916,295 @@
                   <option value="10">10개씩 보기</option>
                   <option value="20">20개씩 보기</option>
                   <option value="50">50개씩 보기</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="page-view shipping-view" id="shippingView" data-view="shipping" hidden>
+          <section class="page-heading shipping-heading">
+            <div>
+              <p class="eyebrow">Shipping Control</p>
+              <h1>출고관리</h1>
+              <p>출고 가능한 제품을 검수하고 이상 여부를 확인한 후 출고 처리합니다.</p>
+            </div>
+          </section>
+
+          <section class="shipping-filter-panel" aria-label="출고 검색 필터">
+            <div class="shipping-section-title">
+              <h2>검색 필터</h2>
+            </div>
+            <div class="shipping-filter-grid">
+              <label class="shipping-filter-field shipping-search-field">
+                <span>제품명</span>
+                <div class="shipping-search-input">
+                  <input type="search" placeholder="제품명을 검색하세요." />
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m16 16 4 4" />
+                  </svg>
+                </div>
+              </label>
+              <label class="shipping-filter-field">
+                <span>거래처명</span>
+                <select>
+                  <option>전체</option>
+                  <option>(주)리치코스</option>
+                  <option>(주)정훈</option>
+                  <option>(주)코스앤텍</option>
+                </select>
+              </label>
+              <label class="shipping-filter-field">
+                <span>보관 위치</span>
+                <select>
+                  <option>전체</option>
+                  <option>A-1</option>
+                  <option>A-2</option>
+                  <option>B-1</option>
+                  <option>B-2</option>
+                </select>
+              </label>
+              <label class="shipping-filter-field">
+                <span>검수 여부</span>
+                <select>
+                  <option>전체</option>
+                  <option>검수 전</option>
+                  <option>검수 완료</option>
+                </select>
+              </label>
+              <label class="shipping-filter-field">
+                <span>출고 상태</span>
+                <select>
+                  <option>전체</option>
+                  <option>출고 대기</option>
+                  <option>검수 완료</option>
+                  <option>출고 보류</option>
+                  <option>출고 완료</option>
+                </select>
+              </label>
+            </div>
+            <div class="shipping-filter-actions">
+              <button class="secondary-action" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+                  <path d="M19 5v5h-5" />
+                </svg>
+                초기화
+              </button>
+              <button class="primary-action" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m16 16 4 4" />
+                </svg>
+                조회
+              </button>
+            </div>
+          </section>
+
+          <section class="shipping-summary-grid" aria-label="출고 요약">
+            <article class="shipping-summary-card amber">
+              <span class="shipping-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z" /><path d="m4 7.5 8 4.5 8-4.5M12 12v9" /></svg>
+              </span>
+              <div>
+                <span>출고 대기</span>
+                <strong>12 <em>건</em></strong>
+              </div>
+            </article>
+            <article class="shipping-summary-card green">
+              <span class="shipping-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M9 11.5 11.2 14 16 8.8" /><path d="M7 3h10l1 3v14H6V6z" /><path d="M9 6h6" /></svg>
+              </span>
+              <div>
+                <span>검수 완료</span>
+                <strong>8 <em>건</em></strong>
+              </div>
+            </article>
+            <article class="shipping-summary-card red">
+              <span class="shipping-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 4 21 20H3z" /><path d="M12 9v4M12 17h.01" /></svg>
+              </span>
+              <div>
+                <span>이상 발견</span>
+                <strong>2 <em>건</em></strong>
+              </div>
+            </article>
+            <article class="shipping-summary-card blue">
+              <span class="shipping-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 11h4l3 3v2h-7z" /><circle cx="7" cy="18" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+              </span>
+              <div>
+                <span>오늘 출고 완료</span>
+                <strong>5 <em>건</em></strong>
+              </div>
+            </article>
+          </section>
+
+          <section class="table-panel shipping-list-panel" aria-label="출고 대상 목록">
+            <div class="shipping-list-header">
+              <h2>출고 대상 목록</h2>
+              <div>
+                <button class="secondary-action shipping-export-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 21h14" />
+                  </svg>
+                  엑셀 다운로드
+                </button>
+                <label class="page-size">
+                  <select>
+                    <option>10개씩 보기</option>
+                    <option>20개씩 보기</option>
+                    <option>30개씩 보기</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="product-table shipping-table">
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>관리 ID</th>
+                    <th>거래처명</th>
+                    <th>제품명</th>
+                    <th>차수</th>
+                    <th>최종공정</th>
+                    <th>보관 위치</th>
+                    <th>출고 가능 박스</th>
+                    <th>출고 가능 수량 (EA)</th>
+                    <th>검수 여부</th>
+                    <th>이상 여부</th>
+                    <th>납기일</th>
+                    <th>출고 상태</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>IN-260611-001</td>
+                    <td>(주)리치코스</td>
+                    <td>Spresso Energizing Eye Balm 상캡</td>
+                    <td>2차</td>
+                    <td>2도</td>
+                    <td>B-2</td>
+                    <td>13 box</td>
+                    <td>3,800 ea</td>
+                    <td><span class="shipping-badge muted">검수 전</span></td>
+                    <td>-</td>
+                    <td><span class="due-badge warning">D-2</span></td>
+                    <td><span class="shipping-badge wait">출고 대기</span></td>
+                    <td><button class="shipping-row-button" type="button">검수 등록</button></td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>IN-260610-001</td>
+                    <td>(주)리치코스</td>
+                    <td>Spresso Energizing Eye Balm 하캡</td>
+                    <td>2차</td>
+                    <td>2도</td>
+                    <td>B-2</td>
+                    <td>10 box</td>
+                    <td>2,400 ea</td>
+                    <td><span class="shipping-badge done">검수 완료</span></td>
+                    <td>정상</td>
+                    <td><span class="due-badge warning">D-5</span></td>
+                    <td><span class="shipping-badge ready">검수 완료</span></td>
+                    <td><button class="shipping-row-button primary" type="button">출고 처리</button></td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td>IN-260609-001</td>
+                    <td>(주)정훈</td>
+                    <td>퍼펙트 커버 쿠션 21호</td>
+                    <td>2차</td>
+                    <td>1도</td>
+                    <td>A-1</td>
+                    <td>18 box</td>
+                    <td>3,600 ea</td>
+                    <td><span class="shipping-badge done">검수 완료</span></td>
+                    <td>정상</td>
+                    <td><span class="due-badge today">오늘</span></td>
+                    <td><span class="shipping-badge ready">검수 완료</span></td>
+                    <td><button class="shipping-row-button primary" type="button">출고 처리</button></td>
+                  </tr>
+                  <tr>
+                    <td>4</td>
+                    <td>IN-260608-001</td>
+                    <td>(주)코스앤텍</td>
+                    <td>리바이탈 앰플 50ml</td>
+                    <td>2차</td>
+                    <td>2도</td>
+                    <td>B-1</td>
+                    <td>15 box</td>
+                    <td>1,500 ea</td>
+                    <td><span class="shipping-badge done">검수 완료</span></td>
+                    <td>이상</td>
+                    <td><span class="due-badge danger">D-1</span></td>
+                    <td><span class="shipping-badge hold">출고 보류</span></td>
+                    <td><button class="shipping-row-button" type="button">사진 보기</button></td>
+                  </tr>
+                  <tr>
+                    <td>5</td>
+                    <td>IN-260607-001</td>
+                    <td>(주)케이알</td>
+                    <td>브라이트닝 토너 150ml</td>
+                    <td>2차</td>
+                    <td>1도</td>
+                    <td>A-2</td>
+                    <td>10 box</td>
+                    <td>1,000 ea</td>
+                    <td><span class="shipping-badge muted">검수 전</span></td>
+                    <td>-</td>
+                    <td><span class="due-badge warning">D-3</span></td>
+                    <td><span class="shipping-badge wait">출고 대기</span></td>
+                    <td><button class="shipping-row-button" type="button">검수 등록</button></td>
+                  </tr>
+                  <tr>
+                    <td>6</td>
+                    <td>IN-260606-001</td>
+                    <td>(주)초성ENG</td>
+                    <td>선케어 선크림 SPF50+</td>
+                    <td>2차</td>
+                    <td>2도</td>
+                    <td>B-2</td>
+                    <td>8 box</td>
+                    <td>800 ea</td>
+                    <td><span class="shipping-badge done">검수 완료</span></td>
+                    <td>정상</td>
+                    <td><span class="due-badge safe">D-7</span></td>
+                    <td><span class="shipping-badge ready">검수 완료</span></td>
+                    <td><button class="shipping-row-button primary" type="button">출고 처리</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-footer shipping-table-footer">
+              <span>전체 12건</span>
+              <div class="pagination" aria-label="출고 대상 목록 페이지">
+                <button type="button" aria-label="처음">
+                  <svg viewBox="0 0 24 24"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5" /></svg>
+                </button>
+                <button type="button" aria-label="이전">
+                  <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <button type="button" class="active">1</button>
+                <button type="button">2</button>
+                <button type="button" aria-label="다음">
+                  <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+                <button type="button" aria-label="마지막">
+                  <svg viewBox="0 0 24 24"><path d="m6 17 5-5-5-5M13 17l5-5-5-5" /></svg>
+                </button>
+              </div>
+              <label class="page-size">
+                <select>
+                  <option>10개씩 보기</option>
+                  <option>20개씩 보기</option>
+                  <option>30개씩 보기</option>
                 </select>
               </label>
             </div>

@@ -595,7 +595,7 @@ renderInboundDefectReasons();
 
 function getCurrentView() {
   const view = location.hash.replace("#", "");
-  return ["inbound", "inventory", "products"].includes(view) ? view : "inbound";
+  return ["inbound", "inventory", "shipping", "products"].includes(view) ? view : "inbound";
 }
 
 function setActiveView(view) {
