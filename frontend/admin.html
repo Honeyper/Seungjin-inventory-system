@@ -645,53 +645,38 @@
           <section class="inventory-summary-grid" aria-label="재고 요약">
             <article class="inventory-summary-card blue">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" />
-                  <path d="M12 12 4.4 7.8M12 12l7.6-4.2M12 12v8.5" />
-                  <path d="m8.2 5.4 8 4.5" />
-                </svg>
+                <img src="./assets/inventory-summary-items-generated.png" alt="" />
               </span>
-              <div>
-                <span>전체 품목 수</span>
-                <strong><span id="inventoryTotalItems">-</span> <em>개</em></strong>
+              <div class="inventory-summary-content">
+                <span class="inventory-summary-label">전체 품목 수</span>
+                <strong class="inventory-summary-value"><span id="inventoryTotalItems">-</span><em>개</em></strong>
               </div>
             </article>
             <article class="inventory-summary-card green">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M5 8.2 12 4l7 4.2v7.6L12 20l-7-4.2z" />
-                  <path d="M12 12 5.3 8.4M12 12l6.7-3.6M12 12v7.6" />
-                </svg>
+                <img src="./assets/inventory-summary-boxes-generated.png" alt="" />
               </span>
-              <div>
-                <span>전체 박스 수</span>
-                <strong><span id="inventoryTotalBoxes">-</span> <em>box</em></strong>
+              <div class="inventory-summary-content">
+                <span class="inventory-summary-label">전체 박스 수</span>
+                <strong class="inventory-summary-value"><span id="inventoryTotalBoxes">-</span><em>box</em></strong>
               </div>
             </article>
             <article class="inventory-summary-card amber">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="m12 4 8 4-8 4-8-4z" />
-                  <path d="m4 12 8 4 8-4" />
-                  <path d="m4 16 8 4 8-4" />
-                </svg>
+                <img src="./assets/inventory-summary-quantity-generated.png" alt="" />
               </span>
-              <div>
-                <span>현재 총 수량</span>
-                <strong><span id="inventoryTotalQuantity">-</span> <em>ea</em></strong>
+              <div class="inventory-summary-content">
+                <span class="inventory-summary-label">현재 총 수량</span>
+                <strong class="inventory-summary-value"><span id="inventoryTotalQuantity">-</span><em>ea</em></strong>
               </div>
             </article>
             <article class="inventory-summary-card violet">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M7 4v3M17 4v3M4 9h16" />
-                  <rect x="4" y="6" width="16" height="14" rx="2" />
-                  <path d="M8 13h4M8 16h8" />
-                </svg>
+                <img src="./assets/inventory-summary-due-generated.png" alt="" />
               </span>
-              <div>
-                <span>납기 임박</span>
-                <strong><span id="inventoryDueSoonCount">-</span> <em>건</em> <small>D-3 이하</small></strong>
+              <div class="inventory-summary-content">
+                <span class="inventory-summary-label">납기 임박</span>
+                <strong class="inventory-summary-value"><span id="inventoryDueSoonCount">-</span><em>건</em><small>D-3 이하</small></strong>
               </div>
             </article>
           </section>
