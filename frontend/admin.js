@@ -1683,8 +1683,8 @@ function isInventoryPrintWaiting(item) {
     return false;
   }
 
-  const qrState = normalizeDisplayValue(item.qrPrintStatus || item.processStatus);
-  return !["QR 생성", "생성", "생성완료", "생성 완료", "출력완료", "출력 완료", "인쇄완료", "인쇄 완료"].includes(qrState);
+  const processStatus = normalizeDisplayValue(item.processStatus || item.stockStatus);
+  return !processStatus.includes("작업중");
 }
 
 function renderInventoryAttentionRow(item, config) {

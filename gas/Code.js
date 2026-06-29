@@ -670,7 +670,7 @@ function getInventoryDashboard() {
   const totalQuantity = activeRows.reduce((sum, row) => sum + displayQuantityToNumber_(row.currentTotalQuantity), 0);
   const dueSoonCount = activeRows.filter((row) => Number.isFinite(row.dueDays) && row.dueDays <= 3).length;
   const printWaitingBoxes = activeRows
-    .filter((row) => row.qrPrintStatus === '미인쇄')
+    .filter((row) => !String(row.processStatus || row.stockStatus || '').includes('작업중'))
     .reduce((sum, row) => sum + displayQuantityToNumber_(row.currentBoxCount), 0);
   const unspecifiedStorageCount = activeRows.filter((row) => isUnspecifiedStorage_(row.storage)).length;
   const holdOrDiscardCount = rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ''))).length;
