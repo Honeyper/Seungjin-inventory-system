@@ -1072,11 +1072,22 @@ function formatProductRows() {
   };
 }
 
+function normalizeInboundCategory_(payload) {
+  const rawValues = [
+    payload.category,
+    payload.entryCategory,
+    payload.inboundType
+  ];
+  const isExistingStock = rawValues.some((value) => (
+    String(value || '').replace(/\s/g, '') === '기존재고'
+  ));
+
+  return isExistingStock ? '기존재고' : '신규입고';
+}
+
 function createInbound(payload) {
-  const category = String(payload.category || payload.entryCategory || '').trim() === '기존 재고'
-    ? '기존 재고'
-    : '신규입고';
-  const isExistingStock = category === '기존 재고';
+  const category = normalizeInboundCategory_(payload);
+  const isExistingStock = category === '기존재고';
   const required = [
     ['productId', '제품 ID'],
     ['productName', '제품명'],

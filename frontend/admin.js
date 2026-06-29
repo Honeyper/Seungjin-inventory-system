@@ -1309,7 +1309,7 @@ function getExistingStockPayload() {
   const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
 
   return {
-    category: "기존 재고",
+    category: "기존재고",
     registrant: existingStockRegistrant.value.trim() || session?.name || "Admin",
     inboundDate: existingStockDate.value.trim(),
     inboundTime: "00:00",
