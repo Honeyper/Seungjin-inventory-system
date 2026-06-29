@@ -1637,6 +1637,12 @@ input {
   background: #fff;
 }
 
+.attention-icon img {
+  width: 2.65rem;
+  height: 2.65rem;
+  object-fit: contain;
+}
+
 .attention-icon svg,
 .attention-item > svg {
   width: 1.3rem;
