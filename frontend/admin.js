@@ -1535,7 +1535,14 @@ function renderInventoryTable(message = "") {
   } else {
     inventoryTableBody.innerHTML = rows.map((item) => `
       <tr>
-        <td><button class="inventory-qr-button" type="button" data-inventory-qr="${escapeAttribute(item.managementId)}">QR 보기</button></td>
+        <td>
+          <button class="inventory-qr-button qr-action" type="button" data-inventory-qr="${escapeAttribute(item.managementId)}" aria-label="재고 QR 보기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
+              <path d="M14 14h2v2h-2zM18 14h2v6h-2zM14 18h2v2h-2z" />
+            </svg>
+          </button>
+        </td>
         <td>${escapeHtml(item.inboundDate)}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
         <td>${escapeHtml(item.clientName)}</td>
