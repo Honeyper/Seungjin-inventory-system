@@ -1380,14 +1380,16 @@ input {
 }
 
 .inventory-summary-content {
+  display: grid;
+  gap: 0.34rem;
   min-width: 0;
 }
 
 .inventory-summary-label {
-  display: inline-flex;
+  display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 0.45rem;
-  margin-bottom: 0.28rem;
   color: #273b5c;
   font-size: 0.9rem;
   font-weight: 900;
