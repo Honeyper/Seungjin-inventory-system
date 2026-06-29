@@ -1089,7 +1089,7 @@
                     <td>-</td>
                     <td><span class="due-badge warning">D-2</span></td>
                     <td><span class="shipping-badge wait">출고 대기</span></td>
-                    <td><button class="shipping-row-button" type="button">검수 등록</button></td>
+                    <td><button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button></td>
                   </tr>
                   <tr>
                     <td>2</td>
@@ -1153,7 +1153,7 @@
                     <td>-</td>
                     <td><span class="due-badge warning">D-3</span></td>
                     <td><span class="shipping-badge wait">출고 대기</span></td>
-                    <td><button class="shipping-row-button" type="button">검수 등록</button></td>
+                    <td><button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button></td>
                   </tr>
                   <tr>
                     <td>6</td>
@@ -1233,6 +1233,82 @@
         <img src="./assets/menu-icon-delete-generated.png" alt="" />
         <span>삭제</span>
       </button>
+    </div>
+
+    <div class="modal-backdrop" id="shippingInspectionModal" hidden>
+      <section class="product-modal shipping-inspection-modal" role="dialog" aria-modal="true" aria-labelledby="shippingInspectionTitle">
+        <header class="modal-header">
+          <div>
+            <h2 id="shippingInspectionTitle">출고 검수 등록</h2>
+            <p>출고 전 검수 결과를 등록합니다. 불량내역에 양호가 포함되지 않으면 이상으로 처리됩니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeShippingInspectionModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <form class="product-form shipping-inspection-form" id="shippingInspectionForm">
+          <section class="form-section" aria-labelledby="shippingInspectionBaseTitle">
+            <h3 id="shippingInspectionBaseTitle">출고 대상 정보</h3>
+            <div class="shipping-inspection-summary">
+              <div>
+                <span>관리 ID</span>
+                <strong id="shippingInspectionRecordId">-</strong>
+              </div>
+              <div>
+                <span>거래처명</span>
+                <strong id="shippingInspectionClient">-</strong>
+              </div>
+              <div>
+                <span>제품명</span>
+                <strong id="shippingInspectionProduct">-</strong>
+              </div>
+              <div>
+                <span>보관 위치</span>
+                <strong id="shippingInspectionStorage">-</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="form-section" aria-labelledby="shippingInspectionResultTitle">
+            <h3 id="shippingInspectionResultTitle">검수 정보</h3>
+            <div class="form-grid">
+              <label class="form-field">
+                <span>검수자</span>
+                <input id="shippingInspectorName" type="text" disabled />
+              </label>
+              <label class="form-field">
+                <span>검수일</span>
+                <input id="shippingInspectionDate" type="date" />
+              </label>
+              <label class="form-field full-span">
+                <span>불량내역 <b>*</b></span>
+                <div class="shipping-defect-options" role="group" aria-label="불량내역">
+                  <label><input type="checkbox" name="shippingDefectReason" value="양호" checked /> <span>양호</span></label>
+                  <label><input type="checkbox" name="shippingDefectReason" value="스크래치" /> <span>스크래치</span></label>
+                  <label><input type="checkbox" name="shippingDefectReason" value="오염" /> <span>오염</span></label>
+                  <label><input type="checkbox" name="shippingDefectReason" value="찍힘" /> <span>찍힘</span></label>
+                  <label><input type="checkbox" name="shippingDefectReason" value="파손" /> <span>파손</span></label>
+                  <label><input type="checkbox" name="shippingDefectReason" value="수량 부족" /> <span>수량 부족</span></label>
+                  <label><input type="checkbox" name="shippingDefectReason" value="기타" /> <span>기타</span></label>
+                </div>
+              </label>
+              <label class="form-field full-span">
+                <span>검수 메모</span>
+                <textarea id="shippingInspectionNote" rows="3" placeholder="검수 중 확인된 내용을 입력하세요."></textarea>
+              </label>
+            </div>
+            <p class="form-message" id="shippingInspectionMessage"></p>
+          </section>
+
+          <div class="modal-actions">
+            <button class="secondary-modal-action" type="button" id="cancelShippingInspectionModal">취소</button>
+            <button class="primary-modal-action" type="submit">저장</button>
+          </div>
+        </form>
+      </section>
     </div>
 
     <div class="modal-backdrop" id="productModal" hidden>

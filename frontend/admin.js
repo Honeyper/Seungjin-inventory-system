@@ -80,6 +80,7 @@ const state = {
   activeMenuButton: null,
   activeInboundMenuRecord: "",
   activeInboundMenuButton: null,
+  activeShippingInspectionRow: null,
   inboundProductPickerQuery: "",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
@@ -217,6 +218,15 @@ const inventoryAttentionDescription = document.querySelector("#inventoryAttentio
 const inventoryAttentionList = document.querySelector("#inventoryAttentionList");
 const inventoryAttentionEmpty = document.querySelector("#inventoryAttentionEmpty");
 const closeInventoryAttentionModalButton = document.querySelector("#closeInventoryAttentionModal");
+const shippingInspectionModal = document.querySelector("#shippingInspectionModal");
+const shippingInspectionForm = document.querySelector("#shippingInspectionForm");
+const shippingInspectionMessage = document.querySelector("#shippingInspectionMessage");
+const shippingInspectorName = document.querySelector("#shippingInspectorName");
+const shippingInspectionDate = document.querySelector("#shippingInspectionDate");
+const shippingInspectionRecordId = document.querySelector("#shippingInspectionRecordId");
+const shippingInspectionClient = document.querySelector("#shippingInspectionClient");
+const shippingInspectionProduct = document.querySelector("#shippingInspectionProduct");
+const shippingInspectionStorage = document.querySelector("#shippingInspectionStorage");
 const openExistingStockModalButton = document.querySelector("#openExistingStockModalButton");
 const existingStockModal = document.querySelector("#existingStockModal");
 const existingStockForm = document.querySelector("#existingStockForm");
@@ -342,6 +352,21 @@ inventoryLocationViewButtons.forEach((button) => {
   button.addEventListener("click", () => openInventoryLocationModal(button.dataset.inventoryLocationView));
 });
 closeInventoryAttentionModalButton?.addEventListener("click", closeInventoryAttentionModal);
+document.querySelector("#closeShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
+document.querySelector("#cancelShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
+shippingInspectionForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveShippingInspection();
+});
+document.querySelectorAll('[data-shipping-action="inspect"]').forEach((button) => {
+  button.addEventListener("click", () => {
+    if (button.dataset.shippingAction !== "inspect") {
+      return;
+    }
+
+    openShippingInspectionModal(button.closest("tr"));
+  });
+});
 
 openExistingStockModalButton?.addEventListener("click", openExistingStockModal);
 document.querySelector("#closeExistingStockModal")?.addEventListener("click", closeExistingStockModal);
@@ -526,6 +551,11 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (shippingInspectionModal && !shippingInspectionModal.hidden) {
+    closeShippingInspectionModal();
+    return;
+  }
+
   if (!productModal.hidden) {
     closeProductModal();
   }
@@ -615,6 +645,88 @@ function setActiveView(view) {
   if (view === "inventory" && !state.inventoryLoaded) {
     loadInventoryDashboard();
   }
+}
+
+function openShippingInspectionModal(row) {
+  if (!row || !shippingInspectionModal) {
+    return;
+  }
+
+  state.activeShippingInspectionRow = row;
+  shippingInspectionRecordId.textContent = row.children[1]?.textContent.trim() || "-";
+  shippingInspectionClient.textContent = row.children[2]?.textContent.trim() || "-";
+  shippingInspectionProduct.textContent = row.children[3]?.textContent.trim() || "-";
+  shippingInspectionStorage.textContent = row.children[6]?.textContent.trim() || "-";
+
+  shippingInspectionForm?.reset();
+  const goodReasonInput = shippingInspectionForm?.querySelector('input[name="shippingDefectReason"][value="양호"]');
+  if (goodReasonInput) {
+    goodReasonInput.checked = true;
+  }
+
+  if (shippingInspectorName) {
+    shippingInspectorName.value = session?.name || "Admin";
+  }
+
+  if (shippingInspectionDate) {
+    shippingInspectionDate.value = getLocalDateInputValue();
+  }
+
+  if (shippingInspectionMessage) {
+    shippingInspectionMessage.textContent = "";
+  }
+
+  shippingInspectionModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeShippingInspectionModal() {
+  if (!shippingInspectionModal) {
+    return;
+  }
+
+  shippingInspectionModal.hidden = true;
+  state.activeShippingInspectionRow = null;
+  document.body.classList.remove("modal-open");
+}
+
+function saveShippingInspection() {
+  const row = state.activeShippingInspectionRow;
+  const selectedReasons = Array.from(
+    shippingInspectionForm?.querySelectorAll('input[name="shippingDefectReason"]:checked') || []
+  ).map((input) => input.value);
+
+  if (!row) {
+    return;
+  }
+
+  if (!selectedReasons.length) {
+    if (shippingInspectionMessage) {
+      shippingInspectionMessage.textContent = "불량내역을 하나 이상 선택해주세요.";
+    }
+    return;
+  }
+
+  const hasGoodReason = selectedReasons.includes("양호");
+  const inspectionCell = row.children[9];
+  const anomalyCell = row.children[10];
+  const statusCell = row.children[12];
+  const actionCell = row.children[13];
+
+  inspectionCell.innerHTML = '<span class="shipping-badge done">검수 완료</span>';
+  anomalyCell.textContent = hasGoodReason ? "정상" : "이상";
+  statusCell.innerHTML = hasGoodReason
+    ? '<span class="shipping-badge ready">검수 완료</span>'
+    : '<span class="shipping-badge hold">출고 보류</span>';
+
+  const actionButton = actionCell.querySelector("button");
+  if (actionButton) {
+    actionButton.removeAttribute("data-shipping-action");
+    actionButton.classList.toggle("primary", hasGoodReason);
+    actionButton.textContent = hasGoodReason ? "출고 처리" : "사진 보기";
+  }
+
+  closeShippingInspectionModal();
 }
 
 function updateInboundSummary() {

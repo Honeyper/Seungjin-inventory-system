@@ -2402,6 +2402,84 @@ input {
   padding: 0.72rem 1.05rem;
 }
 
+.shipping-inspection-modal {
+  width: min(48rem, calc(100vw - 2.5rem));
+}
+
+.shipping-inspection-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #dfe6ef;
+  border-radius: 0.48rem;
+  background: #fff;
+}
+
+.shipping-inspection-summary div {
+  display: grid;
+  grid-template-columns: 7.2rem minmax(0, 1fr);
+  min-height: 3.3rem;
+  border-right: 1px solid #e5ebf2;
+  border-bottom: 1px solid #e5ebf2;
+}
+
+.shipping-inspection-summary div:nth-child(2n) {
+  border-right: 0;
+}
+
+.shipping-inspection-summary div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.shipping-inspection-summary span,
+.shipping-inspection-summary strong {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 0.9rem;
+}
+
+.shipping-inspection-summary span {
+  color: #66758d;
+  font-weight: 900;
+  background: #f8fafc;
+}
+
+.shipping-inspection-summary strong {
+  color: #263449;
+  font-weight: 900;
+}
+
+.shipping-defect-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid #dce4ef;
+  border-radius: 0.42rem;
+  background: #fbfcfe;
+}
+
+.shipping-defect-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 2.05rem;
+  padding: 0 0.75rem;
+  color: var(--navy-dark);
+  font-weight: 900;
+  border: 1px solid #dfe7f0;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.shipping-defect-options input {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: var(--navy-dark);
+}
+
 .row-action {
   width: 2.1rem;
   height: 2.1rem;
@@ -4857,6 +4935,21 @@ input {
   .shipping-filter-grid,
   .shipping-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .shipping-inspection-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .shipping-inspection-summary div,
+  .shipping-inspection-summary div:nth-child(2n),
+  .shipping-inspection-summary div:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid #e5ebf2;
+  }
+
+  .shipping-inspection-summary div:last-child {
+    border-bottom: 0;
   }
 
   .product-hero {
