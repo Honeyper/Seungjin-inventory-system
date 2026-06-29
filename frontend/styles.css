@@ -1453,7 +1453,7 @@ input {
 
 .inventory-filter-field > span {
   color: var(--navy-dark);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 900;
 }
 
@@ -1464,7 +1464,7 @@ input {
   height: 2.55rem;
   padding: 0 2.65rem 0 0.85rem;
   color: var(--navy-dark);
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   font-weight: 800;
   border: 1px solid #dce5f0;
   border-radius: 0.42rem;
@@ -1537,7 +1537,7 @@ input {
 
 .inventory-card-title span {
   color: #748199;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1552,7 +1552,7 @@ input {
   grid-template-columns: repeat(5, 1fr);
   margin: 0.15rem 3.4rem 0 5.65rem;
   color: #7a879a;
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   font-weight: 800;
 }
 
@@ -1574,7 +1574,7 @@ input {
   align-items: center;
   gap: 0.55rem;
   color: #22324b;
-  font-size: 0.76rem;
+  font-size: 0.84rem;
   font-weight: 900;
 }
 
@@ -1619,7 +1619,7 @@ input {
   margin: 0.85rem 0 0 auto;
   padding: 0 1rem;
   color: var(--navy-dark);
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 900;
   border: 1px solid #dfe7f0;
   border-radius: 0.38rem;
@@ -1757,7 +1757,7 @@ input {
 
 .inventory-table {
   min-width: 86rem;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
 }
 
 .inventory-table th,
@@ -1780,14 +1780,14 @@ input {
 }
 
 .inventory-table th {
-  font-size: 0.74rem;
+  font-size: 0.84rem;
 }
 
 .inventory-detail-button {
   min-height: 1.75rem;
   padding: 0 0.58rem;
   color: var(--navy-dark);
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   font-weight: 900;
   border: 1px solid #dfe7f0;
   border-radius: 0.3rem;
@@ -1802,7 +1802,7 @@ input {
   min-height: 1.35rem;
   padding: 0 0.45rem;
   border-radius: 0.35rem;
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   font-weight: 900;
 }
 
