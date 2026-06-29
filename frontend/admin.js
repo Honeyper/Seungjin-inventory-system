@@ -45,6 +45,8 @@ const state = {
   todayInbounds: [],
   inventoryRows: [],
   filteredInventoryRows: [],
+  inventoryLocationBoxStats: [],
+  inventoryLocationQuantityStats: [],
   inventoryPage: 1,
   inventoryPageSize: 10,
   inventoryLoaded: false,
@@ -207,6 +209,7 @@ const inventoryPagination = document.querySelector("#inventoryPagination");
 const inventoryPageSizeSelect = document.querySelector("#inventoryPageSizeSelect");
 const inventoryLocationBoxBars = document.querySelector("#inventoryLocationBoxBars");
 const inventoryLocationQuantityBars = document.querySelector("#inventoryLocationQuantityBars");
+const inventoryLocationViewButtons = document.querySelectorAll("[data-inventory-location-view]");
 const inventorySearchButtons = document.querySelectorAll(".inventory-search-button");
 const inventoryResetButtons = document.querySelectorAll(".inventory-reset-button");
 const inventoryAttentionButtons = document.querySelectorAll("[data-inventory-attention]");
@@ -336,6 +339,9 @@ inventoryResetButtons.forEach((button) => {
 });
 inventoryAttentionButtons.forEach((button) => {
   button.addEventListener("click", () => openInventoryAttentionModal(button.dataset.inventoryAttention));
+});
+inventoryLocationViewButtons.forEach((button) => {
+  button.addEventListener("click", () => openInventoryLocationModal(button.dataset.inventoryLocationView));
 });
 closeInventoryAttentionModalButton?.addEventListener("click", closeInventoryAttentionModal);
 
@@ -1538,10 +1544,12 @@ async function loadInventoryDashboard(showLoadingToast = true) {
     const result = await requestApi("getInventoryDashboard");
     state.inventoryLoaded = true;
     state.inventoryRows = normalizeInventoryRows(Array.isArray(result.rows) ? result.rows : []);
+    state.inventoryLocationBoxStats = Array.isArray(result.locationBoxStats) ? result.locationBoxStats : [];
+    state.inventoryLocationQuantityStats = Array.isArray(result.locationQuantityStats) ? result.locationQuantityStats : [];
     renderInventorySummary(result.summary || {}, buildInventoryAttentionSummary(state.inventoryRows, result.attention || {}));
     renderInventoryFilterOptions(buildInventoryFilterOptions(state.inventoryRows, result.filters || {}));
-    renderInventoryBars(inventoryLocationBoxBars, result.locationBoxStats || [], "box");
-    renderInventoryBars(inventoryLocationQuantityBars, result.locationQuantityStats || [], "ea");
+    renderInventoryBars(inventoryLocationBoxBars, state.inventoryLocationBoxStats, "box");
+    renderInventoryBars(inventoryLocationQuantityBars, state.inventoryLocationQuantityStats, "ea");
     applyInventoryFilters();
 
     if (showLoadingToast) {
@@ -1550,6 +1558,8 @@ async function loadInventoryDashboard(showLoadingToast = true) {
   } catch (error) {
     state.inventoryRows = [];
     state.filteredInventoryRows = [];
+    state.inventoryLocationBoxStats = [];
+    state.inventoryLocationQuantityStats = [];
     renderInventorySummary({}, {});
     renderInventoryBars(inventoryLocationBoxBars, [], "box");
     renderInventoryBars(inventoryLocationQuantityBars, [], "ea");
@@ -1709,6 +1719,80 @@ function closeInventoryAttentionModal() {
     inventoryAttentionList.innerHTML = "";
   }
   document.body.classList.remove("modal-open");
+}
+
+function openInventoryLocationModal(type) {
+  if (!inventoryAttentionModal || !inventoryAttentionList || !inventoryAttentionEmpty) {
+    return;
+  }
+
+  if (!state.inventoryLoaded) {
+    showToast("재고 정보를 먼저 불러와주세요.");
+    return;
+  }
+
+  const isQuantityMode = type === "quantity";
+  const stats = isQuantityMode ? state.inventoryLocationQuantityStats : state.inventoryLocationBoxStats;
+  const unit = isQuantityMode ? "ea" : "box";
+  const titleUnit = isQuantityMode ? "총 수량" : "박스 수";
+  const tone = isQuantityMode ? "green" : "blue";
+  const totalValue = stats.reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const maxValue = Math.max(...stats.map((item) => Number(item.value || 0)), 1);
+
+  inventoryAttentionTitle.textContent = `전체 보관장소 현황 (${titleUnit})`;
+  inventoryAttentionDescription.textContent = `보관장소별 ${titleUnit} 전체 목록입니다. 총 ${formatNumber(stats.length)}곳입니다.`;
+  inventoryAttentionList.innerHTML = stats.map((item) => renderInventoryLocationRow(item, {
+    unit,
+    tone,
+    totalValue,
+    maxValue
+  })).join("");
+  inventoryAttentionEmpty.hidden = Boolean(stats.length);
+
+  inventoryAttentionList.querySelectorAll("[data-inventory-location-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const storage = button.dataset.inventoryLocationFilter || "";
+
+      if (inventoryStorageFilter) {
+        inventoryStorageFilter.value = storage;
+      }
+
+      syncInventoryFilterState();
+      state.inventoryPage = 1;
+      applyInventoryFilters();
+      closeInventoryAttentionModal();
+      inventoryTableBody?.closest(".inventory-list-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  inventoryAttentionModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => closeInventoryAttentionModalButton?.focus(), 0);
+}
+
+function renderInventoryLocationRow(item, config) {
+  const label = normalizeDisplayValue(item.label);
+  const value = Number(item.value || 0);
+  const percent = config.totalValue > 0 ? Math.round((value / config.totalValue) * 1000) / 10 : 0;
+  const width = Math.max(4, Math.round((value / config.maxValue) * 100));
+
+  return `
+    <article class="inventory-attention-row inventory-location-row ${config.tone}">
+      <div class="inventory-attention-row-main">
+        <strong>${escapeHtml(label)}</strong>
+        <span>보관장소</span>
+      </div>
+      <div class="inventory-attention-row-meta">
+        <span>${config.unit === "box" ? "박스 수" : "총 수량"} <b>${formatNumber(value)} ${config.unit}</b></span>
+        <span>비율 <b>${formatNumber(percent)}%</b></span>
+      </div>
+      <div class="inventory-location-meter" aria-hidden="true"><i style="--value: ${width}%"></i></div>
+      <button type="button" data-inventory-location-filter="${escapeAttribute(label)}">
+        목록보기
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+      </button>
+    </article>
+  `;
 }
 
 function getInventoryAttentionConfig(type) {

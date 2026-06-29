@@ -2394,8 +2394,42 @@ input {
   border-left-color: #f97316;
 }
 
+.inventory-attention-row.blue {
+  border-left-color: #1872f2;
+}
+
+.inventory-attention-row.green {
+  border-left-color: #19b75a;
+}
+
 .inventory-attention-row.red {
   border-left-color: #ef3124;
+}
+
+.inventory-location-row {
+  grid-template-columns: minmax(9rem, 0.9fr) minmax(12rem, 1.2fr) minmax(8rem, 1.4fr) auto;
+}
+
+.inventory-location-meter {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #e8eef6;
+}
+
+.inventory-location-meter i {
+  display: block;
+  width: var(--value);
+  min-width: 0.4rem;
+  height: 100%;
+  border-radius: inherit;
+  background: #1872f2;
+}
+
+.inventory-location-row.green .inventory-location-meter i {
+  background: #19b75a;
 }
 
 .inventory-attention-row-main {
@@ -4474,6 +4508,16 @@ input {
 
   .detail-item:nth-child(odd) {
     border-right: 0;
+  }
+
+  .inventory-location-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .inventory-location-row > button {
+    justify-content: center;
+    width: 100%;
   }
 
   .inbound-detail-modal .detail-item {
