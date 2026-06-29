@@ -1442,7 +1442,7 @@ input {
 
 .inventory-filter-grid {
   display: grid;
-  grid-template-columns: 1.25fr repeat(4, minmax(0, 1fr));
+  grid-template-columns: 1.25fr repeat(5, minmax(0, 1fr));
   gap: 0.8rem;
   align-items: end;
 }
@@ -1508,7 +1508,7 @@ input {
 
 .inventory-filter-actions {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: 1fr auto auto;
   margin-top: 0.75rem;
 }
 
