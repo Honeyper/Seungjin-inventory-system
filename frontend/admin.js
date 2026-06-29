@@ -1743,8 +1743,10 @@ function renderInventoryBars(container, stats, unit) {
     ? [...topStats, { label: "기타", value: otherValue, muted: true }]
     : topStats;
   const maxValue = Math.max(...displayStats.map((item) => Number(item.value || 0)), 1);
+  const axisMax = getNiceInventoryAxisMax(maxValue);
+  const axisValues = Array.from({ length: 5 }, (_, index) => Math.round((axisMax / 4) * index));
 
-  container.innerHTML = displayStats.map((item) => {
+  const rowsMarkup = displayStats.map((item) => {
     const value = Number(item.value || 0);
     const width = Math.max(4, Math.round((value / maxValue) * 100));
     const className = item.muted ? "inventory-bar-row muted" : "inventory-bar-row";
@@ -1757,6 +1759,35 @@ function renderInventoryBars(container, stats, unit) {
       </div>
     `;
   }).join("");
+
+  container.innerHTML = `
+    ${rowsMarkup}
+    <div class="inventory-bar-axis" aria-hidden="true">
+      ${axisValues.map((value) => `<span>${formatNumber(value)}</span>`).join("")}
+    </div>
+  `;
+}
+
+function getNiceInventoryAxisMax(value) {
+  const numericValue = Number(value || 0);
+
+  if (numericValue <= 0) {
+    return 4;
+  }
+
+  const magnitude = Math.pow(10, Math.floor(Math.log10(numericValue)));
+  const normalized = numericValue / magnitude;
+  const niceMultiplier = normalized <= 1
+    ? 1
+    : normalized <= 2
+      ? 2
+      : normalized <= 4
+        ? 4
+        : normalized <= 5
+          ? 5
+          : 10;
+
+  return niceMultiplier * magnitude;
 }
 
 function syncInventoryFilterState() {
