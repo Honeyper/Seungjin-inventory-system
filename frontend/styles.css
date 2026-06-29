@@ -2321,7 +2321,7 @@ input {
   gap: 0.6rem;
   max-height: min(49vh, 27rem);
   overflow: auto;
-  padding-right: 0.25rem;
+  padding: 0.12rem 0.25rem 0.2rem 0;
 }
 
 .picker-product {
@@ -2346,7 +2346,6 @@ input {
   border-color: rgba(208, 161, 75, 0.65);
   box-shadow: 0 0.8rem 1.6rem rgba(8, 42, 98, 0.08);
   outline: none;
-  transform: translateY(-1px);
 }
 
 .picker-product-main {
