@@ -55,7 +55,6 @@ const state = {
     client: "",
     storage: "",
     stock: "",
-    category: "",
     process: ""
   },
   page: 1,
@@ -201,7 +200,6 @@ const inventorySearch = document.querySelector("#inventorySearch");
 const inventoryClientFilter = document.querySelector("#inventoryClientFilter");
 const inventoryStorageFilter = document.querySelector("#inventoryStorageFilter");
 const inventoryStockFilter = document.querySelector("#inventoryStockFilter");
-const inventoryCategoryFilter = document.querySelector("#inventoryCategoryFilter");
 const inventoryProcessFilter = document.querySelector("#inventoryProcessFilter");
 const inventoryTableBody = document.querySelector("#inventoryTableBody");
 const inventoryCountLabel = document.querySelector("#inventoryCountLabel");
@@ -321,7 +319,7 @@ inventorySearch?.addEventListener("input", (event) => {
   state.inventoryPage = 1;
   applyInventoryFilters();
 });
-[inventoryClientFilter, inventoryStorageFilter, inventoryStockFilter, inventoryCategoryFilter, inventoryProcessFilter].forEach((select) => {
+[inventoryClientFilter, inventoryStorageFilter, inventoryStockFilter, inventoryProcessFilter].forEach((select) => {
   select?.addEventListener("change", () => {
     syncInventoryFilterState();
     state.inventoryPage = 1;
@@ -1318,7 +1316,7 @@ function getExistingStockPayload() {
   const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
 
   return {
-    category: "기존재고",
+    entryCategory: "기존재고",
     registrant: existingStockRegistrant.value.trim() || session?.name || "Admin",
     inboundDate: existingStockDate.value.trim(),
     inboundTime: "00:00",
@@ -1619,16 +1617,10 @@ function normalizeInventoryRows(rows) {
     const stockStatus = normalizeInventoryStockStatus(item.stockStatus);
     return {
       ...item,
-      category: normalizeInventoryCategory(item.category),
       stockStatus,
       processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
     };
   });
-}
-
-function normalizeInventoryCategory(value) {
-  const normalized = String(value ?? "").trim();
-  return normalized && normalized !== "-" ? normalized : "신규입고";
 }
 
 function normalizeInventoryStockStatus(value) {
@@ -1652,7 +1644,6 @@ function buildInventoryFilterOptions(rows, fallback = {}) {
     clients: fallback.clients || uniqueValuesFromRows(rows, "clientName"),
     storages: fallback.storages || uniqueValuesFromRows(rows, "storage"),
     stockStatuses: uniqueValuesFromRows(rows, "stockStatus"),
-    categories: uniqueValuesFromRows(rows, "category"),
     processStatuses: uniqueValuesFromRows(rows, "processStatus")
   };
 }
@@ -1921,7 +1912,6 @@ function renderInventoryFilterOptions(filters) {
   renderSelectOptions(inventoryClientFilter, filters.clients, "전체");
   renderSelectOptions(inventoryStorageFilter, filters.storages, "전체");
   renderSelectOptions(inventoryStockFilter, filters.stockStatuses, "전체");
-  renderSelectOptions(inventoryCategoryFilter, filters.categories, "전체");
   renderSelectOptions(inventoryProcessFilter, filters.processStatuses, "전체");
 }
 
@@ -2012,7 +2002,6 @@ function syncInventoryFilterState() {
     client: inventoryClientFilter?.value || "",
     storage: inventoryStorageFilter?.value || "",
     stock: inventoryStockFilter?.value || "",
-    category: inventoryCategoryFilter?.value || "",
     process: inventoryProcessFilter?.value || ""
   };
 }
@@ -2022,7 +2011,7 @@ function resetInventoryFilters() {
     inventorySearch.value = "";
   }
 
-  [inventoryClientFilter, inventoryStorageFilter, inventoryStockFilter, inventoryCategoryFilter, inventoryProcessFilter].forEach((select) => {
+  [inventoryClientFilter, inventoryStorageFilter, inventoryStockFilter, inventoryProcessFilter].forEach((select) => {
     if (select) {
       select.value = "";
     }
@@ -2049,10 +2038,6 @@ function applyInventoryFilters() {
       return false;
     }
 
-    if (filters.category && item.category !== filters.category) {
-      return false;
-    }
-
     if (filters.process && item.processStatus !== filters.process) {
       return false;
     }
@@ -2069,7 +2054,6 @@ function applyInventoryFilters() {
       item.batch,
       item.finalProcess,
       item.storage,
-      item.category,
       item.stockStatus,
       item.processStatus
     ].some((value) => String(value || "").toLowerCase().includes(filters.query));
@@ -2149,7 +2133,7 @@ function renderInventoryTable(message = "") {
     button.addEventListener("click", () => deleteActiveInbound(button.dataset.inventoryDelete));
   });
 
-  inventoryCountLabel.textContent = state.inventoryFilters.query || state.inventoryFilters.client || state.inventoryFilters.storage || state.inventoryFilters.stock || state.inventoryFilters.category || state.inventoryFilters.process
+  inventoryCountLabel.textContent = state.inventoryFilters.query || state.inventoryFilters.client || state.inventoryFilters.storage || state.inventoryFilters.stock || state.inventoryFilters.process
     ? `검색 ${total.toLocaleString("ko-KR")}건 / 전체 ${state.inventoryRows.length.toLocaleString("ko-KR")}건`
     : `전체 ${state.inventoryRows.length.toLocaleString("ko-KR")}건`;
 

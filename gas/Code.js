@@ -628,7 +628,6 @@ function getInventoryDashboard() {
       productId,
       clientName: getObjectCell_(stockRow, ['업체명', '거래처명']) || product.clientName,
       productName: getObjectCell_(stockRow, ['제품명']) || product.productName,
-      category: getObjectCell_(stockRow, ['구분']),
       stockStatus,
       registrant: getObjectCell_(stockRow, ['등록자']),
       registeredAt: getObjectCell_(stockRow, ['등록 일시', '등록일시']),
@@ -785,7 +784,6 @@ function getTodayInbounds(payload) {
 
       return {
         managementId: pickCell_(row, indexes, ['관리 ID', '관리ID']),
-        category: pickCell_(row, indexes, ['구분']),
         status: pickCell_(row, indexes, ['상태']),
         registeredAt: pickCell_(row, indexes, ['등록 일시', '등록일시']),
         inboundDate: pickCell_(row, indexes, ['입고일']),
@@ -1146,7 +1144,6 @@ function createInbound(payload) {
       registeredDate
     });
     const stockRecord = {
-      category,
       status: '보관',
       managementId,
       clientName: dash_(payload.clientName),
@@ -1432,7 +1429,6 @@ function appendStockDbRow_(sheet, record) {
   const indexes = indexHeaders_(headerInfo.headers);
   const row = new Array(headerInfo.headers.length).fill('');
 
-  setRowValue_(row, indexes, ['구분'], record.category);
   setRowValue_(row, indexes, ['상태'], record.status);
   setRowValue_(row, indexes, ['관리 ID', '관리ID'], record.managementId);
   setRowValue_(row, indexes, ['업체명'], record.clientName);
