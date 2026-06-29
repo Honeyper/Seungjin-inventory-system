@@ -31,6 +31,8 @@ const DEFECT_REASON_TONES = {
   "가스 불량": "gray"
 };
 
+const INVENTORY_STOCK_STATUSES = ["보관", "작업중", "검수완료", "보류", "폐기", "출고대기", "출고완료"];
+
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 
 if (!session || session.role !== "admin") {
@@ -2923,6 +2925,12 @@ function renderInboundEditForm(inbound) {
             ${renderOptionList(["", "미지정", "현장", "A", "B-1", "B-2", "C-1", "C-2", "D-1", "D-2", "E-1", "E-2", "F-1", "F-2", "G-1", "G[출고대기]", "H-1", "I"], normalizeEditableValue(inbound.storage), "선택하세요.")}
           </select>
         </label>
+        <label class="form-field">
+          <span>상태 <b>*</b></span>
+          <select id="inboundEditStockStatus">
+            ${renderOptionList(["", ...INVENTORY_STOCK_STATUSES], normalizeEditableValue(inbound.stockStatus || inbound.status || "보관"), "선택하세요.")}
+          </select>
+        </label>
       </div>
     </section>
 
@@ -3183,6 +3191,7 @@ async function getInboundEditPayload() {
     batch: inboundDetailContent.querySelector("#inboundEditBatch")?.value.trim() || "",
     process: inboundDetailContent.querySelector("#inboundEditProcess")?.value.trim() || "",
     storage: inboundDetailContent.querySelector("#inboundEditStorage")?.value.trim() || "",
+    stockStatus: inboundDetailContent.querySelector("#inboundEditStockStatus")?.value.trim() || "",
     boxQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditBoxQty")),
     inboundBoxCount: getNumberValue(inboundDetailContent.querySelector("#inboundEditBoxCount")),
     remainQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditRemainQty")),
@@ -3226,6 +3235,10 @@ function validateInboundEditPayload(payload) {
 
   if (!payload.storage) {
     return "보관위치를 선택해주세요.";
+  }
+
+  if (!payload.stockStatus) {
+    return "상태를 선택해주세요.";
   }
 
   if (!payload.defectReason) {

@@ -1223,6 +1223,7 @@ function updateInbound(payload) {
   const inboundType = String(payload.inboundType || payload['입고 유형'] || payload['입고유형'] || '').trim();
   const process = String(payload.process || payload['최종공정'] || '').trim();
   const storage = String(payload.storage || payload['보관위치'] || '').trim();
+  const stockStatus = String(payload.stockStatus || payload.status || payload['상태'] || payload['재고 상태'] || '보관').trim();
   const defectReason = String(payload.defectReason || payload['불량 사유'] || payload['불량사유'] || '').trim();
 
   if (!inboundDate) {
@@ -1243,6 +1244,10 @@ function updateInbound(payload) {
 
   if (!storage) {
     throw new Error('보관위치 값이 필요합니다.');
+  }
+
+  if (!stockStatus) {
+    throw new Error('상태 값이 필요합니다.');
   }
 
   if (!defectReason) {
@@ -1313,6 +1318,7 @@ function updateInbound(payload) {
     setRowValue_(row, rowInfo.indexes, ['차수'], dash_(payload.batch));
     setRowValue_(row, rowInfo.indexes, ['최종공정'], process);
     setRowValue_(row, rowInfo.indexes, ['보관위치'], storage);
+    setRowValue_(row, rowInfo.indexes, ['상태', '재고 상태'], stockStatus);
     setRowValue_(row, rowInfo.indexes, ['박스당 수량', '박스당수량'], formatEa_(boxQuantity));
     setRowValue_(row, rowInfo.indexes, ['입고 박스 수', '입고박스수'], formatBox_(inboundBoxCount));
     setRowValue_(row, rowInfo.indexes, ['잔량 수량', '잔량수량'], formatEa_(remainQuantity));
@@ -1354,7 +1360,7 @@ function updateInbound(payload) {
         boxQuantity: formatEa_(boxQuantity),
         currentQuantity: formatEa_(currentQuantity),
         storage,
-        status: '보관',
+        status: stockStatus,
         registeredDate
       });
     }
