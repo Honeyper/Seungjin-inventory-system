@@ -1653,7 +1653,7 @@ function getInventoryAttentionConfig(type) {
       tone: "purple",
       metricLabel: "대기 박스",
       metric: (item) => normalizeDisplayValue(item.currentBoxCount),
-      filter: (item) => normalizeDisplayValue(item.qrPrintStatus) === "미인쇄"
+      filter: isInventoryPrintWaiting
     },
     storage: {
       title: "미지정 보관 재고",
@@ -1674,6 +1674,17 @@ function getInventoryAttentionConfig(type) {
   };
 
   return configs[type] || configs.print;
+}
+
+function isInventoryPrintWaiting(item) {
+  const boxCount = getQuantityNumberFromText(item.currentBoxCount || item.boxTotalCount);
+
+  if (boxCount <= 0) {
+    return false;
+  }
+
+  const qrState = normalizeDisplayValue(item.qrPrintStatus || item.processStatus);
+  return !["QR 생성", "생성", "생성완료", "생성 완료", "출력완료", "출력 완료", "인쇄완료", "인쇄 완료"].includes(qrState);
 }
 
 function renderInventoryAttentionRow(item, config) {
