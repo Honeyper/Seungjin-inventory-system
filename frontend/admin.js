@@ -1532,9 +1532,9 @@ async function loadInventoryDashboard(showLoadingToast = true) {
   try {
     const result = await requestApi("getInventoryDashboard");
     state.inventoryLoaded = true;
-    state.inventoryRows = Array.isArray(result.rows) ? result.rows : [];
-    renderInventorySummary(result.summary || {}, result.attention || {});
-    renderInventoryFilterOptions(result.filters || {});
+    state.inventoryRows = normalizeInventoryRows(Array.isArray(result.rows) ? result.rows : []);
+    renderInventorySummary(result.summary || {}, buildInventoryAttentionSummary(state.inventoryRows, result.attention || {}));
+    renderInventoryFilterOptions(buildInventoryFilterOptions(state.inventoryRows, result.filters || {}));
     renderInventoryBars(inventoryLocationBoxBars, result.locationBoxStats || [], "box");
     renderInventoryBars(inventoryLocationQuantityBars, result.locationQuantityStats || [], "ea");
     applyInventoryFilters();
@@ -1593,6 +1593,57 @@ function renderInventorySummary(summary, attention) {
   if (inventoryHoldDiscard) {
     inventoryHoldDiscard.textContent = formatNumber(attention.holdOrDiscardCount);
   }
+}
+
+function normalizeInventoryRows(rows) {
+  return rows.map((item) => {
+    const stockStatus = normalizeInventoryStockStatus(item.stockStatus);
+    return {
+      ...item,
+      stockStatus,
+      processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
+    };
+  });
+}
+
+function normalizeInventoryStockStatus(value) {
+  const normalized = String(value ?? "").trim();
+  return normalized && normalized !== "-" ? normalized : "보관";
+}
+
+function normalizeInventoryProcessStatus(value, fallback = "보관") {
+  const normalized = String(value ?? "").trim();
+  const qrStatuses = new Set(["QR 생성", "QR생성", "미인쇄", "생성", "미생성", "인쇄대기"]);
+
+  if (!normalized || normalized === "-" || qrStatuses.has(normalized)) {
+    return normalizeInventoryStockStatus(fallback);
+  }
+
+  return normalized;
+}
+
+function buildInventoryFilterOptions(rows, fallback = {}) {
+  return {
+    clients: fallback.clients || uniqueValuesFromRows(rows, "clientName"),
+    storages: fallback.storages || uniqueValuesFromRows(rows, "storage"),
+    stockStatuses: uniqueValuesFromRows(rows, "stockStatus"),
+    processStatuses: uniqueValuesFromRows(rows, "processStatus")
+  };
+}
+
+function buildInventoryAttentionSummary(rows, fallback = {}) {
+  return {
+    ...fallback,
+    printWaitingBoxes: rows
+      .filter(isInventoryPrintWaiting)
+      .reduce((sum, row) => sum + getQuantityNumberFromText(row.currentBoxCount || row.boxTotalCount), 0),
+    unspecifiedStorageCount: rows.filter((row) => isUnspecifiedInventoryStorage(row.storage)).length,
+    holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ""))).length
+  };
+}
+
+function uniqueValuesFromRows(rows, key) {
+  return Array.from(new Set(rows.map((row) => row[key]).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "ko"));
 }
 
 function openInventoryAttentionModal(type) {
