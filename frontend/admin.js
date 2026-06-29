@@ -61,6 +61,7 @@ const state = {
   inboundListQuery: "",
   isSavingProduct: false,
   isSavingInbound: false,
+  isSavingExistingStock: false,
   isSavingInboundEdit: false,
   isRefreshingInbounds: false,
   isDeletingProduct: false,
@@ -76,6 +77,7 @@ const state = {
   activeInboundMenuRecord: "",
   activeInboundMenuButton: null,
   inboundProductPickerQuery: "",
+  inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
     invoice: "",
     defect: ""
@@ -202,6 +204,24 @@ const inventoryLocationBoxBars = document.querySelector("#inventoryLocationBoxBa
 const inventoryLocationQuantityBars = document.querySelector("#inventoryLocationQuantityBars");
 const inventorySearchButtons = document.querySelectorAll(".inventory-search-button");
 const inventoryResetButtons = document.querySelectorAll(".inventory-reset-button");
+const openExistingStockModalButton = document.querySelector("#openExistingStockModalButton");
+const existingStockModal = document.querySelector("#existingStockModal");
+const existingStockForm = document.querySelector("#existingStockForm");
+const existingStockProductName = document.querySelector("#existingStockProductName");
+const existingStockClientName = document.querySelector("#existingStockClientName");
+const existingStockProductId = document.querySelector("#existingStockProductId");
+const existingStockRegistrant = document.querySelector("#existingStockRegistrant");
+const existingStockDate = document.querySelector("#existingStockDate");
+const existingStockBatch = document.querySelector("#existingStockBatch");
+const existingStockProcess = document.querySelector("#existingStockProcess");
+const existingStockStorage = document.querySelector("#existingStockStorage");
+const existingStockBoxQuantity = document.querySelector("#existingStockBoxQuantity");
+const existingStockBoxCount = document.querySelector("#existingStockBoxCount");
+const existingStockRemainQuantity = document.querySelector("#existingStockRemainQuantity");
+const existingStockNote = document.querySelector("#existingStockNote");
+const existingStockFormMessage = document.querySelector("#existingStockFormMessage");
+const saveExistingStockButton = document.querySelector("#saveExistingStockButton");
+const existingStockProductSearchButton = document.querySelector("#existingStockProductSearchButton");
 const inboundSortButtons = document.querySelectorAll("[data-inbound-sort]");
 const inboundNumberInputs = [
   ["#inboundBoxQty", "#calcBoxQty"],
@@ -216,6 +236,9 @@ const inboundNumberInputs = [
 
 adminUserName.textContent = session?.name || "관리자";
 inboundRegistrant.value = session?.name || "Admin";
+if (existingStockRegistrant) {
+  existingStockRegistrant.value = session?.name || "Admin";
+}
 
 document.querySelector("#newProductButton").addEventListener("click", () => {
   openProductModal();
@@ -298,6 +321,15 @@ inventoryResetButtons.forEach((button) => {
     resetInventoryFilters();
     applyInventoryFilters();
   });
+});
+
+openExistingStockModalButton?.addEventListener("click", openExistingStockModal);
+document.querySelector("#closeExistingStockModal")?.addEventListener("click", closeExistingStockModal);
+document.querySelector("#cancelExistingStockModal")?.addEventListener("click", closeExistingStockModal);
+existingStockProductSearchButton?.addEventListener("click", () => openInboundProductPicker("existingStock"));
+existingStockForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveExistingStock();
 });
 inventoryPageSizeSelect?.addEventListener("change", (event) => {
   state.inventoryPageSize = Number(event.target.value) || 10;
@@ -1119,9 +1151,15 @@ function setInboundLockedFieldEditable(input, button, isEditable) {
   }
 }
 
-function openInboundProductPicker() {
+function openInboundProductPicker(target = "inbound") {
+  state.inboundProductPickerTarget = target;
   state.inboundProductPickerQuery = "";
   inboundProductPickerSearch.value = "";
+  const isExistingStockTarget = target === "existingStock";
+  document.querySelector("#inboundProductPickerTitle").textContent = "제품 선택";
+  document.querySelector("#inboundProductPickerTitle").nextElementSibling.textContent = isExistingStockTarget
+    ? "제품관리에 등록된 제품 목록에서 기존 재고 제품을 선택하세요."
+    : "제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.";
   renderInboundProductPicker();
   inboundProductPickerModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -1130,7 +1168,7 @@ function openInboundProductPicker() {
 
 function closeInboundProductPicker() {
   inboundProductPickerModal.hidden = true;
-  if (productModal.hidden && productDetailModal.hidden) {
+  if (productModal.hidden && productDetailModal.hidden && existingStockModal?.hidden !== false) {
     document.body.classList.remove("modal-open");
   }
 }
@@ -1171,7 +1209,11 @@ function renderInboundProductPicker() {
     button.addEventListener("click", () => {
       const product = getProductByCode(button.dataset.product);
       if (product) {
-        selectInboundProduct(product);
+        if (state.inboundProductPickerTarget === "existingStock") {
+          selectExistingStockProduct(product);
+        } else {
+          selectInboundProduct(product);
+        }
       }
     });
   });
@@ -1200,6 +1242,151 @@ function selectInboundProduct(product) {
   setInboundLockedFieldEditable(inboundTrayQty, editInboundTrayQtyButton, false);
   updateInboundSummary();
   closeInboundProductPicker();
+}
+
+function openExistingStockModal() {
+  resetExistingStockForm();
+  existingStockModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeExistingStockModal() {
+  existingStockModal.hidden = true;
+  if (productModal.hidden && productDetailModal.hidden && inboundProductPickerModal.hidden) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function resetExistingStockForm() {
+  existingStockForm?.reset();
+  existingStockProductName.value = "";
+  existingStockClientName.value = "";
+  existingStockProductId.value = "";
+  existingStockRegistrant.value = session?.name || "Admin";
+  existingStockDate.value = getLocalDateInputValue();
+  existingStockRemainQuantity.value = "0";
+  existingStockFormMessage.textContent = "";
+  state.inboundProductPickerTarget = "inbound";
+}
+
+function selectExistingStockProduct(product) {
+  existingStockProductName.value = normalizeDisplayValue(product.productName);
+  existingStockProductId.value = normalizeDisplayValue(product.productCode);
+  existingStockClientName.value = normalizeDisplayValue(product.clientName);
+
+  const boxQuantity = extractQuantityNumber(product.boxQuantity);
+
+  if (boxQuantity) {
+    existingStockBoxQuantity.value = boxQuantity;
+  }
+
+  closeInboundProductPicker();
+}
+
+function getExistingStockPayload() {
+  const boxQuantity = getNumberValue(existingStockBoxQuantity);
+  const inboundBoxCount = getNumberValue(existingStockBoxCount);
+  const remainQuantity = getNumberValue(existingStockRemainQuantity);
+  const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
+  const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
+
+  return {
+    category: "기존 재고",
+    registrant: existingStockRegistrant.value.trim() || session?.name || "Admin",
+    inboundDate: existingStockDate.value.trim(),
+    inboundTime: "00:00",
+    inboundType: "기존 재고",
+    dueDate: "",
+    productName: existingStockProductName.value.trim(),
+    productId: existingStockProductId.value.trim(),
+    clientName: existingStockClientName.value.trim(),
+    batch: existingStockBatch.value.trim(),
+    process: existingStockProcess.value.trim(),
+    storage: existingStockStorage.value.trim(),
+    note: existingStockNote.value.trim(),
+    boxQuantity,
+    inboundBoxCount,
+    remainQuantity,
+    boxTotalCount: totalBoxCount,
+    inboundTotalQuantity: totalQuantity,
+    inspectionQuantity: boxQuantity,
+    defectQuantity: 0,
+    defectReason: "-"
+  };
+}
+
+function validateExistingStockPayload(payload) {
+  const requiredFields = [
+    ["inboundDate", "등록일을 입력해주세요."],
+    ["productName", "제품을 선택해주세요."],
+    ["productId", "제품 ID를 확인해주세요."],
+    ["clientName", "거래처명을 확인해주세요."],
+    ["process", "최종공정을 선택해주세요."],
+    ["storage", "보관위치를 선택해주세요."]
+  ];
+  const missing = requiredFields.find(([field]) => !payload[field]);
+
+  if (missing) {
+    return missing[1];
+  }
+
+  const positiveNumberFields = [
+    ["boxQuantity", "박스당 수량"],
+    ["inboundBoxCount", "현재 박스 수"]
+  ];
+  const invalidPositive = positiveNumberFields.find(([field]) => !Number.isFinite(payload[field]) || payload[field] <= 0);
+
+  if (invalidPositive) {
+    return `${invalidPositive[1]}은 1 이상의 숫자로 입력해주세요.`;
+  }
+
+  if (!Number.isFinite(payload.remainQuantity) || payload.remainQuantity < 0) {
+    return "잔량은 0 이상의 숫자로 입력해주세요.";
+  }
+
+  return "";
+}
+
+function setExistingStockSaving(isSaving) {
+  state.isSavingExistingStock = isSaving;
+
+  if (saveExistingStockButton) {
+    saveExistingStockButton.disabled = isSaving;
+    saveExistingStockButton.textContent = isSaving ? "저장 중..." : "저장";
+  }
+}
+
+async function saveExistingStock() {
+  if (state.isSavingExistingStock) {
+    return;
+  }
+
+  const payload = getExistingStockPayload();
+  const validationMessage = validateExistingStockPayload(payload);
+
+  if (validationMessage) {
+    existingStockFormMessage.textContent = validationMessage;
+    showToast(validationMessage);
+    return;
+  }
+
+  setExistingStockSaving(true);
+  existingStockFormMessage.textContent = "";
+
+  try {
+    const result = await requestApi("createInbound", payload);
+    const managementId = result?.managementId ? ` (${result.managementId})` : "";
+    await loadProducts();
+    await loadTodayInbounds();
+    await loadInventoryDashboard(false);
+    closeExistingStockModal();
+    showToast(`기존 재고가 저장되었습니다.${managementId}`);
+  } catch (error) {
+    existingStockFormMessage.textContent = error.message || "기존 재고 저장에 실패했습니다.";
+    showToast(error.message || "기존 재고 저장에 실패했습니다.");
+  } finally {
+    setExistingStockSaving(false);
+  }
 }
 
 function setCurrentInboundTime() {

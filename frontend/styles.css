@@ -2135,6 +2135,10 @@ input {
   box-shadow: 0 1.3rem 3rem rgba(15, 23, 42, 0.18);
 }
 
+.existing-stock-modal {
+  width: min(58rem, calc(100vw - 2.5rem));
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -2633,6 +2637,45 @@ input {
   min-height: 4.8rem;
   padding-top: 0.8rem;
   resize: vertical;
+}
+
+.field-with-button {
+  position: relative;
+}
+
+.field-with-button input {
+  padding-right: 3.5rem !important;
+}
+
+.field-with-button button {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  color: var(--navy-dark);
+  border: 1px solid #dce4ef;
+  border-radius: 0.35rem;
+  background: #fff;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.field-with-button button:hover {
+  border-color: rgba(8, 42, 98, 0.32);
+  background: #f7f9fc;
+}
+
+.field-with-button svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .unit-input {

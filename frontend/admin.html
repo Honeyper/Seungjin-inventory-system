@@ -625,19 +625,11 @@
               <p>현재 보유 중인 제품의 재고 현황을 확인하고 관리합니다.</p>
             </div>
             <div class="inventory-heading-actions" aria-label="재고관리 빠른 작업">
-              <button class="secondary-action inventory-reset-button" type="button">
+              <button class="primary-action inventory-add-stock-button" type="button" id="openExistingStockModalButton">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M19 12a7 7 0 1 1-2.05-4.95" />
-                  <path d="M19 5v5h-5" />
+                  <path d="M12 5v14M5 12h14" />
                 </svg>
-                초기화
-              </button>
-              <button class="primary-action inventory-search-button" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m16 16 4 4" />
-                </svg>
-                조회
+                기존 재고 추가
               </button>
             </div>
           </section>
@@ -1119,6 +1111,143 @@
           <button class="primary-modal-action" type="button" id="editInboundFromDetailButton">수정하기</button>
           <button class="primary-modal-action" type="button" id="saveInboundEditButton" hidden>저장</button>
         </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="existingStockModal" hidden>
+      <section class="product-modal existing-stock-modal" role="dialog" aria-modal="true" aria-labelledby="existingStockModalTitle">
+        <header class="modal-header">
+          <div>
+            <h2 id="existingStockModalTitle">기존 재고 추가</h2>
+            <p>창고에 보관 중인 기존 재고 정보를 등록합니다. * 표시는 필수 입력입니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeExistingStockModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <form class="product-form existing-stock-form" id="existingStockForm">
+          <section class="form-section" aria-labelledby="existingStockBaseTitle">
+            <h3 id="existingStockBaseTitle">재고 기본 정보</h3>
+            <div class="form-grid existing-stock-grid">
+              <label class="form-field stock-product-field">
+                <span>제품명 <b>*</b></span>
+                <div class="field-with-button">
+                  <input id="existingStockProductName" type="text" placeholder="제품을 선택하세요." readonly required />
+                  <button id="existingStockProductSearchButton" type="button" aria-label="제품 검색">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m16 16 4 4" />
+                    </svg>
+                  </button>
+                </div>
+              </label>
+
+              <label class="form-field">
+                <span>거래처명</span>
+                <input id="existingStockClientName" type="text" placeholder="제품 선택 시 자동 입력" disabled />
+              </label>
+
+              <label class="form-field">
+                <span>제품 ID</span>
+                <input id="existingStockProductId" type="text" placeholder="제품 선택 시 자동 입력" disabled />
+              </label>
+
+              <label class="form-field">
+                <span>등록자</span>
+                <input id="existingStockRegistrant" type="text" value="Admin" disabled />
+              </label>
+
+              <label class="form-field">
+                <span>등록일 <b>*</b></span>
+                <input id="existingStockDate" type="date" required />
+              </label>
+
+              <label class="form-field">
+                <span>차수</span>
+                <input id="existingStockBatch" type="text" placeholder="차수를 입력하세요." />
+              </label>
+
+              <label class="form-field">
+                <span>최종공정 <b>*</b></span>
+                <select id="existingStockProcess" required>
+                  <option value="" selected disabled>선택하세요.</option>
+                  <option>1도</option>
+                  <option>2도</option>
+                  <option>3도</option>
+                  <option>코팅</option>
+                </select>
+              </label>
+
+              <label class="form-field">
+                <span>보관위치 <b>*</b></span>
+                <select id="existingStockStorage" required>
+                  <option value="" selected disabled>선택하세요.</option>
+                  <option>미지정</option>
+                  <option>현장</option>
+                  <option>A</option>
+                  <option>B-1</option>
+                  <option>B-2</option>
+                  <option>C-1</option>
+                  <option>C-2</option>
+                  <option>D-1</option>
+                  <option>D-2</option>
+                  <option>E-1</option>
+                  <option>E-2</option>
+                  <option>F-1</option>
+                  <option>F-2</option>
+                  <option>G-1</option>
+                  <option>G[출고대기]</option>
+                  <option>H-1</option>
+                  <option>I</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section" aria-labelledby="existingStockQuantityTitle">
+            <h3 id="existingStockQuantityTitle">수량 정보</h3>
+            <div class="form-grid existing-stock-grid">
+              <label class="form-field">
+                <span>박스당 수량 <b>*</b></span>
+                <span class="unit-input">
+                  <input id="existingStockBoxQuantity" type="number" min="1" step="1" placeholder="숫자를 입력하세요." required />
+                  <i>EA</i>
+                </span>
+              </label>
+
+              <label class="form-field">
+                <span>현재 박스 수 <b>*</b></span>
+                <span class="unit-input">
+                  <input id="existingStockBoxCount" type="number" min="1" step="1" placeholder="숫자를 입력하세요." required />
+                  <i>box</i>
+                </span>
+              </label>
+
+              <label class="form-field">
+                <span>잔량 <b>*</b></span>
+                <span class="unit-input">
+                  <input id="existingStockRemainQuantity" type="number" min="0" step="1" value="0" required />
+                  <i>EA</i>
+                </span>
+              </label>
+
+              <label class="form-field full-span">
+                <span>비고</span>
+                <textarea id="existingStockNote" rows="2" placeholder="비고를 입력하세요. (선택)"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <p class="form-message" id="existingStockFormMessage" role="alert" aria-live="polite"></p>
+
+          <div class="modal-actions">
+            <button class="secondary-modal-action" type="button" id="cancelExistingStockModal">취소</button>
+            <button class="primary-modal-action" type="submit" id="saveExistingStockButton">저장</button>
+          </div>
+        </form>
       </section>
     </div>
 

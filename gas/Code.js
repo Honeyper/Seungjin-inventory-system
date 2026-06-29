@@ -1022,6 +1022,10 @@ function formatProductRows() {
 }
 
 function createInbound(payload) {
+  const category = String(payload.category || payload.entryCategory || '').trim() === '기존 재고'
+    ? '기존 재고'
+    : '신규입고';
+  const isExistingStock = category === '기존 재고';
   const required = [
     ['productId', '제품 ID'],
     ['productName', '제품명'],
@@ -1030,9 +1034,12 @@ function createInbound(payload) {
     ['inboundTime', '입고 시간'],
     ['inboundType', '입고 유형'],
     ['process', '최종공정'],
-    ['storage', '보관위치'],
-    ['defectReason', '불량 사유']
+    ['storage', '보관위치']
   ];
+
+  if (!isExistingStock) {
+    required.push(['defectReason', '불량 사유']);
+  }
 
   required.forEach(([key, label]) => {
     if (!String(payload[key] || '').trim()) {
@@ -1043,7 +1050,9 @@ function createInbound(payload) {
   const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
   const inboundBoxCount = toPositiveNumber_(payload.inboundBoxCount, '입고 박스 수');
   const remainQuantity = toNumber_(payload.remainQuantity);
-  const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
+  const inspectionQuantity = isExistingStock
+    ? toNumber_(payload.inspectionQuantity || boxQuantity)
+    : toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
   const defectQuantity = toNumber_(payload.defectQuantity);
 
   if (remainQuantity < 0 || defectQuantity < 0) {
@@ -1075,7 +1084,7 @@ function createInbound(payload) {
       registeredDate
     });
     const stockRecord = {
-      category: '신규입고',
+      category,
       status: '보관',
       managementId,
       clientName: dash_(payload.clientName),
@@ -1083,7 +1092,7 @@ function createInbound(payload) {
       registeredDate,
       inboundDate: dash_(payload.inboundDate),
       inboundTime: dash_(payload.inboundTime),
-      inboundType: dash_(payload.inboundType),
+      inboundType: dash_(isExistingStock ? '기존 재고' : payload.inboundType),
       dueDate: dash_(payload.dueDate),
       productId: dash_(payload.productId),
       productName: dash_(payload.productName),
@@ -1098,7 +1107,7 @@ function createInbound(payload) {
       inspectionQuantity: formatEa_(inspectionQuantity),
       defectQuantity: formatEa_(defectQuantity),
       defectRate: `${defectRate}%`,
-      defectReason: dash_(payload.defectReason),
+      defectReason: dash_(isExistingStock ? '-' : payload.defectReason),
       invoiceFileUrl,
       defectPhotoUrls,
       note
