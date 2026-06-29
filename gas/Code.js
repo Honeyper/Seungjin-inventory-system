@@ -779,6 +779,7 @@ function getTodayInbounds(payload) {
       const inboundDate = normalizeDateKey_(pickCell_(row, indexes, ['입고일']));
       return inboundDate >= startDate && inboundDate <= endDate;
     })
+    .filter(({ row }) => !isExistingStockInboundType_(pickCell_(row, indexes, ['입고 유형', '입고유형'])))
     .map(({ row, richRow }) => {
       const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
 
@@ -1081,6 +1082,10 @@ function normalizeInboundCategory_(payload) {
   ));
 
   return isExistingStock ? '기존재고' : '신규입고';
+}
+
+function isExistingStockInboundType_(value) {
+  return String(value || '').replace(/\s/g, '') === '기존재고';
 }
 
 function createInbound(payload) {
