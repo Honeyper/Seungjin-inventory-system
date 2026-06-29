@@ -673,6 +673,57 @@
             </article>
           </section>
 
+          <section class="inventory-insight-grid" aria-label="재고 현황">
+            <article class="inventory-chart-card">
+              <div class="inventory-card-title">
+                <h2>보관 장소별 보유 현황 (박스 수 TOP 8)</h2>
+                <span>단위 : box</span>
+              </div>
+              <div class="inventory-bars blue-bars" id="inventoryLocationBoxBars"></div>
+              <button class="inventory-link-button" type="button">
+                전체 보관장소 보기
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+            </article>
+
+            <article class="inventory-chart-card">
+              <div class="inventory-card-title">
+                <h2>보관 장소별 보유 현황 (총 수량 TOP 8)</h2>
+                <span>단위 : ea</span>
+              </div>
+              <div class="inventory-bars green-bars" id="inventoryLocationQuantityBars"></div>
+              <button class="inventory-link-button" type="button">
+                전체 보관장소 보기
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+            </article>
+
+            <article class="inventory-attention-card">
+              <h2>관리 필요 재고</h2>
+              <button class="attention-item purple" type="button" data-inventory-attention="print">
+                <span class="attention-icon" aria-hidden="true">
+                  <img src="./assets/inventory-attention-print-generated.png" alt="" />
+                </span>
+                <span><b>인쇄 대기</b><strong><span id="inventoryPrintWaiting">-</span> <em>box</em></strong></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+              <button class="attention-item orange" type="button" data-inventory-attention="storage">
+                <span class="attention-icon" aria-hidden="true">
+                  <img src="./assets/inventory-attention-storage-generated.png" alt="" />
+                </span>
+                <span><b>미지정 보관</b><strong><span id="inventoryUnspecifiedStorage">-</span> <em>건</em></strong></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+              <button class="attention-item red" type="button" data-inventory-attention="hold">
+                <span class="attention-icon" aria-hidden="true">
+                  <img src="./assets/inventory-attention-hold-generated.png" alt="" />
+                </span>
+                <span><b>보류 / 폐기</b><strong><span id="inventoryHoldDiscard">-</span> <em>건</em></strong></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+            </article>
+          </section>
+
           <section class="inventory-filter-panel" aria-label="검색 필터">
             <h2>검색 필터</h2>
             <div class="inventory-filter-grid">
@@ -734,57 +785,6 @@
                 조회
               </button>
             </div>
-          </section>
-
-          <section class="inventory-insight-grid" aria-label="재고 현황">
-            <article class="inventory-chart-card">
-              <div class="inventory-card-title">
-                <h2>보관 장소별 보유 현황 (박스 수 TOP 8)</h2>
-                <span>단위 : box</span>
-              </div>
-              <div class="inventory-bars blue-bars" id="inventoryLocationBoxBars"></div>
-              <button class="inventory-link-button" type="button">
-                전체 보관장소 보기
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
-            </article>
-
-            <article class="inventory-chart-card">
-              <div class="inventory-card-title">
-                <h2>보관 장소별 보유 현황 (총 수량 TOP 8)</h2>
-                <span>단위 : ea</span>
-              </div>
-              <div class="inventory-bars green-bars" id="inventoryLocationQuantityBars"></div>
-              <button class="inventory-link-button" type="button">
-                전체 보관장소 보기
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
-            </article>
-
-            <article class="inventory-attention-card">
-              <h2>관리 필요 재고</h2>
-              <button class="attention-item purple" type="button" data-inventory-attention="print">
-                <span class="attention-icon" aria-hidden="true">
-                  <img src="./assets/inventory-attention-print-generated.png" alt="" />
-                </span>
-                <span><b>인쇄 대기</b><strong><span id="inventoryPrintWaiting">-</span> <em>box</em></strong></span>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
-              <button class="attention-item orange" type="button" data-inventory-attention="storage">
-                <span class="attention-icon" aria-hidden="true">
-                  <img src="./assets/inventory-attention-storage-generated.png" alt="" />
-                </span>
-                <span><b>미지정 보관</b><strong><span id="inventoryUnspecifiedStorage">-</span> <em>건</em></strong></span>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
-              <button class="attention-item red" type="button" data-inventory-attention="hold">
-                <span class="attention-icon" aria-hidden="true">
-                  <img src="./assets/inventory-attention-hold-generated.png" alt="" />
-                </span>
-                <span><b>보류 / 폐기</b><strong><span id="inventoryHoldDiscard">-</span> <em>건</em></strong></span>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
-            </article>
           </section>
 
           <section class="table-panel inventory-list-panel" aria-label="재고 목록">
