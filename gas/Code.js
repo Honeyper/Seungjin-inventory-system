@@ -39,6 +39,7 @@ function doPost(e) {
     const routes = {
       healthCheck,
       authorizeDrive,
+      normalizeStockAttachmentLinks,
       login,
       setupSheets,
       getProducts,
@@ -111,6 +112,48 @@ function authorizeDrive() {
     defectPhotoDriveFolderName: defectPhotoFolder.getName(),
     defectPhotoDriveWriteCheck,
     checkedAt: new Date().toISOString()
+  };
+}
+
+function normalizeStockAttachmentLinks() {
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const dataRange = stockSheet.getDataRange();
+  const values = dataRange.getDisplayValues();
+  const richValues = dataRange.getRichTextValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error('재고 DB 시트의 헤더를 찾을 수 없습니다.');
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  let updatedCount = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    const richRow = richValues[rowIndex] || [];
+
+    if (!row.some((cell) => String(cell || '').trim())) {
+      continue;
+    }
+
+    const invoiceUrl = pickCellLinkOrValue_(row, richRow, indexes, ['거래명세표', '거래명세서']);
+    const defectValue = pickCellLinkOrValue_(row, richRow, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']);
+    const defectFolderUrl = getDriveFolderUrlFromLinks_(defectValue);
+
+    if (invoiceUrl && invoiceUrl !== '-') {
+      setLinkedCell_(stockSheet, rowIndex + 1, indexes, ['거래명세표', '거래명세서'], invoiceUrl, '📁 링크');
+      updatedCount += 1;
+    }
+
+    if (defectFolderUrl && defectFolderUrl !== '-') {
+      setLinkedCell_(stockSheet, rowIndex + 1, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], defectFolderUrl, '📁 링크');
+      updatedCount += 1;
+    }
+  }
+
+  return {
+    updatedCount
   };
 }
 
@@ -705,7 +748,9 @@ function createProduct(payload) {
 
 function getTodayInbounds(payload) {
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
-  const values = stockSheet.getDataRange().getDisplayValues();
+  const dataRange = stockSheet.getDataRange();
+  const values = dataRange.getDisplayValues();
+  const richValues = dataRange.getRichTextValues();
   const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
 
   if (!headerInfo) {
@@ -724,12 +769,16 @@ function getTodayInbounds(payload) {
   const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
   const productDueDateMap = getProductDueDateMap_();
   const inbounds = values.slice(headerRowIndex + 1)
-    .filter((row) => row.some((cell) => String(cell || '').trim()))
-    .filter((row) => {
+    .map((row, offset) => ({
+      row,
+      richRow: richValues[headerRowIndex + 1 + offset] || []
+    }))
+    .filter(({ row }) => row.some((cell) => String(cell || '').trim()))
+    .filter(({ row }) => {
       const inboundDate = normalizeDateKey_(pickCell_(row, indexes, ['입고일']));
       return inboundDate >= startDate && inboundDate <= endDate;
     })
-    .map((row) => {
+    .map(({ row, richRow }) => {
       const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
 
       return {
@@ -756,8 +805,8 @@ function getTodayInbounds(payload) {
         defectQuantity: pickCell_(row, indexes, ['불량 수량', '불량수량']),
         defectRate: pickCell_(row, indexes, ['불량률']),
         defectReason: pickCell_(row, indexes, ['불량 사유', '불량사유']),
-        invoiceFileUrl: pickCell_(row, indexes, ['거래명세표', '거래명세서']),
-        defectPhotoUrls: pickCell_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']),
+        invoiceFileUrl: pickCellLinkOrValue_(row, richRow, indexes, ['거래명세표', '거래명세서']),
+        defectPhotoUrls: pickCellLinkOrValue_(row, richRow, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']),
         note: pickCell_(row, indexes, ['비고']),
         registrant: pickCell_(row, indexes, ['등록자'])
       };
@@ -1231,6 +1280,18 @@ function updateInbound(payload) {
       managementId,
       registeredDate
     });
+    const finalInvoiceFileUrl = invoiceFileUrl || pickCellLinkOrValue_(
+      row,
+      rowInfo.richRowValues,
+      rowInfo.indexes,
+      ['거래명세표', '거래명세서']
+    );
+    const finalDefectPhotoUrls = defectPhotoUrls || pickCellLinkOrValue_(
+      row,
+      rowInfo.richRowValues,
+      rowInfo.indexes,
+      ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']
+    );
 
     setRowValue_(row, rowInfo.indexes, ['입고일'], inboundDate);
     setRowValue_(row, rowInfo.indexes, ['입고 시간', '입고시간'], inboundTime);
@@ -1257,6 +1318,10 @@ function updateInbound(payload) {
 
     stockSheet.getRange(rowInfo.rowNumber, 1, 1, rowInfo.headers.length).setValues([row]);
     applyProductRowTemplate_(stockSheet, rowInfo.headerRowIndex + 2, rowInfo.rowNumber, rowInfo.headers.length);
+    setStockDbAttachmentLinks_(stockSheet, rowInfo.rowNumber, rowInfo.indexes, {
+      invoiceFileUrl: finalInvoiceFileUrl,
+      defectPhotoUrls: finalDefectPhotoUrls
+    });
 
     deleteRowsByHeaderValue_(boxSheet, ['관리ID', '관리 ID'], managementId, ['박스ID', '관리ID', '제품명']);
 
@@ -1376,7 +1441,9 @@ function appendStockDbRow_(sheet, record) {
   setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], record.defectPhotoUrls || '-');
   setRowValue_(row, indexes, ['비고'], record.note);
 
-  return appendStyledRangeRows_(sheet, startColumn, [row.slice(startColumn - 1)], templateRowNumber);
+  const rowNumber = appendStyledRangeRows_(sheet, startColumn, [row.slice(startColumn - 1)], templateRowNumber);
+  setStockDbAttachmentLinks_(sheet, rowNumber, indexes, record);
+  return rowNumber;
 }
 
 function ensureStockDbAttachmentHeaders_(sheet) {
@@ -1493,7 +1560,9 @@ function deleteRowsByHeaderValue_(sheet, headerNames, targetValue, requiredHeade
 }
 
 function findRowByHeaderValue_(sheet, headerNames, targetValue, requiredHeaders) {
-  const values = sheet.getDataRange().getDisplayValues();
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getDisplayValues();
+  const richValues = dataRange.getRichTextValues();
   const headerInfo = findHeaderRow_(values, requiredHeaders);
 
   if (!headerInfo) {
@@ -1514,6 +1583,7 @@ function findRowByHeaderValue_(sheet, headerNames, targetValue, requiredHeaders)
       return {
         rowNumber: rowIndex + 1,
         rowValues: values[rowIndex],
+        richRowValues: richValues[rowIndex] || [],
         headerRowIndex: headerInfo.rowIndex,
         headers: headerInfo.headers,
         indexes
@@ -1625,7 +1695,7 @@ function uploadInboundDefectPhotos_(payload, context) {
   ]);
   const baseFileName = sanitizeDriveName_(productName);
 
-  return files.map((file, index) => {
+  const uploadedUrls = files.map((file, index) => {
     if (!file || !String(file.data || '').trim()) {
       return '';
     }
@@ -1639,7 +1709,9 @@ function uploadInboundDefectPhotos_(payload, context) {
 
     createdFile.setDescription(`관리ID: ${context.managementId}, 불량사진 ${index + 1}`);
     return createdFile.getUrl();
-  }).filter(Boolean).join('\n');
+  }).filter(Boolean);
+
+  return uploadedUrls.length ? targetFolder.getUrl() : '';
 }
 
 function getOrCreateDriveFolderPath_(rootFolder, folderNames) {
@@ -1710,11 +1782,118 @@ function pickCell_(row, indexes, names) {
   return index >= 0 ? String(row[index] || '').trim() : '';
 }
 
+function pickCellLinkOrValue_(row, richRow, indexes, names) {
+  const index = findHeaderIndex_(indexes, names);
+
+  if (index < 0) {
+    return '';
+  }
+
+  const linkUrl = getRichTextLinkUrl_(richRow[index]);
+  if (linkUrl) {
+    return linkUrl;
+  }
+
+  return String(row[index] || '').trim();
+}
+
 function setRowValue_(row, indexes, names, value) {
   const index = findHeaderIndex_(indexes, names);
   if (index >= 0) {
     row[index] = value;
   }
+}
+
+function setStockDbAttachmentLinks_(sheet, rowNumber, indexes, record) {
+  setLinkedCell_(sheet, rowNumber, indexes, ['거래명세표', '거래명세서'], record.invoiceFileUrl, '📁 링크');
+  setLinkedCell_(sheet, rowNumber, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], record.defectPhotoUrls, '📁 링크');
+}
+
+function setLinkedCell_(sheet, rowNumber, indexes, names, url, label) {
+  const index = findHeaderIndex_(indexes, names);
+
+  if (index < 0) {
+    return;
+  }
+
+  const range = sheet.getRange(rowNumber, index + 1);
+  const normalizedUrl = String(url || '').trim();
+
+  if (!normalizedUrl || normalizedUrl === '-') {
+    range.setValue('-');
+    return;
+  }
+
+  const richText = SpreadsheetApp.newRichTextValue()
+    .setText(label || '링크')
+    .setLinkUrl(normalizedUrl)
+    .build();
+
+  range.setRichTextValue(richText);
+}
+
+function getRichTextLinkUrl_(richTextValue) {
+  if (!richTextValue) {
+    return '';
+  }
+
+  const directUrl = richTextValue.getLinkUrl && richTextValue.getLinkUrl();
+  if (directUrl) {
+    return directUrl;
+  }
+
+  const runs = richTextValue.getRuns ? richTextValue.getRuns() : [];
+  for (let i = 0; i < runs.length; i += 1) {
+    const url = runs[i].getLinkUrl && runs[i].getLinkUrl();
+    if (url) {
+      return url;
+    }
+  }
+
+  return '';
+}
+
+function getDriveFolderUrlFromLinks_(value) {
+  const text = String(value || '').trim();
+
+  if (!text || text === '-') {
+    return '';
+  }
+
+  const folderMatch = text.match(/https:\/\/drive\.google\.com\/drive\/folders\/[A-Za-z0-9_-]+/);
+  if (folderMatch) {
+    return folderMatch[0];
+  }
+
+  const fileIds = [];
+  const filePathRegex = /\/file\/d\/([A-Za-z0-9_-]+)/g;
+  const queryIdRegex = /[?&]id=([A-Za-z0-9_-]+)/g;
+  let match;
+
+  while ((match = filePathRegex.exec(text)) !== null) {
+    fileIds.push(match[1]);
+  }
+
+  while ((match = queryIdRegex.exec(text)) !== null) {
+    fileIds.push(match[1]);
+  }
+
+  if (!fileIds.length && /^https?:\/\//.test(text)) {
+    return text.split(/\s+/)[0];
+  }
+
+  for (let i = 0; i < fileIds.length; i += 1) {
+    try {
+      const parents = DriveApp.getFileById(fileIds[i]).getParents();
+      if (parents.hasNext()) {
+        return parents.next().getUrl();
+      }
+    } catch (error) {
+      // Keep trying the next URL when a stale or inaccessible file link exists.
+    }
+  }
+
+  return '';
 }
 
 function findHeaderIndex_(indexes, names) {
