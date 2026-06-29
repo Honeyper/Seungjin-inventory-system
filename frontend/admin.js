@@ -1536,6 +1536,7 @@ function renderInventoryTable(message = "") {
     inventoryTableBody.innerHTML = rows.map((item) => `
       <tr>
         <td><button class="inventory-qr-button" type="button" data-inventory-qr="${escapeAttribute(item.managementId)}">QR 보기</button></td>
+        <td>${escapeHtml(item.inboundDate)}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
         <td>${escapeHtml(item.clientName)}</td>
         <td>${escapeHtml(item.productName)}</td>
@@ -1544,7 +1545,6 @@ function renderInventoryTable(message = "") {
         <td>${escapeHtml(item.currentBoxCount)}</td>
         <td>${escapeHtml(item.currentTotalQuantity)}</td>
         <td>${escapeHtml(item.storage)}</td>
-        <td>${renderInventoryBadge(item.stockStatus, "blue")}</td>
         <td>${renderInventoryProcessBadge(item.processStatus)}</td>
         <td>${renderInventoryDueBadge(item)}</td>
         <td><button class="inventory-detail-button" type="button" data-inventory-detail="${escapeAttribute(item.managementId)}">상세</button></td>
