@@ -1809,6 +1809,30 @@ input {
   background: #fff;
 }
 
+.inventory-action-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.inventory-detail-button.danger {
+  color: #e02c22;
+  border-color: #ffd8d5;
+  background: #fff7f6;
+}
+
+.inventory-detail-button:hover {
+  border-color: #c9d8ea;
+  background: #f7fbff;
+}
+
+.inventory-detail-button.danger:hover {
+  border-color: #ffb9b3;
+  background: #fff0ee;
+}
+
 .inventory-badge {
   display: inline-flex;
   align-items: center;

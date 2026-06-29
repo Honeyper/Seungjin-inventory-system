@@ -2117,7 +2117,12 @@ function renderInventoryTable(message = "") {
         <td>${escapeHtml(item.storage)}</td>
         <td>${renderInventoryProcessBadge(item.processStatus)}</td>
         <td>${renderInventoryDueBadge(item)}</td>
-        <td><button class="inventory-detail-button" type="button" data-inventory-detail="${escapeAttribute(item.managementId)}">상세</button></td>
+        <td>
+          <div class="inventory-action-group">
+            <button class="inventory-detail-button" type="button" data-inventory-detail="${escapeAttribute(item.managementId)}">상세</button>
+            <button class="inventory-detail-button danger" type="button" data-inventory-delete="${escapeAttribute(item.managementId)}">삭제</button>
+          </div>
+        </td>
       </tr>
     `).join("");
   }
@@ -2138,6 +2143,10 @@ function renderInventoryTable(message = "") {
 
       openInventoryInboundDetail(inbound);
     });
+  });
+
+  inventoryTableBody.querySelectorAll("[data-inventory-delete]").forEach((button) => {
+    button.addEventListener("click", () => deleteActiveInbound(button.dataset.inventoryDelete));
   });
 
   inventoryCountLabel.textContent = state.inventoryFilters.query || state.inventoryFilters.client || state.inventoryFilters.storage || state.inventoryFilters.stock || state.inventoryFilters.category || state.inventoryFilters.process
@@ -2475,13 +2484,13 @@ async function deleteActiveProduct() {
   }
 }
 
-async function deleteActiveInbound() {
-  if (state.isDeletingInbound || !state.activeInboundMenuRecord) {
+async function deleteActiveInbound(managementId = state.activeInboundMenuRecord) {
+  if (state.isDeletingInbound || !managementId) {
     return;
   }
 
-  const managementId = state.activeInboundMenuRecord;
-  const inbound = state.todayInbounds.find((item) => item.managementId === managementId);
+  const inbound = state.todayInbounds.find((item) => item.managementId === managementId)
+    || state.inventoryRows.find((item) => item.managementId === managementId);
   const inboundLabel = inbound?.productName
     ? `${inbound.productName} (${managementId})`
     : managementId;
@@ -2491,7 +2500,9 @@ async function deleteActiveInbound() {
   }
 
   state.isDeletingInbound = true;
-  closeInboundRowActionMenu();
+  if (managementId === state.activeInboundMenuRecord) {
+    closeInboundRowActionMenu();
+  }
 
   try {
     const result = await requestApi("deleteInbound", { managementId });
