@@ -1733,7 +1733,14 @@ input {
 
 .inventory-table th:nth-child(4),
 .inventory-table td:nth-child(4) {
-  min-width: 13.5rem;
+  min-width: 9.5rem;
+  width: 10rem;
+}
+
+.inventory-table th:nth-child(5),
+.inventory-table td:nth-child(5) {
+  min-width: 18rem;
+  width: 22rem;
 }
 
 .inventory-table th {
