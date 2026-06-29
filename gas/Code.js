@@ -43,6 +43,7 @@ function doPost(e) {
       setupSheets,
       getProducts,
       getTodayInbounds,
+      getInventoryDashboard,
       getInboundBoxQrs,
       createProduct,
       updateProduct,
@@ -551,6 +552,106 @@ function getProductInboundQuantityMap_() {
 
     return map;
   }, {});
+}
+
+function getInventoryDashboard() {
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const productSheet = getProductSheet_();
+  const stockInfo = readDisplayRowsByHeaders_(stockSheet, ['관리 ID', '입고일', '제품명']);
+  const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
+  const productInfo = readDisplayRowsByHeaders_(productSheet, ['제품 ID', '업체명', '제품명']);
+  const productMap = buildInventoryProductMap_(productInfo.rows);
+  const boxSummaryMap = buildInventoryBoxSummaryMap_(boxInfo.rows);
+  const todayKey = normalizeDateKey_(Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'));
+
+  const rows = stockInfo.rows.map((stockRow) => {
+    const managementId = getObjectCell_(stockRow, ['관리 ID', '관리ID']);
+    const productId = getObjectCell_(stockRow, ['제품ID', '제품 ID']);
+    const product = productMap[productId] || {};
+    const boxSummary = boxSummaryMap[managementId] || {};
+    const hasBoxSummary = Boolean(boxSummary.managementId);
+    const dueDate = getObjectCell_(stockRow, ['납기일']) || product.dueDate || '';
+    const dueStatus = getDueStatus_(dueDate, todayKey);
+    const boxTotalCount = hasBoxSummary ? boxSummary.boxCount : displayQuantityToNumber_(getObjectCell_(stockRow, ['박스 총 수량', '박스총수량']));
+    const currentTotalQuantity = hasBoxSummary ? boxSummary.currentQuantity : displayQuantityToNumber_(getObjectCell_(stockRow, ['입고 총 수량', '입고총수량']));
+    const stockStatus = getObjectCell_(stockRow, ['상태']) || boxSummary.status || '보관';
+    const qrGeneratedCount = boxSummary.qrGeneratedCount || 0;
+    const processStatus = boxTotalCount > 0 && qrGeneratedCount >= boxTotalCount ? 'QR 생성' : '미인쇄';
+
+    return {
+      managementId,
+      productId,
+      clientName: getObjectCell_(stockRow, ['업체명', '거래처명']) || product.clientName,
+      productName: getObjectCell_(stockRow, ['제품명']) || product.productName,
+      category: getObjectCell_(stockRow, ['구분']),
+      stockStatus,
+      registrant: getObjectCell_(stockRow, ['등록자']),
+      registeredAt: getObjectCell_(stockRow, ['등록 일시', '등록일시']),
+      inboundDate: getObjectCell_(stockRow, ['입고일']),
+      inboundTime: getObjectCell_(stockRow, ['입고 시간', '입고시간']),
+      inboundType: getObjectCell_(stockRow, ['입고 유형', '입고유형']),
+      batch: getObjectCell_(stockRow, ['차수']),
+      finalProcess: getObjectCell_(stockRow, ['최종공정', '최종 공정']),
+      storage: boxSummary.primaryStorage || getObjectCell_(stockRow, ['보관위치', '보관 위치']) || '미지정',
+      boxQuantity: getObjectCell_(stockRow, ['박스당 수량', '박스당수량']),
+      inboundBoxCount: getObjectCell_(stockRow, ['입고 박스 수', '입고박스수']),
+      remainQuantity: getObjectCell_(stockRow, ['잔량 수량', '잔량수량', '잔량']),
+      boxTotalCount: formatBox_(boxTotalCount),
+      currentBoxCount: formatBox_(boxTotalCount),
+      inboundTotalQuantity: getObjectCell_(stockRow, ['입고 총 수량', '입고총수량']),
+      currentTotalQuantity: formatEa_(currentTotalQuantity),
+      inspectionQuantity: getObjectCell_(stockRow, ['검수 수량', '검수수량']),
+      defectQuantity: getObjectCell_(stockRow, ['불량 수량', '불량수량']),
+      defectRate: getObjectCell_(stockRow, ['불량률']),
+      defectReason: getObjectCell_(stockRow, ['불량 사유', '불량사유']),
+      note: getObjectCell_(stockRow, ['비고']),
+      dueDate,
+      dueLabel: dueStatus.label,
+      dueDays: dueStatus.days,
+      processStatus,
+      qrGeneratedCount
+    };
+  }).filter((row) => row.managementId);
+
+  const activeRows = rows.filter((row) => {
+    const status = String(row.stockStatus || '');
+    return !status.includes('폐기') && displayQuantityToNumber_(row.currentTotalQuantity) > 0;
+  });
+  const locationBoxStats = buildInventoryLocationStats_(boxSummaryMap, 'box');
+  const locationQuantityStats = buildInventoryLocationStats_(boxSummaryMap, 'quantity');
+  const uniqueProductIds = new Set(activeRows.map((row) => row.productId).filter(Boolean));
+  const totalBoxes = activeRows.reduce((sum, row) => sum + displayQuantityToNumber_(row.currentBoxCount), 0);
+  const totalQuantity = activeRows.reduce((sum, row) => sum + displayQuantityToNumber_(row.currentTotalQuantity), 0);
+  const dueSoonCount = activeRows.filter((row) => Number.isFinite(row.dueDays) && row.dueDays <= 3).length;
+  const printWaitingBoxes = activeRows
+    .filter((row) => row.processStatus === '미인쇄')
+    .reduce((sum, row) => sum + displayQuantityToNumber_(row.currentBoxCount), 0);
+  const unspecifiedStorageCount = activeRows.filter((row) => isUnspecifiedStorage_(row.storage)).length;
+  const holdOrDiscardCount = rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ''))).length;
+
+  return {
+    summary: {
+      totalItems: uniqueProductIds.size || activeRows.length,
+      totalBoxes,
+      totalQuantity,
+      dueSoonCount
+    },
+    filters: {
+      clients: uniqueSorted_(activeRows.map((row) => row.clientName)),
+      storages: uniqueSorted_(activeRows.map((row) => row.storage)),
+      stockStatuses: uniqueSorted_(activeRows.map((row) => row.stockStatus)),
+      processStatuses: uniqueSorted_(activeRows.map((row) => row.processStatus))
+    },
+    locationBoxStats,
+    locationQuantityStats,
+    attention: {
+      printWaitingBoxes,
+      unspecifiedStorageCount,
+      holdOrDiscardCount
+    },
+    rows: activeRows.reverse()
+  };
 }
 
 function createProduct(payload) {
@@ -1669,6 +1770,187 @@ function makeClientCode_(clientName) {
     .join('');
 
   return (numericCode || 'PRD').padEnd(3, 'X').slice(0, 3);
+}
+
+function readDisplayRowsByHeaders_(sheet, requiredHeaders) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, requiredHeaders);
+
+  if (!headerInfo) {
+    return {
+      headers: [],
+      rows: []
+    };
+  }
+
+  const rows = values.slice(headerInfo.rowIndex + 1)
+    .filter((row) => row.some((cell) => String(cell || '').trim()))
+    .map((row) => {
+      return headerInfo.headers.reduce((item, header, index) => {
+        const normalizedHeader = String(header || '').trim();
+
+        if (normalizedHeader) {
+          item[normalizedHeader] = String(row[index] || '').trim();
+        }
+
+        return item;
+      }, {});
+    });
+
+  return {
+    headers: headerInfo.headers,
+    rows
+  };
+}
+
+function buildInventoryProductMap_(productRows) {
+  return productRows.reduce((map, row) => {
+    const productId = getObjectCell_(row, ['제품 ID', '제품ID']);
+
+    if (productId) {
+      map[productId] = {
+        productId,
+        clientName: getObjectCell_(row, ['업체명', '거래처명']),
+        productName: getObjectCell_(row, ['제품명']),
+        orderQuantity: getObjectCell_(row, ['발주량', '주문량']),
+        dueDate: getObjectCell_(row, ['납기일'])
+      };
+    }
+
+    return map;
+  }, {});
+}
+
+function buildInventoryBoxSummaryMap_(boxRows) {
+  const map = {};
+
+  boxRows.forEach((row) => {
+    const managementId = getObjectCell_(row, ['관리ID', '관리 ID']);
+
+    if (!managementId) {
+      return;
+    }
+
+    const status = getObjectCell_(row, ['상태', '재고 상태']) || '보관';
+    const currentQuantity = displayQuantityToNumber_(getObjectCell_(row, ['현재 수량', '현재수량']));
+    const isActiveBox = currentQuantity > 0 && !/출고|폐기/.test(status);
+    const storage = getObjectCell_(row, ['보관 위치', '보관위치', '보관 장소']) || '미지정';
+    const qrState = getObjectCell_(row, ['QR 생성 여부', 'QR 출력 여부']);
+
+    if (!map[managementId]) {
+      map[managementId] = {
+        managementId,
+        boxCount: 0,
+        currentQuantity: 0,
+        qrGeneratedCount: 0,
+        statusCounts: {},
+        storageCounts: {},
+        boxes: []
+      };
+    }
+
+    if (isActiveBox) {
+      map[managementId].boxCount += 1;
+      map[managementId].currentQuantity += currentQuantity;
+      map[managementId].storageCounts[storage] = (map[managementId].storageCounts[storage] || 0) + 1;
+      map[managementId].statusCounts[status] = (map[managementId].statusCounts[status] || 0) + 1;
+    }
+
+    if (qrState && qrState !== '-') {
+      map[managementId].qrGeneratedCount += 1;
+    }
+
+    map[managementId].boxes.push(row);
+  });
+
+  Object.keys(map).forEach((managementId) => {
+    const summary = map[managementId];
+    summary.primaryStorage = pickTopKey_(summary.storageCounts) || '미지정';
+    summary.status = pickTopKey_(summary.statusCounts) || '보관';
+  });
+
+  return map;
+}
+
+function buildInventoryLocationStats_(boxSummaryMap, mode) {
+  const totals = {};
+
+  Object.keys(boxSummaryMap).forEach((managementId) => {
+    const summary = boxSummaryMap[managementId];
+
+    summary.boxes.forEach((boxRow) => {
+      const status = getObjectCell_(boxRow, ['상태', '재고 상태']) || '보관';
+      const currentQuantity = displayQuantityToNumber_(getObjectCell_(boxRow, ['현재 수량', '현재수량']));
+
+      if (currentQuantity <= 0 || /출고|폐기/.test(status)) {
+        return;
+      }
+
+      const storage = getObjectCell_(boxRow, ['보관 위치', '보관위치', '보관 장소']) || '미지정';
+      const increment = mode === 'quantity' ? currentQuantity : 1;
+      totals[storage] = (totals[storage] || 0) + increment;
+    });
+  });
+
+  return Object.keys(totals)
+    .map((label) => ({
+      label,
+      value: totals[label]
+    }))
+    .sort((left, right) => right.value - left.value);
+}
+
+function getObjectCell_(row, names) {
+  for (let i = 0; i < names.length; i += 1) {
+    const value = row[names[i]];
+
+    if (value !== undefined && String(value || '').trim()) {
+      return String(value || '').trim();
+    }
+  }
+
+  return '';
+}
+
+function pickTopKey_(counts) {
+  return Object.keys(counts || {}).sort((left, right) => counts[right] - counts[left])[0] || '';
+}
+
+function uniqueSorted_(values) {
+  return Array.from(new Set(values.map((value) => String(value || '').trim()).filter(Boolean))).sort();
+}
+
+function isUnspecifiedStorage_(value) {
+  const normalized = String(value || '').trim();
+  return !normalized || normalized === '-' || normalized === '미지정';
+}
+
+function getDueStatus_(dueDate, todayKey) {
+  const dueKey = normalizeDateKey_(dueDate);
+
+  if (!dueKey || dueKey === '-') {
+    return {
+      label: '-',
+      days: null
+    };
+  }
+
+  const dueTime = new Date(`${dueKey}T00:00:00+09:00`).getTime();
+  const todayTime = new Date(`${todayKey}T00:00:00+09:00`).getTime();
+
+  if (!Number.isFinite(dueTime) || !Number.isFinite(todayTime)) {
+    return {
+      label: dueDate,
+      days: null
+    };
+  }
+
+  const days = Math.round((dueTime - todayTime) / (24 * 60 * 60 * 1000));
+
+  return {
+    label: days === 0 ? '오늘' : `D${days > 0 ? '-' : '+'}${Math.abs(days)}`,
+    days
+  };
 }
 
 function readObjects_(sheet) {

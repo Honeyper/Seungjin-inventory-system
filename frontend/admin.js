@@ -41,6 +41,18 @@ const state = {
   products: [],
   filteredProducts: [],
   todayInbounds: [],
+  inventoryRows: [],
+  filteredInventoryRows: [],
+  inventoryPage: 1,
+  inventoryPageSize: 10,
+  inventoryLoaded: false,
+  inventoryFilters: {
+    query: "",
+    client: "",
+    storage: "",
+    stock: "",
+    process: ""
+  },
   page: 1,
   pageSize: 10,
   inboundPageSize: 10,
@@ -170,6 +182,26 @@ const inboundDefectReasonValue = document.querySelector("#inboundDefectReasonVal
 const inboundDefectReasonInput = document.querySelector("#inboundDefectReason");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
+const inventoryTotalItems = document.querySelector("#inventoryTotalItems");
+const inventoryTotalBoxes = document.querySelector("#inventoryTotalBoxes");
+const inventoryTotalQuantity = document.querySelector("#inventoryTotalQuantity");
+const inventoryDueSoonCount = document.querySelector("#inventoryDueSoonCount");
+const inventoryPrintWaiting = document.querySelector("#inventoryPrintWaiting");
+const inventoryUnspecifiedStorage = document.querySelector("#inventoryUnspecifiedStorage");
+const inventoryHoldDiscard = document.querySelector("#inventoryHoldDiscard");
+const inventorySearch = document.querySelector("#inventorySearch");
+const inventoryClientFilter = document.querySelector("#inventoryClientFilter");
+const inventoryStorageFilter = document.querySelector("#inventoryStorageFilter");
+const inventoryStockFilter = document.querySelector("#inventoryStockFilter");
+const inventoryProcessFilter = document.querySelector("#inventoryProcessFilter");
+const inventoryTableBody = document.querySelector("#inventoryTableBody");
+const inventoryCountLabel = document.querySelector("#inventoryCountLabel");
+const inventoryPagination = document.querySelector("#inventoryPagination");
+const inventoryPageSizeSelect = document.querySelector("#inventoryPageSizeSelect");
+const inventoryLocationBoxBars = document.querySelector("#inventoryLocationBoxBars");
+const inventoryLocationQuantityBars = document.querySelector("#inventoryLocationQuantityBars");
+const inventorySearchButtons = document.querySelectorAll(".inventory-search-button");
+const inventoryResetButtons = document.querySelectorAll(".inventory-reset-button");
 const inboundSortButtons = document.querySelectorAll("[data-inbound-sort]");
 const inboundNumberInputs = [
   ["#inboundBoxQty", "#calcBoxQty"],
@@ -245,6 +277,32 @@ inboundListStartDate?.addEventListener("change", () => {
 inboundListEndDate?.addEventListener("change", () => {
   normalizeInboundListDateRange("end");
   refreshTodayInbounds();
+});
+inventorySearch?.addEventListener("input", (event) => {
+  state.inventoryFilters.query = event.target.value.trim().toLowerCase();
+  state.inventoryPage = 1;
+  applyInventoryFilters();
+});
+[inventoryClientFilter, inventoryStorageFilter, inventoryStockFilter, inventoryProcessFilter].forEach((select) => {
+  select?.addEventListener("change", () => {
+    syncInventoryFilterState();
+    state.inventoryPage = 1;
+    applyInventoryFilters();
+  });
+});
+inventorySearchButtons.forEach((button) => {
+  button.addEventListener("click", () => loadInventoryDashboard());
+});
+inventoryResetButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    resetInventoryFilters();
+    applyInventoryFilters();
+  });
+});
+inventoryPageSizeSelect?.addEventListener("change", (event) => {
+  state.inventoryPageSize = Number(event.target.value) || 10;
+  state.inventoryPage = 1;
+  renderInventoryTable();
 });
 
 inboundInvoiceUploadButton?.addEventListener("click", () => inboundInvoiceFile?.click());
@@ -496,6 +554,10 @@ function setActiveView(view) {
 
   closeRowActionMenu();
   closeInboundRowActionMenu();
+
+  if (view === "inventory" && !state.inventoryLoaded) {
+    loadInventoryDashboard();
+  }
 }
 
 function updateInboundSummary() {
@@ -595,6 +657,9 @@ async function saveInbound() {
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
     await loadProducts();
     await loadTodayInbounds();
+    if (state.inventoryLoaded) {
+      await loadInventoryDashboard(false);
+    }
     updateInboundSummary();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
   } catch (error) {
@@ -1258,6 +1323,335 @@ async function refreshTodayInbounds() {
   }
 }
 
+async function loadInventoryDashboard(showLoadingToast = true) {
+  renderInventoryLoading();
+
+  try {
+    const result = await requestApi("getInventoryDashboard");
+    state.inventoryLoaded = true;
+    state.inventoryRows = Array.isArray(result.rows) ? result.rows : [];
+    renderInventorySummary(result.summary || {}, result.attention || {});
+    renderInventoryFilterOptions(result.filters || {});
+    renderInventoryBars(inventoryLocationBoxBars, result.locationBoxStats || [], "box");
+    renderInventoryBars(inventoryLocationQuantityBars, result.locationQuantityStats || [], "ea");
+    applyInventoryFilters();
+
+    if (showLoadingToast) {
+      showToast("재고 정보를 불러왔습니다.");
+    }
+  } catch (error) {
+    state.inventoryRows = [];
+    state.filteredInventoryRows = [];
+    renderInventorySummary({}, {});
+    renderInventoryBars(inventoryLocationBoxBars, [], "box");
+    renderInventoryBars(inventoryLocationQuantityBars, [], "ea");
+    renderInventoryTable("재고 정보를 불러오지 못했습니다.");
+    showToast(error.message || "재고 정보를 불러오지 못했습니다.");
+  }
+}
+
+function renderInventoryLoading() {
+  if (!inventoryTableBody) {
+    return;
+  }
+
+  inventoryTableBody.innerHTML = `
+    <tr>
+      <td colspan="13" class="empty-cell">재고 정보를 불러오는 중입니다.</td>
+    </tr>
+  `;
+}
+
+function renderInventorySummary(summary, attention) {
+  if (inventoryTotalItems) {
+    inventoryTotalItems.textContent = formatNumber(summary.totalItems);
+  }
+
+  if (inventoryTotalBoxes) {
+    inventoryTotalBoxes.textContent = formatNumber(summary.totalBoxes);
+  }
+
+  if (inventoryTotalQuantity) {
+    inventoryTotalQuantity.textContent = formatNumber(summary.totalQuantity);
+  }
+
+  if (inventoryDueSoonCount) {
+    inventoryDueSoonCount.textContent = formatNumber(summary.dueSoonCount);
+  }
+
+  if (inventoryPrintWaiting) {
+    inventoryPrintWaiting.textContent = formatNumber(attention.printWaitingBoxes);
+  }
+
+  if (inventoryUnspecifiedStorage) {
+    inventoryUnspecifiedStorage.textContent = formatNumber(attention.unspecifiedStorageCount);
+  }
+
+  if (inventoryHoldDiscard) {
+    inventoryHoldDiscard.textContent = formatNumber(attention.holdOrDiscardCount);
+  }
+}
+
+function renderInventoryFilterOptions(filters) {
+  renderSelectOptions(inventoryClientFilter, filters.clients, "전체");
+  renderSelectOptions(inventoryStorageFilter, filters.storages, "전체");
+  renderSelectOptions(inventoryStockFilter, filters.stockStatuses, "전체");
+  renderSelectOptions(inventoryProcessFilter, filters.processStatuses, "전체");
+}
+
+function renderSelectOptions(select, values = [], defaultLabel = "전체") {
+  if (!select) {
+    return;
+  }
+
+  const currentValue = select.value;
+  select.innerHTML = [
+    `<option value="">${escapeHtml(defaultLabel)}</option>`,
+    ...values.map((value) => `<option value="${escapeAttribute(value)}">${escapeHtml(value)}</option>`)
+  ].join("");
+
+  if (values.includes(currentValue)) {
+    select.value = currentValue;
+  }
+}
+
+function renderInventoryBars(container, stats, unit) {
+  if (!container) {
+    return;
+  }
+
+  if (!stats.length) {
+    container.innerHTML = '<div class="empty-cell">집계할 재고 데이터가 없습니다.</div>';
+    return;
+  }
+
+  const topStats = stats.slice(0, 8);
+  const otherValue = stats.slice(8).reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const displayStats = otherValue > 0
+    ? [...topStats, { label: "기타", value: otherValue, muted: true }]
+    : topStats;
+  const maxValue = Math.max(...displayStats.map((item) => Number(item.value || 0)), 1);
+
+  container.innerHTML = displayStats.map((item) => {
+    const value = Number(item.value || 0);
+    const width = Math.max(4, Math.round((value / maxValue) * 100));
+    const className = item.muted ? "inventory-bar-row muted" : "inventory-bar-row";
+
+    return `
+      <div class="${className}">
+        <span>${escapeHtml(item.label)}</span>
+        <i style="--value: ${width}%"></i>
+        <strong>${formatNumber(value)}${unit === "box" ? "" : ""}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+function syncInventoryFilterState() {
+  state.inventoryFilters = {
+    query: inventorySearch?.value.trim().toLowerCase() || "",
+    client: inventoryClientFilter?.value || "",
+    storage: inventoryStorageFilter?.value || "",
+    stock: inventoryStockFilter?.value || "",
+    process: inventoryProcessFilter?.value || ""
+  };
+}
+
+function resetInventoryFilters() {
+  if (inventorySearch) {
+    inventorySearch.value = "";
+  }
+
+  [inventoryClientFilter, inventoryStorageFilter, inventoryStockFilter, inventoryProcessFilter].forEach((select) => {
+    if (select) {
+      select.value = "";
+    }
+  });
+
+  state.inventoryPage = 1;
+  syncInventoryFilterState();
+}
+
+function applyInventoryFilters() {
+  syncInventoryFilterState();
+  const filters = state.inventoryFilters;
+
+  state.filteredInventoryRows = state.inventoryRows.filter((item) => {
+    if (filters.client && item.clientName !== filters.client) {
+      return false;
+    }
+
+    if (filters.storage && item.storage !== filters.storage) {
+      return false;
+    }
+
+    if (filters.stock && item.stockStatus !== filters.stock) {
+      return false;
+    }
+
+    if (filters.process && item.processStatus !== filters.process) {
+      return false;
+    }
+
+    if (!filters.query) {
+      return true;
+    }
+
+    return [
+      item.managementId,
+      item.productId,
+      item.productName,
+      item.clientName,
+      item.batch,
+      item.finalProcess,
+      item.storage,
+      item.stockStatus,
+      item.processStatus
+    ].some((value) => String(value || "").toLowerCase().includes(filters.query));
+  });
+
+  renderInventoryTable();
+}
+
+function renderInventoryTable(message = "") {
+  if (!inventoryTableBody || !inventoryCountLabel) {
+    return;
+  }
+
+  const total = state.filteredInventoryRows.length;
+  const pageCount = Math.max(1, Math.ceil(total / state.inventoryPageSize));
+  state.inventoryPage = Math.min(state.inventoryPage, pageCount);
+  const start = (state.inventoryPage - 1) * state.inventoryPageSize;
+  const rows = state.filteredInventoryRows.slice(start, start + state.inventoryPageSize);
+
+  if (message || !rows.length) {
+    inventoryTableBody.innerHTML = `
+      <tr>
+        <td colspan="13" class="empty-cell">${escapeHtml(message || "재고 목록이 없습니다.")}</td>
+      </tr>
+    `;
+  } else {
+    inventoryTableBody.innerHTML = rows.map((item) => `
+      <tr>
+        <td><button class="inventory-qr-button" type="button" data-inventory-qr="${escapeAttribute(item.managementId)}">QR 보기</button></td>
+        <td><strong>${escapeHtml(item.managementId)}</strong></td>
+        <td>${escapeHtml(item.clientName)}</td>
+        <td>${escapeHtml(item.productName)}</td>
+        <td>${escapeHtml(item.batch)}</td>
+        <td>${escapeHtml(item.finalProcess)}</td>
+        <td>${escapeHtml(item.currentBoxCount)}</td>
+        <td>${escapeHtml(item.currentTotalQuantity)}</td>
+        <td>${escapeHtml(item.storage)}</td>
+        <td>${renderInventoryBadge(item.stockStatus, "blue")}</td>
+        <td>${renderInventoryProcessBadge(item.processStatus)}</td>
+        <td>${renderInventoryDueBadge(item)}</td>
+        <td><button class="inventory-detail-button" type="button" data-inventory-detail="${escapeAttribute(item.managementId)}">상세</button></td>
+      </tr>
+    `).join("");
+  }
+
+  inventoryTableBody.querySelectorAll("[data-inventory-qr]").forEach((button) => {
+    button.addEventListener("click", () => openInboundQrModal(button.dataset.inventoryQr));
+  });
+
+  inventoryTableBody.querySelectorAll("[data-inventory-detail]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const inbound = state.todayInbounds.find((item) => item.managementId === button.dataset.inventoryDetail)
+        || state.inventoryRows.find((item) => item.managementId === button.dataset.inventoryDetail);
+
+      if (!inbound) {
+        showToast("입고 상세 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      openInventoryInboundDetail(inbound);
+    });
+  });
+
+  inventoryCountLabel.textContent = state.inventoryFilters.query || state.inventoryFilters.client || state.inventoryFilters.storage || state.inventoryFilters.stock || state.inventoryFilters.process
+    ? `검색 ${total.toLocaleString("ko-KR")}건 / 전체 ${state.inventoryRows.length.toLocaleString("ko-KR")}건`
+    : `전체 ${state.inventoryRows.length.toLocaleString("ko-KR")}건`;
+
+  renderInventoryPagination(pageCount);
+}
+
+function renderInventoryPagination(pageCount) {
+  if (!inventoryPagination) {
+    return;
+  }
+
+  const pages = getPageNumbers(pageCount, state.inventoryPage);
+  const controls = [
+    inventoryPageButton("처음", 1, state.inventoryPage === 1, "double-left"),
+    inventoryPageButton("이전", Math.max(1, state.inventoryPage - 1), state.inventoryPage === 1, "left"),
+    ...pages.map((page) => inventoryPageButton(String(page), page, false, null, page === state.inventoryPage)),
+    inventoryPageButton("다음", Math.min(pageCount, state.inventoryPage + 1), state.inventoryPage === pageCount, "right"),
+    inventoryPageButton("끝", pageCount, state.inventoryPage === pageCount, "double-right")
+  ];
+
+  inventoryPagination.innerHTML = controls.join("");
+  inventoryPagination.querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.inventoryPage = Number(button.dataset.page) || 1;
+      renderInventoryTable();
+    });
+  });
+}
+
+function inventoryPageButton(label, page, disabled = false, icon = null, active = false) {
+  const iconMarkup = {
+    left: '<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>',
+    right: '<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>',
+    "double-left": '<svg viewBox="0 0 24 24"><path d="M11 18 5 12l6-6M19 18l-6-6 6-6" /></svg>',
+    "double-right": '<svg viewBox="0 0 24 24"><path d="m13 18 6-6-6-6M5 18l6-6-6-6" /></svg>'
+  }[icon];
+
+  return `
+    <button type="button" class="${active ? "active" : ""}" data-page="${page}" ${disabled ? "disabled" : ""} aria-label="${escapeAttribute(label)}">
+      ${iconMarkup || escapeHtml(label)}
+    </button>
+  `;
+}
+
+function renderInventoryBadge(value, tone = "gray") {
+  return `<span class="inventory-badge ${tone}">${escapeHtml(normalizeDisplayValue(value))}</span>`;
+}
+
+function renderInventoryProcessBadge(value) {
+  const normalized = normalizeDisplayValue(value);
+  const tone = normalized.includes("QR") ? "green" : "gray";
+  return renderInventoryBadge(normalized, tone);
+}
+
+function renderInventoryDueBadge(item) {
+  const label = normalizeDisplayValue(item.dueLabel);
+  let tone = "gray";
+
+  if (Number.isFinite(Number(item.dueDays))) {
+    if (Number(item.dueDays) <= 1) {
+      tone = "red";
+    } else if (Number(item.dueDays) <= 5) {
+      tone = "amber";
+    }
+  }
+
+  return renderInventoryBadge(label, tone);
+}
+
+function openInventoryInboundDetail(inbound) {
+  state.activeDetailInboundId = inbound.managementId;
+  setInboundDetailMode("view");
+  renderInboundDetail(inbound);
+  inboundDetailModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => document.querySelector("#closeInboundDetailButton")?.focus(), 0);
+}
+
+function formatNumber(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number.toLocaleString("ko-KR") : "-";
+}
+
 function setInboundRefreshButtonLoading(isLoading) {
   if (!refreshInboundListButton) {
     return;
@@ -1523,6 +1917,9 @@ async function deleteActiveInbound() {
   try {
     const result = await requestApi("deleteInbound", { managementId });
     await loadTodayInbounds();
+    if (state.inventoryLoaded) {
+      await loadInventoryDashboard(false);
+    }
     const deletedBoxes = Number(result?.deletedBoxRows || 0);
     showToast(`입고 내역이 삭제되었습니다. 박스 ${deletedBoxes.toLocaleString("ko-KR")}건 삭제`);
   } catch (error) {
@@ -2257,6 +2654,9 @@ async function saveInboundEdit() {
 
     await requestApi("updateInbound", payload);
     await loadTodayInbounds();
+    if (state.inventoryLoaded) {
+      await loadInventoryDashboard(false);
+    }
     state.activeDetailInboundId = payload.managementId;
     setInboundDetailMode("view");
 
