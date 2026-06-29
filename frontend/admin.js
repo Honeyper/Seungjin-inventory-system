@@ -204,6 +204,13 @@ const inventoryLocationBoxBars = document.querySelector("#inventoryLocationBoxBa
 const inventoryLocationQuantityBars = document.querySelector("#inventoryLocationQuantityBars");
 const inventorySearchButtons = document.querySelectorAll(".inventory-search-button");
 const inventoryResetButtons = document.querySelectorAll(".inventory-reset-button");
+const inventoryAttentionButtons = document.querySelectorAll("[data-inventory-attention]");
+const inventoryAttentionModal = document.querySelector("#inventoryAttentionModal");
+const inventoryAttentionTitle = document.querySelector("#inventoryAttentionTitle");
+const inventoryAttentionDescription = document.querySelector("#inventoryAttentionDescription");
+const inventoryAttentionList = document.querySelector("#inventoryAttentionList");
+const inventoryAttentionEmpty = document.querySelector("#inventoryAttentionEmpty");
+const closeInventoryAttentionModalButton = document.querySelector("#closeInventoryAttentionModal");
 const openExistingStockModalButton = document.querySelector("#openExistingStockModalButton");
 const existingStockModal = document.querySelector("#existingStockModal");
 const existingStockForm = document.querySelector("#existingStockForm");
@@ -322,6 +329,10 @@ inventoryResetButtons.forEach((button) => {
     applyInventoryFilters();
   });
 });
+inventoryAttentionButtons.forEach((button) => {
+  button.addEventListener("click", () => openInventoryAttentionModal(button.dataset.inventoryAttention));
+});
+closeInventoryAttentionModalButton?.addEventListener("click", closeInventoryAttentionModal);
 
 openExistingStockModalButton?.addEventListener("click", openExistingStockModal);
 document.querySelector("#closeExistingStockModal")?.addEventListener("click", closeExistingStockModal);
@@ -498,6 +509,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!inboundProductPickerModal.hidden) {
     closeInboundProductPicker();
+    return;
+  }
+
+  if (inventoryAttentionModal && !inventoryAttentionModal.hidden) {
+    closeInventoryAttentionModal();
     return;
   }
 
@@ -1577,6 +1593,113 @@ function renderInventorySummary(summary, attention) {
   if (inventoryHoldDiscard) {
     inventoryHoldDiscard.textContent = formatNumber(attention.holdOrDiscardCount);
   }
+}
+
+function openInventoryAttentionModal(type) {
+  if (!inventoryAttentionModal || !inventoryAttentionList || !inventoryAttentionEmpty) {
+    return;
+  }
+
+  if (!state.inventoryLoaded) {
+    showToast("재고 정보를 먼저 불러와주세요.");
+    return;
+  }
+
+  const config = getInventoryAttentionConfig(type);
+  const rows = state.inventoryRows.filter(config.filter);
+
+  inventoryAttentionTitle.textContent = config.title;
+  inventoryAttentionDescription.textContent = config.description;
+  inventoryAttentionList.innerHTML = rows.map((item) => renderInventoryAttentionRow(item, config)).join("");
+  inventoryAttentionEmpty.hidden = Boolean(rows.length);
+
+  inventoryAttentionList.querySelectorAll("[data-inventory-attention-detail]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const inbound = state.todayInbounds.find((item) => item.managementId === button.dataset.inventoryAttentionDetail)
+        || state.inventoryRows.find((item) => item.managementId === button.dataset.inventoryAttentionDetail);
+
+      if (!inbound) {
+        showToast("재고 상세 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      closeInventoryAttentionModal();
+      openInventoryInboundDetail(inbound);
+    });
+  });
+
+  inventoryAttentionModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => closeInventoryAttentionModalButton?.focus(), 0);
+}
+
+function closeInventoryAttentionModal() {
+  if (!inventoryAttentionModal) {
+    return;
+  }
+
+  inventoryAttentionModal.hidden = true;
+  if (inventoryAttentionList) {
+    inventoryAttentionList.innerHTML = "";
+  }
+  document.body.classList.remove("modal-open");
+}
+
+function getInventoryAttentionConfig(type) {
+  const configs = {
+    print: {
+      title: "인쇄 대기 재고",
+      description: "QR 인쇄가 아직 완료되지 않은 재고 목록입니다.",
+      tone: "purple",
+      metricLabel: "대기 박스",
+      metric: (item) => normalizeDisplayValue(item.currentBoxCount),
+      filter: (item) => normalizeDisplayValue(item.processStatus) === "미인쇄"
+    },
+    storage: {
+      title: "미지정 보관 재고",
+      description: "보관 위치가 아직 지정되지 않은 재고 목록입니다.",
+      tone: "orange",
+      metricLabel: "보관 위치",
+      metric: (item) => normalizeDisplayValue(item.storage),
+      filter: (item) => isUnspecifiedInventoryStorage(item.storage)
+    },
+    hold: {
+      title: "보류 / 폐기 재고",
+      description: "상태가 보류 또는 폐기인 재고 목록입니다.",
+      tone: "red",
+      metricLabel: "상태",
+      metric: (item) => normalizeDisplayValue(item.stockStatus),
+      filter: (item) => /보류|폐기/.test(String(item.stockStatus || ""))
+    }
+  };
+
+  return configs[type] || configs.print;
+}
+
+function renderInventoryAttentionRow(item, config) {
+  return `
+    <article class="inventory-attention-row ${config.tone}">
+      <div class="inventory-attention-row-main">
+        <strong>${escapeHtml(normalizeDisplayValue(item.productName))}</strong>
+        <span>${escapeHtml(normalizeDisplayValue(item.managementId))}</span>
+      </div>
+      <div class="inventory-attention-row-meta">
+        <span>거래처 <b>${escapeHtml(normalizeDisplayValue(item.clientName))}</b></span>
+        <span>입고일 <b>${escapeHtml(normalizeDisplayValue(item.inboundDate))}</b></span>
+        <span>현재 수량 <b>${escapeHtml(normalizeDisplayValue(item.currentTotalQuantity))}</b></span>
+        <span>${escapeHtml(config.metricLabel)} <b>${escapeHtml(config.metric(item))}</b></span>
+      </div>
+      <button type="button" data-inventory-attention-detail="${escapeAttribute(item.managementId)}">
+        상세보기
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+      </button>
+    </article>
+  `;
+}
+
+function isUnspecifiedInventoryStorage(value) {
+  const normalized = String(value ?? "").trim();
+  return !normalized || normalized === "-" || normalized === "미지정";
 }
 
 function renderInventoryFilterOptions(filters) {

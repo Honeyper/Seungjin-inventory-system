@@ -763,21 +763,21 @@
 
             <article class="inventory-attention-card">
               <h2>관리 필요 재고</h2>
-              <button class="attention-item purple" type="button">
+              <button class="attention-item purple" type="button" data-inventory-attention="print">
                 <span class="attention-icon" aria-hidden="true">
                   <img src="./assets/inventory-attention-print-generated.png" alt="" />
                 </span>
                 <span><b>인쇄 대기</b><strong><span id="inventoryPrintWaiting">-</span> <em>box</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
-              <button class="attention-item orange" type="button">
+              <button class="attention-item orange" type="button" data-inventory-attention="storage">
                 <span class="attention-icon" aria-hidden="true">
                   <img src="./assets/inventory-attention-storage-generated.png" alt="" />
                 </span>
                 <span><b>미지정 보관</b><strong><span id="inventoryUnspecifiedStorage">-</span> <em>건</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
-              <button class="attention-item red" type="button">
+              <button class="attention-item red" type="button" data-inventory-attention="hold">
                 <span class="attention-icon" aria-hidden="true">
                   <img src="./assets/inventory-attention-hold-generated.png" alt="" />
                 </span>
@@ -1276,6 +1276,27 @@
 
           <div class="picker-list" id="inboundProductPickerList"></div>
           <p class="picker-empty" id="inboundProductPickerEmpty" hidden>선택할 제품이 없습니다.</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="inventoryAttentionModal" hidden>
+      <section class="product-modal inventory-attention-modal" role="dialog" aria-modal="true" aria-labelledby="inventoryAttentionTitle">
+        <header class="modal-header">
+          <div>
+            <h2 id="inventoryAttentionTitle">관리 필요 재고</h2>
+            <p id="inventoryAttentionDescription">조건에 해당하는 재고 목록을 확인할 수 있습니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeInventoryAttentionModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="inventory-attention-modal-body">
+          <div class="inventory-attention-modal-list" id="inventoryAttentionList"></div>
+          <p class="picker-empty" id="inventoryAttentionEmpty" hidden>해당하는 재고가 없습니다.</p>
         </div>
       </section>
     </div>

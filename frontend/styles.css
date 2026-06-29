@@ -1627,7 +1627,18 @@ input {
   border: 0;
   border-radius: 0.45rem;
   background: linear-gradient(135deg, #f8faff, #eef3fa);
-  cursor: default;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.attention-item:hover,
+.attention-item:focus-visible {
+  box-shadow: 0 0.85rem 1.6rem rgba(8, 42, 98, 0.09);
+  outline: 2px solid rgba(10, 102, 214, 0.16);
+  transform: translateY(-1px);
 }
 
 .attention-icon {
@@ -2312,6 +2323,116 @@ input {
   padding: 0.15rem 0.48rem;
   border-radius: 999px;
   background: #f4f7fb;
+}
+
+.inventory-attention-modal {
+  width: min(58rem, calc(100vw - 2.5rem));
+}
+
+.inventory-attention-modal-body {
+  padding: 1.25rem 2.1rem 1.65rem;
+}
+
+.inventory-attention-modal-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: min(56vh, 31rem);
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.inventory-attention-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.15fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #dfe7f0;
+  border-left: 0.25rem solid #6d28d9;
+  border-radius: 0.45rem;
+  background: linear-gradient(135deg, #fff, #f8fbff);
+}
+
+.inventory-attention-row.orange {
+  border-left-color: #f97316;
+}
+
+.inventory-attention-row.red {
+  border-left-color: #ef3124;
+}
+
+.inventory-attention-row-main {
+  min-width: 0;
+}
+
+.inventory-attention-row-main strong,
+.inventory-attention-row-main span {
+  display: block;
+}
+
+.inventory-attention-row-main strong {
+  overflow: hidden;
+  color: var(--navy-dark);
+  font-size: 0.95rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-attention-row-main span {
+  margin-top: 0.25rem;
+  color: #657489;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.inventory-attention-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.inventory-attention-row-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-height: 1.55rem;
+  padding: 0.16rem 0.5rem;
+  color: #66758b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border-radius: 999px;
+  background: #f4f7fb;
+}
+
+.inventory-attention-row-meta b {
+  color: #102b55;
+  font-weight: 900;
+}
+
+.inventory-attention-row > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-height: 2.1rem;
+  padding: 0 0.7rem;
+  color: var(--navy-dark);
+  font-size: 0.8rem;
+  font-weight: 900;
+  border: 1px solid #dce5f0;
+  border-radius: 0.38rem;
+  background: #fff;
+}
+
+.inventory-attention-row > button svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .picker-product-meta .color-chip {
