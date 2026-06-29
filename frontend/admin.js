@@ -1583,7 +1583,7 @@ function renderInventorySummary(summary, attention) {
   }
 
   if (inventoryPrintWaiting) {
-    inventoryPrintWaiting.textContent = formatNumber(attention.printWaitingBoxes);
+    inventoryPrintWaiting.textContent = formatNumber(getInventoryBoxCountTotal(getInventoryAttentionRows("print")));
   }
 
   if (inventoryUnspecifiedStorage) {
@@ -1634,9 +1634,7 @@ function buildInventoryFilterOptions(rows, fallback = {}) {
 function buildInventoryAttentionSummary(rows, fallback = {}) {
   return {
     ...fallback,
-    printWaitingBoxes: rows
-      .filter(isInventoryPrintWaiting)
-      .reduce((sum, row) => sum + getQuantityNumberFromText(row.currentBoxCount || row.boxTotalCount), 0),
+    printWaitingBoxes: getInventoryBoxCountTotal(rows.filter(isInventoryPrintWaiting)),
     unspecifiedStorageCount: rows.filter((row) => isUnspecifiedInventoryStorage(row.storage)).length,
     holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ""))).length
   };
@@ -1657,10 +1655,10 @@ function openInventoryAttentionModal(type) {
   }
 
   const config = getInventoryAttentionConfig(type);
-  const rows = state.inventoryRows.filter(config.filter);
+  const rows = getInventoryAttentionRows(type, config);
 
   inventoryAttentionTitle.textContent = config.title;
-  inventoryAttentionDescription.textContent = config.description;
+  inventoryAttentionDescription.textContent = getInventoryAttentionDescription(type, rows, config);
   inventoryAttentionList.innerHTML = rows.map((item) => renderInventoryAttentionRow(item, config)).join("");
   inventoryAttentionEmpty.hidden = Boolean(rows.length);
 
@@ -1725,6 +1723,26 @@ function getInventoryAttentionConfig(type) {
   };
 
   return configs[type] || configs.print;
+}
+
+function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(type)) {
+  if (!Array.isArray(state.inventoryRows)) {
+    return [];
+  }
+
+  return state.inventoryRows.filter(config.filter);
+}
+
+function getInventoryAttentionDescription(type, rows, config) {
+  if (type === "print") {
+    return `${config.description} 총 ${formatNumber(getInventoryBoxCountTotal(rows))} box입니다.`;
+  }
+
+  return config.description;
+}
+
+function getInventoryBoxCountTotal(rows) {
+  return rows.reduce((sum, row) => sum + getQuantityNumberFromText(row.currentBoxCount || row.boxTotalCount), 0);
 }
 
 function isInventoryPrintWaiting(item) {
