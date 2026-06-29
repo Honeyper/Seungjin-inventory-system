@@ -2280,10 +2280,6 @@ input {
   gap: 0.65rem;
 }
 
-.shipping-export-button {
-  min-height: 2.35rem !important;
-}
-
 .shipping-table {
   min-width: 92rem;
   font-size: 0.78rem;
@@ -4836,8 +4832,7 @@ input {
   .primary-action,
   .secondary-action,
   .search-field,
-  .client-filter,
-  .shipping-export-button {
+  .client-filter {
     width: 100%;
   }
 
