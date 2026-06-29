@@ -191,6 +191,7 @@ const inventoryTotalQuantity = document.querySelector("#inventoryTotalQuantity")
 const inventoryDueSoonCount = document.querySelector("#inventoryDueSoonCount");
 const inventoryPrintWaiting = document.querySelector("#inventoryPrintWaiting");
 const inventoryUnspecifiedStorage = document.querySelector("#inventoryUnspecifiedStorage");
+const inventoryLongStorage = document.querySelector("#inventoryLongStorage");
 const inventoryHoldDiscard = document.querySelector("#inventoryHoldDiscard");
 const inventorySearch = document.querySelector("#inventorySearch");
 const inventoryClientFilter = document.querySelector("#inventoryClientFilter");
@@ -1592,6 +1593,10 @@ function renderInventorySummary(summary, attention) {
     inventoryUnspecifiedStorage.textContent = formatNumber(attention.unspecifiedStorageCount);
   }
 
+  if (inventoryLongStorage) {
+    inventoryLongStorage.textContent = formatNumber(attention.longStorageCount);
+  }
+
   if (inventoryHoldDiscard) {
     inventoryHoldDiscard.textContent = formatNumber(attention.holdOrDiscardCount);
   }
@@ -1645,6 +1650,7 @@ function buildInventoryAttentionSummary(rows, fallback = {}) {
     ...fallback,
     printWaitingBoxes: getInventoryBoxCountTotal(rows.filter(isInventoryPrintWaiting)),
     unspecifiedStorageCount: rows.filter((row) => isUnspecifiedInventoryStorage(row.storage)).length,
+    longStorageCount: rows.filter(isLongStoredInventory).length,
     holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ""))).length
   };
 }
@@ -1721,6 +1727,14 @@ function getInventoryAttentionConfig(type) {
       metric: (item) => normalizeDisplayValue(item.storage),
       filter: (item) => isUnspecifiedInventoryStorage(item.storage)
     },
+    aging: {
+      title: "장기 보관 재고",
+      description: "입고일 기준 1개월 이상 보관 중인 재고 목록입니다.",
+      tone: "teal",
+      metricLabel: "입고일",
+      metric: (item) => normalizeDisplayValue(item.inboundDate),
+      filter: isLongStoredInventory
+    },
     hold: {
       title: "보류 / 폐기 재고",
       description: "상태가 보류 또는 폐기인 재고 목록입니다.",
@@ -1763,6 +1777,32 @@ function isInventoryPrintWaiting(item) {
 
   const processStatus = normalizeDisplayValue(item.processStatus || item.stockStatus);
   return !processStatus.includes("작업중");
+}
+
+function isLongStoredInventory(item) {
+  const inboundDate = parseInventoryDateValue(item.inboundDate);
+
+  if (!inboundDate) {
+    return false;
+  }
+
+  const threshold = new Date();
+  threshold.setHours(0, 0, 0, 0);
+  threshold.setMonth(threshold.getMonth() - 1);
+  return inboundDate <= threshold;
+}
+
+function parseInventoryDateValue(value) {
+  const normalized = toDateInputValue(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const [year, month, day] = normalized.split("-").map(Number);
+  const parsed = new Date(year, month - 1, day);
+  parsed.setHours(0, 0, 0, 0);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function renderInventoryAttentionRow(item, config) {

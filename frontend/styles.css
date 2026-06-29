@@ -1723,6 +1723,10 @@ input {
   color: #f97316;
 }
 
+.attention-item.teal {
+  color: #0f9f8f;
+}
+
 .attention-item.red {
   color: #ef3124;
 }
