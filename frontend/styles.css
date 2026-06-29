@@ -1384,12 +1384,21 @@ input {
 }
 
 .inventory-summary-label {
-  display: block;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
   margin-bottom: 0.28rem;
   color: #273b5c;
   font-size: 0.9rem;
   font-weight: 900;
   line-height: 1.25;
+}
+
+.inventory-summary-label small {
+  color: #65758c;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .inventory-summary-value {
@@ -1403,18 +1412,12 @@ input {
   letter-spacing: 0;
 }
 
-.inventory-summary-value em,
-.inventory-summary-value small {
+.inventory-summary-value em {
   color: #65758c;
   font-size: 0.92rem;
   font-style: normal;
   font-weight: 800;
   line-height: 1;
-}
-
-.inventory-summary-value small {
-  margin-left: 0.45rem;
-  white-space: nowrap;
 }
 
 .inventory-filter-panel {
