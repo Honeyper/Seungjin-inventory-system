@@ -1713,7 +1713,7 @@ function getInventoryAttentionConfig(type) {
   const configs = {
     print: {
       title: "인쇄 대기 재고",
-      description: "QR 인쇄가 아직 완료되지 않은 재고 목록입니다.",
+      description: "작업이 아직 진행되지 않은 재고 목록입니다.",
       tone: "purple",
       metricLabel: "대기 박스",
       metric: (item) => normalizeDisplayValue(item.currentBoxCount),
