@@ -1653,7 +1653,7 @@ function getInventoryAttentionConfig(type) {
       tone: "purple",
       metricLabel: "대기 박스",
       metric: (item) => normalizeDisplayValue(item.currentBoxCount),
-      filter: (item) => normalizeDisplayValue(item.processStatus) === "미인쇄"
+      filter: (item) => normalizeDisplayValue(item.qrPrintStatus) === "미인쇄"
     },
     storage: {
       title: "미지정 보관 재고",
@@ -1938,7 +1938,14 @@ function renderInventoryBadge(value, tone = "gray") {
 
 function renderInventoryProcessBadge(value) {
   const normalized = normalizeDisplayValue(value);
-  const tone = normalized.includes("QR") ? "green" : "gray";
+  const toneMap = {
+    보관: "blue",
+    작업중: "amber",
+    작업완료: "green",
+    검수완료: "green",
+    출고완료: "gray"
+  };
+  const tone = toneMap[normalized] || "gray";
   return renderInventoryBadge(normalized, tone);
 }
 

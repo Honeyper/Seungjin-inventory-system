@@ -620,7 +620,8 @@ function getInventoryDashboard() {
     const currentTotalQuantity = hasBoxSummary ? boxSummary.currentQuantity : displayQuantityToNumber_(getObjectCell_(stockRow, ['입고 총 수량', '입고총수량']));
     const stockStatus = getObjectCell_(stockRow, ['상태']) || boxSummary.status || '보관';
     const qrGeneratedCount = boxSummary.qrGeneratedCount || 0;
-    const processStatus = boxTotalCount > 0 && qrGeneratedCount >= boxTotalCount ? 'QR 생성' : '미인쇄';
+    const qrPrintStatus = boxTotalCount > 0 && qrGeneratedCount >= boxTotalCount ? 'QR 생성' : '미인쇄';
+    const processStatus = stockStatus || '보관';
 
     return {
       managementId,
@@ -653,6 +654,7 @@ function getInventoryDashboard() {
       dueLabel: dueStatus.label,
       dueDays: dueStatus.days,
       processStatus,
+      qrPrintStatus,
       qrGeneratedCount
     };
   }).filter((row) => row.managementId);
@@ -668,7 +670,7 @@ function getInventoryDashboard() {
   const totalQuantity = activeRows.reduce((sum, row) => sum + displayQuantityToNumber_(row.currentTotalQuantity), 0);
   const dueSoonCount = activeRows.filter((row) => Number.isFinite(row.dueDays) && row.dueDays <= 3).length;
   const printWaitingBoxes = activeRows
-    .filter((row) => row.processStatus === '미인쇄')
+    .filter((row) => row.qrPrintStatus === '미인쇄')
     .reduce((sum, row) => sum + displayQuantityToNumber_(row.currentBoxCount), 0);
   const unspecifiedStorageCount = activeRows.filter((row) => isUnspecifiedStorage_(row.storage)).length;
   const holdOrDiscardCount = rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ''))).length;
