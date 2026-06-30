@@ -225,6 +225,7 @@ const shippingInspectionForm = document.querySelector("#shippingInspectionForm")
 const shippingInspectionMessage = document.querySelector("#shippingInspectionMessage");
 const shippingInspectorName = document.querySelector("#shippingInspectorName");
 const shippingInspectionDate = document.querySelector("#shippingInspectionDate");
+const shippingInspectionTime = document.querySelector("#shippingInspectionTime");
 const shippingInspectionRecordId = document.querySelector("#shippingInspectionRecordId");
 const shippingInspectionClient = document.querySelector("#shippingInspectionClient");
 const shippingInspectionProduct = document.querySelector("#shippingInspectionProduct");
@@ -737,6 +738,10 @@ function openShippingInspectionModal(row) {
     shippingInspectionDate.value = getLocalDateInputValue();
   }
 
+  if (shippingInspectionTime) {
+    shippingInspectionTime.value = getLocalTimeInputValue();
+  }
+
   renderShippingInspectionBoxList(row);
 
   if (shippingInspectionDefectQuantity) {
@@ -990,6 +995,7 @@ async function saveShippingInspection() {
   const productName = shippingInspectionProduct?.textContent.trim() || "";
   const storageLocation = shippingInspectionStorage?.textContent.trim() || "";
   const inspectionDate = shippingInspectionDate?.value.trim() || "";
+  const inspectionTime = shippingInspectionTime?.value.trim() || "";
   const inspector =
     shippingInspectorName?.value?.trim?.() ||
     shippingInspectorName?.textContent?.trim?.() ||
@@ -1021,6 +1027,7 @@ async function saveShippingInspection() {
       storageLocation,
       inspector,
       inspectionDate,
+      inspectionTime,
       inspectionQuantity,
       defectQuantity,
       defectRate,

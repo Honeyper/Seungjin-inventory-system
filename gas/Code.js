@@ -1799,7 +1799,7 @@ function saveShippingInspection(payload) {
   const timezone = Session.getScriptTimeZone() || 'Asia/Seoul';
   const now = new Date();
   const inspectionDate = dash_(payload.inspectionDate || Utilities.formatDate(now, timezone, 'yyyy-MM-dd'));
-  const inspectionTime = Utilities.formatDate(now, timezone, 'HH:mm');
+  const inspectionTime = dash_(payload.inspectionTime || Utilities.formatDate(now, timezone, 'HH:mm'));
   const inspector = dash_(payload.inspector || payload.inspectionUser || payload.userName || 'Admin');
   const hasGoodReason = defectReasons.includes('양호');
   const anomalyStatus = hasGoodReason ? '정상' : '이상';
