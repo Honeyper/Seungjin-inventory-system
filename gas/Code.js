@@ -46,6 +46,7 @@ function doPost(e) {
       getTodayInbounds,
       getInventoryDashboard,
       getInboundBoxQrs,
+      uploadShippingDefectPhotos,
       createProduct,
       updateProduct,
       deleteProduct,
@@ -1732,6 +1733,53 @@ function uploadInboundDefectPhotos_(payload, context) {
   }).filter(Boolean);
 
   return uploadedUrls.length ? targetFolder.getUrl() : '';
+}
+
+function uploadShippingDefectPhotos(payload) {
+  const files = Array.isArray(payload.defectFiles) ? payload.defectFiles : [];
+
+  if (!files.length) {
+    return {
+      folderUrl: '',
+      uploadedCount: 0,
+      fileUrls: []
+    };
+  }
+
+  const productName = dash_(payload.productName);
+  const clientName = dash_(payload.clientName);
+  const dateFolderName = sanitizeDriveName_(dash_(payload.inspectionDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd')));
+  const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+  const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
+    '불량사진',
+    '출고',
+    dateFolderName,
+    sanitizeDriveName_(clientName),
+    sanitizeDriveName_(productName)
+  ]);
+  const baseFileName = sanitizeDriveName_(productName);
+
+  const uploadedUrls = files.map((file, index) => {
+    if (!file || !String(file.data || '').trim()) {
+      return '';
+    }
+
+    const extension = getFileExtension_(file.name, file.mimeType);
+    const fileName = `${baseFileName}_${index + 1}${extension}`;
+    const bytes = Utilities.base64Decode(String(file.data).trim());
+    const mimeType = String(file.mimeType || 'application/octet-stream').trim();
+    const blob = Utilities.newBlob(bytes, mimeType, fileName);
+    const createdFile = targetFolder.createFile(blob);
+
+    createdFile.setDescription(`관리ID: ${dash_(payload.managementId)}, 출고 불량사진 ${index + 1}`);
+    return createdFile.getUrl();
+  }).filter(Boolean);
+
+  return {
+    folderUrl: uploadedUrls.length ? targetFolder.getUrl() : '',
+    uploadedCount: uploadedUrls.length,
+    fileUrls: uploadedUrls
+  };
 }
 
 function getOrCreateDriveFolderPath_(rootFolder, folderNames) {

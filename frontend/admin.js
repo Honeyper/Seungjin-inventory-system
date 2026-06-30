@@ -81,6 +81,7 @@ const state = {
   activeInboundMenuRecord: "",
   activeInboundMenuButton: null,
   activeShippingInspectionRow: null,
+  isSavingShippingInspection: false,
   inboundProductPickerQuery: "",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
@@ -227,6 +228,10 @@ const shippingInspectionRecordId = document.querySelector("#shippingInspectionRe
 const shippingInspectionClient = document.querySelector("#shippingInspectionClient");
 const shippingInspectionProduct = document.querySelector("#shippingInspectionProduct");
 const shippingInspectionStorage = document.querySelector("#shippingInspectionStorage");
+const shippingInspectionDefectFiles = document.querySelector("#shippingInspectionDefectFiles");
+const shippingInspectionPhotoButton = document.querySelector("#shippingInspectionPhotoButton");
+const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
+const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
 const openExistingStockModalButton = document.querySelector("#openExistingStockModalButton");
 const existingStockModal = document.querySelector("#existingStockModal");
 const existingStockForm = document.querySelector("#existingStockForm");
@@ -358,6 +363,10 @@ shippingInspectionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingInspection();
 });
+shippingInspectionPhotoButton?.addEventListener("click", () => {
+  shippingInspectionDefectFiles?.click();
+});
+shippingInspectionDefectFiles?.addEventListener("change", updateShippingInspectionPhotoPreview);
 document.querySelectorAll('[data-shipping-action="inspect"]').forEach((button) => {
   button.addEventListener("click", () => {
     if (button.dataset.shippingAction !== "inspect") {
@@ -659,6 +668,7 @@ function openShippingInspectionModal(row) {
   shippingInspectionStorage.textContent = row.children[6]?.textContent.trim() || "-";
 
   shippingInspectionForm?.reset();
+  resetShippingInspectionPhotoPreview();
   const goodReasonInput = shippingInspectionForm?.querySelector('input[name="shippingDefectReason"][value="양호"]');
   if (goodReasonInput) {
     goodReasonInput.checked = true;
@@ -687,10 +697,54 @@ function closeShippingInspectionModal() {
 
   shippingInspectionModal.hidden = true;
   state.activeShippingInspectionRow = null;
+  resetShippingInspectionPhotoPreview();
   document.body.classList.remove("modal-open");
 }
 
-function saveShippingInspection() {
+function resetShippingInspectionPhotoPreview() {
+  if (shippingInspectionDefectFiles) {
+    shippingInspectionDefectFiles.value = "";
+  }
+
+  if (shippingInspectionPhotoName) {
+    shippingInspectionPhotoName.textContent = "이미지를 선택해주세요.";
+  }
+
+  if (shippingInspectionPhotoPreview) {
+    shippingInspectionPhotoPreview.hidden = true;
+    shippingInspectionPhotoPreview.innerHTML = "";
+  }
+}
+
+function updateShippingInspectionPhotoPreview() {
+  const files = Array.from(shippingInspectionDefectFiles?.files || []);
+
+  if (shippingInspectionPhotoName) {
+    shippingInspectionPhotoName.textContent = files.length
+      ? `${files.length}개 이미지 선택됨`
+      : "이미지를 선택해주세요.";
+  }
+
+  if (!shippingInspectionPhotoPreview) {
+    return;
+  }
+
+  if (!files.length) {
+    shippingInspectionPhotoPreview.hidden = true;
+    shippingInspectionPhotoPreview.innerHTML = "";
+    return;
+  }
+
+  const previewFiles = files.slice(0, 4);
+  const extraCount = files.length - previewFiles.length;
+  shippingInspectionPhotoPreview.innerHTML = [
+    ...previewFiles.map((file) => `<span>${escapeHtml(file.name)}</span>`),
+    extraCount > 0 ? `<span>외 ${extraCount}개</span>` : ""
+  ].join("");
+  shippingInspectionPhotoPreview.hidden = false;
+}
+
+async function saveShippingInspection() {
   const row = state.activeShippingInspectionRow;
   const selectedReasons = Array.from(
     shippingInspectionForm?.querySelectorAll('input[name="shippingDefectReason"]:checked') || []
@@ -707,26 +761,78 @@ function saveShippingInspection() {
     return;
   }
 
-  const hasGoodReason = selectedReasons.includes("양호");
-  const inspectionCell = row.children[9];
-  const anomalyCell = row.children[10];
-  const statusCell = row.children[12];
-  const actionCell = row.children[13];
-
-  inspectionCell.innerHTML = '<span class="shipping-badge done">검수 완료</span>';
-  anomalyCell.textContent = hasGoodReason ? "정상" : "이상";
-  statusCell.innerHTML = hasGoodReason
-    ? '<span class="shipping-badge ready">검수 완료</span>'
-    : '<span class="shipping-badge hold">출고 보류</span>';
-
-  const actionButton = actionCell.querySelector("button");
-  if (actionButton) {
-    actionButton.removeAttribute("data-shipping-action");
-    actionButton.classList.toggle("primary", hasGoodReason);
-    actionButton.textContent = hasGoodReason ? "출고 처리" : "사진 보기";
+  if (state.isSavingShippingInspection) {
+    return;
   }
 
-  closeShippingInspectionModal();
+  state.isSavingShippingInspection = true;
+  const submitButton = shippingInspectionForm?.querySelector('button[type="submit"]');
+  const previousSubmitText = submitButton?.textContent || "저장";
+
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "저장 중";
+  }
+
+  if (shippingInspectionMessage) {
+    shippingInspectionMessage.textContent = "";
+  }
+
+  const hasGoodReason = selectedReasons.includes("양호");
+  let uploadResult = null;
+
+  try {
+    const defectFiles = await getFilePayloadsFromInput(shippingInspectionDefectFiles, {
+      label: "출고 불량사진",
+      maxSize: MAX_DEFECT_PHOTO_FILE_SIZE
+    });
+
+    if (defectFiles.length) {
+      uploadResult = await requestApi("uploadShippingDefectPhotos", {
+        managementId: shippingInspectionRecordId?.textContent.trim() || "",
+        clientName: shippingInspectionClient?.textContent.trim() || "",
+        productName: shippingInspectionProduct?.textContent.trim() || "",
+        inspectionDate: shippingInspectionDate?.value.trim() || "",
+        defectFiles
+      });
+    }
+
+    const inspectionCell = row.children[9];
+    const anomalyCell = row.children[10];
+    const statusCell = row.children[12];
+    const actionCell = row.children[13];
+
+    inspectionCell.innerHTML = '<span class="shipping-badge done">검수 완료</span>';
+    anomalyCell.textContent = hasGoodReason ? "정상" : "이상";
+    statusCell.innerHTML = hasGoodReason
+      ? '<span class="shipping-badge ready">검수 완료</span>'
+      : '<span class="shipping-badge hold">출고 보류</span>';
+
+    const actionButton = actionCell.querySelector("button");
+    if (actionButton) {
+      actionButton.removeAttribute("data-shipping-action");
+      actionButton.classList.toggle("primary", hasGoodReason);
+      actionButton.textContent = hasGoodReason ? "출고 처리" : "사진 보기";
+
+      if (uploadResult?.folderUrl) {
+        actionButton.dataset.photoUrl = uploadResult.folderUrl;
+        actionButton.dataset.photoCount = String(uploadResult.uploadedCount || defectFiles.length);
+      }
+    }
+
+    closeShippingInspectionModal();
+  } catch (error) {
+    if (shippingInspectionMessage) {
+      shippingInspectionMessage.textContent = error.message || "출고 검수 저장 중 문제가 발생했습니다.";
+    }
+  } finally {
+    state.isSavingShippingInspection = false;
+
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = previousSubmitText;
+    }
+  }
 }
 
 function updateInboundSummary() {

@@ -1274,7 +1274,7 @@
 
           <section class="form-section" aria-labelledby="shippingInspectionResultTitle">
             <h3 id="shippingInspectionResultTitle">검수 정보</h3>
-            <div class="form-grid">
+            <div class="shipping-inspection-detail-grid">
               <label class="form-field">
                 <span>검수자</span>
                 <input id="shippingInspectorName" type="text" disabled />
@@ -1283,7 +1283,7 @@
                 <span>검수일</span>
                 <input id="shippingInspectionDate" type="date" />
               </label>
-              <label class="form-field full-span">
+              <div class="form-field full-span">
                 <span>불량내역 <b>*</b></span>
                 <div class="shipping-defect-options" role="group" aria-label="불량내역">
                   <label><input type="checkbox" name="shippingDefectReason" value="양호" checked /> <span>양호</span></label>
@@ -1294,7 +1294,26 @@
                   <label><input type="checkbox" name="shippingDefectReason" value="수량 부족" /> <span>수량 부족</span></label>
                   <label><input type="checkbox" name="shippingDefectReason" value="기타" /> <span>기타</span></label>
                 </div>
-              </label>
+              </div>
+              <section class="shipping-photo-panel full-span" aria-label="출고 불량 사진 등록">
+                <div class="shipping-photo-heading">
+                  <span>출고 불량 사진</span>
+                  <small>불량사진 / 출고 / 날짜 / 업체명 / 제품명 폴더에 저장됩니다.</small>
+                </div>
+                <input class="shipping-file-input" id="shippingInspectionDefectFiles" type="file" accept="image/*" multiple />
+                <button class="shipping-photo-button" type="button" id="shippingInspectionPhotoButton">
+                  <span class="shipping-photo-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M4.5 7.8A2.3 2.3 0 0 1 6.8 5.5h2l1.15-1.55h4.1L15.2 5.5h2A2.3 2.3 0 0 1 19.5 7.8v8.7a2.3 2.3 0 0 1-2.3 2.3H6.8a2.3 2.3 0 0 1-2.3-2.3V7.8Z" />
+                      <path d="M12 9.2a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Z" />
+                      <path d="M17 8.4h.01" />
+                    </svg>
+                  </span>
+                  <strong>불량 사진 등록</strong>
+                  <small id="shippingInspectionPhotoName">이미지를 선택해주세요.</small>
+                </button>
+                <div class="shipping-photo-preview" id="shippingInspectionPhotoPreview" hidden></div>
+              </section>
               <label class="form-field full-span">
                 <span>검수 메모</span>
                 <textarea id="shippingInspectionNote" rows="3" placeholder="검수 중 확인된 내용을 입력하세요."></textarea>
