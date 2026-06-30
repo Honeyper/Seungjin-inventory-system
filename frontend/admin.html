@@ -1041,6 +1041,34 @@
             </article>
           </section>
 
+          <section class="shipping-workflow-panel" aria-label="출고 처리 흐름">
+            <div class="shipping-section-title">
+              <h2>출고 처리 흐름</h2>
+            </div>
+            <div class="shipping-workflow-steps">
+              <article class="shipping-workflow-step active">
+                <span>1</span>
+                <strong>제품 선택</strong>
+                <p>출고 대상 목록에서 검수할 제품을 선택합니다.</p>
+              </article>
+              <article class="shipping-workflow-step">
+                <span>2</span>
+                <strong>박스별 검수</strong>
+                <p>검수한 박스를 체크하고 불량 내역을 기록합니다.</p>
+              </article>
+              <article class="shipping-workflow-step">
+                <span>3</span>
+                <strong>출고대기 등록</strong>
+                <p>검수 완료 건을 출고 준비 상태로 전환합니다.</p>
+              </article>
+              <article class="shipping-workflow-step">
+                <span>4</span>
+                <strong>출고 처리</strong>
+                <p>실제 출고 시간을 입력하고 완료 처리합니다.</p>
+              </article>
+            </div>
+          </section>
+
           <section class="shipping-settlement-panel" aria-label="출고 결산">
             <div class="shipping-list-header shipping-settlement-header">
               <h2>출고 결산</h2>
@@ -1125,7 +1153,7 @@
                     <td><span class="shipping-badge muted">검수 전</span></td>
                     <td>-</td>
                     <td><span class="due-badge warning">D-2</span></td>
-                    <td><span class="shipping-badge wait">출고 대기</span></td>
+                    <td><span class="shipping-badge muted">검수 전</span></td>
                     <td><button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button></td>
                   </tr>
                   <tr>
@@ -1142,7 +1170,7 @@
                     <td>정상</td>
                     <td><span class="due-badge warning">D-5</span></td>
                     <td><span class="shipping-badge ready">검수 완료</span></td>
-                    <td><button class="shipping-row-button primary" type="button">출고 처리</button></td>
+                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button></td>
                   </tr>
                   <tr>
                     <td>3</td>
@@ -1158,7 +1186,7 @@
                     <td>정상</td>
                     <td><span class="due-badge today">오늘</span></td>
                     <td><span class="shipping-badge ready">검수 완료</span></td>
-                    <td><button class="shipping-row-button primary" type="button">출고 처리</button></td>
+                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button></td>
                   </tr>
                   <tr>
                     <td>4</td>
@@ -1189,7 +1217,7 @@
                     <td><span class="shipping-badge muted">검수 전</span></td>
                     <td>-</td>
                     <td><span class="due-badge warning">D-3</span></td>
-                    <td><span class="shipping-badge wait">출고 대기</span></td>
+                    <td><span class="shipping-badge muted">검수 전</span></td>
                     <td><button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button></td>
                   </tr>
                   <tr>
@@ -1206,7 +1234,7 @@
                     <td>정상</td>
                     <td><span class="due-badge safe">D-7</span></td>
                     <td><span class="shipping-badge ready">검수 완료</span></td>
-                    <td><button class="shipping-row-button primary" type="button">출고 처리</button></td>
+                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button></td>
                   </tr>
                 </tbody>
               </table>
@@ -1307,6 +1335,21 @@
                 <strong id="shippingInspectionStorage">-</strong>
               </div>
             </div>
+          </section>
+
+          <section class="form-section" aria-labelledby="shippingInspectionBoxTitle">
+            <div class="shipping-box-section-header">
+              <div>
+                <h3 id="shippingInspectionBoxTitle">박스별 검수 선택</h3>
+                <p>이번 출고 검수에서 확인한 박스를 체크해주세요.</p>
+              </div>
+              <label class="shipping-box-select-all">
+                <input id="shippingInspectionSelectAllBoxes" type="checkbox" checked />
+                <span>전체 선택</span>
+              </label>
+            </div>
+            <div class="shipping-box-check-list" id="shippingInspectionBoxList"></div>
+            <p class="shipping-box-summary" id="shippingInspectionBoxSummary">검수할 박스를 선택해주세요.</p>
           </section>
 
           <section class="form-section" aria-labelledby="shippingInspectionResultTitle">
