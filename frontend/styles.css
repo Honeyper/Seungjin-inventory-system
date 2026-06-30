@@ -2531,6 +2531,20 @@ input {
   background: linear-gradient(180deg, #082e6c, #061f4c);
 }
 
+.shipping-row-button.secondary {
+  min-width: 4.2rem;
+  color: #53647a;
+  background: #f7f9fc;
+}
+
+.shipping-action-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
 .shipping-table-footer {
   padding: 0.72rem 1.05rem;
 }

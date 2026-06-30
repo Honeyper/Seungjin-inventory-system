@@ -415,6 +415,11 @@ shippingTable?.addEventListener("click", (event) => {
     return;
   }
 
+  if (action === "cancelQueue") {
+    cancelShippingWaiting(row);
+    return;
+  }
+
   if (action === "ship") {
     completeShipping(row);
     return;
@@ -1092,6 +1097,10 @@ function registerShippingWaiting(row) {
     return;
   }
 
+  if (!window.confirm("이 제품을 출고 대기 상태로 등록할까요?")) {
+    return;
+  }
+
   const statusCell = row.children[12];
   const actionCell = row.children[13];
 
@@ -1099,11 +1108,34 @@ function registerShippingWaiting(row) {
     statusCell.innerHTML = '<span class="shipping-badge wait">출고 대기</span>';
   }
 
-  const actionButton = actionCell?.querySelector("button");
-  if (actionButton) {
-    actionButton.classList.add("primary");
-    actionButton.dataset.shippingAction = "ship";
-    actionButton.textContent = "출고 처리";
+  if (actionCell) {
+    actionCell.innerHTML = `
+      <div class="shipping-action-group">
+        <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고 처리</button>
+        <button class="shipping-row-button secondary" type="button" data-shipping-action="cancelQueue">대기 취소</button>
+      </div>
+    `;
+  }
+}
+
+function cancelShippingWaiting(row) {
+  if (!row) {
+    return;
+  }
+
+  if (!window.confirm("출고 대기 등록을 취소할까요?")) {
+    return;
+  }
+
+  const statusCell = row.children[12];
+  const actionCell = row.children[13];
+
+  if (statusCell) {
+    statusCell.innerHTML = '<span class="shipping-badge ready">검수 완료</span>';
+  }
+
+  if (actionCell) {
+    actionCell.innerHTML = '<button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>';
   }
 }
 
@@ -1127,11 +1159,8 @@ function completeShipping(row) {
     statusCell.innerHTML = `<span class="shipping-badge complete">출고 완료 ${escapeHtml(normalizedTime)}</span>`;
   }
 
-  const actionButton = actionCell?.querySelector("button");
-  if (actionButton) {
-    actionButton.classList.remove("primary");
-    actionButton.removeAttribute("data-shipping-action");
-    actionButton.textContent = "상세";
+  if (actionCell) {
+    actionCell.innerHTML = '<button class="shipping-row-button" type="button">상세</button>';
   }
 }
 
