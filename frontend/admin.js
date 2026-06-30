@@ -1243,8 +1243,8 @@ function renderShippingTable(message = "") {
   shippingTableBody.innerHTML = rows.map((item, index) => {
     const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
     const boxes = parseShippingSettlementNumber(item.currentBoxCount);
-    const defectQuantity = parseShippingSettlementNumber(item.defectQuantity);
-    const defectRate = parseShippingSettlementNumber(item.defectRate);
+    const defectQuantity = parseShippingSettlementNumber(item.shippingDefectQuantity);
+    const defectRate = parseShippingSettlementNumber(item.shippingDefectRate);
 
     return `
       <tr
@@ -1290,7 +1290,7 @@ function getShippingRows() {
 function isShippingInspected(item) {
   const status = normalizeInventoryStockStatus(item.stockStatus);
   return ["검수완료", "출고대기", "출고완료", "보류"].includes(status)
-    || parseShippingSettlementNumber(item.inspectionQuantity) > 0;
+    || Number(item.shippingInspectionCount || 0) > 0;
 }
 
 function renderShippingInspectionBadge(item) {

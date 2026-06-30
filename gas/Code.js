@@ -651,6 +651,11 @@ function getInventoryDashboard() {
       defectQuantity: getObjectCell_(stockRow, ['불량 수량', '불량수량']),
       defectRate: getObjectCell_(stockRow, ['불량률']),
       defectReason: getObjectCell_(stockRow, ['불량 사유', '불량사유']),
+      shippingInspectionCount: boxSummary.shippingInspectionCount || 0,
+      shippingInspectionQuantity: boxSummary.shippingInspectionQuantity ? formatEa_(boxSummary.shippingInspectionQuantity) : '',
+      shippingDefectQuantity: boxSummary.shippingDefectQuantity ? formatEa_(boxSummary.shippingDefectQuantity) : '',
+      shippingDefectRate: boxSummary.shippingDefectRate ? `${formatPercentNumber_(boxSummary.shippingDefectRate)}%` : '',
+      shippingDefectReason: boxSummary.shippingDefectReason || '',
       note: getObjectCell_(stockRow, ['비고']),
       dueDate,
       dueLabel: dueStatus.label,
@@ -2366,17 +2371,50 @@ function buildInventoryBoxSummaryMap_(boxRows) {
         boxCount: 0,
         currentQuantity: 0,
         qrGeneratedCount: 0,
+        shippingInspectionCount: 0,
+        shippingInspectionQuantity: 0,
+        shippingDefectQuantity: 0,
+        shippingDefectRateTotal: 0,
+        shippingDefectRateCount: 0,
+        shippingDefectReasonCounts: {},
         statusCounts: {},
         storageCounts: {},
         boxes: []
       };
     }
 
+    const shippingInspectionDate = getObjectCell_(row, ['출고 검수일', '검수일']);
+    const shippingInspectionQuantity = displayQuantityToNumber_(getObjectCell_(row, ['출고 검수 수량', '출고검수수량', '검수수량']));
+    const shippingDefectQuantity = displayQuantityToNumber_(getObjectCell_(row, ['불량 수량', '불량수량']));
+    const shippingDefectRateText = getObjectCell_(row, ['불량률']);
+    const shippingDefectRate = displayQuantityToNumber_(shippingDefectRateText);
+    const shippingDefectReason = getObjectCell_(row, ['불량 사유', '불량사유', '불량내역']);
+    const hasShippingInspection = Boolean(
+      (shippingInspectionDate && shippingInspectionDate !== '-')
+      || shippingInspectionQuantity > 0
+      || (shippingDefectRateText && shippingDefectRateText !== '-')
+    );
+
     if (isActiveBox) {
       map[managementId].boxCount += 1;
       map[managementId].currentQuantity += currentQuantity;
       map[managementId].storageCounts[storage] = (map[managementId].storageCounts[storage] || 0) + 1;
       map[managementId].statusCounts[status] = (map[managementId].statusCounts[status] || 0) + 1;
+
+      if (hasShippingInspection) {
+        map[managementId].shippingInspectionCount += 1;
+        map[managementId].shippingInspectionQuantity += shippingInspectionQuantity || currentQuantity;
+        map[managementId].shippingDefectQuantity += shippingDefectQuantity;
+
+        if (shippingDefectRateText && shippingDefectRateText !== '-') {
+          map[managementId].shippingDefectRateTotal += shippingDefectRate;
+          map[managementId].shippingDefectRateCount += 1;
+        }
+
+        if (shippingDefectReason && shippingDefectReason !== '-') {
+          map[managementId].shippingDefectReasonCounts[shippingDefectReason] = (map[managementId].shippingDefectReasonCounts[shippingDefectReason] || 0) + 1;
+        }
+      }
     }
 
     if (qrState && qrState !== '-') {
@@ -2390,6 +2428,10 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const summary = map[managementId];
     summary.primaryStorage = pickTopKey_(summary.storageCounts) || '미지정';
     summary.status = pickTopKey_(summary.statusCounts) || '보관';
+    summary.shippingDefectRate = summary.shippingDefectRateCount
+      ? summary.shippingDefectRateTotal / summary.shippingDefectRateCount
+      : 0;
+    summary.shippingDefectReason = pickTopKey_(summary.shippingDefectReasonCounts) || '';
   });
 
   return map;
