@@ -1218,6 +1218,23 @@ async function updateShippingStatus(row, status, extraPayload = {}) {
   await loadInventoryDashboard(false);
 }
 
+function renderShippingLoading() {
+  if (shippingTableBody) {
+    shippingTableBody.innerHTML = `
+      <tr>
+        <td colspan="14" class="empty-cell">출고 대상 목록을 불러오는 중입니다.</td>
+      </tr>
+    `;
+  }
+
+  updateShippingSummaryCards([]);
+  updateShippingSettlementSummary();
+
+  if (shippingCountLabel) {
+    shippingCountLabel.textContent = "전체 0건";
+  }
+}
+
 function renderShippingTable(message = "") {
   if (!shippingTableBody) {
     return;
@@ -2416,6 +2433,7 @@ async function refreshTodayInbounds() {
 
 async function loadInventoryDashboard(showLoadingToast = true) {
   renderInventoryLoading();
+  renderShippingLoading();
 
   try {
     const result = await requestApi("getInventoryDashboard");
