@@ -2555,8 +2555,60 @@ input {
   max-height: calc(100vh - 2.5rem);
 }
 
+.shipping-completion-modal {
+  width: min(36rem, calc(100vw - 2.5rem));
+  overflow: hidden;
+}
+
 .shipping-inspection-form {
   gap: 0.95rem;
+}
+
+.shipping-completion-form {
+  gap: 1rem;
+}
+
+.shipping-completion-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 1.25rem 1.35rem 0;
+}
+
+.shipping-completion-summary div {
+  min-width: 0;
+  padding: 0.82rem 0.9rem;
+  border: 1px solid #e2e9f2;
+  border-radius: 0.48rem;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.shipping-completion-summary span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #6d7b90;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.shipping-completion-summary strong {
+  display: block;
+  overflow: hidden;
+  color: var(--navy-dark);
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shipping-completion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.shipping-completion-grid .form-field:last-child {
+  grid-column: 1 / -1;
 }
 
 .shipping-inspection-summary {

@@ -82,7 +82,9 @@ const state = {
   activeInboundMenuRecord: "",
   activeInboundMenuButton: null,
   activeShippingInspectionRow: null,
+  activeShippingCompletionRow: null,
   isSavingShippingInspection: false,
+  isSavingShippingCompletion: false,
   inboundProductPickerQuery: "",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
@@ -245,6 +247,17 @@ const shippingInspectionDefectFiles = document.querySelector("#shippingInspectio
 const shippingInspectionPhotoButton = document.querySelector("#shippingInspectionPhotoButton");
 const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
 const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
+const shippingCompletionModal = document.querySelector("#shippingCompletionModal");
+const shippingCompletionForm = document.querySelector("#shippingCompletionForm");
+const shippingCompletionRecordId = document.querySelector("#shippingCompletionRecordId");
+const shippingCompletionProduct = document.querySelector("#shippingCompletionProduct");
+const shippingCompletionClient = document.querySelector("#shippingCompletionClient");
+const shippingCompletionQuantity = document.querySelector("#shippingCompletionQuantity");
+const shippingCompletionDate = document.querySelector("#shippingCompletionDate");
+const shippingCompletionTime = document.querySelector("#shippingCompletionTime");
+const shippingCompletionShipper = document.querySelector("#shippingCompletionShipper");
+const shippingCompletionMessage = document.querySelector("#shippingCompletionMessage");
+const saveShippingCompletionButton = document.querySelector("#saveShippingCompletionButton");
 const shippingSettlementFields = {
   totalQuantity: document.querySelector("#shippingSettlementTotalQuantity"),
   totalBoxes: document.querySelector("#shippingSettlementTotalBoxes"),
@@ -381,9 +394,15 @@ inventoryLocationViewButtons.forEach((button) => {
 closeInventoryAttentionModalButton?.addEventListener("click", closeInventoryAttentionModal);
 document.querySelector("#closeShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
 document.querySelector("#cancelShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
+document.querySelector("#closeShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
+document.querySelector("#cancelShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
 shippingInspectionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingInspection();
+});
+shippingCompletionForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveShippingCompletion();
 });
 shippingInspectionPhotoButton?.addEventListener("click", () => {
   shippingInspectionDefectFiles?.click();
@@ -627,6 +646,11 @@ document.addEventListener("keydown", (event) => {
 
   if (shippingInspectionModal && !shippingInspectionModal.hidden) {
     closeShippingInspectionModal();
+    return;
+  }
+
+  if (shippingCompletionModal && !shippingCompletionModal.hidden) {
+    closeShippingCompletionModal();
     return;
   }
 
@@ -1181,23 +1205,115 @@ async function completeShipping(row) {
     return;
   }
 
-  const defaultTime = getLocalTimeInputValue();
-  const shippingTime = window.prompt("출고 시간을 입력하세요.", defaultTime);
+  openShippingCompletionModal(row);
+}
 
-  if (shippingTime === null) {
+function openShippingCompletionModal(row) {
+  if (!row || !shippingCompletionModal) {
     return;
   }
 
-  const normalizedTime = String(shippingTime).trim() || defaultTime;
+  state.activeShippingCompletionRow = row;
+  state.isSavingShippingCompletion = false;
+
+  const defaultTime = getLocalTimeInputValue();
+  const defaultDate = getLocalDateInputValue();
+
+  if (shippingCompletionRecordId) {
+    shippingCompletionRecordId.textContent = row.children[1]?.textContent.trim() || "-";
+  }
+
+  if (shippingCompletionClient) {
+    shippingCompletionClient.textContent = row.children[2]?.textContent.trim() || "-";
+  }
+
+  if (shippingCompletionProduct) {
+    shippingCompletionProduct.textContent = row.children[3]?.textContent.trim() || "-";
+  }
+
+  if (shippingCompletionQuantity) {
+    shippingCompletionQuantity.textContent = row.children[8]?.textContent.trim() || "-";
+  }
+
+  if (shippingCompletionDate) {
+    shippingCompletionDate.value = defaultDate;
+  }
+
+  if (shippingCompletionTime) {
+    shippingCompletionTime.value = defaultTime;
+  }
+
+  if (shippingCompletionShipper) {
+    shippingCompletionShipper.value = session?.name || "Admin";
+  }
+
+  if (shippingCompletionMessage) {
+    shippingCompletionMessage.textContent = "";
+  }
+
+  if (saveShippingCompletionButton) {
+    saveShippingCompletionButton.disabled = false;
+    saveShippingCompletionButton.textContent = "출고 완료";
+  }
+
+  shippingCompletionModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => shippingCompletionTime?.focus(), 0);
+}
+
+function closeShippingCompletionModal() {
+  if (!shippingCompletionModal) {
+    return;
+  }
+
+  shippingCompletionModal.hidden = true;
+  state.activeShippingCompletionRow = null;
+  state.isSavingShippingCompletion = false;
+  document.body.classList.remove("modal-open");
+}
+
+async function saveShippingCompletion() {
+  const row = state.activeShippingCompletionRow;
+
+  if (!row || state.isSavingShippingCompletion) {
+    return;
+  }
+
+  const shippingDate = shippingCompletionDate?.value || getLocalDateInputValue();
+  const shippingTime = shippingCompletionTime?.value || "";
+
+  if (!shippingTime) {
+    if (shippingCompletionMessage) {
+      shippingCompletionMessage.textContent = "출고 시간을 입력해주세요.";
+    }
+    shippingCompletionTime?.focus();
+    return;
+  }
+
+  state.isSavingShippingCompletion = true;
+
+  if (saveShippingCompletionButton) {
+    saveShippingCompletionButton.disabled = true;
+    saveShippingCompletionButton.textContent = "처리 중";
+  }
 
   try {
     await updateShippingStatus(row, "출고완료", {
-      shippingDate: getLocalDateInputValue(),
-      shippingTime: normalizedTime,
-      shipper: session?.name || "Admin"
+      shippingDate,
+      shippingTime,
+      shipper: shippingCompletionShipper?.value || session?.name || "Admin"
     });
+    closeShippingCompletionModal();
     showToast("출고 완료 처리했습니다.");
   } catch (error) {
+    state.isSavingShippingCompletion = false;
+    if (saveShippingCompletionButton) {
+      saveShippingCompletionButton.disabled = false;
+      saveShippingCompletionButton.textContent = "출고 완료";
+    }
+    if (shippingCompletionMessage) {
+      shippingCompletionMessage.textContent = error.message || "출고 처리 중 문제가 발생했습니다.";
+    }
     showToast(error.message || "출고 처리 중 문제가 발생했습니다.");
   }
 }

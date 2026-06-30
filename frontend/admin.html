@@ -1437,6 +1437,67 @@
       </section>
     </div>
 
+    <div class="modal-backdrop" id="shippingCompletionModal" hidden>
+      <section class="product-modal shipping-completion-modal" role="dialog" aria-modal="true" aria-labelledby="shippingCompletionTitle">
+        <header class="modal-header">
+          <div>
+            <h2 id="shippingCompletionTitle">출고 처리</h2>
+            <p>실제 출고일과 출고 시간을 확인한 뒤 완료 처리합니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeShippingCompletionModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <form class="product-form shipping-completion-form" id="shippingCompletionForm">
+          <section class="shipping-completion-summary" aria-label="출고 대상 정보">
+            <div>
+              <span>관리 ID</span>
+              <strong id="shippingCompletionRecordId">-</strong>
+            </div>
+            <div>
+              <span>제품명</span>
+              <strong id="shippingCompletionProduct">-</strong>
+            </div>
+            <div>
+              <span>거래처명</span>
+              <strong id="shippingCompletionClient">-</strong>
+            </div>
+            <div>
+              <span>출고 수량</span>
+              <strong id="shippingCompletionQuantity">-</strong>
+            </div>
+          </section>
+
+          <section class="form-section" aria-labelledby="shippingCompletionInputTitle">
+            <h3 id="shippingCompletionInputTitle">출고 정보</h3>
+            <div class="shipping-completion-grid">
+              <label class="form-field">
+                <span>출고일 <b>*</b></span>
+                <input id="shippingCompletionDate" type="date" required />
+              </label>
+              <label class="form-field">
+                <span>출고 시간 <b>*</b></span>
+                <input id="shippingCompletionTime" type="time" required />
+              </label>
+              <label class="form-field">
+                <span>출고자</span>
+                <input id="shippingCompletionShipper" type="text" disabled />
+              </label>
+            </div>
+            <p class="form-message" id="shippingCompletionMessage"></p>
+          </section>
+
+          <div class="modal-actions">
+            <button class="secondary-modal-action" type="button" id="cancelShippingCompletionModal">취소</button>
+            <button class="primary-modal-action" type="submit" id="saveShippingCompletionButton">출고 완료</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <div class="modal-backdrop" id="productModal" hidden>
       <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
         <header class="modal-header">
