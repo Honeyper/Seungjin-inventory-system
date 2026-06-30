@@ -41,6 +41,7 @@ if (!session || session.role !== "admin") {
 
 const state = {
   products: [],
+  productsLoadPromise: null,
   filteredProducts: [],
   todayInbounds: [],
   inventoryRows: [],
@@ -686,7 +687,9 @@ window.addEventListener("scroll", () => {
 
 setCurrentInboundDate();
 setCurrentInboundListDateRange();
-loadProducts();
+state.productsLoadPromise = loadProducts().finally(() => {
+  state.productsLoadPromise = null;
+});
 loadTodayInbounds();
 setCurrentInboundTime();
 setActiveView(getCurrentView());
@@ -722,7 +725,7 @@ function setActiveView(view) {
   }
 }
 
-function openShippingInspectionModal(row) {
+async function openShippingInspectionModal(row) {
   if (!row || !shippingInspectionModal) {
     return;
   }
@@ -752,6 +755,7 @@ function openShippingInspectionModal(row) {
     shippingInspectionTime.value = getLocalTimeInputValue();
   }
 
+  await ensureProductsLoaded();
   renderShippingInspectionBoxList(row);
 
   if (shippingInspectionDefectQuantity) {
@@ -812,12 +816,25 @@ function getShippingInspectionTrayQuantity(row) {
   const clientName = row.children[2]?.textContent.trim() || "";
   const productName = row.children[3]?.textContent.trim() || "";
   const normalize = (value) => String(value || "").replace(/\s+/g, " ").trim();
+  const normalizeKey = (value) => normalize(value).replace(/\s+/g, "").toLowerCase();
   const normalizedClient = normalize(clientName);
   const normalizedProduct = normalize(productName);
+  const clientKey = normalizeKey(clientName);
+  const productKey = normalizeKey(productName);
+
   const matchedProduct = state.products.find((product) => (
     normalize(product.productName) === normalizedProduct &&
     (!normalizedClient || normalize(product.clientName) === normalizedClient)
-  )) || state.products.find((product) => normalize(product.productName) === normalizedProduct);
+  )) || state.products.find((product) => (
+    normalizeKey(product.productName) === productKey &&
+    (!clientKey || normalizeKey(product.clientName) === clientKey)
+  )) || state.products.find((product) => (
+    normalize(product.productName) === normalizedProduct ||
+    normalizeKey(product.productName) === productKey
+  )) || state.products.find((product) => {
+    const candidateKey = normalizeKey(product.productName);
+    return Boolean(productKey && candidateKey && (candidateKey.includes(productKey) || productKey.includes(candidateKey)));
+  });
 
   return extractQuantityNumber(matchedProduct?.trayQuantity || row.dataset.trayQuantity || "");
 }
@@ -2190,6 +2207,20 @@ async function loadProducts() {
     applyFilters();
     setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
   }
+}
+
+async function ensureProductsLoaded() {
+  if (state.products.length > 0) {
+    return;
+  }
+
+  if (!state.productsLoadPromise) {
+    state.productsLoadPromise = loadProducts().finally(() => {
+      state.productsLoadPromise = null;
+    });
+  }
+
+  await state.productsLoadPromise;
 }
 
 async function loadTodayInbounds() {
