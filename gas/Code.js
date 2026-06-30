@@ -48,6 +48,7 @@ function doPost(e) {
       getInboundBoxQrs,
       uploadShippingDefectPhotos,
       saveShippingInspection,
+      updateShippingStatus,
       createProduct,
       updateProduct,
       deleteProduct,
@@ -1803,7 +1804,7 @@ function saveShippingInspection(payload) {
   const inspector = dash_(payload.inspector || payload.inspectionUser || payload.userName || 'Admin');
   const hasGoodReason = defectReasons.includes('양호');
   const anomalyStatus = hasGoodReason ? '정상' : '이상';
-  const stockStatus = hasGoodReason ? '검수완료' : '작업중지';
+  const stockStatus = hasGoodReason ? '검수완료' : '보류';
   const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
   const defectQuantity = toNumber_(payload.defectQuantity);
 
@@ -1836,6 +1837,8 @@ function saveShippingInspection(payload) {
     defectQuantity: formatEa_(defectQuantity),
     defectRate,
     defectReason,
+    status: stockStatus,
+    selectedBoxes: Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [],
     note: noteParts.length ? noteParts.join('\n') : '-'
   });
   const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, stockStatus);
@@ -1879,6 +1882,12 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
   const indexes = indexHeaders_(headerInfo.headers);
   const managementIndex = findHeaderIndex_(indexes, ['관리ID', '관리 ID']);
   const currentQuantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+  const selectedBoxNumbers = new Set(
+    (data.selectedBoxes || [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  );
 
   if (managementIndex < 0) {
     throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
@@ -1891,6 +1900,13 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
       continue;
     }
 
+    if (selectedBoxNumbers.size && sequenceIndex >= 0) {
+      const sequence = displayQuantityToNumber_(values[rowIndex][sequenceIndex]);
+      if (!selectedBoxNumbers.has(sequence)) {
+        continue;
+      }
+    }
+
     const currentQuantity = currentQuantityIndex >= 0 ? dash_(values[rowIndex][currentQuantityIndex]) : '-';
 
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], data.inspectionDate);
@@ -1900,7 +1916,91 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], data.defectQuantity);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], data.defectRate);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.status);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['비고'], data.note);
+    updatedRows += 1;
+  }
+
+  if (!updatedRows) {
+    throw new Error(`박스관리 DB에서 관리 ID ${managementId}를 찾을 수 없습니다.`);
+  }
+
+  return updatedRows;
+}
+
+function updateShippingStatus(payload) {
+  const managementId = String(payload.managementId || '').trim();
+  const status = String(payload.status || '').trim();
+  const allowedStatuses = ['검수완료', '보류', '출고대기', '출고완료'];
+
+  if (!managementId) {
+    throw new Error('관리 ID가 없습니다.');
+  }
+
+  if (!allowedStatuses.includes(status)) {
+    throw new Error('변경할 수 없는 출고 상태입니다.');
+  }
+
+  const timezone = Session.getScriptTimeZone() || 'Asia/Seoul';
+  const now = new Date();
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const shippingDate = dash_(payload.shippingDate || Utilities.formatDate(now, timezone, 'yyyy-MM-dd'));
+  const shippingTime = dash_(payload.shippingTime || Utilities.formatDate(now, timezone, 'HH:mm'));
+  const shipper = dash_(payload.shipper || payload.userName || 'Admin');
+
+  const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, status);
+  const updatedBoxRows = updateShippingStatusBoxRows_(boxSheet, managementId, {
+    status,
+    shippingDate,
+    shippingTime,
+    shipper
+  });
+
+  return {
+    managementId,
+    status,
+    updatedStockRows,
+    updatedBoxRows,
+    shippingDate: status === '출고완료' ? shippingDate : '',
+    shippingTime: status === '출고완료' ? shippingTime : ''
+  };
+}
+
+function updateShippingStatusBoxRows_(sheet, managementId, data) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const managementIndex = findHeaderIndex_(indexes, ['관리ID', '관리 ID']);
+
+  if (managementIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  let updatedRows = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    if (String(values[rowIndex][managementIndex] || '').trim() !== managementId) {
+      continue;
+    }
+
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.status);
+
+    if (data.status === '출고완료') {
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], data.shippingDate);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], data.shippingTime);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], data.shipper);
+    } else if (data.status === '검수완료') {
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], '');
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], '');
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], '');
+    }
+
     updatedRows += 1;
   }
 

@@ -221,6 +221,9 @@ const inventoryAttentionList = document.querySelector("#inventoryAttentionList")
 const inventoryAttentionEmpty = document.querySelector("#inventoryAttentionEmpty");
 const closeInventoryAttentionModalButton = document.querySelector("#closeInventoryAttentionModal");
 const shippingTable = document.querySelector(".shipping-table");
+const shippingTableBody = shippingTable?.querySelector("tbody");
+const shippingCountLabel = document.querySelector(".shipping-table-footer > span");
+const shippingSummaryCards = document.querySelectorAll(".shipping-summary-card");
 const shippingInspectionModal = document.querySelector("#shippingInspectionModal");
 const shippingInspectionForm = document.querySelector("#shippingInspectionForm");
 const shippingInspectionMessage = document.querySelector("#shippingInspectionMessage");
@@ -721,7 +724,12 @@ function setActiveView(view) {
   }
 
   if (view === "shipping") {
-    updateShippingSettlementSummary();
+    if (!state.inventoryLoaded) {
+      loadInventoryDashboard(false);
+    } else {
+      renderShippingTable();
+      updateShippingSettlementSummary();
+    }
   }
 }
 
@@ -1091,11 +1099,8 @@ async function saveShippingInspection() {
       }
     }
 
-    row.dataset.defectQuantity = String(saveResult?.defectQuantity ?? defectQuantity);
-    row.dataset.defectRate = String(saveResult?.defectRate ?? defectRate);
-    updateShippingSettlementSummary();
-
     closeShippingInspectionModal();
+    await loadInventoryDashboard(false);
   } catch (error) {
     if (shippingInspectionMessage) {
       shippingInspectionMessage.textContent = error.message || "출고 검수 저장 중 문제가 발생했습니다.";
@@ -1139,7 +1144,7 @@ function showShippingHoldGuide(row, button) {
   );
 }
 
-function registerShippingWaiting(row) {
+async function registerShippingWaiting(row) {
   if (!row) {
     return;
   }
@@ -1148,24 +1153,15 @@ function registerShippingWaiting(row) {
     return;
   }
 
-  const statusCell = row.children[12];
-  const actionCell = row.children[13];
-
-  if (statusCell) {
-    statusCell.innerHTML = '<span class="shipping-badge wait">출고 대기</span>';
-  }
-
-  if (actionCell) {
-    actionCell.innerHTML = `
-      <div class="shipping-action-group">
-        <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고 처리</button>
-        <button class="shipping-row-button secondary" type="button" data-shipping-action="cancelQueue">대기 취소</button>
-      </div>
-    `;
+  try {
+    await updateShippingStatus(row, "출고대기");
+    showToast("출고 대기 상태로 등록했습니다.");
+  } catch (error) {
+    showToast(error.message || "출고 대기 등록 중 문제가 발생했습니다.");
   }
 }
 
-function cancelShippingWaiting(row) {
+async function cancelShippingWaiting(row) {
   if (!row) {
     return;
   }
@@ -1174,19 +1170,15 @@ function cancelShippingWaiting(row) {
     return;
   }
 
-  const statusCell = row.children[12];
-  const actionCell = row.children[13];
-
-  if (statusCell) {
-    statusCell.innerHTML = '<span class="shipping-badge ready">검수 완료</span>';
-  }
-
-  if (actionCell) {
-    actionCell.innerHTML = '<button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>';
+  try {
+    await updateShippingStatus(row, "검수완료");
+    showToast("출고 대기를 취소했습니다.");
+  } catch (error) {
+    showToast(error.message || "출고 대기 취소 중 문제가 발생했습니다.");
   }
 }
 
-function completeShipping(row) {
+async function completeShipping(row) {
   if (!row) {
     return;
   }
@@ -1199,16 +1191,187 @@ function completeShipping(row) {
   }
 
   const normalizedTime = String(shippingTime).trim() || defaultTime;
-  const statusCell = row.children[12];
-  const actionCell = row.children[13];
 
-  if (statusCell) {
-    statusCell.innerHTML = `<span class="shipping-badge complete">출고 완료 ${escapeHtml(normalizedTime)}</span>`;
+  try {
+    await updateShippingStatus(row, "출고완료", {
+      shippingDate: getLocalDateInputValue(),
+      shippingTime: normalizedTime,
+      shipper: session?.name || "Admin"
+    });
+    showToast("출고 완료 처리했습니다.");
+  } catch (error) {
+    showToast(error.message || "출고 처리 중 문제가 발생했습니다.");
+  }
+}
+
+async function updateShippingStatus(row, status, extraPayload = {}) {
+  const managementId = row?.dataset?.managementId || row?.children?.[1]?.textContent.trim() || "";
+
+  if (!managementId) {
+    throw new Error("관리 ID를 찾을 수 없습니다.");
   }
 
-  if (actionCell) {
-    actionCell.innerHTML = '<button class="shipping-row-button" type="button">상세</button>';
+  await requestApi("updateShippingStatus", {
+    managementId,
+    status,
+    ...extraPayload
+  });
+
+  await loadInventoryDashboard(false);
+}
+
+function renderShippingTable(message = "") {
+  if (!shippingTableBody) {
+    return;
   }
+
+  const rows = getShippingRows();
+
+  if (message || !rows.length) {
+    shippingTableBody.innerHTML = `
+      <tr>
+        <td colspan="14" class="empty-cell">${escapeHtml(message || "출고 대상 목록이 없습니다.")}</td>
+      </tr>
+    `;
+    updateShippingSummaryCards([]);
+    if (shippingCountLabel) {
+      shippingCountLabel.textContent = "전체 0건";
+    }
+    return;
+  }
+
+  shippingTableBody.innerHTML = rows.map((item, index) => {
+    const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
+    const boxes = parseShippingSettlementNumber(item.currentBoxCount);
+    const defectQuantity = parseShippingSettlementNumber(item.defectQuantity);
+    const defectRate = parseShippingSettlementNumber(item.defectRate);
+
+    return `
+      <tr
+        data-management-id="${escapeAttribute(item.managementId)}"
+        data-product-id="${escapeAttribute(item.productId)}"
+        data-box-count="${boxes}"
+        data-quantity="${quantity}"
+        data-defect-quantity="${defectQuantity}"
+        data-defect-rate="${defectRate}">
+        <td>${index + 1}</td>
+        <td><strong>${escapeHtml(item.managementId)}</strong></td>
+        <td>${escapeHtml(item.clientName || "-")}</td>
+        <td>${escapeHtml(item.productName || "-")}</td>
+        <td>${escapeHtml(item.batch || "-")}</td>
+        <td>${escapeHtml(item.finalProcess || "-")}</td>
+        <td>${escapeHtml(item.storage || "-")}</td>
+        <td>${escapeHtml(item.currentBoxCount || "-")}</td>
+        <td>${escapeHtml(item.currentTotalQuantity || "-")}</td>
+        <td>${renderShippingInspectionBadge(item)}</td>
+        <td>${renderShippingAnomalyText(item)}</td>
+        <td>${renderInventoryDueBadge(item)}</td>
+        <td>${renderShippingStatusBadge(item)}</td>
+        <td>${renderShippingRowAction(item)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  updateShippingSummaryCards(rows);
+
+  if (shippingCountLabel) {
+    shippingCountLabel.textContent = `전체 ${rows.length.toLocaleString("ko-KR")}건`;
+  }
+}
+
+function getShippingRows() {
+  return (state.inventoryRows || []).filter((item) => {
+    const status = normalizeInventoryStockStatus(item.stockStatus);
+    const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
+    return quantity > 0 && !["폐기", "출고완료"].includes(status);
+  });
+}
+
+function isShippingInspected(item) {
+  const status = normalizeInventoryStockStatus(item.stockStatus);
+  return ["검수완료", "출고대기", "출고완료", "보류"].includes(status)
+    || parseShippingSettlementNumber(item.inspectionQuantity) > 0;
+}
+
+function renderShippingInspectionBadge(item) {
+  return isShippingInspected(item)
+    ? '<span class="shipping-badge done">검수 완료</span>'
+    : '<span class="shipping-badge muted">검수 전</span>';
+}
+
+function renderShippingAnomalyText(item) {
+  const status = normalizeInventoryStockStatus(item.stockStatus);
+
+  if (!isShippingInspected(item)) {
+    return "-";
+  }
+
+  return status === "보류" ? "이상" : "정상";
+}
+
+function renderShippingStatusBadge(item) {
+  const status = normalizeInventoryStockStatus(item.stockStatus);
+
+  if (status === "출고대기") {
+    return '<span class="shipping-badge wait">출고 대기</span>';
+  }
+
+  if (status === "출고완료") {
+    return '<span class="shipping-badge complete">출고 완료</span>';
+  }
+
+  if (status === "보류") {
+    return '<span class="shipping-badge hold">출고 보류</span>';
+  }
+
+  if (isShippingInspected(item)) {
+    return '<span class="shipping-badge ready">검수 완료</span>';
+  }
+
+  return '<span class="shipping-badge muted">검수 전</span>';
+}
+
+function renderShippingRowAction(item) {
+  const status = normalizeInventoryStockStatus(item.stockStatus);
+
+  if (status === "출고대기") {
+    return `
+      <div class="shipping-action-group">
+        <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고 처리</button>
+        <button class="shipping-row-button secondary" type="button" data-shipping-action="cancelQueue">대기 취소</button>
+      </div>
+    `;
+  }
+
+  if (status === "보류") {
+    return renderShippingHoldActions("", 0);
+  }
+
+  if (isShippingInspected(item)) {
+    return '<button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>';
+  }
+
+  return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button>';
+}
+
+function updateShippingSummaryCards(rows) {
+  if (!shippingSummaryCards.length) {
+    return;
+  }
+
+  const counts = [
+    rows.filter((item) => normalizeInventoryStockStatus(item.stockStatus) === "출고대기").length,
+    rows.filter(isShippingInspected).length,
+    rows.filter((item) => normalizeInventoryStockStatus(item.stockStatus) === "보류").length,
+    rows.filter((item) => normalizeInventoryStockStatus(item.stockStatus) === "출고완료").length
+  ];
+
+  shippingSummaryCards.forEach((card, index) => {
+    const strong = card.querySelector("strong");
+    if (strong) {
+      strong.innerHTML = `${counts[index].toLocaleString("ko-KR")} <em>건</em>`;
+    }
+  });
 }
 
 function parseShippingSettlementNumber(value) {
@@ -2267,6 +2430,8 @@ async function loadInventoryDashboard(showLoadingToast = true) {
     renderInventoryBars(inventoryLocationBoxBars, state.inventoryLocationBoxStats, "box");
     renderInventoryBars(inventoryLocationQuantityBars, state.inventoryLocationQuantityStats, "ea");
     applyInventoryFilters();
+    renderShippingTable();
+    updateShippingSettlementSummary();
 
     if (showLoadingToast) {
       showToast("재고 정보를 불러왔습니다.");
@@ -2280,6 +2445,7 @@ async function loadInventoryDashboard(showLoadingToast = true) {
     renderInventoryBars(inventoryLocationBoxBars, [], "box");
     renderInventoryBars(inventoryLocationQuantityBars, [], "ea");
     renderInventoryTable("재고 정보를 불러오지 못했습니다.");
+    renderShippingTable("재고 정보를 불러오지 못했습니다.");
     showToast(error.message || "재고 정보를 불러오지 못했습니다.");
   }
 }
