@@ -2352,7 +2352,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
 
     const status = getObjectCell_(row, ['상태', '재고 상태']) || '보관';
     const currentQuantity = displayQuantityToNumber_(getObjectCell_(row, ['현재 수량', '현재수량']));
-    const isActiveBox = currentQuantity > 0 && !/출고|폐기/.test(status);
+    const isActiveBox = currentQuantity > 0 && !/출고완료|폐기/.test(status);
     const storage = getObjectCell_(row, ['보관 위치', '보관위치', '보관 장소']) || '미지정';
     const qrState = getObjectCell_(row, ['QR 생성 여부', 'QR 출력 여부']);
 
@@ -2438,7 +2438,7 @@ function buildInventoryLocationStats_(boxSummaryMap, mode) {
       const status = getObjectCell_(boxRow, ['상태', '재고 상태']) || '보관';
       const currentQuantity = displayQuantityToNumber_(getObjectCell_(boxRow, ['현재 수량', '현재수량']));
 
-      if (currentQuantity <= 0 || /출고|폐기/.test(status)) {
+      if (currentQuantity <= 0 || /출고완료|폐기/.test(status)) {
         return;
       }
 
