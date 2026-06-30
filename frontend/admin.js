@@ -238,6 +238,7 @@ const shippingInspectionProduct = document.querySelector("#shippingInspectionPro
 const shippingInspectionStorage = document.querySelector("#shippingInspectionStorage");
 const shippingInspectionNote = document.querySelector("#shippingInspectionNote");
 const shippingInspectionQuantity = document.querySelector("#shippingInspectionQuantity");
+const editShippingInspectionQuantityButton = document.querySelector("#editShippingInspectionQuantityButton");
 const shippingInspectionDefectQuantity = document.querySelector("#shippingInspectionDefectQuantity");
 const shippingInspectionDefectRate = document.querySelector("#shippingInspectionDefectRate");
 const shippingInspectionBoxList = document.querySelector("#shippingInspectionBoxList");
@@ -411,6 +412,13 @@ shippingInspectionDefectFiles?.addEventListener("change", updateShippingInspecti
 shippingInspectionQuantity?.addEventListener("input", () => {
   updateShippingInspectionDefectRate();
   updateShippingInspectionBoxSummary();
+});
+editShippingInspectionQuantityButton?.addEventListener("click", () => {
+  setInboundLockedFieldEditable(
+    shippingInspectionQuantity,
+    editShippingInspectionQuantityButton,
+    Boolean(shippingInspectionQuantity?.disabled)
+  );
 });
 shippingInspectionDefectQuantity?.addEventListener("input", updateShippingInspectionDefectRate);
 shippingInspectionSelectAllBoxes?.addEventListener("change", () => {
@@ -790,6 +798,9 @@ async function openShippingInspectionModal(row) {
   const previousInspectionQuantity = parseShippingSettlementNumber(row.dataset.inspectionQuantity || "");
   if (shippingInspectionQuantity && previousInspectionQuantity > 0) {
     shippingInspectionQuantity.value = String(Math.round(previousInspectionQuantity));
+  }
+  if (shippingInspectionQuantity && editShippingInspectionQuantityButton) {
+    setInboundLockedFieldEditable(shippingInspectionQuantity, editShippingInspectionQuantityButton, false);
   }
 
   if (shippingInspectionDefectQuantity) {
