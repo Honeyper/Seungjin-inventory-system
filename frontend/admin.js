@@ -384,7 +384,10 @@ shippingInspectionPhotoButton?.addEventListener("click", () => {
   shippingInspectionDefectFiles?.click();
 });
 shippingInspectionDefectFiles?.addEventListener("change", updateShippingInspectionPhotoPreview);
-shippingInspectionQuantity?.addEventListener("input", updateShippingInspectionDefectRate);
+shippingInspectionQuantity?.addEventListener("input", () => {
+  updateShippingInspectionDefectRate();
+  updateShippingInspectionBoxSummary();
+});
 shippingInspectionDefectQuantity?.addEventListener("input", updateShippingInspectionDefectRate);
 shippingInspectionSelectAllBoxes?.addEventListener("change", () => {
   setShippingInspectionBoxSelection(Boolean(shippingInspectionSelectAllBoxes.checked));
@@ -759,6 +762,7 @@ function renderShippingInspectionBoxList(row) {
   const totalQuantity = Math.round(parseShippingSettlementNumber(row.children[8]?.textContent || row.dataset.quantity || ""));
   const unitQuantity = boxCount > 0 ? Math.round(totalQuantity / boxCount) : totalQuantity;
   const storageLocation = row.children[6]?.textContent.trim() || "-";
+  const trayQuantity = getShippingInspectionTrayQuantity(row);
 
   shippingInspectionBoxList.innerHTML = Array.from({ length: boxCount }, (_, index) => {
     const boxNumber = index + 1;
@@ -782,7 +786,25 @@ function renderShippingInspectionBoxList(row) {
     shippingInspectionSelectAllBoxes.indeterminate = false;
   }
 
+  if (shippingInspectionQuantity) {
+    shippingInspectionQuantity.value = trayQuantity > 0 ? String(Math.round(trayQuantity)) : "";
+  }
+
   syncShippingInspectionBoxState();
+}
+
+function getShippingInspectionTrayQuantity(row) {
+  const clientName = row.children[2]?.textContent.trim() || "";
+  const productName = row.children[3]?.textContent.trim() || "";
+  const normalize = (value) => String(value || "").replace(/\s+/g, " ").trim();
+  const normalizedClient = normalize(clientName);
+  const normalizedProduct = normalize(productName);
+  const matchedProduct = state.products.find((product) => (
+    normalize(product.productName) === normalizedProduct &&
+    (!normalizedClient || normalize(product.clientName) === normalizedClient)
+  )) || state.products.find((product) => normalize(product.productName) === normalizedProduct);
+
+  return extractQuantityNumber(matchedProduct?.trayQuantity || row.dataset.trayQuantity || "");
 }
 
 function getSelectedShippingInspectionBoxes() {
@@ -803,20 +825,8 @@ function setShippingInspectionBoxSelection(checked) {
 function syncShippingInspectionBoxState() {
   const inputs = Array.from(shippingInspectionBoxList?.querySelectorAll('input[name="shippingInspectionBox"]') || []);
   const checkedInputs = inputs.filter((input) => input.checked);
-  const selectedQuantity = checkedInputs.reduce(
-    (total, input) => total + parseShippingSettlementNumber(input.dataset.quantity || ""),
-    0
-  );
 
-  if (shippingInspectionQuantity) {
-    shippingInspectionQuantity.value = selectedQuantity > 0 ? String(Math.round(selectedQuantity)) : "";
-  }
-
-  if (shippingInspectionBoxSummary) {
-    shippingInspectionBoxSummary.textContent = inputs.length
-      ? `${inputs.length}개 박스 중 ${checkedInputs.length}개 선택 · 검수 수량 ${Math.round(selectedQuantity).toLocaleString("ko-KR")} ea`
-      : "검수할 박스를 선택해주세요.";
-  }
+  updateShippingInspectionBoxSummary(inputs, checkedInputs);
 
   if (shippingInspectionSelectAllBoxes) {
     shippingInspectionSelectAllBoxes.checked = inputs.length > 0 && checkedInputs.length === inputs.length;
@@ -824,6 +834,20 @@ function syncShippingInspectionBoxState() {
   }
 
   updateShippingInspectionDefectRate();
+}
+
+function updateShippingInspectionBoxSummary(
+  inputs = Array.from(shippingInspectionBoxList?.querySelectorAll('input[name="shippingInspectionBox"]') || []),
+  checkedInputs = inputs.filter((input) => input.checked)
+) {
+  if (!shippingInspectionBoxSummary) {
+    return;
+  }
+
+  const inspectionQuantity = parseShippingSettlementNumber(shippingInspectionQuantity?.value || "");
+  shippingInspectionBoxSummary.textContent = inputs.length
+    ? `${inputs.length}개 박스 중 ${checkedInputs.length}개 선택 · 검수 기준 ${Math.round(inspectionQuantity).toLocaleString("ko-KR")} ea`
+    : "검수할 박스를 선택해주세요.";
 }
 
 function closeShippingInspectionModal() {
