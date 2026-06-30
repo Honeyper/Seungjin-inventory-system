@@ -666,9 +666,14 @@ function getInventoryDashboard() {
     };
   }).filter((row) => row.managementId);
 
-  const activeRows = rows.filter((row) => {
+  const visibleRows = rows.filter((row) => {
     const status = String(row.stockStatus || '');
-    return !status.includes('폐기') && displayQuantityToNumber_(row.currentTotalQuantity) > 0;
+    const quantity = displayQuantityToNumber_(row.currentTotalQuantity);
+    return !status.includes('폐기') && (quantity > 0 || status.includes('출고완료'));
+  });
+  const activeRows = visibleRows.filter((row) => {
+    const status = String(row.stockStatus || '');
+    return !status.includes('출고완료') && displayQuantityToNumber_(row.currentTotalQuantity) > 0;
   });
   const locationBoxStats = buildInventoryLocationStats_(boxSummaryMap, 'box');
   const locationQuantityStats = buildInventoryLocationStats_(boxSummaryMap, 'quantity');
@@ -690,10 +695,10 @@ function getInventoryDashboard() {
       dueSoonCount
     },
     filters: {
-      clients: uniqueSorted_(activeRows.map((row) => row.clientName)),
-      storages: uniqueSorted_(activeRows.map((row) => row.storage)),
-      stockStatuses: uniqueSorted_(activeRows.map((row) => row.stockStatus)),
-      processStatuses: uniqueSorted_(activeRows.map((row) => row.processStatus))
+      clients: uniqueSorted_(visibleRows.map((row) => row.clientName)),
+      storages: uniqueSorted_(visibleRows.map((row) => row.storage)),
+      stockStatuses: uniqueSorted_(visibleRows.map((row) => row.stockStatus)),
+      processStatuses: uniqueSorted_(visibleRows.map((row) => row.processStatus))
     },
     locationBoxStats,
     locationQuantityStats,
@@ -702,7 +707,7 @@ function getInventoryDashboard() {
       unspecifiedStorageCount,
       holdOrDiscardCount
     },
-    rows: activeRows.reverse()
+    rows: visibleRows.reverse()
   };
 }
 

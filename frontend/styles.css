@@ -2546,6 +2546,20 @@ input {
   max-width: 12.8rem;
 }
 
+.shipping-action-complete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.8rem;
+  height: 1.95rem;
+  color: #175a36;
+  font-size: 0.74rem;
+  font-weight: 900;
+  border: 1px solid #c9ecd8;
+  border-radius: 0.32rem;
+  background: #eaf8ef;
+}
+
 .shipping-table-footer {
   padding: 0.72rem 1.05rem;
 }

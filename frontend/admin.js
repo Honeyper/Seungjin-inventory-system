@@ -1464,7 +1464,7 @@ function getShippingRows() {
   return (state.inventoryRows || []).filter((item) => {
     const status = normalizeInventoryStockStatus(item.stockStatus);
     const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
-    return quantity > 0 && !["폐기", "출고완료"].includes(status);
+    return !["폐기"].includes(status) && (quantity > 0 || status === "출고완료");
   });
 }
 
@@ -1523,6 +1523,10 @@ function renderShippingRowAction(item) {
         <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">검수 수정</button>
       </div>
     `;
+  }
+
+  if (status === "출고완료") {
+    return '<span class="shipping-action-complete">처리 완료</span>';
   }
 
   if (status === "보류") {
