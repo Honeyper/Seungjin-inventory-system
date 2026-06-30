@@ -1804,7 +1804,16 @@ function saveShippingInspection(payload) {
   const hasGoodReason = defectReasons.includes('양호');
   const anomalyStatus = hasGoodReason ? '정상' : '이상';
   const stockStatus = hasGoodReason ? '검수완료' : '작업중지';
-  const defectRate = hasGoodReason ? '0%' : '-';
+  const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
+  const defectQuantity = toNumber_(payload.defectQuantity);
+
+  if (defectQuantity < 0) {
+    throw new Error('불량 갯수는 0 이상의 숫자로 입력해주세요.');
+  }
+
+  const defectRateNumber = inspectionQuantity > 0 ? (defectQuantity / inspectionQuantity) * 100 : 0;
+  const defectRate = `${formatPercentNumber_(defectRateNumber)}%`;
+  const defectReason = defectReasons.join(', ');
   const defectPhotoFolderUrl = String(payload.defectPhotoFolderUrl || '').trim();
   const memo = String(payload.memo || payload.note || '').trim();
   const noteParts = [];
@@ -1823,7 +1832,10 @@ function saveShippingInspection(payload) {
     inspectionDate,
     inspectionTime,
     inspector,
+    inspectionQuantity: formatEa_(inspectionQuantity),
+    defectQuantity: formatEa_(defectQuantity),
     defectRate,
+    defectReason,
     note: noteParts.length ? noteParts.join('\n') : '-'
   });
   const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, stockStatus);
@@ -1836,6 +1848,10 @@ function saveShippingInspection(payload) {
     updatedBoxRows,
     updatedStockRows,
     defectPhotoFolderUrl,
+    defectQuantity,
+    defectRate: defectRateNumber,
+    defectReason,
+    inspectionQuantity,
     inspectionDate,
     inspectionTime
   };
@@ -1880,7 +1896,9 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], data.inspectionDate);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수시간', '검수시간'], data.inspectionTime);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수자', '검수자'], data.inspector);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], currentQuantity);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], data.inspectionQuantity || currentQuantity);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], data.defectQuantity);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], data.defectRate);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['비고'], data.note);
     updatedRows += 1;
@@ -2434,6 +2452,16 @@ function dash_(value) {
 
 function formatEa_(value) {
   return `${Number(value || 0).toLocaleString('ko-KR')} ea`;
+}
+
+function formatPercentNumber_(value) {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number)) {
+    return '0';
+  }
+
+  return Math.abs(number - Math.round(number)) < 0.05 ? String(Math.round(number)) : number.toFixed(1);
 }
 
 function formatBox_(value) {

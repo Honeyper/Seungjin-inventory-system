@@ -229,6 +229,9 @@ const shippingInspectionClient = document.querySelector("#shippingInspectionClie
 const shippingInspectionProduct = document.querySelector("#shippingInspectionProduct");
 const shippingInspectionStorage = document.querySelector("#shippingInspectionStorage");
 const shippingInspectionNote = document.querySelector("#shippingInspectionNote");
+const shippingInspectionQuantity = document.querySelector("#shippingInspectionQuantity");
+const shippingInspectionDefectQuantity = document.querySelector("#shippingInspectionDefectQuantity");
+const shippingInspectionDefectRate = document.querySelector("#shippingInspectionDefectRate");
 const shippingInspectionDefectFiles = document.querySelector("#shippingInspectionDefectFiles");
 const shippingInspectionPhotoButton = document.querySelector("#shippingInspectionPhotoButton");
 const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
@@ -377,6 +380,8 @@ shippingInspectionPhotoButton?.addEventListener("click", () => {
   shippingInspectionDefectFiles?.click();
 });
 shippingInspectionDefectFiles?.addEventListener("change", updateShippingInspectionPhotoPreview);
+shippingInspectionQuantity?.addEventListener("input", updateShippingInspectionDefectRate);
+shippingInspectionDefectQuantity?.addEventListener("input", updateShippingInspectionDefectRate);
 document.querySelectorAll('[data-shipping-action="inspect"]').forEach((button) => {
   button.addEventListener("click", () => {
     if (button.dataset.shippingAction !== "inspect") {
@@ -697,6 +702,17 @@ function openShippingInspectionModal(row) {
     shippingInspectionDate.value = getLocalDateInputValue();
   }
 
+  if (shippingInspectionQuantity) {
+    const availableQuantity = parseShippingSettlementNumber(row.children[8]?.textContent || row.dataset.quantity || "");
+    shippingInspectionQuantity.value = availableQuantity > 0 ? String(Math.round(availableQuantity)) : "";
+  }
+
+  if (shippingInspectionDefectQuantity) {
+    shippingInspectionDefectQuantity.value = "0";
+  }
+
+  updateShippingInspectionDefectRate();
+
   if (shippingInspectionMessage) {
     shippingInspectionMessage.textContent = "";
   }
@@ -759,6 +775,25 @@ function updateShippingInspectionPhotoPreview() {
   shippingInspectionPhotoPreview.hidden = false;
 }
 
+function getShippingInspectionRateValue() {
+  const inspectionQuantity = parseShippingSettlementNumber(shippingInspectionQuantity?.value || "");
+  const defectQuantity = parseShippingSettlementNumber(shippingInspectionDefectQuantity?.value || "");
+
+  if (inspectionQuantity <= 0 || defectQuantity <= 0) {
+    return 0;
+  }
+
+  return (defectQuantity / inspectionQuantity) * 100;
+}
+
+function updateShippingInspectionDefectRate() {
+  if (!shippingInspectionDefectRate) {
+    return;
+  }
+
+  shippingInspectionDefectRate.textContent = `${formatShippingSettlementPercent(getShippingInspectionRateValue())}%`;
+}
+
 async function saveShippingInspection() {
   const row = state.activeShippingInspectionRow;
   const selectedReasons = Array.from(
@@ -772,6 +807,24 @@ async function saveShippingInspection() {
   if (!selectedReasons.length) {
     if (shippingInspectionMessage) {
       shippingInspectionMessage.textContent = "불량내역을 하나 이상 선택해주세요.";
+    }
+    return;
+  }
+
+  const inspectionQuantity = parseShippingSettlementNumber(shippingInspectionQuantity?.value || "");
+  const defectQuantity = parseShippingSettlementNumber(shippingInspectionDefectQuantity?.value || "");
+  const defectRate = getShippingInspectionRateValue();
+
+  if (inspectionQuantity <= 0) {
+    if (shippingInspectionMessage) {
+      shippingInspectionMessage.textContent = "검수 수량을 1ea 이상 입력해주세요.";
+    }
+    return;
+  }
+
+  if (defectQuantity < 0) {
+    if (shippingInspectionMessage) {
+      shippingInspectionMessage.textContent = "불량 갯수는 0ea 이상 입력해주세요.";
     }
     return;
   }
@@ -829,6 +882,9 @@ async function saveShippingInspection() {
       storageLocation,
       inspector,
       inspectionDate,
+      inspectionQuantity,
+      defectQuantity,
+      defectRate,
       defectReasons: selectedReasons,
       memo,
       defectPhotoFolderUrl: uploadResult?.folderUrl || "",
@@ -866,8 +922,8 @@ async function saveShippingInspection() {
       }
     }
 
-    row.dataset.defectQuantity = String(saveResult?.defectQuantity ?? (anomalyStatus === "정상" ? 0 : 1));
-    row.dataset.defectRate = String(saveResult?.defectRate ?? (anomalyStatus === "정상" ? 0 : 100));
+    row.dataset.defectQuantity = String(saveResult?.defectQuantity ?? defectQuantity);
+    row.dataset.defectRate = String(saveResult?.defectRate ?? defectRate);
     updateShippingSettlementSummary();
 
     closeShippingInspectionModal();

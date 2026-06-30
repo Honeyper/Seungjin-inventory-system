@@ -1320,6 +1320,24 @@
                 <span>검수일</span>
                 <input id="shippingInspectionDate" type="date" />
               </label>
+              <label class="form-field">
+                <span>검수 수량 <b>*</b></span>
+                <span class="unit-input">
+                  <input id="shippingInspectionQuantity" type="number" min="1" step="1" inputmode="numeric" />
+                  <i>ea</i>
+                </span>
+              </label>
+              <label class="form-field">
+                <span>불량 갯수 <b>*</b></span>
+                <span class="unit-input">
+                  <input id="shippingInspectionDefectQuantity" type="number" min="0" step="1" inputmode="numeric" value="0" />
+                  <i>ea</i>
+                </span>
+              </label>
+              <label class="form-field">
+                <span>불량률</span>
+                <span class="shipping-rate-output" id="shippingInspectionDefectRate">0%</span>
+              </label>
               <div class="form-field full-span">
                 <span>불량내역 <b>*</b></span>
                 <div class="shipping-defect-options" role="group" aria-label="불량내역">
