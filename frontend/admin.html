@@ -1202,7 +1202,12 @@
                     <td>이상</td>
                     <td><span class="due-badge danger">D-1</span></td>
                     <td><span class="shipping-badge hold">출고 보류</span></td>
-                    <td><button class="shipping-row-button" type="button">사진 보기</button></td>
+                    <td>
+                      <div class="shipping-action-group">
+                        <button class="shipping-row-button" type="button" data-shipping-action="holdGuide">보류 상세</button>
+                        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">재검수</button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td>5</td>

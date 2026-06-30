@@ -2541,8 +2541,9 @@ input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 0.35rem;
-  white-space: nowrap;
+  max-width: 10.4rem;
 }
 
 .shipping-table-footer {

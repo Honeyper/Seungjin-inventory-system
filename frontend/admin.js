@@ -430,6 +430,11 @@ shippingTable?.addEventListener("click", (event) => {
     if (url) {
       window.open(url, "_blank", "noopener");
     }
+    return;
+  }
+
+  if (action === "holdGuide") {
+    showShippingHoldGuide(row, button);
   }
 });
 
@@ -1061,15 +1066,11 @@ async function saveShippingInspection() {
       : '<span class="shipping-badge hold">출고 보류</span>';
     }
 
-    const actionButton = actionCell?.querySelector("button");
-    if (actionButton) {
-      actionButton.classList.toggle("primary", false);
-      actionButton.textContent = anomalyStatus === "정상" ? "출고대기 등록" : uploadResult?.folderUrl ? "사진 보기" : "재검수";
-      actionButton.dataset.shippingAction = anomalyStatus === "정상" ? "queue" : uploadResult?.folderUrl ? "photo" : "inspect";
-
-      if (uploadResult?.folderUrl) {
-        actionButton.dataset.photoUrl = uploadResult.folderUrl;
-        actionButton.dataset.photoCount = String(uploadResult.uploadedCount || defectFiles.length);
+    if (actionCell) {
+      if (anomalyStatus === "정상") {
+        actionCell.innerHTML = '<button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>';
+      } else {
+        actionCell.innerHTML = renderShippingHoldActions(uploadResult?.folderUrl || "", uploadResult?.uploadedCount || defectFiles.length);
       }
     }
 
@@ -1090,6 +1091,35 @@ async function saveShippingInspection() {
       submitButton.textContent = previousSubmitText;
     }
   }
+}
+
+function renderShippingHoldActions(photoUrl = "", photoCount = 0) {
+  const photoButton = photoUrl
+    ? `<button class="shipping-row-button" type="button" data-shipping-action="photo" data-photo-url="${escapeAttribute(photoUrl)}" data-photo-count="${Number(photoCount) || 0}">사진</button>`
+    : "";
+
+  return `
+    <div class="shipping-action-group">
+      <button class="shipping-row-button" type="button" data-shipping-action="holdGuide" data-photo-count="${Number(photoCount) || 0}">보류 상세</button>
+      ${photoButton}
+      <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">재검수</button>
+    </div>
+  `;
+}
+
+function showShippingHoldGuide(row, button) {
+  if (!row) {
+    return;
+  }
+
+  const productName = row.children[3]?.textContent.trim() || "선택 제품";
+  const anomalyStatus = row.children[10]?.textContent.trim() || "이상";
+  const photoCount = Number(button?.dataset.photoCount || 0);
+  const photoLine = photoCount ? `\n- 등록된 불량 사진: ${photoCount}개` : "";
+
+  window.alert(
+    `[출고 보류 안내]\n\n${productName}\n\n- 출고 보류는 검수 결과가 양호가 아닐 때 자동 적용됩니다.\n- 이상 여부: ${anomalyStatus}\n- 출고 처리는 불가하며, 사진과 메모를 확인한 뒤 재검수를 진행해주세요.${photoLine}\n- 재검수에서 양호로 저장되면 출고대기 등록을 진행할 수 있습니다.`
+  );
 }
 
 function registerShippingWaiting(row) {
