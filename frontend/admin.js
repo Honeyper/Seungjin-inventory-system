@@ -230,6 +230,7 @@ const shippingInspectionModal = document.querySelector("#shippingInspectionModal
 const shippingInspectionForm = document.querySelector("#shippingInspectionForm");
 const shippingInspectionMessage = document.querySelector("#shippingInspectionMessage");
 const shippingInspectorName = document.querySelector("#shippingInspectorName");
+const editShippingInspectorButton = document.querySelector("#editShippingInspectorButton");
 const shippingInspectionDate = document.querySelector("#shippingInspectionDate");
 const shippingInspectionTime = document.querySelector("#shippingInspectionTime");
 const shippingInspectionRecordId = document.querySelector("#shippingInspectionRecordId");
@@ -404,6 +405,13 @@ shippingInspectionForm?.addEventListener("submit", (event) => {
 shippingCompletionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingCompletion();
+});
+editShippingInspectorButton?.addEventListener("click", () => {
+  setInboundLockedFieldEditable(
+    shippingInspectorName,
+    editShippingInspectorButton,
+    Boolean(shippingInspectorName?.disabled)
+  );
 });
 shippingInspectionPhotoButton?.addEventListener("click", () => {
   shippingInspectionDefectFiles?.click();
@@ -782,6 +790,9 @@ async function openShippingInspectionModal(row) {
 
   if (shippingInspectorName) {
     shippingInspectorName.value = session?.name || "Admin";
+  }
+  if (shippingInspectorName && editShippingInspectorButton) {
+    setInboundLockedFieldEditable(shippingInspectorName, editShippingInspectorButton, false);
   }
 
   if (shippingInspectionDate) {
