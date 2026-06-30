@@ -2055,12 +2055,16 @@ input {
   order: 1;
 }
 
-.shipping-filter-panel {
+.shipping-settlement-panel {
   order: 2;
 }
 
-.shipping-list-panel {
+.shipping-filter-panel {
   order: 3;
+}
+
+.shipping-list-panel {
+  order: 4;
 }
 
 .shipping-view .page-heading {
@@ -2081,6 +2085,7 @@ input {
 }
 
 .shipping-filter-panel,
+.shipping-settlement-panel,
 .shipping-summary-card,
 .shipping-list-panel {
   border: 1px solid #e1e7ef;
@@ -2280,6 +2285,70 @@ input {
   font-size: 0.92rem;
   font-style: normal;
   font-weight: 800;
+}
+
+.shipping-settlement-panel {
+  margin-bottom: 0.8rem;
+  overflow: hidden;
+}
+
+.shipping-settlement-header span {
+  color: #718099;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.shipping-settlement-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0.85rem 1.05rem 1rem;
+}
+
+.shipping-settlement-card {
+  min-height: 4.45rem;
+  padding: 0.78rem 0.86rem;
+  border: 1px solid #e3ebf4;
+  border-radius: 0.5rem;
+  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+}
+
+.shipping-settlement-card span {
+  display: block;
+  color: #5e6d83;
+  font-size: 0.77rem;
+  font-weight: 900;
+}
+
+.shipping-settlement-card strong {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-top: 0.45rem;
+  color: var(--navy-dark);
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.shipping-settlement-card strong b {
+  font: inherit;
+}
+
+.shipping-settlement-card em {
+  color: #65758c;
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.shipping-settlement-card.danger strong b {
+  color: #c62828;
+}
+
+.shipping-settlement-card.rate strong b,
+.shipping-settlement-card.share strong b {
+  color: var(--gold);
 }
 
 .shipping-list-header {
@@ -5030,6 +5099,7 @@ input {
   }
 
   .shipping-filter-grid,
+  .shipping-settlement-grid,
   .shipping-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5085,6 +5155,7 @@ input {
   }
 
   .shipping-filter-grid,
+  .shipping-settlement-grid,
   .shipping-summary-grid {
     grid-template-columns: 1fr;
   }

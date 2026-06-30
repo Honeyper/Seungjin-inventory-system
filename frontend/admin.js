@@ -233,6 +233,15 @@ const shippingInspectionDefectFiles = document.querySelector("#shippingInspectio
 const shippingInspectionPhotoButton = document.querySelector("#shippingInspectionPhotoButton");
 const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
 const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
+const shippingSettlementFields = {
+  totalQuantity: document.querySelector("#shippingSettlementTotalQuantity"),
+  totalBoxes: document.querySelector("#shippingSettlementTotalBoxes"),
+  remainder: document.querySelector("#shippingSettlementRemainder"),
+  inspectedQuantity: document.querySelector("#shippingSettlementInspectedQuantity"),
+  defectQuantity: document.querySelector("#shippingSettlementDefectQuantity"),
+  defectRate: document.querySelector("#shippingSettlementDefectRate"),
+  inspectionShare: document.querySelector("#shippingSettlementInspectionShare")
+};
 const openExistingStockModalButton = document.querySelector("#openExistingStockModalButton");
 const existingStockModal = document.querySelector("#existingStockModal");
 const existingStockForm = document.querySelector("#existingStockForm");
@@ -631,6 +640,7 @@ loadTodayInbounds();
 setCurrentInboundTime();
 setActiveView(getCurrentView());
 updateInboundSummary();
+updateShippingSettlementSummary();
 renderInboundDefectReasons();
 
 function getCurrentView() {
@@ -654,6 +664,10 @@ function setActiveView(view) {
 
   if (view === "inventory" && !state.inventoryLoaded) {
     loadInventoryDashboard();
+  }
+
+  if (view === "shipping") {
+    updateShippingSettlementSummary();
   }
 }
 
@@ -852,6 +866,10 @@ async function saveShippingInspection() {
       }
     }
 
+    row.dataset.defectQuantity = String(saveResult?.defectQuantity ?? (anomalyStatus === "정상" ? 0 : 1));
+    row.dataset.defectRate = String(saveResult?.defectRate ?? (anomalyStatus === "정상" ? 0 : 100));
+    updateShippingSettlementSummary();
+
     closeShippingInspectionModal();
   } catch (error) {
     if (shippingInspectionMessage) {
@@ -865,6 +883,109 @@ async function saveShippingInspection() {
       submitButton.textContent = previousSubmitText;
     }
   }
+}
+
+function parseShippingSettlementNumber(value) {
+  const text = String(value || "").replace(/,/g, "");
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function formatShippingSettlementNumber(value) {
+  return Math.round(Number(value) || 0).toLocaleString("ko-KR");
+}
+
+function formatShippingSettlementPercent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return "0";
+  }
+  return Math.abs(number - Math.round(number)) < 0.05 ? String(Math.round(number)) : number.toFixed(1);
+}
+
+function getShippingSettlementRows() {
+  const tbody = document.querySelector(".shipping-table tbody");
+  if (!tbody) {
+    return [];
+  }
+
+  return Array.from(tbody.querySelectorAll("tr")).filter(
+    (row) => row.children.length >= 13 && !row.querySelector(".empty-state")
+  );
+}
+
+function getShippingSettlementMetric(row, columnIndex, datasetKey) {
+  const datasetValue = datasetKey ? row.dataset?.[datasetKey] : undefined;
+  if (datasetValue != null && datasetValue !== "") {
+    return parseShippingSettlementNumber(datasetValue);
+  }
+
+  if (columnIndex < 0) {
+    return 0;
+  }
+
+  return parseShippingSettlementNumber(row.children[columnIndex]?.textContent || "");
+}
+
+function setShippingSettlementText(key, value) {
+  const target = shippingSettlementFields[key];
+  if (target) {
+    target.textContent = value;
+  }
+}
+
+function updateShippingSettlementSummary() {
+  if (!shippingSettlementFields.totalQuantity) {
+    return;
+  }
+
+  const rows = getShippingSettlementRows();
+  let totalQuantity = 0;
+  let totalBoxes = 0;
+  let remainder = 0;
+  let inspectedQuantity = 0;
+  let defectQuantity = 0;
+  let defectRateTotal = 0;
+  let defectRateCount = 0;
+
+  rows.forEach((row) => {
+    const boxes = getShippingSettlementMetric(row, 7, "boxCount");
+    const quantity = getShippingSettlementMetric(row, 8, "quantity");
+    const rowRemainder = getShippingSettlementMetric(row, -1, "remainder");
+    const inspectionText = row.children[9]?.textContent.trim() || "";
+
+    totalBoxes += boxes;
+    totalQuantity += quantity;
+    remainder += rowRemainder;
+
+    if (inspectionText.includes("검수 완료")) {
+      inspectedQuantity += quantity;
+    }
+
+    if (row.dataset.defectQuantity != null && row.dataset.defectQuantity !== "") {
+      defectQuantity += getShippingSettlementMetric(row, -1, "defectQuantity");
+    }
+
+    if (row.dataset.defectRate != null && row.dataset.defectRate !== "") {
+      defectRateTotal += parseShippingSettlementNumber(row.dataset.defectRate);
+      defectRateCount += 1;
+    }
+  });
+
+  const defectRate = defectRateCount
+    ? defectRateTotal / defectRateCount
+    : inspectedQuantity
+      ? (defectQuantity / inspectedQuantity) * 100
+      : 0;
+  const inspectionShare = totalQuantity ? (inspectedQuantity / totalQuantity) * 100 : 0;
+
+  setShippingSettlementText("totalQuantity", formatShippingSettlementNumber(totalQuantity));
+  setShippingSettlementText("totalBoxes", formatShippingSettlementNumber(totalBoxes));
+  setShippingSettlementText("remainder", formatShippingSettlementNumber(remainder));
+  setShippingSettlementText("inspectedQuantity", formatShippingSettlementNumber(inspectedQuantity));
+  setShippingSettlementText("defectQuantity", formatShippingSettlementNumber(defectQuantity));
+  setShippingSettlementText("defectRate", formatShippingSettlementPercent(defectRate));
+  setShippingSettlementText("inspectionShare", formatShippingSettlementPercent(inspectionShare));
 }
 
 function updateInboundSummary() {
