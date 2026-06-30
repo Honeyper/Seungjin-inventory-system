@@ -770,10 +770,7 @@ async function openShippingInspectionModal(row) {
 
   shippingInspectionForm?.reset();
   resetShippingInspectionPhotoPreview();
-  const goodReasonInput = shippingInspectionForm?.querySelector('input[name="shippingDefectReason"][value="양호"]');
-  if (goodReasonInput) {
-    goodReasonInput.checked = true;
-  }
+  setShippingInspectionDefectReasons(row.dataset.defectReason || "양호");
 
   if (shippingInspectorName) {
     shippingInspectorName.value = session?.name || "Admin";
@@ -790,8 +787,14 @@ async function openShippingInspectionModal(row) {
   await ensureProductsLoaded();
   renderShippingInspectionBoxList(row);
 
+  const previousInspectionQuantity = parseShippingSettlementNumber(row.dataset.inspectionQuantity || "");
+  if (shippingInspectionQuantity && previousInspectionQuantity > 0) {
+    shippingInspectionQuantity.value = String(Math.round(previousInspectionQuantity));
+  }
+
   if (shippingInspectionDefectQuantity) {
-    shippingInspectionDefectQuantity.value = "0";
+    const previousDefectQuantity = parseShippingSettlementNumber(row.dataset.defectQuantity || "");
+    shippingInspectionDefectQuantity.value = String(Math.max(0, Math.round(previousDefectQuantity)));
   }
 
   updateShippingInspectionDefectRate();
@@ -802,6 +805,19 @@ async function openShippingInspectionModal(row) {
 
   shippingInspectionModal.hidden = false;
   document.body.classList.add("modal-open");
+}
+
+function setShippingInspectionDefectReasons(value) {
+  const reasonInputs = Array.from(shippingInspectionForm?.querySelectorAll('input[name="shippingDefectReason"]') || []);
+  const selectedReasons = String(value || "")
+    .split(",")
+    .map((reason) => reason.trim())
+    .filter(Boolean);
+  const reasonSet = new Set(selectedReasons.length ? selectedReasons : ["양호"]);
+
+  reasonInputs.forEach((input) => {
+    input.checked = reasonSet.has(input.value);
+  });
 }
 
 function renderShippingInspectionBoxList(row) {
@@ -1100,6 +1116,10 @@ async function saveShippingInspection() {
     const statusCell = row.children[12];
     const actionCell = row.children[13];
     const anomalyStatus = saveResult?.anomalyStatus || (hasGoodReason ? "정상" : "이상");
+    row.dataset.inspectionQuantity = String(inspectionQuantity);
+    row.dataset.defectQuantity = String(defectQuantity);
+    row.dataset.defectRate = String(defectRate);
+    row.dataset.defectReason = selectedReasons.join(", ");
 
     if (inspectionCell) {
       inspectionCell.innerHTML = '<span class="shipping-badge done">검수 완료</span>';
@@ -1115,7 +1135,12 @@ async function saveShippingInspection() {
 
     if (actionCell) {
       if (anomalyStatus === "정상") {
-        actionCell.innerHTML = '<button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>';
+        actionCell.innerHTML = `
+          <div class="shipping-action-group">
+            <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">검수 수정</button>
+            <button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>
+          </div>
+        `;
       } else {
         actionCell.innerHTML = renderShippingHoldActions(uploadResult?.folderUrl || "", uploadResult?.uploadedCount || defectFiles.length);
       }
@@ -1374,6 +1399,7 @@ function renderShippingTable(message = "") {
   shippingTableBody.innerHTML = rows.map((item, index) => {
     const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
     const boxes = parseShippingSettlementNumber(item.currentBoxCount);
+    const inspectionQuantity = parseShippingSettlementNumber(item.shippingInspectionQuantity);
     const defectQuantity = parseShippingSettlementNumber(item.shippingDefectQuantity);
     const defectRate = parseShippingSettlementNumber(item.shippingDefectRate);
 
@@ -1383,8 +1409,10 @@ function renderShippingTable(message = "") {
         data-product-id="${escapeAttribute(item.productId)}"
         data-box-count="${boxes}"
         data-quantity="${quantity}"
+        data-inspection-quantity="${inspectionQuantity}"
         data-defect-quantity="${defectQuantity}"
-        data-defect-rate="${defectRate}">
+        data-defect-rate="${defectRate}"
+        data-defect-reason="${escapeAttribute(item.shippingDefectReason || "")}">
         <td>${index + 1}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
         <td>${escapeHtml(item.clientName || "-")}</td>
@@ -1470,6 +1498,7 @@ function renderShippingRowAction(item) {
       <div class="shipping-action-group">
         <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고 처리</button>
         <button class="shipping-row-button secondary" type="button" data-shipping-action="cancelQueue">대기 취소</button>
+        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">검수 수정</button>
       </div>
     `;
   }
@@ -1479,7 +1508,12 @@ function renderShippingRowAction(item) {
   }
 
   if (isShippingInspected(item)) {
-    return '<button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>';
+    return `
+      <div class="shipping-action-group">
+        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">검수 수정</button>
+        <button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>
+      </div>
+    `;
   }
 
   return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button>';
