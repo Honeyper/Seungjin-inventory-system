@@ -228,6 +228,7 @@ const shippingInspectionRecordId = document.querySelector("#shippingInspectionRe
 const shippingInspectionClient = document.querySelector("#shippingInspectionClient");
 const shippingInspectionProduct = document.querySelector("#shippingInspectionProduct");
 const shippingInspectionStorage = document.querySelector("#shippingInspectionStorage");
+const shippingInspectionNote = document.querySelector("#shippingInspectionNote");
 const shippingInspectionDefectFiles = document.querySelector("#shippingInspectionDefectFiles");
 const shippingInspectionPhotoButton = document.querySelector("#shippingInspectionPhotoButton");
 const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
@@ -780,6 +781,16 @@ async function saveShippingInspection() {
 
   const hasGoodReason = selectedReasons.includes("양호");
   let uploadResult = null;
+  const managementId = shippingInspectionRecordId?.textContent.trim() || "";
+  const clientName = shippingInspectionClient?.textContent.trim() || "";
+  const productName = shippingInspectionProduct?.textContent.trim() || "";
+  const storageLocation = shippingInspectionStorage?.textContent.trim() || "";
+  const inspectionDate = shippingInspectionDate?.value.trim() || "";
+  const inspector =
+    shippingInspectorName?.value?.trim?.() ||
+    shippingInspectorName?.textContent?.trim?.() ||
+    "";
+  const memo = shippingInspectionNote?.value.trim() || "";
 
   try {
     const defectFiles = await getFilePayloadsFromInput(shippingInspectionDefectFiles, {
@@ -789,30 +800,51 @@ async function saveShippingInspection() {
 
     if (defectFiles.length) {
       uploadResult = await requestApi("uploadShippingDefectPhotos", {
-        managementId: shippingInspectionRecordId?.textContent.trim() || "",
-        clientName: shippingInspectionClient?.textContent.trim() || "",
-        productName: shippingInspectionProduct?.textContent.trim() || "",
-        inspectionDate: shippingInspectionDate?.value.trim() || "",
+        managementId,
+        clientName,
+        productName,
+        inspectionDate,
         defectFiles
       });
     }
+
+    const saveResult = await requestApi("saveShippingInspection", {
+      managementId,
+      clientName,
+      productName,
+      storageLocation,
+      inspector,
+      inspectionDate,
+      defectReasons: selectedReasons,
+      memo,
+      defectPhotoFolderUrl: uploadResult?.folderUrl || "",
+      defectPhotoCount: uploadResult?.uploadedCount || 0
+    });
 
     const inspectionCell = row.children[9];
     const anomalyCell = row.children[10];
     const statusCell = row.children[12];
     const actionCell = row.children[13];
+    const anomalyStatus = saveResult?.anomalyStatus || (hasGoodReason ? "정상" : "이상");
+    const stockStatus = saveResult?.stockStatus || (hasGoodReason ? "검수완료" : "작업중지");
 
-    inspectionCell.innerHTML = '<span class="shipping-badge done">검수 완료</span>';
-    anomalyCell.textContent = hasGoodReason ? "정상" : "이상";
-    statusCell.innerHTML = hasGoodReason
+    if (inspectionCell) {
+      inspectionCell.innerHTML = '<span class="shipping-badge done">검수 완료</span>';
+    }
+    if (anomalyCell) {
+      anomalyCell.textContent = anomalyStatus;
+    }
+    if (statusCell) {
+      statusCell.innerHTML = anomalyStatus === "정상"
       ? '<span class="shipping-badge ready">검수 완료</span>'
-      : '<span class="shipping-badge hold">출고 보류</span>';
+      : `<span class="shipping-badge hold">${escapeHtml(stockStatus)}</span>`;
+    }
 
-    const actionButton = actionCell.querySelector("button");
+    const actionButton = actionCell?.querySelector("button");
     if (actionButton) {
       actionButton.removeAttribute("data-shipping-action");
-      actionButton.classList.toggle("primary", hasGoodReason);
-      actionButton.textContent = hasGoodReason ? "출고 처리" : "사진 보기";
+      actionButton.classList.toggle("primary", anomalyStatus === "정상");
+      actionButton.textContent = anomalyStatus === "정상" ? "출고 처리" : uploadResult?.folderUrl ? "사진 보기" : "검수 완료";
 
       if (uploadResult?.folderUrl) {
         actionButton.dataset.photoUrl = uploadResult.folderUrl;
