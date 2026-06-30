@@ -1822,15 +1822,6 @@ function saveShippingInspection(payload) {
   const defectReason = defectReasons.join(', ');
   const defectPhotoFolderUrl = String(payload.defectPhotoFolderUrl || '').trim();
   const memo = String(payload.memo || payload.note || '').trim();
-  const noteParts = [];
-
-  if (memo) {
-    noteParts.push(memo);
-  }
-
-  if (defectPhotoFolderUrl) {
-    noteParts.push(`불량사진: ${defectPhotoFolderUrl}`);
-  }
 
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
@@ -1844,7 +1835,7 @@ function saveShippingInspection(payload) {
     defectReason,
     status: stockStatus,
     selectedBoxes: Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [],
-    note: noteParts.length ? noteParts.join('\n') : '-'
+    note: memo || '-'
   });
   const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, stockStatus);
 

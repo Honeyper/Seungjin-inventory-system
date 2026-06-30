@@ -1035,9 +1035,7 @@ async function saveShippingInspection() {
     shippingInspectorName?.value?.trim?.() ||
     shippingInspectorName?.textContent?.trim?.() ||
     "";
-  const boxMemo = `검수 박스: ${selectedBoxes.map((box) => `${box.number}번`).join(", ")}`;
-  const userMemo = shippingInspectionNote?.value.trim() || "";
-  const memo = userMemo ? `${userMemo}\n${boxMemo}` : boxMemo;
+  const memo = shippingInspectionNote?.value.trim() || "";
 
   try {
     const defectFiles = await getFilePayloadsFromInput(shippingInspectionDefectFiles, {
