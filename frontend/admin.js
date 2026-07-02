@@ -31,9 +31,11 @@ const DEFECT_REASON_TONES = {
   "가스 불량": "gray"
 };
 
-const INVENTORY_STOCK_STATUSES = ["보관", "작업중", "검수완료", "보류", "폐기", "출고대기", "출고완료"];
+const INVENTORY_STOCK_STATUSES = ["보관", "작업중", "검수완료", "보류", "폐기", "출고대기", "일부 출고", "출고완료"];
+const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
+const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 
 if (!session || session.role !== "admin") {
   location.replace("./index.html");
@@ -83,6 +85,8 @@ const state = {
   activeInboundMenuButton: null,
   activeShippingInspectionRow: null,
   activeShippingCompletionRow: null,
+  activeShippingWaitingRow: null,
+  isSavingShippingWaiting: false,
   isSavingShippingInspection: false,
   isSavingShippingCompletion: false,
   inboundProductPickerQuery: "",
@@ -249,17 +253,43 @@ const shippingInspectionDefectFiles = document.querySelector("#shippingInspectio
 const shippingInspectionPhotoButton = document.querySelector("#shippingInspectionPhotoButton");
 const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
 const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
+const shippingInspectionHoldStatus = document.querySelector("#shippingInspectionHoldStatus");
 const shippingCompletionModal = document.querySelector("#shippingCompletionModal");
 const shippingCompletionForm = document.querySelector("#shippingCompletionForm");
 const shippingCompletionRecordId = document.querySelector("#shippingCompletionRecordId");
 const shippingCompletionProduct = document.querySelector("#shippingCompletionProduct");
 const shippingCompletionClient = document.querySelector("#shippingCompletionClient");
 const shippingCompletionQuantity = document.querySelector("#shippingCompletionQuantity");
+const shippingCompletionType = document.querySelector("#shippingCompletionType");
 const shippingCompletionDate = document.querySelector("#shippingCompletionDate");
 const shippingCompletionTime = document.querySelector("#shippingCompletionTime");
 const shippingCompletionShipper = document.querySelector("#shippingCompletionShipper");
+const editShippingCompletionShipperButton = document.querySelector("#editShippingCompletionShipperButton");
 const shippingCompletionMessage = document.querySelector("#shippingCompletionMessage");
 const saveShippingCompletionButton = document.querySelector("#saveShippingCompletionButton");
+const shippingCompletionBoxList = document.querySelector("#shippingCompletionBoxList");
+const shippingCompletionBoxSummary = document.querySelector("#shippingCompletionBoxSummary");
+const shippingCompletionShippedBoxes = document.querySelector("#shippingCompletionShippedBoxes");
+const shippingWaitingConfirmModal = document.querySelector("#shippingWaitingConfirmModal");
+const shippingWaitingConfirmRecordId = document.querySelector("#shippingWaitingConfirmRecordId");
+const shippingWaitingConfirmProduct = document.querySelector("#shippingWaitingConfirmProduct");
+const shippingWaitingConfirmClient = document.querySelector("#shippingWaitingConfirmClient");
+const shippingWaitingConfirmBoxes = document.querySelector("#shippingWaitingConfirmBoxes");
+const shippingWaitingConfirmQuantity = document.querySelector("#shippingWaitingConfirmQuantity");
+const shippingWaitingConfirmBoxList = document.querySelector("#shippingWaitingConfirmBoxList");
+const shippingWaitingConfirmMessage = document.querySelector("#shippingWaitingConfirmMessage");
+const confirmShippingWaitingButton = document.querySelector("#confirmShippingWaitingButton");
+const shippingHoldGuideModal = document.querySelector("#shippingHoldGuideModal");
+const shippingHoldGuideRecordId = document.querySelector("#shippingHoldGuideRecordId");
+const shippingHoldGuideProduct = document.querySelector("#shippingHoldGuideProduct");
+const shippingHoldGuideClient = document.querySelector("#shippingHoldGuideClient");
+const shippingHoldGuideAnomaly = document.querySelector("#shippingHoldGuideAnomaly");
+const shippingHoldGuidePhotoCount = document.querySelector("#shippingHoldGuidePhotoCount");
+const openShippingHoldGuidePhotoButton = document.querySelector("#openShippingHoldGuidePhotoButton");
+const reinspectFromHoldGuideButton = document.querySelector("#reinspectFromHoldGuideButton");
+const shippingSettlementStartDate = document.querySelector("#shippingSettlementStartDate");
+const shippingSettlementEndDate = document.querySelector("#shippingSettlementEndDate");
+const shippingSettlementTodayButton = document.querySelector("#shippingSettlementTodayButton");
 const shippingSettlementFields = {
   totalQuantity: document.querySelector("#shippingSettlementTotalQuantity"),
   totalBoxes: document.querySelector("#shippingSettlementTotalBoxes"),
@@ -398,6 +428,25 @@ document.querySelector("#closeShippingInspectionModal")?.addEventListener("click
 document.querySelector("#cancelShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
 document.querySelector("#closeShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
 document.querySelector("#cancelShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
+document.querySelector("#closeShippingWaitingConfirmModal")?.addEventListener("click", closeShippingWaitingConfirmModal);
+document.querySelector("#cancelShippingWaitingConfirmModal")?.addEventListener("click", closeShippingWaitingConfirmModal);
+confirmShippingWaitingButton?.addEventListener("click", confirmShippingWaiting);
+document.querySelector("#closeShippingHoldGuideModal")?.addEventListener("click", closeShippingHoldGuideModal);
+document.querySelector("#cancelShippingHoldGuideModal")?.addEventListener("click", closeShippingHoldGuideModal);
+openShippingHoldGuidePhotoButton?.addEventListener("click", () => {
+  const url = openShippingHoldGuidePhotoButton.dataset.photoUrl;
+  if (url) {
+    window.open(url, "_blank", "noopener");
+  }
+});
+reinspectFromHoldGuideButton?.addEventListener("click", () => {
+  const rowIndex = Number(reinspectFromHoldGuideButton.dataset.rowIndex);
+  const row = Number.isInteger(rowIndex) ? shippingTableBody?.rows[rowIndex] : null;
+  closeShippingHoldGuideModal();
+  if (row) {
+    openShippingInspectionModal(row);
+  }
+});
 shippingInspectionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingInspection();
@@ -405,6 +454,27 @@ shippingInspectionForm?.addEventListener("submit", (event) => {
 shippingCompletionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingCompletion();
+});
+shippingSettlementStartDate?.addEventListener("change", () => {
+  normalizeShippingSettlementDateRange("start");
+  updateShippingSummaryCards(getShippingSettlementItems());
+  updateShippingSettlementSummary();
+});
+shippingSettlementEndDate?.addEventListener("change", () => {
+  normalizeShippingSettlementDateRange("end");
+  updateShippingSummaryCards(getShippingSettlementItems());
+  updateShippingSettlementSummary();
+});
+shippingSettlementTodayButton?.addEventListener("click", () => {
+  const today = getLocalDateInputValue();
+  if (shippingSettlementStartDate) {
+    shippingSettlementStartDate.value = today;
+  }
+  if (shippingSettlementEndDate) {
+    shippingSettlementEndDate.value = today;
+  }
+  updateShippingSummaryCards(getShippingSettlementItems());
+  updateShippingSettlementSummary();
 });
 editShippingInspectorButton?.addEventListener("click", () => {
   setInboundLockedFieldEditable(
@@ -428,12 +498,22 @@ editShippingInspectionQuantityButton?.addEventListener("click", () => {
     Boolean(shippingInspectionQuantity?.disabled)
   );
 });
+editShippingCompletionShipperButton?.addEventListener("click", () => {
+  setInboundLockedFieldEditable(
+    shippingCompletionShipper,
+    editShippingCompletionShipperButton,
+    Boolean(shippingCompletionShipper?.disabled)
+  );
+});
 shippingInspectionDefectQuantity?.addEventListener("input", updateShippingInspectionDefectRate);
 shippingInspectionSelectAllBoxes?.addEventListener("change", () => {
   setShippingInspectionBoxSelection(Boolean(shippingInspectionSelectAllBoxes.checked));
 });
 shippingInspectionBoxList?.addEventListener("change", () => {
   syncShippingInspectionBoxState();
+});
+shippingCompletionBoxList?.addEventListener("change", () => {
+  syncShippingCompletionBoxState();
 });
 shippingTable?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-shipping-action]");
@@ -443,6 +523,7 @@ shippingTable?.addEventListener("click", (event) => {
 
   const row = button.closest("tr");
   const action = button.dataset.shippingAction;
+  button.closest(".shipping-action-menu")?.removeAttribute("open");
 
   if (action === "inspect") {
     openShippingInspectionModal(row);
@@ -450,7 +531,7 @@ shippingTable?.addEventListener("click", (event) => {
   }
 
   if (action === "queue") {
-    registerShippingWaiting(row);
+    queueShippingThenComplete(row);
     return;
   }
 
@@ -670,6 +751,16 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (shippingWaitingConfirmModal && !shippingWaitingConfirmModal.hidden) {
+    closeShippingWaitingConfirmModal();
+    return;
+  }
+
+  if (shippingHoldGuideModal && !shippingHoldGuideModal.hidden) {
+    closeShippingHoldGuideModal();
+    return;
+  }
+
   if (!productModal.hidden) {
     closeProductModal();
   }
@@ -730,6 +821,7 @@ window.addEventListener("scroll", () => {
 
 setCurrentInboundDate();
 setCurrentInboundListDateRange();
+setCurrentShippingSettlementDate();
 state.productsLoadPromise = loadProducts().finally(() => {
   state.productsLoadPromise = null;
 });
@@ -787,6 +879,9 @@ async function openShippingInspectionModal(row) {
   shippingInspectionForm?.reset();
   resetShippingInspectionPhotoPreview();
   setShippingInspectionDefectReasons(row.dataset.defectReason || "양호");
+  if (shippingInspectionHoldStatus) {
+    shippingInspectionHoldStatus.checked = row.children[12]?.textContent.trim() === "출고 보류";
+  }
 
   if (shippingInspectorName) {
     shippingInspectorName.value = session?.name || "Admin";
@@ -807,7 +902,8 @@ async function openShippingInspectionModal(row) {
   renderShippingInspectionBoxList(row);
 
   const previousInspectionQuantity = parseShippingSettlementNumber(row.dataset.inspectionQuantity || "");
-  if (shippingInspectionQuantity && previousInspectionQuantity > 0) {
+  const trayQuantity = getShippingInspectionTrayQuantity(row);
+  if (shippingInspectionQuantity && trayQuantity <= 0 && previousInspectionQuantity > 0) {
     shippingInspectionQuantity.value = String(Math.round(previousInspectionQuantity));
   }
   if (shippingInspectionQuantity && editShippingInspectionQuantityButton) {
@@ -847,32 +943,46 @@ function renderShippingInspectionBoxList(row) {
     return;
   }
 
-  const boxCount = Math.max(1, Math.round(parseShippingSettlementNumber(row.children[7]?.textContent || "")));
-  const totalQuantity = Math.round(parseShippingSettlementNumber(row.children[8]?.textContent || row.dataset.quantity || ""));
-  const unitQuantity = boxCount > 0 ? Math.round(totalQuantity / boxCount) : totalQuantity;
+  const fallbackCount = Math.max(1, Math.round(parseShippingSettlementNumber(row.children[7]?.textContent || "")));
+  const fallbackQuantity = Math.round(parseShippingSettlementNumber(row.children[8]?.textContent || row.dataset.quantity || ""));
   const storageLocation = row.children[6]?.textContent.trim() || "-";
   const trayQuantity = getShippingInspectionTrayQuantity(row);
+  const activeBoxes = getShippingRowBoxes(row, "activeShippingBoxes", fallbackCount, fallbackQuantity);
+  const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes")
+    .map((box) => ({ ...box, status: box.status || "출고완료", shipped: true }));
+  const boxes = [...activeBoxes, ...shippedBoxes]
+    .sort((left, right) => left.number - right.number);
 
-  shippingInspectionBoxList.innerHTML = Array.from({ length: boxCount }, (_, index) => {
-    const boxNumber = index + 1;
-    const isLast = boxNumber === boxCount;
-    const quantity = isLast ? Math.max(totalQuantity - unitQuantity * (boxCount - 1), 0) : unitQuantity;
+  shippingInspectionBoxList.innerHTML = boxes.length ? boxes.map((box) => {
+    const quantity = Math.max(0, Math.round(box.quantity));
     const quantityText = quantity > 0 ? `${quantity.toLocaleString("ko-KR")} ea` : "- ea";
+    const boxStatus = normalizeInventoryStockStatus(box.status);
+    const isDisabled = box.shipped || boxStatus === "출고완료" || boxStatus === "출고대기";
+    const statusText = boxStatus === "출고완료"
+      ? "출고 완료"
+      : boxStatus === "출고대기"
+        ? "출고 대기"
+        : "";
 
     return `
-      <label class="shipping-box-check-card">
-        <input type="checkbox" name="shippingInspectionBox" value="${boxNumber}" data-quantity="${quantity}" checked />
+      <label class="shipping-box-check-card${isDisabled ? " disabled" : ""}">
+        <input type="checkbox" name="shippingInspectionBox" value="${box.number}" data-quantity="${quantity}" ${isDisabled ? "disabled" : "checked"} />
         <span>
-          <strong>${boxNumber}번 박스</strong>
-          <small>${escapeHtml(storageLocation)} · ${quantityText}</small>
+          <strong>${box.number}번 박스</strong>
+          <small>${escapeHtml(storageLocation)} · ${quantityText}${statusText ? ` · ${statusText}` : ""}</small>
         </span>
       </label>
     `;
-  }).join("");
+  }).join("") : '<p class="shipping-box-empty">출고 가능한 박스가 없습니다.</p>';
 
+  const selectableBoxes = boxes.filter((box) => {
+    const boxStatus = normalizeInventoryStockStatus(box.status);
+    return !(box.shipped || boxStatus === "출고완료" || boxStatus === "출고대기");
+  });
   if (shippingInspectionSelectAllBoxes) {
-    shippingInspectionSelectAllBoxes.checked = true;
+    shippingInspectionSelectAllBoxes.checked = selectableBoxes.length > 0;
     shippingInspectionSelectAllBoxes.indeterminate = false;
+    shippingInspectionSelectAllBoxes.disabled = selectableBoxes.length === 0;
   }
 
   if (shippingInspectionQuantity) {
@@ -883,6 +993,7 @@ function renderShippingInspectionBoxList(row) {
 }
 
 function getShippingInspectionTrayQuantity(row) {
+  const productId = row.dataset.productId || "";
   const clientName = row.children[2]?.textContent.trim() || "";
   const productName = row.children[3]?.textContent.trim() || "";
   const normalize = (value) => String(value || "").replace(/\s+/g, " ").trim();
@@ -893,6 +1004,8 @@ function getShippingInspectionTrayQuantity(row) {
   const productKey = normalizeKey(productName);
 
   const matchedProduct = state.products.find((product) => (
+    productId && String(product.productId || "").trim() === productId
+  )) || state.products.find((product) => (
     normalize(product.productName) === normalizedProduct &&
     (!normalizedClient || normalize(product.clientName) === normalizedClient)
   )) || state.products.find((product) => (
@@ -912,27 +1025,31 @@ function getShippingInspectionTrayQuantity(row) {
 function getSelectedShippingInspectionBoxes() {
   return Array.from(shippingInspectionBoxList?.querySelectorAll('input[name="shippingInspectionBox"]:checked') || [])
     .map((input) => ({
-      number: input.value,
+      number: Number(input.value),
       quantity: parseShippingSettlementNumber(input.dataset.quantity || "")
-    }));
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
 }
 
 function setShippingInspectionBoxSelection(checked) {
   shippingInspectionBoxList?.querySelectorAll('input[name="shippingInspectionBox"]').forEach((input) => {
-    input.checked = checked;
+    if (!input.disabled) {
+      input.checked = checked;
+    }
   });
   syncShippingInspectionBoxState();
 }
 
 function syncShippingInspectionBoxState() {
   const inputs = Array.from(shippingInspectionBoxList?.querySelectorAll('input[name="shippingInspectionBox"]') || []);
-  const checkedInputs = inputs.filter((input) => input.checked);
+  const enabledInputs = inputs.filter((input) => !input.disabled);
+  const checkedInputs = enabledInputs.filter((input) => input.checked);
 
-  updateShippingInspectionBoxSummary(inputs, checkedInputs);
+  updateShippingInspectionBoxSummary(enabledInputs, checkedInputs);
 
   if (shippingInspectionSelectAllBoxes) {
-    shippingInspectionSelectAllBoxes.checked = inputs.length > 0 && checkedInputs.length === inputs.length;
-    shippingInspectionSelectAllBoxes.indeterminate = checkedInputs.length > 0 && checkedInputs.length < inputs.length;
+    shippingInspectionSelectAllBoxes.checked = enabledInputs.length > 0 && checkedInputs.length === enabledInputs.length;
+    shippingInspectionSelectAllBoxes.indeterminate = checkedInputs.length > 0 && checkedInputs.length < enabledInputs.length;
   }
 
   updateShippingInspectionDefectRate();
@@ -950,6 +1067,154 @@ function updateShippingInspectionBoxSummary(
   shippingInspectionBoxSummary.textContent = inputs.length
     ? `${inputs.length}개 박스 중 ${checkedInputs.length}개 선택 · 검수 기준 ${Math.round(inspectionQuantity).toLocaleString("ko-KR")} ea`
     : "검수할 박스를 선택해주세요.";
+}
+
+function getShippingRowBoxes(row, datasetKey, fallbackCount = 0, fallbackQuantity = 0) {
+  try {
+    const boxes = JSON.parse(row?.dataset?.[datasetKey] || "[]");
+    if (Array.isArray(boxes) && boxes.length) {
+      return boxes
+        .map((box, index) => ({
+          number: Number(box.number) || index + 1,
+          boxId: box.boxId || "",
+          quantity: parseShippingSettlementNumber(box.quantity),
+          status: box.status || "",
+          inspectionDate: box.inspectionDate || "",
+          inspectionQuantity: parseShippingSettlementNumber(box.inspectionQuantity || ""),
+          defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
+          defectRate: parseShippingSettlementNumber(box.defectRate || ""),
+          defectReason: box.defectReason || "",
+          shippingDate: box.shippingDate || "",
+          shippingTime: box.shippingTime || "",
+          shipper: box.shipper || ""
+        }))
+        .sort((left, right) => left.number - right.number);
+    }
+  } catch (error) {
+    // Ignore malformed row data and fall back to generated box numbers.
+  }
+
+  const count = Math.max(0, Math.round(fallbackCount));
+  const totalQuantity = Math.max(0, Math.round(fallbackQuantity));
+  const unitQuantity = count > 0 ? Math.round(totalQuantity / count) : 0;
+
+  return Array.from({ length: count }, (_, index) => {
+    const number = index + 1;
+    const isLast = number === count;
+    const quantity = isLast ? Math.max(totalQuantity - unitQuantity * (count - 1), 0) : unitQuantity;
+    return { number, boxId: "", quantity, status: "", shippingDate: "", shippingTime: "", shipper: "" };
+  });
+}
+
+function getShippingRowWithDraft(row) {
+  if (!row) {
+    return row;
+  }
+
+  const managementId = row.dataset.managementId || row.children?.[1]?.textContent.trim() || "";
+  const draft = managementId ? readShippingBoxDrafts()[managementId] : null;
+
+  if (!draft || !Array.isArray(draft.boxes) || !draft.boxes.length) {
+    return row;
+  }
+
+  const activeBoxes = getShippingRowBoxes(row, "activeShippingBoxes");
+  const hasActionableBox = activeBoxes.some((box) => (
+    ["검수완료", "출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status))
+  ));
+
+  if (activeBoxes.length && hasActionableBox) {
+    return row;
+  }
+
+  const draftBoxes = draft.boxes
+    .map((box) => ({
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity || ""),
+      status: normalizeInventoryStockStatus(box.status || "출고대기"),
+      inspectionDate: toDateInputValue(box.inspectionDate || ""),
+      inspectionQuantity: parseShippingSettlementNumber(box.inspectionQuantity || ""),
+      defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
+      defectRate: parseShippingSettlementNumber(box.defectRate || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+
+  if (!draftBoxes.length) {
+    return row;
+  }
+
+  row.dataset.activeShippingBoxes = JSON.stringify(draftBoxes);
+  return row;
+}
+
+function renderShippingCompletionBoxList(row) {
+  if (!shippingCompletionBoxList) {
+    return;
+  }
+
+  const activeBoxes = getShippingCompletionTargetBoxes(row);
+  const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes");
+
+  shippingCompletionBoxList.innerHTML = activeBoxes.length
+    ? activeBoxes.map((box) => `
+      <article class="shipping-box-check-card readonly">
+        <span>
+          <strong>${box.number}번 박스</strong>
+          <small>${box.quantity > 0 ? `${formatNumber(box.quantity)} ea` : "- ea"}</small>
+        </span>
+      </article>
+    `).join("")
+    : '<p class="shipping-box-empty">출고 대상 박스가 없습니다.</p>';
+
+  renderShippingCompletionShippedBoxes(shippedBoxes);
+  syncShippingCompletionBoxState();
+}
+
+function renderShippingCompletionShippedBoxes(boxes = []) {
+  if (!shippingCompletionShippedBoxes) {
+    return;
+  }
+
+  if (!boxes.length) {
+    shippingCompletionShippedBoxes.hidden = true;
+    shippingCompletionShippedBoxes.innerHTML = "";
+    return;
+  }
+
+  shippingCompletionShippedBoxes.hidden = false;
+  shippingCompletionShippedBoxes.innerHTML = `
+    <strong>이미 출고된 박스</strong>
+    <div>
+      ${boxes.map((box) => `
+        <span>${box.number}번${box.shippingDate ? ` · ${escapeHtml(box.shippingDate)}` : ""}</span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function getSelectedShippingCompletionBoxes() {
+  return getShippingCompletionTargetBoxes(state.activeShippingCompletionRow);
+}
+
+function getShippingCompletionTargetBoxes(row) {
+  return getShippingRowBoxes(row, "activeShippingBoxes")
+    .filter((box) => ["출고대기", "검수완료"].includes(normalizeInventoryStockStatus(box.status)))
+    .map((box) => ({
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+}
+
+function syncShippingCompletionBoxState() {
+  const boxes = getShippingCompletionTargetBoxes(state.activeShippingCompletionRow);
+  const selectedQuantity = boxes.reduce((sum, box) => sum + parseShippingSettlementNumber(box.quantity || ""), 0);
+
+  if (shippingCompletionBoxSummary) {
+    shippingCompletionBoxSummary.textContent = boxes.length
+      ? `출고 대상 ${boxes.length}개 박스 · ${formatNumber(selectedQuantity)} ea`
+      : "출고 대상 박스가 없습니다.";
+  }
 }
 
 function closeShippingInspectionModal() {
@@ -1045,7 +1310,7 @@ async function saveShippingInspection() {
 
   if (!selectedBoxes.length) {
     if (shippingInspectionMessage) {
-      shippingInspectionMessage.textContent = "검수한 박스를 하나 이상 선택해주세요.";
+      shippingInspectionMessage.textContent = "이번에 출고할 박스를 하나 이상 선택해주세요.";
     }
     return;
   }
@@ -1086,6 +1351,7 @@ async function saveShippingInspection() {
   }
 
   const hasGoodReason = selectedReasons.includes("양호");
+  const holdRequested = Boolean(shippingInspectionHoldStatus?.checked);
   let uploadResult = null;
   const managementId = shippingInspectionRecordId?.textContent.trim() || "";
   const clientName = shippingInspectionClient?.textContent.trim() || "";
@@ -1129,6 +1395,7 @@ async function saveShippingInspection() {
       selectedBoxes: selectedBoxes.map((box) => box.number),
       defectReasons: selectedReasons,
       memo,
+      holdRequested,
       defectPhotoFolderUrl: uploadResult?.folderUrl || "",
       defectPhotoCount: uploadResult?.uploadedCount || 0
     });
@@ -1142,6 +1409,18 @@ async function saveShippingInspection() {
     row.dataset.defectQuantity = String(defectQuantity);
     row.dataset.defectRate = String(defectRate);
     row.dataset.defectReason = selectedReasons.join(", ");
+    row.dataset.shippingInspectionDate = toDateInputValue(inspectionDate);
+    saveShippingBoxDraft(
+      managementId,
+      selectedBoxes.map((box) => ({
+        ...box,
+        inspectionDate,
+        inspectionQuantity,
+        defectQuantity,
+        defectRate
+      })),
+      holdRequested ? "보류" : SHIPPING_READY_STATUS_LABEL
+    );
 
     if (inspectionCell) {
       inspectionCell.innerHTML = '<span class="shipping-badge done">검수 완료</span>';
@@ -1150,21 +1429,21 @@ async function saveShippingInspection() {
       anomalyCell.textContent = anomalyStatus;
     }
     if (statusCell) {
-      statusCell.innerHTML = anomalyStatus === "정상"
-      ? '<span class="shipping-badge ready">검수 완료</span>'
-      : '<span class="shipping-badge hold">출고 보류</span>';
+      statusCell.innerHTML = holdRequested
+        ? '<span class="shipping-badge hold">출고 보류</span>'
+        : `<span class="shipping-badge wait">출고 대기 ${selectedBoxes.length}box</span>`;
     }
 
     if (actionCell) {
-      if (anomalyStatus === "정상") {
+      if (holdRequested) {
+        actionCell.innerHTML = renderShippingHoldActions(uploadResult?.folderUrl || "", uploadResult?.uploadedCount || defectFiles.length);
+      } else {
         actionCell.innerHTML = `
           <div class="shipping-action-group">
-            <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">검수 수정</button>
-            <button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>
+            <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">수정</button>
+            <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고</button>
           </div>
         `;
-      } else {
-        actionCell.innerHTML = renderShippingHoldActions(uploadResult?.folderUrl || "", uploadResult?.uploadedCount || defectFiles.length);
       }
     }
 
@@ -1191,9 +1470,9 @@ function renderShippingHoldActions(photoUrl = "", photoCount = 0) {
 
   return `
     <div class="shipping-action-group">
-      <button class="shipping-row-button" type="button" data-shipping-action="holdGuide" data-photo-count="${Number(photoCount) || 0}">보류 상세</button>
-      ${photoButton}
       <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">재검수</button>
+      <button class="shipping-row-button" type="button" data-shipping-action="holdGuide" data-photo-url="${escapeAttribute(photoUrl)}" data-photo-count="${Number(photoCount) || 0}">보류 상세</button>
+      ${photoButton}
     </div>
   `;
 }
@@ -1203,14 +1482,71 @@ function showShippingHoldGuide(row, button) {
     return;
   }
 
+  const recordId = row.children[1]?.textContent.trim() || "-";
+  const clientName = row.children[2]?.textContent.trim() || "-";
   const productName = row.children[3]?.textContent.trim() || "선택 제품";
   const anomalyStatus = row.children[10]?.textContent.trim() || "이상";
   const photoCount = Number(button?.dataset.photoCount || 0);
-  const photoLine = photoCount ? `\n- 등록된 불량 사진: ${photoCount}개` : "";
+  const photoUrl = button?.dataset.photoUrl || "";
 
-  window.alert(
-    `[출고 보류 안내]\n\n${productName}\n\n- 출고 보류는 검수 결과가 양호가 아닐 때 자동 적용됩니다.\n- 이상 여부: ${anomalyStatus}\n- 출고 처리는 불가하며, 사진과 메모를 확인한 뒤 재검수를 진행해주세요.${photoLine}\n- 재검수에서 양호로 저장되면 출고대기 등록을 진행할 수 있습니다.`
-  );
+  if (!shippingHoldGuideModal) {
+    window.alert(`출고 보류 안내\n\n${productName}\n\n출고 처리는 불가하며, 사진과 메모를 확인한 뒤 필요 시 재검수를 진행해주세요.`);
+    return;
+  }
+
+  if (shippingHoldGuideRecordId) {
+    shippingHoldGuideRecordId.textContent = recordId;
+  }
+  if (shippingHoldGuideProduct) {
+    shippingHoldGuideProduct.textContent = productName;
+  }
+  if (shippingHoldGuideClient) {
+    shippingHoldGuideClient.textContent = clientName;
+  }
+  if (shippingHoldGuideAnomaly) {
+    shippingHoldGuideAnomaly.textContent = anomalyStatus;
+  }
+  if (shippingHoldGuidePhotoCount) {
+    shippingHoldGuidePhotoCount.textContent = `등록된 불량 사진 ${formatNumber(photoCount)}개`;
+  }
+  if (openShippingHoldGuidePhotoButton) {
+    openShippingHoldGuidePhotoButton.hidden = !photoUrl;
+    openShippingHoldGuidePhotoButton.dataset.photoUrl = photoUrl;
+  }
+  if (reinspectFromHoldGuideButton) {
+    reinspectFromHoldGuideButton.dataset.rowIndex = String(row.rowIndex - 1);
+  }
+
+  shippingHoldGuideModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => reinspectFromHoldGuideButton?.focus(), 0);
+}
+
+function closeShippingHoldGuideModal() {
+  if (!shippingHoldGuideModal) {
+    return;
+  }
+
+  shippingHoldGuideModal.hidden = true;
+  if (openShippingHoldGuidePhotoButton) {
+    openShippingHoldGuidePhotoButton.hidden = true;
+    delete openShippingHoldGuidePhotoButton.dataset.photoUrl;
+  }
+  if (reinspectFromHoldGuideButton) {
+    delete reinspectFromHoldGuideButton.dataset.rowIndex;
+  }
+  if (
+    shippingInspectionModal?.hidden !== false &&
+    shippingCompletionModal?.hidden !== false &&
+    productModal?.hidden !== false &&
+    productDetailModal?.hidden !== false &&
+    inboundDetailModal?.hidden !== false &&
+    inboundProductPickerModal?.hidden !== false &&
+    inboundQrModal?.hidden !== false &&
+    inventoryAttentionModal?.hidden !== false
+  ) {
+    document.body.classList.remove("modal-open");
+  }
 }
 
 async function registerShippingWaiting(row) {
@@ -1218,14 +1554,156 @@ async function registerShippingWaiting(row) {
     return;
   }
 
-  if (!window.confirm("이 제품을 출고 대기 상태로 등록할까요?")) {
+  openShippingWaitingConfirmModal(row);
+}
+
+async function queueShippingThenComplete(row) {
+  if (!row) {
+    return;
+  }
+
+  row = getShippingRowWithDraft(row);
+  const waitingTargetBoxes = getShippingWaitingTargetBoxes(row);
+
+  if (!waitingTargetBoxes.length) {
+    if (getShippingCompletionTargetBoxes(row).length) {
+      completeShipping(row);
+    } else {
+      showToast("출고건 등록된 박스가 없습니다.");
+    }
     return;
   }
 
   try {
-    await updateShippingStatus(row, "출고대기");
+    await updateShippingStatus(row, SHIPPING_READY_STATUS_LABEL, {
+      selectedBoxes: waitingTargetBoxes.map((box) => box.number)
+    });
+    const targetNumbers = new Set(waitingTargetBoxes.map((box) => Number(box.number)));
+    const activeBoxes = getShippingRowBoxes(row, "activeShippingBoxes").map((box) => (
+      targetNumbers.has(Number(box.number))
+        ? { ...box, status: SHIPPING_READY_STATUS_LABEL }
+        : box
+    ));
+    row.dataset.activeShippingBoxes = JSON.stringify(activeBoxes);
+    completeShipping(row);
+  } catch (error) {
+    showToast(error.message || "출고 처리 준비 중 문제가 발생했습니다.");
+  }
+}
+
+function getShippingWaitingTargetBoxes(row) {
+  return getShippingRowBoxes(row, "activeShippingBoxes")
+    .filter((box) => ["검수완료", "출고대기"].includes(normalizeInventoryStockStatus(box.status)))
+    .map((box) => ({
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+}
+
+function openShippingWaitingConfirmModal(row) {
+  if (!row || !shippingWaitingConfirmModal) {
+    return;
+  }
+
+  const waitingTargetBoxes = getShippingWaitingTargetBoxes(row);
+
+  if (!waitingTargetBoxes.length) {
+    showToast("출고건 등록된 박스가 없습니다.");
+    return;
+  }
+
+  const totalQuantity = waitingTargetBoxes.reduce((sum, box) => sum + parseShippingSettlementNumber(box.quantity || ""), 0);
+  state.activeShippingWaitingRow = row;
+  state.isSavingShippingWaiting = false;
+
+  if (shippingWaitingConfirmRecordId) {
+    shippingWaitingConfirmRecordId.textContent = row.children[1]?.textContent.trim() || "-";
+  }
+  if (shippingWaitingConfirmClient) {
+    shippingWaitingConfirmClient.textContent = row.children[2]?.textContent.trim() || "-";
+  }
+  if (shippingWaitingConfirmProduct) {
+    shippingWaitingConfirmProduct.textContent = row.children[3]?.textContent.trim() || "-";
+  }
+  if (shippingWaitingConfirmBoxes) {
+    shippingWaitingConfirmBoxes.textContent = `${formatNumber(waitingTargetBoxes.length)} box`;
+  }
+  if (shippingWaitingConfirmQuantity) {
+    shippingWaitingConfirmQuantity.textContent = `${formatNumber(totalQuantity)} ea`;
+  }
+  if (shippingWaitingConfirmBoxList) {
+    shippingWaitingConfirmBoxList.innerHTML = waitingTargetBoxes.map((box) => `
+      <span>${box.number}번 박스 · ${box.quantity > 0 ? `${formatNumber(box.quantity)} ea` : "- ea"}</span>
+    `).join("");
+  }
+  if (shippingWaitingConfirmMessage) {
+    shippingWaitingConfirmMessage.textContent = "";
+  }
+  if (confirmShippingWaitingButton) {
+    confirmShippingWaitingButton.disabled = false;
+    confirmShippingWaitingButton.textContent = "출고대기 등록";
+  }
+
+  shippingWaitingConfirmModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeShippingWaitingConfirmModal() {
+  if (!shippingWaitingConfirmModal) {
+    return;
+  }
+
+  shippingWaitingConfirmModal.hidden = true;
+  state.activeShippingWaitingRow = null;
+  state.isSavingShippingWaiting = false;
+  if (shippingWaitingConfirmBoxList) {
+    shippingWaitingConfirmBoxList.innerHTML = "";
+  }
+  if (
+    shippingInspectionModal?.hidden !== false &&
+    shippingCompletionModal?.hidden !== false &&
+    shippingHoldGuideModal?.hidden !== false
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function confirmShippingWaiting() {
+  const row = state.activeShippingWaitingRow;
+
+  if (!row || state.isSavingShippingWaiting) {
+    return;
+  }
+
+  const waitingTargetBoxes = getShippingWaitingTargetBoxes(row).map((box) => box.number);
+
+  if (!waitingTargetBoxes.length) {
+    if (shippingWaitingConfirmMessage) {
+      shippingWaitingConfirmMessage.textContent = "출고건 등록된 박스가 없습니다.";
+    }
+    return;
+  }
+
+  state.isSavingShippingWaiting = true;
+  if (confirmShippingWaitingButton) {
+    confirmShippingWaitingButton.disabled = true;
+    confirmShippingWaitingButton.textContent = "등록 중";
+  }
+
+  try {
+    await updateShippingStatus(row, SHIPPING_READY_STATUS_LABEL, { selectedBoxes: waitingTargetBoxes });
+    closeShippingWaitingConfirmModal();
     showToast("출고 대기 상태로 등록했습니다.");
   } catch (error) {
+    state.isSavingShippingWaiting = false;
+    if (confirmShippingWaitingButton) {
+      confirmShippingWaitingButton.disabled = false;
+      confirmShippingWaitingButton.textContent = "출고대기 등록";
+    }
+    if (shippingWaitingConfirmMessage) {
+      shippingWaitingConfirmMessage.textContent = error.message || "출고 대기 등록 중 문제가 발생했습니다.";
+    }
     showToast(error.message || "출고 대기 등록 중 문제가 발생했습니다.");
   }
 }
@@ -1240,7 +1718,14 @@ async function cancelShippingWaiting(row) {
   }
 
   try {
-    await updateShippingStatus(row, "검수완료");
+    const waitingBoxes = getShippingRowBoxes(row, "activeShippingBoxes")
+      .filter((box) => normalizeInventoryStockStatus(box.status) === "출고대기")
+      .map((box) => box.number);
+    if (!waitingBoxes.length) {
+      showToast("출고대기 등록된 박스가 없습니다.");
+      return;
+    }
+    await updateShippingStatus(row, "검수완료", { selectedBoxes: waitingBoxes });
     showToast("출고 대기를 취소했습니다.");
   } catch (error) {
     showToast(error.message || "출고 대기 취소 중 문제가 발생했습니다.");
@@ -1260,11 +1745,19 @@ function openShippingCompletionModal(row) {
     return;
   }
 
+  row = getShippingRowWithDraft(row);
   state.activeShippingCompletionRow = row;
   state.isSavingShippingCompletion = false;
 
   const defaultTime = getLocalTimeInputValue();
   const defaultDate = getLocalDateInputValue();
+  const targetBoxes = getShippingCompletionTargetBoxes(row);
+  const targetQuantity = targetBoxes.reduce((sum, box) => sum + parseShippingSettlementNumber(box.quantity || ""), 0);
+
+  if (!targetBoxes.length) {
+    showToast("출고건 등록된 박스가 없습니다.");
+    return;
+  }
 
   if (shippingCompletionRecordId) {
     shippingCompletionRecordId.textContent = row.children[1]?.textContent.trim() || "-";
@@ -1279,7 +1772,11 @@ function openShippingCompletionModal(row) {
   }
 
   if (shippingCompletionQuantity) {
-    shippingCompletionQuantity.textContent = row.children[8]?.textContent.trim() || "-";
+    shippingCompletionQuantity.textContent = `${formatNumber(targetQuantity)} ea`;
+  }
+
+  if (shippingCompletionType) {
+    shippingCompletionType.value = "정상출고";
   }
 
   if (shippingCompletionDate) {
@@ -1293,10 +1790,15 @@ function openShippingCompletionModal(row) {
   if (shippingCompletionShipper) {
     shippingCompletionShipper.value = session?.name || "Admin";
   }
+  if (shippingCompletionShipper && editShippingCompletionShipperButton) {
+    setInboundLockedFieldEditable(shippingCompletionShipper, editShippingCompletionShipperButton, false);
+  }
 
   if (shippingCompletionMessage) {
     shippingCompletionMessage.textContent = "";
   }
+
+  renderShippingCompletionBoxList(row);
 
   if (saveShippingCompletionButton) {
     saveShippingCompletionButton.disabled = false;
@@ -1316,6 +1818,13 @@ function closeShippingCompletionModal() {
   shippingCompletionModal.hidden = true;
   state.activeShippingCompletionRow = null;
   state.isSavingShippingCompletion = false;
+  if (shippingCompletionBoxList) {
+    shippingCompletionBoxList.innerHTML = "";
+  }
+  if (shippingCompletionShippedBoxes) {
+    shippingCompletionShippedBoxes.hidden = true;
+    shippingCompletionShippedBoxes.innerHTML = "";
+  }
   document.body.classList.remove("modal-open");
 }
 
@@ -1328,12 +1837,29 @@ async function saveShippingCompletion() {
 
   const shippingDate = shippingCompletionDate?.value || getLocalDateInputValue();
   const shippingTime = shippingCompletionTime?.value || "";
+  const shippingType = shippingCompletionType?.value || "";
+  const selectedBoxes = getSelectedShippingCompletionBoxes();
+
+  if (!shippingType) {
+    if (shippingCompletionMessage) {
+      shippingCompletionMessage.textContent = "출고 유형을 선택해주세요.";
+    }
+    shippingCompletionType?.focus();
+    return;
+  }
 
   if (!shippingTime) {
     if (shippingCompletionMessage) {
       shippingCompletionMessage.textContent = "출고 시간을 입력해주세요.";
     }
     shippingCompletionTime?.focus();
+    return;
+  }
+
+  if (!selectedBoxes.length) {
+    if (shippingCompletionMessage) {
+      shippingCompletionMessage.textContent = "출고 대상 박스가 없습니다.";
+    }
     return;
   }
 
@@ -1345,13 +1871,16 @@ async function saveShippingCompletion() {
   }
 
   try {
-    await updateShippingStatus(row, "출고완료", {
+    const result = await updateShippingStatus(row, "출고완료", {
+      shippingType,
       shippingDate,
       shippingTime,
+      selectedBoxes: selectedBoxes.map((box) => box.number),
       shipper: shippingCompletionShipper?.value || session?.name || "Admin"
     });
+    clearShippingBoxDraft(row?.dataset?.managementId || row?.children?.[1]?.textContent.trim() || "");
     closeShippingCompletionModal();
-    showToast("출고 완료 처리했습니다.");
+    showToast(result?.isPartialShipping ? "출고 대상 박스를 출고 완료 처리했습니다. 남은 박스는 추가 출고할 수 있습니다." : "출고 완료 처리했습니다.");
   } catch (error) {
     state.isSavingShippingCompletion = false;
     if (saveShippingCompletionButton) {
@@ -1372,13 +1901,14 @@ async function updateShippingStatus(row, status, extraPayload = {}) {
     throw new Error("관리 ID를 찾을 수 없습니다.");
   }
 
-  await requestApi("updateShippingStatus", {
+  const result = await requestApi("updateShippingStatus", {
     managementId,
     status,
     ...extraPayload
   });
 
   await loadInventoryDashboard(false);
+  return result;
 }
 
 function renderShippingLoading() {
@@ -1434,6 +1964,11 @@ function renderShippingTable(message = "") {
         data-inspection-quantity="${inspectionQuantity}"
         data-defect-quantity="${defectQuantity}"
         data-defect-rate="${defectRate}"
+        data-inbound-date="${escapeAttribute(toDateInputValue(item.inboundDate))}"
+        data-shipping-inspection-date="${escapeAttribute(toDateInputValue(item.shippingInspectionDate))}"
+        data-shipping-date="${escapeAttribute(toDateInputValue(item.shippingDate))}"
+        data-active-shipping-boxes="${escapeAttribute(JSON.stringify(item.activeShippingBoxes || []))}"
+        data-shipped-shipping-boxes="${escapeAttribute(JSON.stringify(item.shippedShippingBoxes || []))}"
         data-defect-reason="${escapeAttribute(item.shippingDefectReason || "")}">
         <td>${index + 1}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
@@ -1453,7 +1988,7 @@ function renderShippingTable(message = "") {
     `;
   }).join("");
 
-  updateShippingSummaryCards(rows);
+  updateShippingSummaryCards(getShippingSettlementItems());
 
   if (shippingCountLabel) {
     shippingCountLabel.textContent = `전체 ${rows.length.toLocaleString("ko-KR")}건`;
@@ -1462,16 +1997,65 @@ function renderShippingTable(message = "") {
 
 function getShippingRows() {
   return (state.inventoryRows || []).filter((item) => {
-    const status = normalizeInventoryStockStatus(item.stockStatus);
+    const status = getEffectiveShippingStatus(item);
     const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
     return !["폐기"].includes(status) && (quantity > 0 || status === "출고완료");
   });
 }
 
+function getEffectiveShippingStatus(item) {
+  const status = normalizeInventoryStockStatus(item?.stockStatus);
+  const activeBoxes = Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const activeCount = activeBoxes.length;
+  const shippedCount = Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes.length : 0;
+  const counts = {};
+
+  activeBoxes.forEach((box) => {
+    const boxStatus = normalizeInventoryStockStatus(box.status);
+    counts[boxStatus] = (counts[boxStatus] || 0) + 1;
+  });
+
+  if (status === "일부 출고" || (activeCount > 0 && shippedCount > 0)) {
+    return "일부 출고";
+  }
+
+  if (activeCount === 0 && shippedCount > 0) {
+    return "출고완료";
+  }
+
+  if (activeCount > 0) {
+    if (counts["출고대기"]) {
+      return "출고대기";
+    }
+    if (counts["보류"]) {
+      return "보류";
+    }
+    if (counts["검수완료"]) {
+      return "출고대기";
+    }
+    if (["출고대기", "검수완료", "보류", "출고완료"].includes(status)) {
+      return "보관";
+    }
+  }
+
+  return status === "검수완료" ? "출고대기" : status;
+}
+
 function isShippingInspected(item) {
-  const status = normalizeInventoryStockStatus(item.stockStatus);
-  return ["검수완료", "출고대기", "출고완료", "보류"].includes(status)
+  const status = getEffectiveShippingStatus(item);
+  const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  return activeBoxes.some((box) => ["검수완료", "출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status)))
+    || ["검수완료", "출고대기", "일부 출고", "출고완료", "보류"].includes(status)
     || Number(item.shippingInspectionCount || 0) > 0;
+}
+
+function getShippingBoxStatusCounts(item) {
+  const counts = {};
+  (Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : []).forEach((box) => {
+    const status = normalizeInventoryStockStatus(box.status);
+    counts[status] = (counts[status] || 0) + 1;
+  });
+  return counts;
 }
 
 function renderShippingInspectionBadge(item) {
@@ -1487,11 +2071,37 @@ function renderShippingAnomalyText(item) {
     return "-";
   }
 
+  const defectReasons = String(item.shippingDefectReason || "")
+    .split(",")
+    .map((reason) => reason.trim())
+    .filter(Boolean);
+
+  if (defectReasons.length) {
+    return defectReasons.includes("양호") ? "정상" : "이상";
+  }
+
   return status === "보류" ? "이상" : "정상";
 }
 
 function renderShippingStatusBadge(item) {
-  const status = normalizeInventoryStockStatus(item.stockStatus);
+  const status = getEffectiveShippingStatus(item);
+  const counts = getShippingBoxStatusCounts(item);
+
+  if (status === "일부 출고") {
+    return '<span class="shipping-badge partial">일부 출고</span>';
+  }
+
+  if (counts["출고대기"]) {
+    return `<span class="shipping-badge wait">출고 대기 ${counts["출고대기"]}box</span>`;
+  }
+
+  if (counts["보류"]) {
+    return `<span class="shipping-badge hold">출고 보류 ${counts["보류"]}box</span>`;
+  }
+
+  if (counts["검수완료"]) {
+    return `<span class="shipping-badge wait">출고 대기 ${counts["검수완료"]}box</span>`;
+  }
 
   if (status === "출고대기") {
     return '<span class="shipping-badge wait">출고 대기</span>';
@@ -1506,43 +2116,52 @@ function renderShippingStatusBadge(item) {
   }
 
   if (isShippingInspected(item)) {
-    return '<span class="shipping-badge ready">검수 완료</span>';
+    return '<span class="shipping-badge wait">출고 대기</span>';
   }
 
-  return '<span class="shipping-badge muted">검수 전</span>';
+  return '<span class="shipping-badge muted">보관</span>';
 }
 
 function renderShippingRowAction(item) {
-  const status = normalizeInventoryStockStatus(item.stockStatus);
+  const status = getEffectiveShippingStatus(item);
+  const counts = getShippingBoxStatusCounts(item);
+  const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
+  const hasRemainingBoxes = activeBoxes.some((box) => normalizeInventoryStockStatus(box.status) === "보관");
+  const isPartialShipping = status === "일부 출고" || (activeBoxes.length > 0 && shippedBoxes.length > 0);
+  const registerActionLabel = isPartialShipping && hasRemainingBoxes ? "추가 출고" : "출고 건 수정";
 
-  if (status === "출고대기") {
+  if (counts["출고대기"]) {
     return `
       <div class="shipping-action-group">
-        <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고 처리</button>
-        <button class="shipping-row-button secondary" type="button" data-shipping-action="cancelQueue">대기 취소</button>
-        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">검수 수정</button>
+        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">수정</button>
+        <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고</button>
       </div>
     `;
+  }
+
+  if (isPartialShipping && hasRemainingBoxes) {
+    return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">추가 출고</button>';
   }
 
   if (status === "출고완료") {
-    return '<span class="shipping-action-complete">처리 완료</span>';
+    return '<span class="shipping-action-complete">출고 완료</span>';
   }
 
-  if (status === "보류") {
+  if (counts["보류"]) {
     return renderShippingHoldActions("", 0);
   }
 
-  if (isShippingInspected(item)) {
+  if (counts["검수완료"] || isShippingInspected(item)) {
     return `
       <div class="shipping-action-group">
-        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">검수 수정</button>
-        <button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button>
+        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">${registerActionLabel}</button>
+        <button class="shipping-row-button" type="button" data-shipping-action="queue">출고</button>
       </div>
     `;
   }
 
-  return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button>';
+  return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">출고대기 등록</button>';
 }
 
 function updateShippingSummaryCards(rows) {
@@ -1550,11 +2169,11 @@ function updateShippingSummaryCards(rows) {
     return;
   }
 
+  const settlementRows = Array.isArray(rows) ? rows : getShippingSettlementItems();
   const counts = [
-    rows.filter((item) => normalizeInventoryStockStatus(item.stockStatus) === "출고대기").length,
-    rows.filter(isShippingInspected).length,
-    rows.filter((item) => normalizeInventoryStockStatus(item.stockStatus) === "보류").length,
-    rows.filter((item) => normalizeInventoryStockStatus(item.stockStatus) === "출고완료").length
+    settlementRows.filter((item) => getEffectiveShippingStatus(item) === "출고대기").length,
+    settlementRows.filter((item) => getEffectiveShippingStatus(item) === "보류").length,
+    settlementRows.filter((item) => getEffectiveShippingStatus(item) === "출고완료").length
   ];
 
   shippingSummaryCards.forEach((card, index) => {
@@ -1563,6 +2182,205 @@ function updateShippingSummaryCards(rows) {
       strong.innerHTML = `${counts[index].toLocaleString("ko-KR")} <em>건</em>`;
     }
   });
+}
+
+function setCurrentShippingSettlementDate() {
+  const today = getLocalDateInputValue();
+  if (shippingSettlementStartDate && !shippingSettlementStartDate.value) {
+    shippingSettlementStartDate.value = today;
+  }
+  if (shippingSettlementEndDate && !shippingSettlementEndDate.value) {
+    shippingSettlementEndDate.value = today;
+  }
+}
+
+function normalizeShippingSettlementDateRange(changedField = "start") {
+  if (!shippingSettlementStartDate || !shippingSettlementEndDate) {
+    return;
+  }
+
+  const startDate = shippingSettlementStartDate.value;
+  const endDate = shippingSettlementEndDate.value;
+
+  if (!startDate || !endDate || startDate <= endDate) {
+    return;
+  }
+
+  if (changedField === "start") {
+    shippingSettlementEndDate.value = startDate;
+  } else {
+    shippingSettlementStartDate.value = endDate;
+  }
+}
+
+function getShippingSettlementDateRange() {
+  return {
+    startDate: shippingSettlementStartDate?.value || "",
+    endDate: shippingSettlementEndDate?.value || ""
+  };
+}
+
+function getShippingSettlementItemDate(item) {
+  const inspectionDate = getShippingSettlementInspectionDate(item);
+  const shippingDate = toDateInputValue(item.shippingDate);
+  return shippingDate || inspectionDate || getShippingSettlementFallbackDate(item);
+}
+
+function getShippingSettlementItemDates(item) {
+  const boxDates = [
+    ...(Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : []),
+    ...(Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : [])
+  ].map((box) => getShippingSettlementBoxDate(box))
+    .filter(Boolean);
+
+  if (boxDates.length) {
+    return Array.from(new Set(boxDates));
+  }
+
+  return [
+    toDateInputValue(item?.shippingDate),
+    getShippingSettlementInspectionDate(item),
+    getShippingSettlementFallbackDate(item)
+  ].filter(Boolean);
+}
+
+function getShippingSettlementInspectionDate(item) {
+  const itemDate = toDateInputValue(item?.shippingInspectionDate);
+
+  if (itemDate) {
+    return itemDate;
+  }
+
+  const activeBoxes = Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const boxDates = activeBoxes
+    .filter((box) => ["출고대기", "검수완료", "보류"].includes(normalizeInventoryStockStatus(box.status)))
+    .map((box) => toDateInputValue(box.inspectionDate))
+    .filter(Boolean)
+    .sort();
+
+  return boxDates[0] || "";
+}
+
+function isShippingSettlementDateMatch(item) {
+  const { startDate, endDate } = getShippingSettlementDateRange();
+
+  if (!startDate && !endDate) {
+    return true;
+  }
+
+  const itemDates = getShippingSettlementItemDates(item);
+
+  if (!itemDates.length) {
+    return false;
+  }
+
+  return itemDates.some(isShippingSettlementDateInRange);
+}
+
+function isShippingSettlementDateInRange(date) {
+  const { startDate, endDate } = getShippingSettlementDateRange();
+  const itemDate = toDateInputValue(date) || date;
+
+  if (!itemDate) {
+    return false;
+  }
+
+  if (startDate && itemDate < startDate) {
+    return false;
+  }
+
+  if (endDate && itemDate > endDate) {
+    return false;
+  }
+
+  return true;
+}
+
+function getShippingSettlementItems() {
+  return getShippingSettlementSourceRows().filter(isShippingSettlementDateMatch);
+}
+
+function getShippingSettlementFallbackDate(item) {
+  const status = getEffectiveShippingStatus(item);
+
+  if (["출고대기", "보류", "일부 출고", "출고완료"].includes(status) || isShippingInspected(item)) {
+    return getLocalDateInputValue();
+  }
+
+  return "";
+}
+
+function getShippingSettlementBoxDate(box, item = null) {
+  const boxDate = toDateInputValue(box?.shippingDate) || toDateInputValue(box?.inspectionDate);
+
+  if (boxDate) {
+    return boxDate;
+  }
+
+  const status = normalizeInventoryStockStatus(box?.status);
+  if (["출고대기", "보류", "출고완료"].includes(status)) {
+    return item ? getShippingSettlementFallbackDate(item) : getLocalDateInputValue();
+  }
+
+  return "";
+}
+
+function getShippingSettlementSourceRows() {
+  return (state.inventoryRows || []).filter((item) => {
+    const status = normalizeInventoryStockStatus(item?.stockStatus);
+    return status !== "폐기";
+  });
+}
+
+function getShippingSettlementBoxItems() {
+  return getShippingSettlementSourceRows().flatMap((item) => {
+    const boxes = [
+      ...(Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : []),
+      ...(Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [])
+    ];
+
+    if (!boxes.length) {
+      const status = getEffectiveShippingStatus(item);
+      const date = getShippingSettlementItemDate(item);
+
+      if (!isShippingSettlementDateInRange(date)) {
+        return [];
+      }
+
+      const quantity = getShippingSettlementQuantity(item);
+      return [{
+        status,
+        date,
+        boxes: getShippingSettlementBoxCount(item),
+        quantity,
+        inspectionQuantity: parseShippingSettlementNumber(item.shippingInspectionQuantity) || (isShippingInspected(item) ? quantity : 0),
+        defectQuantity: parseShippingSettlementNumber(item.shippingDefectQuantity),
+        defectRate: parseShippingSettlementNumber(item.shippingDefectRate)
+      }];
+    }
+
+    return boxes.map((box) => {
+      const rawStatus = normalizeInventoryStockStatus(box.status);
+      const status = rawStatus === "검수완료" ? "출고대기" : rawStatus;
+      const date = getShippingSettlementBoxDate(box, item);
+      const quantity = getShippingSettlementBoxQuantity(box);
+
+      return {
+        status,
+        date,
+        boxes: 1,
+        quantity,
+        inspectionQuantity: parseShippingSettlementNumber(box.inspectionQuantity || "") || (["출고대기", "보류", "출고완료"].includes(status) ? quantity : 0),
+        defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
+        defectRate: parseShippingSettlementNumber(box.defectRate || "")
+      };
+    }).filter((box) => isShippingSettlementDateInRange(box.date));
+  });
+}
+
+function getShippingSettlementBoxQuantity(box) {
+  return parseShippingSettlementNumber(box?.quantity || "")
+    || parseShippingSettlementNumber(box?.inspectionQuantity || "");
 }
 
 function parseShippingSettlementNumber(value) {
@@ -1607,6 +2425,16 @@ function getShippingSettlementMetric(row, columnIndex, datasetKey) {
   return parseShippingSettlementNumber(row.children[columnIndex]?.textContent || "");
 }
 
+function getShippingSettlementQuantity(item) {
+  const currentQuantity = parseShippingSettlementNumber(item.currentTotalQuantity);
+  return currentQuantity > 0 ? currentQuantity : parseShippingSettlementNumber(item.inboundTotalQuantity);
+}
+
+function getShippingSettlementBoxCount(item) {
+  const currentBoxCount = parseShippingSettlementNumber(item.currentBoxCount);
+  return currentBoxCount > 0 ? currentBoxCount : parseShippingSettlementNumber(item.boxTotalCount);
+}
+
 function setShippingSettlementText(key, value) {
   const target = shippingSettlementFields[key];
   if (target) {
@@ -1619,7 +2447,8 @@ function updateShippingSettlementSummary() {
     return;
   }
 
-  const rows = getShippingSettlementRows();
+  const rows = getShippingSettlementItems();
+  const boxItems = getShippingSettlementBoxItems();
   let totalQuantity = 0;
   let totalBoxes = 0;
   let remainder = 0;
@@ -1628,26 +2457,18 @@ function updateShippingSettlementSummary() {
   let defectRateTotal = 0;
   let defectRateCount = 0;
 
-  rows.forEach((row) => {
-    const boxes = getShippingSettlementMetric(row, 7, "boxCount");
-    const quantity = getShippingSettlementMetric(row, 8, "quantity");
-    const rowRemainder = getShippingSettlementMetric(row, -1, "remainder");
-    const inspectionText = row.children[9]?.textContent.trim() || "";
+  rows.forEach((item) => {
+    remainder += parseShippingSettlementNumber(item.remainQuantity);
+  });
 
-    totalBoxes += boxes;
-    totalQuantity += quantity;
-    remainder += rowRemainder;
+  boxItems.forEach((item) => {
+    totalBoxes += item.boxes;
+    totalQuantity += item.quantity;
+    inspectedQuantity += item.inspectionQuantity;
+    defectQuantity += item.defectQuantity;
 
-    if (inspectionText.includes("검수 완료")) {
-      inspectedQuantity += quantity;
-    }
-
-    if (row.dataset.defectQuantity != null && row.dataset.defectQuantity !== "") {
-      defectQuantity += getShippingSettlementMetric(row, -1, "defectQuantity");
-    }
-
-    if (row.dataset.defectRate != null && row.dataset.defectRate !== "") {
-      defectRateTotal += parseShippingSettlementNumber(row.dataset.defectRate);
+    if (item.defectRate > 0) {
+      defectRateTotal += item.defectRate;
       defectRateCount += 1;
     }
   });
@@ -2691,17 +3512,154 @@ function renderInventorySummary(summary, attention) {
 function normalizeInventoryRows(rows) {
   return rows.map((item) => {
     const stockStatus = normalizeInventoryStockStatus(item.stockStatus);
-    return {
+    return mergeShippingBoxDraft({
       ...item,
       stockStatus,
       processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
-    };
+    });
   });
+}
+
+function readShippingBoxDrafts() {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(SHIPPING_BOX_DRAFTS_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writeShippingBoxDrafts(drafts) {
+  sessionStorage.setItem(SHIPPING_BOX_DRAFTS_STORAGE_KEY, JSON.stringify(drafts || {}));
+}
+
+function saveShippingBoxDraft(managementId, boxes = [], status = "출고대기") {
+  const key = String(managementId || "").trim();
+
+  if (!key) {
+    return;
+  }
+
+  const normalizedBoxes = boxes
+    .map((box) => ({
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity || ""),
+      status,
+      inspectionDate: toDateInputValue(box.inspectionDate || ""),
+      inspectionQuantity: parseShippingSettlementNumber(box.inspectionQuantity || ""),
+      defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
+      defectRate: parseShippingSettlementNumber(box.defectRate || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+
+  if (!normalizedBoxes.length) {
+    return;
+  }
+
+  const drafts = readShippingBoxDrafts();
+  drafts[key] = {
+    boxes: normalizedBoxes,
+    updatedAt: Date.now()
+  };
+  writeShippingBoxDrafts(drafts);
+}
+
+function clearShippingBoxDraft(managementId) {
+  const key = String(managementId || "").trim();
+
+  if (!key) {
+    return;
+  }
+
+  const drafts = readShippingBoxDrafts();
+  if (drafts[key]) {
+    delete drafts[key];
+    writeShippingBoxDrafts(drafts);
+  }
+}
+
+function mergeShippingBoxDraft(item) {
+  const managementId = String(item?.managementId || "").trim();
+  const draft = managementId ? readShippingBoxDrafts()[managementId] : null;
+
+  if (!draft || !Array.isArray(draft.boxes) || !draft.boxes.length) {
+    return item;
+  }
+
+  const draftBoxes = draft.boxes
+    .map((box) => ({
+      number: Number(box.number),
+      boxId: box.boxId || "",
+      quantity: parseShippingSettlementNumber(box.quantity || ""),
+      status: normalizeInventoryStockStatus(box.status || "출고대기"),
+      inspectionDate: toDateInputValue(box.inspectionDate || ""),
+      inspectionQuantity: parseShippingSettlementNumber(box.inspectionQuantity || ""),
+      defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
+      defectRate: parseShippingSettlementNumber(box.defectRate || ""),
+      shippingDate: "",
+      shippingTime: "",
+      shipper: ""
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+
+  if (!draftBoxes.length) {
+    return item;
+  }
+
+  const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const hasActionableBox = activeBoxes.some((box) => (
+    ["검수완료", "출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status))
+  ));
+
+  if (!activeBoxes.length) {
+    return {
+      ...item,
+      activeShippingBoxes: draftBoxes
+    };
+  }
+
+  if (hasActionableBox && getShippingSettlementInspectionDate(item)) {
+    return item;
+  }
+
+  const draftByNumber = new Map(draftBoxes.map((box) => [Number(box.number), box]));
+  return {
+    ...item,
+    activeShippingBoxes: activeBoxes.map((box) => {
+      const draftBox = draftByNumber.get(Number(box.number));
+      return draftBox
+        ? {
+          ...box,
+          status: draftBox.status,
+          quantity: parseShippingSettlementNumber(box.quantity || draftBox.quantity || ""),
+          inspectionDate: draftBox.inspectionDate || box.inspectionDate || "",
+          inspectionQuantity: draftBox.inspectionQuantity || box.inspectionQuantity || 0,
+          defectQuantity: draftBox.defectQuantity || box.defectQuantity || 0,
+          defectRate: draftBox.defectRate || box.defectRate || 0
+        }
+        : box;
+    })
+  };
 }
 
 function normalizeInventoryStockStatus(value) {
   const normalized = String(value ?? "").trim();
-  return normalized && normalized !== "-" ? normalized : "보관";
+
+  if (!normalized || normalized === "-") {
+    return "보관";
+  }
+
+  const compact = normalized.replace(/\s+/g, "");
+  const aliases = {
+    검수완료: "출고대기",
+    출고대기: "출고대기",
+    "출고대기(검수완료)": "출고대기",
+    출고완료: "출고완료",
+    일부출고: "일부 출고",
+    출고보류: "보류"
+  };
+
+  return aliases[compact] || normalized;
 }
 
 function normalizeInventoryProcessStatus(value, fallback = "보관") {
@@ -2709,12 +3667,13 @@ function normalizeInventoryProcessStatus(value, fallback = "보관") {
   const qrStatuses = new Set(["QR 생성", "QR생성", "미인쇄", "생성", "미생성", "인쇄대기"]);
 
   if (!normalized || normalized === "-" || qrStatuses.has(normalized)) {
-    return normalizeInventoryStockStatus(fallback);
+    const fallbackStatus = normalizeInventoryStockStatus(fallback);
+    return fallbackStatus === "검수완료" ? "출고대기" : fallbackStatus;
   }
 
-  return normalized;
+  const stockStatus = normalizeInventoryStockStatus(normalized);
+  return stockStatus === "검수완료" ? "출고대기" : stockStatus;
 }
-
 function buildInventoryFilterOptions(rows, fallback = {}) {
   return {
     clients: fallback.clients || uniqueValuesFromRows(rows, "clientName"),
@@ -3259,12 +4218,13 @@ function renderInventoryBadge(value, tone = "gray") {
 }
 
 function renderInventoryProcessBadge(value) {
-  const normalized = normalizeDisplayValue(value);
+  const normalized = normalizeInventoryProcessStatus(value);
   const toneMap = {
     보관: "blue",
     작업중: "amber",
     작업완료: "green",
-    검수완료: "green",
+    출고대기: "amber",
+    "일부 출고": "amber",
     출고완료: "gray"
   };
   const tone = toneMap[normalized] || "gray";
@@ -3649,7 +4609,7 @@ async function openInboundQrModal(managementId) {
     return;
   }
 
-  const inbound = state.todayInbounds.find((item) => item.managementId === managementId);
+  const inbound = findInboundRecordByManagementId(managementId);
 
   if (!inbound) {
     showToast("QR을 만들 입고 정보를 찾을 수 없습니다.");
@@ -3659,8 +4619,9 @@ async function openInboundQrModal(managementId) {
   state.activeQrInboundId = managementId;
   state.isLoadingInboundQrs = true;
   closeInboundRowActionMenu();
+  const processText = getInboundQrProcessText(inbound);
   inboundQrTitle.textContent = `${inbound.productName || "입고"} 박스 QR`;
-  inboundQrSubtitle.textContent = `${managementId} · ${inbound.process || "-"} · ${inbound.inboundDate || "-"} · QR 데이터를 준비 중입니다.`;
+  inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · QR 데이터를 준비 중입니다.`;
   inboundQrSheet.innerHTML = '<p class="qr-loading">박스 QR 데이터를 불러오는 중입니다.</p>';
   inboundQrModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -3668,7 +4629,7 @@ async function openInboundQrModal(managementId) {
   try {
     const result = await requestApi("getInboundBoxQrs", { managementId });
     const boxes = Array.isArray(result.boxes) ? result.boxes : [];
-    inboundQrSubtitle.textContent = `${managementId} · ${inbound.process || "-"} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
+    inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
     renderInboundQrSheet(inbound, boxes);
   } catch (error) {
     inboundQrSheet.innerHTML = `<p class="qr-loading qr-error">${escapeHtml(error.message || "QR 데이터를 불러오지 못했습니다.")}</p>`;
@@ -3676,6 +4637,15 @@ async function openInboundQrModal(managementId) {
   } finally {
     state.isLoadingInboundQrs = false;
   }
+}
+
+function findInboundRecordByManagementId(managementId) {
+  return state.todayInbounds.find((item) => item.managementId === managementId)
+    || state.inventoryRows.find((item) => item.managementId === managementId);
+}
+
+function getInboundQrProcessText(inbound) {
+  return inbound?.process || inbound?.finalProcess || inbound?.processStatus || "-";
 }
 
 function closeInboundQrModal() {
@@ -3703,7 +4673,7 @@ function renderInboundQrSheet(inbound, boxes) {
   }
 
   const total = boxes.length;
-  const processText = inbound.process || "-";
+  const processText = getInboundQrProcessText(inbound);
   const productName = inbound.productName || boxes[0]?.productName || "-";
 
   inboundQrSheet.innerHTML = boxes.map((box) => {

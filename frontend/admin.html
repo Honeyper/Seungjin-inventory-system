@@ -931,148 +931,54 @@
             </div>
           </section>
 
-          <section class="shipping-filter-panel" aria-label="출고 검색 필터">
-            <div class="shipping-section-title">
-              <h2>검색 필터</h2>
-            </div>
-            <div class="shipping-filter-grid">
-              <label class="shipping-filter-field shipping-search-field">
-                <span>제품명</span>
-                <div class="shipping-search-input">
-                  <input type="search" placeholder="제품명을 검색하세요." />
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m16 16 4 4" />
-                  </svg>
-                </div>
-              </label>
-              <label class="shipping-filter-field">
-                <span>거래처명</span>
-                <select>
-                  <option>전체</option>
-                  <option>(주)리치코스</option>
-                  <option>(주)정훈</option>
-                  <option>(주)코스앤텍</option>
-                </select>
-              </label>
-              <label class="shipping-filter-field">
-                <span>보관 위치</span>
-                <select>
-                  <option>전체</option>
-                  <option>A-1</option>
-                  <option>A-2</option>
-                  <option>B-1</option>
-                  <option>B-2</option>
-                </select>
-              </label>
-              <label class="shipping-filter-field">
-                <span>출고 검수 여부</span>
-                <select>
-                  <option>전체</option>
-                  <option>검수 전</option>
-                  <option>검수 완료</option>
-                </select>
-              </label>
-              <label class="shipping-filter-field">
-                <span>출고 상태</span>
-                <select>
-                  <option>전체</option>
-                  <option>출고 대기</option>
-                  <option>검수 완료</option>
-                  <option>출고 보류</option>
-                  <option>출고 완료</option>
-                </select>
-              </label>
-            </div>
-            <div class="shipping-filter-actions">
-              <button class="secondary-action" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M19 12a7 7 0 1 1-2.05-4.95" />
-                  <path d="M19 5v5h-5" />
-                </svg>
-                초기화
-              </button>
-              <button class="primary-action" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m16 16 4 4" />
-                </svg>
-                조회
-              </button>
-            </div>
-          </section>
-
-          <section class="shipping-summary-grid" aria-label="출고 요약">
-            <article class="shipping-summary-card amber">
-              <span class="shipping-summary-icon" aria-hidden="true">
-                <img src="./assets/shipping-summary-wait-generated.png" alt="" />
-              </span>
-              <div>
-                <span>출고 대기</span>
-                <strong>12 <em>건</em></strong>
-              </div>
-            </article>
-            <article class="shipping-summary-card green">
-              <span class="shipping-summary-icon" aria-hidden="true">
-                <img src="./assets/shipping-summary-inspection-generated.png" alt="" />
-              </span>
-              <div>
-                <span>검수 완료</span>
-                <strong>8 <em>건</em></strong>
-              </div>
-            </article>
-            <article class="shipping-summary-card red">
-              <span class="shipping-summary-icon" aria-hidden="true">
-                <img src="./assets/shipping-summary-issue-generated.png" alt="" />
-              </span>
-              <div>
-                <span>이상 발견</span>
-                <strong>2 <em>건</em></strong>
-              </div>
-            </article>
-            <article class="shipping-summary-card blue">
-              <span class="shipping-summary-icon" aria-hidden="true">
-                <img src="./assets/shipping-summary-complete-generated.png" alt="" />
-              </span>
-              <div>
-                <span>오늘 출고 완료</span>
-                <strong>5 <em>건</em></strong>
-              </div>
-            </article>
-          </section>
-
-          <section class="shipping-workflow-panel" aria-label="출고 처리 흐름">
-            <div class="shipping-section-title">
-              <h2>출고 처리 흐름</h2>
-            </div>
-            <div class="shipping-workflow-steps">
-              <article class="shipping-workflow-step active">
-                <span>1</span>
-                <strong>제품 선택</strong>
-                <p>출고 대상 목록에서 검수할 제품을 선택합니다.</p>
-              </article>
-              <article class="shipping-workflow-step">
-                <span>2</span>
-                <strong>박스별 검수</strong>
-                <p>검수한 박스를 체크하고 불량 내역을 기록합니다.</p>
-              </article>
-              <article class="shipping-workflow-step">
-                <span>3</span>
-                <strong>출고대기 등록</strong>
-                <p>검수 완료 건을 출고 준비 상태로 전환합니다.</p>
-              </article>
-              <article class="shipping-workflow-step">
-                <span>4</span>
-                <strong>출고 처리</strong>
-                <p>실제 출고 시간을 입력하고 완료 처리합니다.</p>
-              </article>
-            </div>
-          </section>
-
           <section class="shipping-settlement-panel" aria-label="출고 결산">
             <div class="shipping-list-header shipping-settlement-header">
-              <h2>출고 결산</h2>
-              <span>현재 출고 대상 기준</span>
+              <div class="shipping-settlement-heading">
+                <h2>출고 결산</h2>
+                <p>선택한 기간 기준으로 출고 현황을 집계합니다.</p>
+              </div>
+              <div class="shipping-settlement-date-tools">
+                <span class="shipping-settlement-date-title">조회 기간</span>
+                <label>
+                  <span>시작일</span>
+                  <input id="shippingSettlementStartDate" type="date" />
+                </label>
+                <i aria-hidden="true">~</i>
+                <label>
+                  <span>종료일</span>
+                  <input id="shippingSettlementEndDate" type="date" />
+                </label>
+                <button id="shippingSettlementTodayButton" type="button">오늘</button>
+              </div>
+            </div>
+            <div class="shipping-summary-grid shipping-settlement-summary" aria-label="출고 상태 요약">
+              <article class="shipping-summary-card amber">
+                <span class="shipping-summary-icon" aria-hidden="true">
+                  <img src="./assets/shipping-summary-wait-generated.png" alt="" />
+                </span>
+                <div>
+                  <span>출고대기(검수완료)</span>
+                  <strong>12 <em>건</em></strong>
+                </div>
+              </article>
+              <article class="shipping-summary-card red">
+                <span class="shipping-summary-icon" aria-hidden="true">
+                  <img src="./assets/shipping-summary-issue-generated.png" alt="" />
+                </span>
+                <div>
+                  <span>이상 발견</span>
+                  <strong>2 <em>건</em></strong>
+                </div>
+              </article>
+              <article class="shipping-summary-card blue">
+                <span class="shipping-summary-icon" aria-hidden="true">
+                  <img src="./assets/shipping-summary-complete-generated.png" alt="" />
+                </span>
+                <div>
+                  <span>출고 완료</span>
+                  <strong>5 <em>건</em></strong>
+                </div>
+              </article>
             </div>
             <div class="shipping-settlement-grid">
               <article class="shipping-settlement-card">
@@ -1119,6 +1025,74 @@
                 </label>
               </div>
             </div>
+            <div class="shipping-filter-panel shipping-list-filter" aria-label="출고 검색 필터">
+              <div class="shipping-filter-grid">
+                <label class="shipping-filter-field shipping-search-field">
+                  <span>제품명</span>
+                  <div class="shipping-search-input">
+                    <input type="search" placeholder="제품명을 검색하세요." />
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m16 16 4 4" />
+                    </svg>
+                  </div>
+                </label>
+                <label class="shipping-filter-field">
+                  <span>거래처명</span>
+                  <select>
+                    <option>전체</option>
+                    <option>(주)리치코스</option>
+                    <option>(주)정훈</option>
+                    <option>(주)코스앤텍</option>
+                  </select>
+                </label>
+                <label class="shipping-filter-field">
+                  <span>보관 위치</span>
+                  <select>
+                    <option>전체</option>
+                    <option>A-1</option>
+                    <option>A-2</option>
+                    <option>B-1</option>
+                    <option>B-2</option>
+                  </select>
+                </label>
+                <label class="shipping-filter-field">
+                  <span>출고 검수 여부</span>
+                  <select>
+                    <option>전체</option>
+                    <option>검수 전</option>
+                    <option>출고대기(검수완료)</option>
+                  </select>
+                </label>
+                <label class="shipping-filter-field">
+                  <span>출고 상태</span>
+                  <select>
+                    <option>전체</option>
+                    <option>출고 대기</option>
+                    <option>출고대기(검수완료)</option>
+                    <option>출고 보류</option>
+                    <option>일부 출고</option>
+                    <option>출고 완료</option>
+                  </select>
+                </label>
+              </div>
+              <div class="shipping-filter-actions">
+                <button class="secondary-action" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+                    <path d="M19 5v5h-5" />
+                  </svg>
+                  초기화
+                </button>
+                <button class="primary-action" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m16 16 4 4" />
+                  </svg>
+                  조회
+                </button>
+              </div>
+            </div>
             <div class="table-scroll">
               <table class="product-table shipping-table">
                 <thead>
@@ -1150,10 +1124,10 @@
                     <td>B-2</td>
                     <td>13 box</td>
                     <td>3,800 ea</td>
-                    <td><span class="shipping-badge muted">검수 전</span></td>
+                    <td><span class="shipping-badge muted">보관</span></td>
                     <td>-</td>
                     <td><span class="due-badge warning">D-2</span></td>
-                    <td><span class="shipping-badge muted">검수 전</span></td>
+                    <td><span class="shipping-badge muted">보관</span></td>
                     <td><button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button></td>
                   </tr>
                   <tr>
@@ -1169,8 +1143,8 @@
                     <td><span class="shipping-badge done">검수 완료</span></td>
                     <td>정상</td>
                     <td><span class="due-badge warning">D-5</span></td>
-                    <td><span class="shipping-badge ready">검수 완료</span></td>
-                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button></td>
+                    <td><span class="shipping-badge wait">출고 대기</span></td>
+                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고</button></td>
                   </tr>
                   <tr>
                     <td>3</td>
@@ -1185,8 +1159,8 @@
                     <td><span class="shipping-badge done">검수 완료</span></td>
                     <td>정상</td>
                     <td><span class="due-badge today">오늘</span></td>
-                    <td><span class="shipping-badge ready">검수 완료</span></td>
-                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button></td>
+                    <td><span class="shipping-badge wait">출고 대기</span></td>
+                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고</button></td>
                   </tr>
                   <tr>
                     <td>4</td>
@@ -1222,7 +1196,7 @@
                     <td><span class="shipping-badge muted">검수 전</span></td>
                     <td>-</td>
                     <td><span class="due-badge warning">D-3</span></td>
-                    <td><span class="shipping-badge muted">검수 전</span></td>
+                    <td><span class="shipping-badge muted">보관</span></td>
                     <td><button class="shipping-row-button" type="button" data-shipping-action="inspect">검수 등록</button></td>
                   </tr>
                   <tr>
@@ -1238,8 +1212,8 @@
                     <td><span class="shipping-badge done">검수 완료</span></td>
                     <td>정상</td>
                     <td><span class="due-badge safe">D-7</span></td>
-                    <td><span class="shipping-badge ready">검수 완료</span></td>
-                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고대기 등록</button></td>
+                    <td><span class="shipping-badge wait">출고 대기</span></td>
+                    <td><button class="shipping-row-button" type="button" data-shipping-action="queue">출고</button></td>
                   </tr>
                 </tbody>
               </table>
@@ -1309,8 +1283,8 @@
       <section class="product-modal shipping-inspection-modal" role="dialog" aria-modal="true" aria-labelledby="shippingInspectionTitle">
         <header class="modal-header">
           <div>
-            <h2 id="shippingInspectionTitle">출고 검수 등록</h2>
-            <p>출고 전 검수 결과를 등록합니다. 불량내역에 양호가 포함되지 않으면 이상으로 처리됩니다.</p>
+            <h2 id="shippingInspectionTitle">출고 건 등록</h2>
+            <p>이번에 출고할 박스를 고르고 검수 결과를 기록합니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeShippingInspectionModal" aria-label="닫기">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1345,8 +1319,8 @@
           <section class="form-section" aria-labelledby="shippingInspectionBoxTitle">
             <div class="shipping-box-section-header">
               <div>
-                <h3 id="shippingInspectionBoxTitle">박스별 검수 선택</h3>
-                <p>이번 출고 검수에서 확인한 박스를 체크해주세요.</p>
+                <h3 id="shippingInspectionBoxTitle">이번 출고 박스</h3>
+                <p>이번에 실제로 출고할 박스를 선택해주세요.</p>
               </div>
               <label class="shipping-box-select-all">
                 <input id="shippingInspectionSelectAllBoxes" type="checkbox" checked />
@@ -1354,7 +1328,7 @@
               </label>
             </div>
             <div class="shipping-box-check-list" id="shippingInspectionBoxList"></div>
-            <p class="shipping-box-summary" id="shippingInspectionBoxSummary">검수할 박스를 선택해주세요.</p>
+            <p class="shipping-box-summary" id="shippingInspectionBoxSummary">출고할 박스를 선택해주세요.</p>
           </section>
 
           <section class="form-section" aria-labelledby="shippingInspectionResultTitle">
@@ -1424,6 +1398,13 @@
                   <label><input type="checkbox" name="shippingDefectReason" value="기타" /> <span>기타</span></label>
                 </div>
               </div>
+              <label class="shipping-hold-option full-span">
+                <input id="shippingInspectionHoldStatus" type="checkbox" />
+                <span>
+                  <strong>출고 보류</strong>
+                  <small>체크하면 출고 상태를 보류로 전환합니다.</small>
+                </span>
+              </label>
               <section class="shipping-photo-panel full-span" aria-label="출고 불량 사진 등록">
                 <div class="shipping-photo-heading">
                   <span>출고 불량 사진</span>
@@ -1493,11 +1474,35 @@
             </div>
           </section>
 
-          <section class="form-section" aria-labelledby="shippingCompletionInputTitle">
-            <h3 id="shippingCompletionInputTitle">출고 정보</h3>
+          <section class="form-section shipping-completion-box-section" aria-labelledby="shippingCompletionBoxTitle">
+            <div class="shipping-box-section-header">
+              <div>
+                <h3 id="shippingCompletionBoxTitle">출고 대상 박스</h3>
+                <p>출고건 등록에서 확정된 박스입니다. 이 화면에서는 출고 정보만 입력합니다.</p>
+              </div>
+            </div>
+            <div class="shipping-box-check-list shipping-completion-box-list" id="shippingCompletionBoxList"></div>
+            <p class="shipping-box-summary" id="shippingCompletionBoxSummary">출고 대상 박스를 확인해주세요.</p>
+            <div class="shipping-completion-shipped-boxes" id="shippingCompletionShippedBoxes" hidden></div>
+          </section>
+
+          <section class="form-section shipping-completion-info" aria-labelledby="shippingCompletionInputTitle">
+            <div class="shipping-completion-section-heading">
+              <h3 id="shippingCompletionInputTitle">출고 정보</h3>
+              <span>필수 항목 확인</span>
+            </div>
             <div class="shipping-completion-grid">
               <label class="form-field">
-                <span>출고일 <b>*</b></span>
+                <span>출고 유형 <b>*</b></span>
+                <select id="shippingCompletionType" required>
+                  <option value="정상출고">정상출고</option>
+                  <option value="반품출고">반품출고</option>
+                  <option value="이관">이관</option>
+                  <option value="외주">외주</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span>실제 출고일 <b>*</b></span>
                 <input id="shippingCompletionDate" type="date" required />
               </label>
               <label class="form-field">
@@ -1506,7 +1511,19 @@
               </label>
               <label class="form-field">
                 <span>출고자</span>
-                <input id="shippingCompletionShipper" type="text" disabled />
+                <span class="editable-lock-input shipping-completion-shipper-input">
+                  <input id="shippingCompletionShipper" type="text" disabled />
+                  <button id="editShippingCompletionShipperButton" type="button" aria-label="출고자 수정" title="수정" aria-pressed="false">
+                    <svg class="edit-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20z" />
+                      <path d="m13.5 7.5 3 3" />
+                    </svg>
+                    <svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="5" y="10" width="14" height="10" rx="2" />
+                      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                    </svg>
+                  </button>
+                </span>
               </label>
             </div>
             <p class="form-message" id="shippingCompletionMessage"></p>
@@ -1517,6 +1534,121 @@
             <button class="primary-modal-action" type="submit" id="saveShippingCompletionButton">출고 완료</button>
           </div>
         </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="shippingWaitingConfirmModal" hidden>
+      <section class="product-modal shipping-waiting-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="shippingWaitingConfirmTitle">
+        <header class="modal-header shipping-waiting-confirm-header">
+          <div>
+            <span class="shipping-waiting-confirm-kicker">출고 대기</span>
+            <h2 id="shippingWaitingConfirmTitle">출고대기 등록</h2>
+            <p>출고건 등록이 완료된 박스를 출고대기 상태로 전환합니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeShippingWaitingConfirmModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="shipping-waiting-confirm-body">
+          <section class="shipping-waiting-confirm-summary" aria-label="출고대기 등록 대상">
+            <div>
+              <span>관리 ID</span>
+              <strong id="shippingWaitingConfirmRecordId">-</strong>
+            </div>
+            <div>
+              <span>제품명</span>
+              <strong id="shippingWaitingConfirmProduct">-</strong>
+            </div>
+            <div>
+              <span>거래처명</span>
+              <strong id="shippingWaitingConfirmClient">-</strong>
+            </div>
+            <div>
+              <span>대기 등록</span>
+              <strong><b id="shippingWaitingConfirmBoxes">-</b> · <b id="shippingWaitingConfirmQuantity">-</b></strong>
+            </div>
+          </section>
+
+          <section class="shipping-waiting-confirm-boxes" aria-label="출고대기 등록 박스">
+            <h3>대상 박스</h3>
+            <div id="shippingWaitingConfirmBoxList"></div>
+          </section>
+
+          <p class="form-message" id="shippingWaitingConfirmMessage"></p>
+        </div>
+
+        <div class="modal-actions detail-actions">
+          <button class="secondary-modal-action" type="button" id="cancelShippingWaitingConfirmModal">취소</button>
+          <button class="primary-modal-action" type="button" id="confirmShippingWaitingButton">출고대기 등록</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="shippingHoldGuideModal" hidden>
+      <section class="product-modal shipping-hold-guide-modal" role="dialog" aria-modal="true" aria-labelledby="shippingHoldGuideTitle">
+        <header class="modal-header shipping-hold-guide-header">
+          <div>
+            <span class="shipping-hold-guide-kicker">출고 보류</span>
+            <h2 id="shippingHoldGuideTitle">보류 상세</h2>
+            <p>검수 팝업에서 출고 보류한 대상의 상태와 다음 조치를 확인합니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeShippingHoldGuideModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="shipping-hold-guide-body">
+          <section class="shipping-hold-guide-summary" aria-label="보류 제품 정보">
+            <div>
+              <span>관리 ID</span>
+              <strong id="shippingHoldGuideRecordId">-</strong>
+            </div>
+            <div>
+              <span>제품명</span>
+              <strong id="shippingHoldGuideProduct">-</strong>
+            </div>
+            <div>
+              <span>거래처명</span>
+              <strong id="shippingHoldGuideClient">-</strong>
+            </div>
+            <div>
+              <span>이상 여부</span>
+              <strong id="shippingHoldGuideAnomaly">-</strong>
+            </div>
+          </section>
+
+          <section class="shipping-hold-guide-status" aria-label="보류 상태 안내">
+            <div class="shipping-hold-guide-badge">
+              <span>현재 상태</span>
+              <strong>출고 보류</strong>
+            </div>
+            <p>출고 처리는 불가합니다. 사진과 메모를 확인한 뒤 필요 시 재검수를 진행해주세요.</p>
+          </section>
+
+          <section class="shipping-hold-guide-steps" aria-label="다음 조치">
+            <h3>다음 조치</h3>
+            <ol>
+              <li>등록된 불량 사진과 검수 메모를 확인합니다.</li>
+              <li>제품 상태를 다시 확인한 뒤 필요 시 재검수를 진행합니다.</li>
+              <li>재검수에서 보류 체크를 해제하고 저장하면 출고대기 등록을 진행할 수 있습니다.</li>
+            </ol>
+          </section>
+
+          <div class="shipping-hold-guide-meta">
+            <span id="shippingHoldGuidePhotoCount">등록된 불량 사진 0개</span>
+            <button class="secondary-modal-action" type="button" id="openShippingHoldGuidePhotoButton" hidden>사진 보기</button>
+          </div>
+        </div>
+
+        <div class="modal-actions detail-actions">
+          <button class="secondary-modal-action" type="button" id="cancelShippingHoldGuideModal">닫기</button>
+          <button class="primary-modal-action" type="button" id="reinspectFromHoldGuideButton">재검수</button>
+        </div>
       </section>
     </div>
 
