@@ -1449,13 +1449,25 @@ function renderShippingInspectionSavedPhotoPreview(row = state.activeShippingIns
   }
 
   shippingInspectionPhotoPreview.innerHTML = `
-    <strong>등록된 불량사진</strong>
-    <div class="shipping-photo-link-list">
-      ${urls.map((url, index) => `
-        <a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer">
-          ${urls.length > 1 ? `사진 ${index + 1}` : "불량사진 확인"}
-        </a>
-      `).join("")}
+    <div class="shipping-photo-saved-card">
+      <span class="shipping-photo-saved-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M4.5 7.8A2.3 2.3 0 0 1 6.8 5.5h2l1.15-1.55h4.1L15.2 5.5h2A2.3 2.3 0 0 1 19.5 7.8v8.7a2.3 2.3 0 0 1-2.3 2.3H6.8a2.3 2.3 0 0 1-2.3-2.3V7.8Z" />
+          <path d="M12 9.2a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Z" />
+          <path d="M17 8.4h.01" />
+        </svg>
+      </span>
+      <div class="shipping-photo-saved-copy">
+        <strong>등록된 불량사진</strong>
+        <small>${urls.length}건의 사진이 저장되어 있습니다.</small>
+      </div>
+      <div class="shipping-photo-link-list">
+        ${urls.map((url, index) => `
+          <a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer">
+            ${urls.length > 1 ? `사진 ${index + 1}` : "사진 확인"}
+          </a>
+        `).join("")}
+      </div>
     </div>
   `;
   shippingInspectionPhotoPreview.hidden = false;
