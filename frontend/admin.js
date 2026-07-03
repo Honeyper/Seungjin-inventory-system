@@ -1292,17 +1292,21 @@ function renderShippingCompletionBoxList(row) {
     `).join("")
     : '<p class="shipping-box-empty">출고 대상 박스가 없습니다.</p>';
 
-  renderShippingCompletionDefectPhotos(activeBoxes);
+  renderShippingCompletionDefectPhotos(activeBoxes, row);
   renderShippingCompletionShippedBoxes(shippedBoxes);
   syncShippingCompletionBoxState();
 }
 
-function renderShippingCompletionDefectPhotos(boxes = []) {
+function renderShippingCompletionDefectPhotos(boxes = [], row = state.activeShippingCompletionRow) {
   if (!shippingCompletionDefectPhotos) {
     return;
   }
 
-  const urls = getUniqueDefectPhotoUrls(boxes);
+  const urls = getUniqueDefectPhotoUrls([
+    ...boxes,
+    ...getShippingRowBoxes(row, "activeShippingBoxes"),
+    { defectPhotoFolderUrl: row?.dataset?.defectPhotoFolderUrl || "" }
+  ]);
   if (!urls.length) {
     shippingCompletionDefectPhotos.hidden = true;
     shippingCompletionDefectPhotos.innerHTML = "";
