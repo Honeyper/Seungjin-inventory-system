@@ -1482,10 +1482,14 @@
                 <span>출고 유형 <b>*</b></span>
                 <select id="shippingCompletionType" required>
                   <option value="정상출고">정상출고</option>
-                  <option value="반품출고">반품출고</option>
+                  <option value="반출">반출</option>
                   <option value="이관">이관</option>
                   <option value="외주">외주</option>
                 </select>
+              </label>
+              <label class="form-field shipping-transfer-company-field" id="shippingTransferCompanyField" hidden>
+                <span>이관 업체 <b>*</b></span>
+                <input id="shippingTransferCompany" type="text" placeholder="이관 업체명을 입력하세요." />
               </label>
               <label class="form-field">
                 <span>실제 출고일 <b>*</b></span>
@@ -1994,6 +1998,10 @@
             <p id="inboundQrSubtitle">박스별 QR 데이터를 확인할 수 있습니다.</p>
           </div>
           <div class="qr-modal-actions">
+            <div class="qr-layout-toggle" role="group" aria-label="QR 레이아웃 선택">
+              <button class="active" type="button" data-qr-layout="standard">QR 레이아웃 1</button>
+              <button type="button" data-qr-layout="work">QR 레이아웃 2</button>
+            </div>
             <button class="secondary-modal-action" type="button" id="closeInboundQrButton">닫기</button>
             <button class="primary-modal-action" type="button" id="printInboundQrButton">인쇄</button>
             <button class="modal-close" type="button" id="closeInboundQrModal" aria-label="닫기">

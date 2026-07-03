@@ -5817,6 +5817,34 @@ input {
   gap: 0.5rem;
 }
 
+.qr-layout-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 2.15rem;
+  padding: 0.2rem;
+  border: 1px solid #dce4ef;
+  border-radius: 0.45rem;
+  background: #f5f8fc;
+}
+
+.qr-layout-toggle button {
+  height: 1.72rem;
+  padding: 0 0.62rem;
+  color: #53647a;
+  font-size: 0.74rem;
+  font-weight: 900;
+  border: 0;
+  border-radius: 0.32rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.qr-layout-toggle button.active {
+  color: #fff;
+  background: var(--navy);
+}
+
 .qr-modal-actions .secondary-modal-action,
 .qr-modal-actions .primary-modal-action {
   min-width: 3.6rem;
@@ -5843,6 +5871,11 @@ input {
   padding: 0;
   background: #fff;
   box-shadow: 0 0.75rem 2rem rgba(8, 28, 64, 0.12);
+}
+
+.qr-sheet-work {
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 49.5mm;
 }
 
 .qr-loading {
@@ -5967,6 +6000,84 @@ input {
   text-align: center;
   word-break: keep-all;
   overflow-wrap: anywhere;
+}
+
+.box-qr-label-work {
+  height: 49.5mm;
+  padding: 0.45mm 0.85mm;
+}
+
+.box-qr-label-work .box-qr-process {
+  height: 5.2mm;
+  margin-bottom: 0.45mm;
+  font-size: 7.8pt;
+}
+
+.box-qr-label-work .box-qr-main {
+  grid-template-columns: 22mm 1fr;
+  gap: 1.3mm;
+}
+
+.box-qr-label-work .box-qr-image {
+  width: 22mm;
+  height: 22mm;
+}
+
+.box-qr-label-work .box-qr-checks {
+  gap: 1mm;
+  padding-top: 0;
+}
+
+.box-qr-label-work .box-qr-checks span {
+  grid-template-columns: 1fr 4.6mm;
+  height: 6.55mm;
+  padding: 0 1.15mm;
+  font-size: 7.2pt;
+}
+
+.box-qr-label-work .box-qr-checks i {
+  width: 3.6mm;
+  height: 3.6mm;
+}
+
+.box-qr-label-work .box-qr-meta {
+  margin-top: 0.45mm;
+}
+
+.box-qr-label-work .box-qr-meta div {
+  grid-template-columns: 17mm 1fr;
+  min-height: 4.55mm;
+}
+
+.box-qr-label-work .box-qr-meta dt,
+.box-qr-label-work .box-qr-meta dd {
+  font-size: 6.9pt;
+}
+
+.box-qr-work-fields {
+  display: grid;
+  gap: 0.3mm;
+  margin-top: 0.35mm;
+}
+
+.box-qr-work-field {
+  display: grid;
+  grid-template-columns: 17mm 1fr;
+  align-items: end;
+  min-height: 3.85mm;
+}
+
+.box-qr-work-field span {
+  color: #46566b;
+  font-size: 7.6pt;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.box-qr-work-field i {
+  display: block;
+  height: 2.85mm;
+  border-bottom: 0.55pt solid #111827;
 }
 
 @media print {

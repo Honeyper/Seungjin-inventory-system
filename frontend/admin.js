@@ -76,6 +76,8 @@ const state = {
   isDeletingProduct: false,
   isDeletingInbound: false,
   isLoadingInboundQrs: false,
+  inboundQrLayout: "standard",
+  activeQrBoxes: [],
   productFormMode: "create",
   editingProductCode: "",
   activeDetailProductCode: "",
@@ -150,6 +152,7 @@ const inboundQrSheet = document.querySelector("#inboundQrSheet");
 const closeInboundQrModalButton = document.querySelector("#closeInboundQrModal");
 const closeInboundQrButton = document.querySelector("#closeInboundQrButton");
 const printInboundQrButton = document.querySelector("#printInboundQrButton");
+const inboundQrLayoutButtons = document.querySelectorAll("[data-qr-layout]");
 const inboundTime = document.querySelector("#inboundTime");
 const inboundDate = document.querySelector("#inboundDate");
 const inboundType = document.querySelector("#inboundType");
@@ -269,6 +272,8 @@ const shippingCompletionProduct = document.querySelector("#shippingCompletionPro
 const shippingCompletionClient = document.querySelector("#shippingCompletionClient");
 const shippingCompletionQuantity = document.querySelector("#shippingCompletionQuantity");
 const shippingCompletionType = document.querySelector("#shippingCompletionType");
+const shippingTransferCompanyField = document.querySelector("#shippingTransferCompanyField");
+const shippingTransferCompany = document.querySelector("#shippingTransferCompany");
 const shippingCompletionDate = document.querySelector("#shippingCompletionDate");
 const shippingCompletionTime = document.querySelector("#shippingCompletionTime");
 const shippingCompletionShipper = document.querySelector("#shippingCompletionShipper");
@@ -513,6 +518,7 @@ editShippingCompletionShipperButton?.addEventListener("click", () => {
     Boolean(shippingCompletionShipper?.disabled)
   );
 });
+shippingCompletionType?.addEventListener("change", syncShippingTransferCompanyField);
 shippingInspectionDefectQuantity?.addEventListener("input", updateShippingInspectionDefectRate);
 shippingInspectionSelectAllBoxes?.addEventListener("change", () => {
   setShippingInspectionBoxSelection(Boolean(shippingInspectionSelectAllBoxes.checked));
@@ -681,6 +687,19 @@ saveInboundEditButton?.addEventListener("click", saveInboundEdit);
 closeInboundQrModalButton?.addEventListener("click", closeInboundQrModal);
 closeInboundQrButton?.addEventListener("click", closeInboundQrModal);
 printInboundQrButton?.addEventListener("click", () => window.print());
+inboundQrLayoutButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const layout = button.dataset.qrLayout || "standard";
+
+    if (state.inboundQrLayout === layout) {
+      return;
+    }
+
+    state.inboundQrLayout = layout;
+    updateInboundQrLayoutButtons();
+    renderInboundQrSheet(findInboundRecordByManagementId(state.activeQrInboundId), state.activeQrBoxes);
+  });
+});
 
 document.addEventListener("click", (event) => {
   if (
@@ -1913,6 +1932,10 @@ function openShippingCompletionModal(row) {
   if (shippingCompletionType) {
     shippingCompletionType.value = "정상출고";
   }
+  if (shippingTransferCompany) {
+    shippingTransferCompany.value = "";
+  }
+  syncShippingTransferCompanyField();
 
   if (shippingCompletionDate) {
     shippingCompletionDate.value = defaultDate;
@@ -1963,6 +1986,22 @@ function closeShippingCompletionModal() {
   document.body.classList.remove("modal-open");
 }
 
+function syncShippingTransferCompanyField() {
+  const shouldShow = shippingCompletionType?.value === "이관";
+
+  if (shippingTransferCompanyField) {
+    shippingTransferCompanyField.hidden = !shouldShow;
+  }
+  if (shippingTransferCompany) {
+    shippingTransferCompany.required = shouldShow;
+    shippingTransferCompany.disabled = !shouldShow;
+
+    if (!shouldShow) {
+      shippingTransferCompany.value = "";
+    }
+  }
+}
+
 async function saveShippingCompletion() {
   const row = state.activeShippingCompletionRow;
 
@@ -1973,6 +2012,8 @@ async function saveShippingCompletion() {
   const shippingDate = shippingCompletionDate?.value || getLocalDateInputValue();
   const shippingTime = shippingCompletionTime?.value || "";
   const shippingType = shippingCompletionType?.value || "";
+  const transferCompany = shippingType === "이관" ? shippingTransferCompany?.value.trim() || "" : "";
+  const shippingTypeLabel = shippingType === "이관" && transferCompany ? `이관(${transferCompany})` : shippingType;
   const selectedBoxes = getSelectedShippingCompletionBoxes();
 
   if (!shippingType) {
@@ -1980,6 +2021,14 @@ async function saveShippingCompletion() {
       shippingCompletionMessage.textContent = "출고 유형을 선택해주세요.";
     }
     shippingCompletionType?.focus();
+    return;
+  }
+
+  if (shippingType === "이관" && !transferCompany) {
+    if (shippingCompletionMessage) {
+      shippingCompletionMessage.textContent = "이관 업체를 입력해주세요.";
+    }
+    shippingTransferCompany?.focus();
     return;
   }
 
@@ -2007,9 +2056,9 @@ async function saveShippingCompletion() {
 
   try {
     const result = await updateShippingStatus(row, "출고완료", {
-      shippingType,
-      "출고유형": shippingType,
-      "출고 유형": shippingType,
+      shippingType: shippingTypeLabel,
+      "출고유형": shippingTypeLabel,
+      "출고 유형": shippingTypeLabel,
       shippingDate,
       shippingTime,
       selectedBoxes: selectedBoxes.map((box) => box.number),
@@ -4626,6 +4675,7 @@ function buildShippingHistoryGroups(boxes = []) {
       toDateInputValue(box.shippingDate) || "-",
       box.shippingTime || "-",
       box.shippingType || "-",
+      normalizeTransferCompanyValue(box.transferCompany) || "-",
       box.shipper || "-"
     ].join("|");
 
@@ -4634,6 +4684,7 @@ function buildShippingHistoryGroups(boxes = []) {
         shippingDate: toDateInputValue(box.shippingDate) || "-",
         shippingTime: box.shippingTime || "-",
         shippingType: box.shippingType || "-",
+        transferCompany: normalizeTransferCompanyValue(box.transferCompany),
         shipper: box.shipper || "-",
         boxes: [],
         quantity: 0
@@ -4672,6 +4723,7 @@ function renderShippingHistoryGroups(groups = []) {
             </div>
             <div class="shipping-history-meta">
               <span>유형 ${escapeHtml(group.shippingType)}</span>
+              ${shouldShowTransferCompanySeparately(group.shippingType, group.transferCompany) ? `<span>이관 업체 ${escapeHtml(group.transferCompany)}</span>` : ""}
               <span>출고자 ${escapeHtml(group.shipper)}</span>
               <span class="full">박스 ${escapeHtml(boxNumbers || "-")}</span>
             </div>
@@ -4680,6 +4732,15 @@ function renderShippingHistoryGroups(groups = []) {
       }).join("")}
     </div>
   `;
+}
+
+function normalizeTransferCompanyValue(value) {
+  const text = String(value || "").trim();
+  return text && text !== "-" ? text : "";
+}
+
+function shouldShowTransferCompanySeparately(shippingType, transferCompany) {
+  return Boolean(normalizeTransferCompanyValue(transferCompany)) && !/^이관\s*\([^)]+\)$/.test(String(shippingType || "").trim());
 }
 
 function formatNumber(value) {
@@ -5044,6 +5105,9 @@ async function openInboundQrModal(managementId) {
   }
 
   state.activeQrInboundId = managementId;
+  state.activeQrBoxes = [];
+  state.inboundQrLayout = "standard";
+  updateInboundQrLayoutButtons();
   state.isLoadingInboundQrs = true;
   closeInboundRowActionMenu();
   const processText = getInboundQrProcessText(inbound);
@@ -5056,6 +5120,7 @@ async function openInboundQrModal(managementId) {
   try {
     const result = await requestApi("getInboundBoxQrs", { managementId });
     const boxes = Array.isArray(result.boxes) ? result.boxes : [];
+    state.activeQrBoxes = boxes;
     inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
     renderInboundQrSheet(inbound, boxes);
   } catch (error) {
@@ -5083,6 +5148,7 @@ function closeInboundQrModal() {
   inboundQrModal.hidden = true;
   inboundQrSheet.innerHTML = "";
   state.activeQrInboundId = "";
+  state.activeQrBoxes = [];
 
   if (productModal.hidden && productDetailModal.hidden && inboundDetailModal.hidden && inboundProductPickerModal.hidden) {
     document.body.classList.remove("modal-open");
@@ -5093,6 +5159,9 @@ function renderInboundQrSheet(inbound, boxes) {
   if (!inboundQrSheet) {
     return;
   }
+
+  const isWorkLayout = state.inboundQrLayout === "work";
+  inboundQrSheet.classList.toggle("qr-sheet-work", isWorkLayout);
 
   if (!boxes.length) {
     inboundQrSheet.innerHTML = '<p class="qr-loading">출력할 박스 QR이 없습니다.</p>';
@@ -5106,6 +5175,17 @@ function renderInboundQrSheet(inbound, boxes) {
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
     const qrData = box.qrData || box.boxId || "";
+
+    if (isWorkLayout) {
+      return renderInboundQrWorkLabel({
+        box,
+        sequence,
+        total,
+        qrData,
+        processText,
+        productName
+      });
+    }
 
     return `
       <article class="box-qr-label">
@@ -5131,6 +5211,50 @@ function renderInboundQrSheet(inbound, boxes) {
       </article>
     `;
   }).join("");
+}
+
+function updateInboundQrLayoutButtons() {
+  inboundQrLayoutButtons.forEach((button) => {
+    const isActive = (button.dataset.qrLayout || "standard") === state.inboundQrLayout;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, productName }) {
+  return `
+    <article class="box-qr-label box-qr-label-work">
+      <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
+      <div class="box-qr-main">
+        <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
+        <div class="box-qr-checks" aria-label="공정 체크">
+          ${renderQrProcessCheck("1도")}
+          ${renderQrProcessCheck("2도")}
+          ${renderQrProcessCheck("3도")}
+        </div>
+      </div>
+      <dl class="box-qr-meta">
+        <div>
+          <dt>제품명</dt>
+          <dd>${escapeHtml(productName)}</dd>
+        </div>
+        <div>
+          <dt>박스 정보</dt>
+          <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
+        </div>
+      </dl>
+      <div class="box-qr-work-fields" aria-label="작업자 기입란">
+        <div class="box-qr-work-field">
+          <span>포장수량</span>
+          <i aria-hidden="true"></i>
+        </div>
+        <div class="box-qr-work-field">
+          <span>서명</span>
+          <i aria-hidden="true"></i>
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 function renderQrProcessCheck(label) {
@@ -5339,6 +5463,10 @@ function renderShippingDetail(item) {
   const latestShippingTime = shippingTimes[shippingTimes.length - 1] || "-";
   const latestShipper = shippers[shippers.length - 1] || "-";
   const shippingTypes = [...new Set(shippedBoxes.map((box) => box.shippingType).filter(Boolean))];
+  const transferCompanies = [...new Set(shippedBoxes
+    .filter((box) => shouldShowTransferCompanySeparately(box.shippingType, box.transferCompany))
+    .map((box) => normalizeTransferCompanyValue(box.transferCompany))
+    .filter(Boolean))];
   const shippedBoxText = shippedBoxes.length
     ? shippedBoxes.map((box) => `${box.number}번`).join(", ")
     : "-";
@@ -5356,6 +5484,7 @@ function renderShippingDetail(item) {
         ${detailItem("출고 시간", latestShippingTime)}
         ${detailItem("출고자", latestShipper)}
         ${detailItem("출고 유형", shippingTypes.join(", ") || "-")}
+        ${transferCompanies.length ? detailItem("이관 업체", transferCompanies.join(", ")) : ""}
       </div>
     </section>
 

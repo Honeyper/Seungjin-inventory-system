@@ -377,6 +377,7 @@ function setupSheets() {
       'QR 생성 일시',
       'QR 데이터',
       '작업자',
+      '출고유형',
       '출고일',
       '출고시간',
       '출고자',
@@ -2000,6 +2001,7 @@ function saveShippingInspection(payload) {
     defectReason,
     status: stockStatus,
     selectedBoxes: Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [],
+    boxQuantities: payload.boxQuantities || payload.selectedBoxQuantities || {},
     note: memo || '-'
   });
   const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, stockStatus, payload);
@@ -2407,6 +2409,18 @@ function findShippingTypeHeaderIndex_(indexes) {
   return -1;
 }
 
+function extractTransferCompanyFromNote_(note) {
+  const text = String(note || '').trim();
+  const match = text.match(/이관\s*업체\s*:\s*([^,\n]+)/);
+  return match ? match[1].trim() : '';
+}
+
+function extractTransferCompanyFromShippingType_(shippingType) {
+  const text = String(shippingType || '').trim();
+  const match = text.match(/^이관\s*\(([^)]+)\)$/);
+  return match ? match[1].trim() : '';
+}
+
 function updateStockStatusRows_(sheet, managementId, status, data = {}) {
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['관리 ID', '상태']) || findHeaderRow_(values, ['관리ID', '상태']);
@@ -2807,6 +2821,10 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const shippingInspectionDate = normalizeDateKey_(getObjectCell_(row, ['출고 검수일', '검수일']));
     const shippingInspectionTime = getObjectCell_(row, ['출고 검수시간', '검수시간']);
     const shippingDate = normalizeDateKey_(getObjectCell_(row, ['출고일']));
+    const shippingType = getObjectCell_(row, ['출고유형', '출고 유형', '출고타입', '출고 타입', '출고구분', '출고 구분']);
+    const boxNote = getObjectCell_(row, ['비고', '메모', '참고']);
+    const transferCompanyCell = getObjectCell_(row, ['이관업체', '이관 업체', '출고 이관 업체', '출고이관업체']);
+    const transferCompany = transferCompanyCell || extractTransferCompanyFromShippingType_(shippingType) || extractTransferCompanyFromNote_(boxNote);
     const boxInfo = {
       number: sequence || summary.boxes.length + 1,
       boxId: getObjectCell_(row, ['박스ID', '박스 ID']),
@@ -2824,7 +2842,8 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       defectReason: shippingDefectReason,
       shippingDate: getObjectCell_(row, ['출고일']),
       shippingTime: getObjectCell_(row, ['출고시간']),
-      shippingType: getObjectCell_(row, ['출고유형', '출고 유형', '출고타입', '출고 타입', '출고구분', '출고 구분']),
+      shippingType,
+      transferCompany,
       shipper: getObjectCell_(row, ['출고자'])
     };
     const hasShippingInspection = Boolean(
