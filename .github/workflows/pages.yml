@@ -1,4 +1,4 @@
-name: Deploy production frontend
+name: Deploy frontend
 
 on:
   push:
@@ -31,10 +31,19 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Build Pages artifact
+        run: |
+          mkdir -p .pages-dist/dev
+          cp -R frontend/. .pages-dist/
+          cp -R frontend/. .pages-dist/dev/
+          cp frontend/config.prod.js .pages-dist/config.js
+          cp frontend/config.dev.js .pages-dist/dev/config.js
+          touch .pages-dist/.nojekyll
+
       - name: Upload frontend
         uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend
+          path: .pages-dist
 
       - name: Deploy to GitHub Pages
         id: deployment

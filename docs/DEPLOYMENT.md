@@ -1,23 +1,27 @@
 # 운영 배포
 
-## 운영 URL
+## 접속 URL
 
-GitHub Pages 운영 URL은 아래 주소를 사용합니다.
+GitHub Pages 접속 URL은 아래 주소를 사용합니다.
 
 ```text
-https://honeyper.github.io/Seungjin-inventory-system/
+운영: https://honeyper.github.io/Seungjin-inventory-system/
+개발: https://honeyper.github.io/Seungjin-inventory-system/dev/
 ```
 
-이 URL은 `frontend/index.html`을 로그인 화면으로 보여줍니다.
+두 URL 모두 `frontend/index.html`을 로그인 화면으로 보여줍니다.
 
 ## 배포 방식
 
-운영 프론트는 GitHub Pages로 배포합니다.
+운영/개발 프론트는 GitHub Pages로 함께 배포합니다.
 
-- 배포 대상: `frontend/`
+- 운영 배포 대상: `frontend/`를 Pages 루트로 복사
+- 개발 배포 대상: `frontend/`를 Pages `dev/` 경로로 복사
 - 배포 브랜치: `main`
-- API 설정: `frontend/config.js`
+- 운영 API 설정: `frontend/config.prod.js`를 `config.js`로 적용
+- 개발 API 설정: `frontend/config.dev.js`를 `dev/config.js`로 적용
 - 운영 API: PRD Apps Script Web App URL
+- 개발 API: DEV Apps Script Web App URL
 
 `main` 브랜치에 push되면 `.github/workflows/pages.yml`이 실행되고 GitHub Pages에 자동 배포됩니다.
 
