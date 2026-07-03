@@ -1,12 +1,14 @@
 const APP_ENVIRONMENTS = {
   prod: {
     label: 'PRD',
+    scriptId: '1Fk0-HC_EFMXUbu-DcKoKXy2jkuFc1_rI7boX838uRjnntaXC7HYjik1U',
     spreadsheetId: '1XkrXqPFpB2dtGrT8KiV3OyUzM6PbVAxHlZlQeDUFQAI',
     driveRootFolderId: '1qxRR-t6_msWtfnXTd3PCMqsut7uYXRt1',
     defectPhotoRootFolderId: '1vE9xIY3OA2dCoCWgnPZDWfuBgd_oo34U'
   },
   dev: {
     label: 'DEV',
+    scriptId: '1_hEv8hS-RslSbT4J1hYHMvdHwoHgRvs2vLsNBdXrbyxZFiUgbfT_5c4T',
     spreadsheetId: '1__av_Ww7cuUeVrqPgtDRwGsbI0gmfqppxcULpI4WIhg',
     driveRootFolderId: '1qxRR-t6_msWtfnXTd3PCMqsut7uYXRt1',
     defectPhotoRootFolderId: '1vE9xIY3OA2dCoCWgnPZDWfuBgd_oo34U'
@@ -49,8 +51,18 @@ function buildRuntimeConfig_() {
 function getAppEnvironment_() {
   try {
     const env = PropertiesService.getScriptProperties().getProperty('APP_ENV');
-    const normalized = String(env || 'prod').trim().toLowerCase();
-    return APP_ENVIRONMENTS[normalized] ? normalized : 'prod';
+    const normalized = String(env || '').trim().toLowerCase();
+    if (normalized && APP_ENVIRONMENTS[normalized]) {
+      return normalized;
+    }
+  } catch (error) {
+    // Ignore property access errors and fall back to script id detection.
+  }
+
+  try {
+    const scriptId = ScriptApp.getScriptId();
+    const matchedEnv = Object.keys(APP_ENVIRONMENTS).find((env) => APP_ENVIRONMENTS[env].scriptId === scriptId);
+    return matchedEnv || 'prod';
   } catch (error) {
     return 'prod';
   }
