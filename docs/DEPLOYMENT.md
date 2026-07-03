@@ -25,6 +25,17 @@ GitHub Pages 접속 URL은 아래 주소를 사용합니다.
 
 `main` 브랜치에 push되면 `.github/workflows/pages.yml`이 실행되고 GitHub Pages에 자동 배포됩니다.
 
+## 서버별 저장소
+
+Apps Script의 `APP_ENVIRONMENTS` 설정에서 시트와 드라이브 저장소를 분리합니다.
+
+```text
+운영 드라이브: https://drive.google.com/drive/folders/1iHb4bqT45OHkzvYZR8bfH943i071UdPV
+개발 드라이브: https://drive.google.com/drive/folders/1nHvct8X2B7cX9cPHgq7F3A8x8EAlDQo3
+```
+
+사진과 첨부 파일은 실행 중인 Apps Script 환경에 맞는 드라이브 폴더 아래에 저장됩니다.
+
 ## 최초 1회 확인
 
 GitHub 저장소 설정에서 Pages가 GitHub Actions 배포를 사용하도록 되어 있어야 합니다.
