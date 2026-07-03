@@ -3072,6 +3072,7 @@ input {
   background: #fff;
 }
 
+.shipping-completion-defect-photos,
 .shipping-completion-shipped-boxes {
   margin-top: 0.85rem;
   padding: 0.82rem 0.9rem;
@@ -3080,6 +3081,12 @@ input {
   background: #fff;
 }
 
+.shipping-completion-defect-photos {
+  border-color: #f4c46b;
+  background: #fffaf0;
+}
+
+.shipping-completion-defect-photos strong,
 .shipping-completion-shipped-boxes strong {
   display: block;
   margin-bottom: 0.55rem;
@@ -3088,22 +3095,67 @@ input {
   font-weight: 900;
 }
 
+.shipping-completion-defect-photos p {
+  margin: -0.25rem 0 0.62rem;
+  color: #68758a;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.shipping-completion-defect-photos div,
 .shipping-completion-shipped-boxes div {
   display: flex;
   flex-wrap: wrap;
   gap: 0.42rem;
 }
 
+.shipping-completion-defect-photos a,
 .shipping-completion-shipped-boxes span {
   display: inline-flex;
   align-items: center;
   min-height: 1.65rem;
   padding: 0 0.55rem;
-  color: #475569;
   font-size: 0.76rem;
   font-weight: 900;
   border-radius: 999px;
+}
+
+.shipping-completion-defect-photos a {
+  color: #8a5300;
+  text-decoration: none;
+  background: #ffe7b8;
+}
+
+.shipping-completion-shipped-boxes span {
+  color: #475569;
   background: #eef3f8;
+}
+
+.shipping-photo-preview strong {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--navy-dark);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.shipping-photo-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.shipping-photo-link-list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0 0.58rem;
+  color: #0b5fc4;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-decoration: none;
+  border-radius: 999px;
+  background: #e7f2ff;
 }
 
 .shipping-completion-section-heading {

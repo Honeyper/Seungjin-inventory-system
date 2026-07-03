@@ -385,7 +385,10 @@ function setupSheets() {
       '검수시간',
       '검수자',
       '검수수량',
+      '불량 수량',
+      '불량 사유',
       '불량률',
+      '불량 사진',
       '비고'
     ],
     [CONFIG.SHEETS.INVENTORY]: [
@@ -605,6 +608,7 @@ function getInventoryDashboard() {
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const productSheet = getProductSheet_();
+  ensureBoxDbShippingInspectionHeaders_(boxSheet);
   const stockInfo = readDisplayRowsByHeaders_(stockSheet, ['관리 ID', '입고일', '제품명']);
   const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
   const productInfo = readDisplayRowsByHeaders_(productSheet, ['제품 ID', '업체명', '제품명']);
@@ -671,6 +675,8 @@ function getInventoryDashboard() {
       shippingDefectQuantity: boxSummary.shippingDefectQuantity ? formatEa_(boxSummary.shippingDefectQuantity) : '',
       shippingDefectRate: boxSummary.shippingDefectRate ? `${formatPercentNumber_(boxSummary.shippingDefectRate)}%` : '',
       shippingDefectReason: boxSummary.shippingDefectReason || '',
+      defectPhotoFolderUrl: boxSummary.defectPhotoFolderUrl || '',
+      defectPhotoCount: boxSummary.defectPhotoCount || 0,
       shippingInspectionDate: boxSummary.shippingInspectionDate || '',
       shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
       allShippingBoxes: boxSummary.allShippingBoxes || [],
@@ -1596,6 +1602,29 @@ function ensureStockDbAttachmentHeaders_(sheet) {
   });
 }
 
+function ensureBoxDbShippingInspectionHeaders_(sheet) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['박스ID', '관리ID', '제품명']);
+
+  if (!headerInfo) {
+    return;
+  }
+
+  const requiredHeaders = ['불량 수량', '불량 사유', '불량 사진'];
+  const existingHeaders = headerInfo.headers.map((header) => String(header || '').trim());
+  let nextColumn = existingHeaders.length + 1;
+
+  requiredHeaders.forEach((header) => {
+    if (existingHeaders.includes(header)) {
+      return;
+    }
+
+    sheet.getRange(headerInfo.rowIndex + 1, nextColumn).setValue(header);
+    existingHeaders.push(header);
+    nextColumn += 1;
+  });
+}
+
 function appendBoxManagementRows_(sheet, boxRecords) {
   if (!boxRecords.length) {
     return 0;
@@ -1985,6 +2014,7 @@ function saveShippingInspection(payload) {
 
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  ensureBoxDbShippingInspectionHeaders_(boxSheet);
   const updatedBoxRows = updateShippingInspectionBoxRows_(boxSheet, managementId, {
     productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
     productName: payload.productName || payload['제품명'],
@@ -1999,6 +2029,8 @@ function saveShippingInspection(payload) {
     defectQuantity: formatEa_(defectQuantity),
     defectRate,
     defectReason,
+    defectPhotoFolderUrl,
+    defectPhotoCount: toNumber_(payload.defectPhotoCount),
     status: stockStatus,
     selectedBoxes: Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [],
     boxQuantities: payload.boxQuantities || payload.selectedBoxQuantities || {},
@@ -2014,6 +2046,7 @@ function saveShippingInspection(payload) {
     updatedBoxRows,
     updatedStockRows,
     defectPhotoFolderUrl,
+    defectPhotoCount: toNumber_(payload.defectPhotoCount),
     defectQuantity,
     defectRate: defectRateNumber,
     defectReason,
@@ -2183,6 +2216,7 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], '-');
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], '-');
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], '-');
+        setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], '-');
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], '보관');
         updatedRows += 1;
       }
@@ -2208,6 +2242,7 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], defectQuantity);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], defectRate);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.status);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['비고'], data.note);
     updatedRows += 1;
@@ -2800,6 +2835,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
         shippingDefectRateTotal: 0,
         shippingDefectRateCount: 0,
         shippingDefectReasonCounts: {},
+        defectPhotoUrlCounts: {},
         shippingInspectionDateCounts: {},
         shippingDateCounts: {},
         statusCounts: {},
@@ -2817,6 +2853,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const shippingDefectRateText = getObjectCell_(row, ['불량률']);
     const shippingDefectRate = displayQuantityToNumber_(shippingDefectRateText);
     const shippingDefectReason = getObjectCell_(row, ['불량 사유', '불량사유', '불량내역']);
+    const defectPhotoFolderUrl = getObjectCell_(row, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']);
     const sequence = displayQuantityToNumber_(getObjectCell_(row, ['박스순번', '박스 순번', '박스 번호']));
     const shippingInspectionDate = normalizeDateKey_(getObjectCell_(row, ['출고 검수일', '검수일']));
     const shippingInspectionTime = getObjectCell_(row, ['출고 검수시간', '검수시간']);
@@ -2840,6 +2877,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       defectQuantity: shippingDefectQuantity,
       defectRate: shippingDefectRate,
       defectReason: shippingDefectReason,
+      defectPhotoFolderUrl,
       shippingDate: getObjectCell_(row, ['출고일']),
       shippingTime: getObjectCell_(row, ['출고시간']),
       shippingType,
@@ -2875,6 +2913,10 @@ function buildInventoryBoxSummaryMap_(boxRows) {
           summary.shippingDefectReasonCounts[shippingDefectReason] = (summary.shippingDefectReasonCounts[shippingDefectReason] || 0) + 1;
         }
 
+        if (defectPhotoFolderUrl && defectPhotoFolderUrl !== '-') {
+          summary.defectPhotoUrlCounts[defectPhotoFolderUrl] = (summary.defectPhotoUrlCounts[defectPhotoFolderUrl] || 0) + 1;
+        }
+
         if (shippingInspectionDate) {
           summary.shippingInspectionDateCounts[shippingInspectionDate] = (summary.shippingInspectionDateCounts[shippingInspectionDate] || 0) + 1;
         }
@@ -2902,6 +2944,8 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       ? summary.shippingDefectRateTotal / summary.shippingDefectRateCount
       : 0;
     summary.shippingDefectReason = pickTopKey_(summary.shippingDefectReasonCounts) || '';
+    summary.defectPhotoFolderUrl = Object.keys(summary.defectPhotoUrlCounts).join(' ');
+    summary.defectPhotoCount = Object.keys(summary.defectPhotoUrlCounts).length;
     summary.shippingInspectionDate = pickTopKey_(summary.shippingInspectionDateCounts) || '';
     summary.shippingDate = pickTopKey_(summary.shippingDateCounts) || '';
     summary.allShippingBoxes.sort((left, right) => left.number - right.number);

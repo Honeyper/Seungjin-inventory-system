@@ -282,6 +282,7 @@ const shippingCompletionMessage = document.querySelector("#shippingCompletionMes
 const saveShippingCompletionButton = document.querySelector("#saveShippingCompletionButton");
 const shippingCompletionBoxList = document.querySelector("#shippingCompletionBoxList");
 const shippingCompletionBoxSummary = document.querySelector("#shippingCompletionBoxSummary");
+const shippingCompletionDefectPhotos = document.querySelector("#shippingCompletionDefectPhotos");
 const shippingCompletionShippedBoxes = document.querySelector("#shippingCompletionShippedBoxes");
 const shippingWaitingConfirmModal = document.querySelector("#shippingWaitingConfirmModal");
 const shippingWaitingConfirmRecordId = document.querySelector("#shippingWaitingConfirmRecordId");
@@ -928,6 +929,7 @@ async function openShippingInspectionModal(row) {
 
   shippingInspectionForm?.reset();
   resetShippingInspectionPhotoPreview();
+  renderShippingInspectionSavedPhotoPreview(row);
   setShippingInspectionDefectReasons(row.dataset.defectReason || "양호");
   if (shippingInspectionHoldStatus) {
     shippingInspectionHoldStatus.checked = row.children[12]?.textContent.trim() === "출고 보류";
@@ -1290,8 +1292,47 @@ function renderShippingCompletionBoxList(row) {
     `).join("")
     : '<p class="shipping-box-empty">출고 대상 박스가 없습니다.</p>';
 
+  renderShippingCompletionDefectPhotos(activeBoxes);
   renderShippingCompletionShippedBoxes(shippedBoxes);
   syncShippingCompletionBoxState();
+}
+
+function renderShippingCompletionDefectPhotos(boxes = []) {
+  if (!shippingCompletionDefectPhotos) {
+    return;
+  }
+
+  const urls = getUniqueDefectPhotoUrls(boxes);
+  if (!urls.length) {
+    shippingCompletionDefectPhotos.hidden = true;
+    shippingCompletionDefectPhotos.innerHTML = "";
+    return;
+  }
+
+  shippingCompletionDefectPhotos.hidden = false;
+  shippingCompletionDefectPhotos.innerHTML = `
+    <strong>불량 사진</strong>
+    <p>출고 대상 박스에 등록된 불량사진을 확인할 수 있습니다.</p>
+    <div>
+      ${urls.map((url, index) => `
+        <a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer">
+          ${urls.length > 1 ? `사진 ${index + 1}` : "불량사진 확인"}
+        </a>
+      `).join("")}
+    </div>
+  `;
+}
+
+function getUniqueDefectPhotoUrls(boxes = []) {
+  const urls = [];
+  boxes.forEach((box) => {
+    parseAttachmentUrls(box?.defectPhotoFolderUrl || box?.defectPhotoUrls || "").forEach((url) => {
+      if (!urls.includes(url)) {
+        urls.push(url);
+      }
+    });
+  });
+  return urls;
 }
 
 function renderShippingCompletionShippedBoxes(boxes = []) {
@@ -1325,7 +1366,8 @@ function getShippingCompletionTargetBoxes(row) {
     .filter((box) => isShippingCompletionReadyBox(box))
     .map((box) => ({
       number: Number(box.number),
-      quantity: parseShippingSettlementNumber(box.quantity || "")
+      quantity: parseShippingSettlementNumber(box.quantity || ""),
+      defectPhotoFolderUrl: box.defectPhotoFolderUrl || ""
     }))
     .filter((box) => Number.isFinite(box.number) && box.number > 0);
 }
@@ -1379,6 +1421,42 @@ function resetShippingInspectionPhotoPreview() {
   }
 }
 
+function renderShippingInspectionSavedPhotoPreview(row = state.activeShippingInspectionRow) {
+  const urls = getUniqueDefectPhotoUrls([
+    ...getShippingRowBoxes(row, "activeShippingBoxes"),
+    ...getShippingRowBoxes(row, "shippedShippingBoxes"),
+    { defectPhotoFolderUrl: row?.dataset?.defectPhotoFolderUrl || "" }
+  ]);
+
+  if (shippingInspectionPhotoName) {
+    shippingInspectionPhotoName.textContent = urls.length
+      ? `등록된 불량사진 ${urls.length}건`
+      : "이미지를 선택해주세요.";
+  }
+
+  if (!shippingInspectionPhotoPreview) {
+    return;
+  }
+
+  if (!urls.length) {
+    shippingInspectionPhotoPreview.hidden = true;
+    shippingInspectionPhotoPreview.innerHTML = "";
+    return;
+  }
+
+  shippingInspectionPhotoPreview.innerHTML = `
+    <strong>등록된 불량사진</strong>
+    <div class="shipping-photo-link-list">
+      ${urls.map((url, index) => `
+        <a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer">
+          ${urls.length > 1 ? `사진 ${index + 1}` : "불량사진 확인"}
+        </a>
+      `).join("")}
+    </div>
+  `;
+  shippingInspectionPhotoPreview.hidden = false;
+}
+
 function updateShippingInspectionPhotoPreview() {
   const files = Array.from(shippingInspectionDefectFiles?.files || []);
 
@@ -1393,8 +1471,7 @@ function updateShippingInspectionPhotoPreview() {
   }
 
   if (!files.length) {
-    shippingInspectionPhotoPreview.hidden = true;
-    shippingInspectionPhotoPreview.innerHTML = "";
+    renderShippingInspectionSavedPhotoPreview();
     return;
   }
 
@@ -1527,6 +1604,14 @@ async function saveShippingInspection() {
       });
     }
 
+    const existingDefectPhotoUrls = getUniqueDefectPhotoUrls([
+      ...getShippingRowBoxes(row, "activeShippingBoxes"),
+      ...getShippingRowBoxes(row, "shippedShippingBoxes"),
+      { defectPhotoFolderUrl: row.dataset.defectPhotoFolderUrl || "" }
+    ]);
+    const defectPhotoFolderUrl = uploadResult?.folderUrl || existingDefectPhotoUrls.join(" ");
+    const defectPhotoCount = uploadResult?.uploadedCount || existingDefectPhotoUrls.length || 0;
+
     const saveResult = await requestApi("saveShippingInspection", {
       managementId,
       productId: row.dataset.productId || "",
@@ -1550,8 +1635,8 @@ async function saveShippingInspection() {
       defectReasons: selectedReasons,
       memo,
       holdRequested,
-      defectPhotoFolderUrl: uploadResult?.folderUrl || "",
-      defectPhotoCount: uploadResult?.uploadedCount || 0
+      defectPhotoFolderUrl,
+      defectPhotoCount
     });
 
     const inspectionCell = row.children[9];
@@ -1563,6 +1648,8 @@ async function saveShippingInspection() {
     row.dataset.defectQuantity = String(defectQuantity);
     row.dataset.defectRate = String(defectRate);
     row.dataset.defectReason = selectedReasons.join(", ");
+    row.dataset.defectPhotoFolderUrl = saveResult?.defectPhotoFolderUrl || defectPhotoFolderUrl || "";
+    row.dataset.defectPhotoCount = String(saveResult?.defectPhotoCount || defectPhotoCount || 0);
     row.dataset.shippingInspectionDate = toDateInputValue(inspectionDate);
     saveShippingBoxDraft(
       getShippingDraftKeyFromRow(row),
@@ -1571,7 +1658,8 @@ async function saveShippingInspection() {
         inspectionDate,
         inspectionQuantity,
         defectQuantity,
-        defectRate
+        defectRate,
+        defectPhotoFolderUrl: saveResult?.defectPhotoFolderUrl || defectPhotoFolderUrl || ""
       })),
       holdRequested ? "보류" : SHIPPING_READY_STATUS_LABEL
     );
@@ -1590,7 +1678,7 @@ async function saveShippingInspection() {
 
     if (actionCell) {
       if (holdRequested) {
-        actionCell.innerHTML = renderShippingHoldActions(uploadResult?.folderUrl || "", uploadResult?.uploadedCount || defectFiles.length);
+        actionCell.innerHTML = renderShippingHoldActions(defectPhotoFolderUrl, defectPhotoCount || defectFiles.length);
       } else {
         actionCell.innerHTML = `
           <div class="shipping-action-group">
@@ -1979,6 +2067,10 @@ function closeShippingCompletionModal() {
   if (shippingCompletionBoxList) {
     shippingCompletionBoxList.innerHTML = "";
   }
+  if (shippingCompletionDefectPhotos) {
+    shippingCompletionDefectPhotos.hidden = true;
+    shippingCompletionDefectPhotos.innerHTML = "";
+  }
   if (shippingCompletionShippedBoxes) {
     shippingCompletionShippedBoxes.hidden = true;
     shippingCompletionShippedBoxes.innerHTML = "";
@@ -2174,6 +2266,8 @@ function renderShippingTable(message = "") {
         data-inbound-date="${escapeAttribute(toDateInputValue(item.inboundDate))}"
         data-shipping-inspection-date="${escapeAttribute(toDateInputValue(item.shippingInspectionDate))}"
         data-shipping-date="${escapeAttribute(toDateInputValue(item.shippingDate))}"
+        data-defect-photo-folder-url="${escapeAttribute(item.defectPhotoFolderUrl || "")}"
+        data-defect-photo-count="${Number(item.defectPhotoCount) || 0}"
         data-all-shipping-boxes="${escapeAttribute(JSON.stringify(item.allShippingBoxes || []))}"
         data-active-shipping-boxes="${escapeAttribute(JSON.stringify(item.activeShippingBoxes || []))}"
         data-shipped-shipping-boxes="${escapeAttribute(JSON.stringify(item.shippedShippingBoxes || []))}"
@@ -2386,7 +2480,7 @@ function renderShippingRowAction(item) {
   }
 
   if (counts["보류"]) {
-    return renderShippingHoldActions("", 0);
+    return renderShippingHoldActions(item.defectPhotoFolderUrl || "", Number(item.defectPhotoCount) || 0);
   }
 
   if (counts["검수완료"] || isShippingInspected(item)) {
