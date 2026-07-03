@@ -8,6 +8,7 @@ dist/
 build/
 out/
 .pages-dist/
+pages-dist/
 
 # Local environment
 .env
