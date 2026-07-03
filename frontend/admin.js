@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyPiTM2wEZ5d549g0R8pqLQB2FKE0Hz-7h_GYGfA_MVUq45-F3tTyITbT4A-yJ1ZldOCA/exec";
+const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "https://script.google.com/macros/s/AKfycbyPiTM2wEZ5d549g0R8pqLQB2FKE0Hz-7h_GYGfA_MVUq45-F3tTyITbT4A-yJ1ZldOCA/exec";
 const MAX_INVOICE_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_DEFECT_PHOTO_FILE_SIZE = 10 * 1024 * 1024;
 

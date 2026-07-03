@@ -1,31 +1,90 @@
-const CONFIG = {
-  SPREADSHEET_ID: '1XkrXqPFpB2dtGrT8KiV3OyUzM6PbVAxHlZlQeDUFQAI',
-  DRIVE_ROOT_FOLDER_ID: '1qxRR-t6_msWtfnXTd3PCMqsut7uYXRt1',
-  DEFECT_PHOTO_ROOT_FOLDER_ID: '1vE9xIY3OA2dCoCWgnPZDWfuBgd_oo34U',
-  SHEET_IDS: {
-    STOCK_DB: 425625267,
-    BOX_DB: 523859013
+const APP_ENVIRONMENTS = {
+  prod: {
+    label: 'PRD',
+    spreadsheetId: '1XkrXqPFpB2dtGrT8KiV3OyUzM6PbVAxHlZlQeDUFQAI',
+    driveRootFolderId: '1qxRR-t6_msWtfnXTd3PCMqsut7uYXRt1',
+    defectPhotoRootFolderId: '1vE9xIY3OA2dCoCWgnPZDWfuBgd_oo34U'
   },
-  SHEETS: {
-    PRODUCTS: '제품DB',
-    INBOUND: '입고내역',
-    INBOUND_BOXES: '입고박스내역',
-    STOCK_DB: '재고 DB',
-    BOX_DB: '박스관리 DB',
-    INVENTORY: '재고목록',
-    INVENTORY_HISTORY: '재고변경이력',
-    OUTBOUND: '출고내역',
-    WORKS: '작업관리',
-    WORK_SCANS: '작업스캔내역',
-    USERS: '사용자관리',
-    ACCOUNTS: '계정정보'
+  dev: {
+    label: 'DEV',
+    spreadsheetId: '1__av_Ww7cuUeVrqPgtDRwGsbI0gmfqppxcULpI4WIhg',
+    driveRootFolderId: '1qxRR-t6_msWtfnXTd3PCMqsut7uYXRt1',
+    defectPhotoRootFolderId: '1vE9xIY3OA2dCoCWgnPZDWfuBgd_oo34U'
   }
 };
+
+const CONFIG = buildRuntimeConfig_();
+
+function buildRuntimeConfig_() {
+  const env = getAppEnvironment_();
+  const environment = APP_ENVIRONMENTS[env] || APP_ENVIRONMENTS.prod;
+
+  return {
+    ENV: env,
+    ENV_LABEL: environment.label,
+    SPREADSHEET_ID: environment.spreadsheetId,
+    DRIVE_ROOT_FOLDER_ID: environment.driveRootFolderId,
+    DEFECT_PHOTO_ROOT_FOLDER_ID: environment.defectPhotoRootFolderId,
+    SHEET_IDS: {
+      STOCK_DB: 425625267,
+      BOX_DB: 523859013
+    },
+    SHEETS: {
+      PRODUCTS: '제품DB',
+      INBOUND: '입고내역',
+      INBOUND_BOXES: '입고박스내역',
+      STOCK_DB: '재고 DB',
+      BOX_DB: '박스관리 DB',
+      INVENTORY: '재고목록',
+      INVENTORY_HISTORY: '재고변경이력',
+      OUTBOUND: '출고내역',
+      WORKS: '작업관리',
+      WORK_SCANS: '작업스캔내역',
+      USERS: '사용자관리',
+      ACCOUNTS: '계정정보'
+    }
+  };
+}
+
+function getAppEnvironment_() {
+  try {
+    const env = PropertiesService.getScriptProperties().getProperty('APP_ENV');
+    const normalized = String(env || 'prod').trim().toLowerCase();
+    return APP_ENVIRONMENTS[normalized] ? normalized : 'prod';
+  } catch (error) {
+    return 'prod';
+  }
+}
+
+function setAppEnvironmentDev() {
+  return setAppEnvironment_('dev');
+}
+
+function setAppEnvironmentProd() {
+  return setAppEnvironment_('prod');
+}
+
+function setAppEnvironment_(env) {
+  const normalized = String(env || '').trim().toLowerCase();
+
+  if (!APP_ENVIRONMENTS[normalized]) {
+    throw new Error(`지원하지 않는 환경입니다: ${env}`);
+  }
+
+  PropertiesService.getScriptProperties().setProperty('APP_ENV', normalized);
+  return {
+    env: normalized,
+    label: APP_ENVIRONMENTS[normalized].label,
+    spreadsheetId: APP_ENVIRONMENTS[normalized].spreadsheetId
+  };
+}
 
 function doGet() {
   return jsonResponse({
     ok: true,
     service: 'seungjin-inventory-api',
+    env: CONFIG.ENV,
+    envLabel: CONFIG.ENV_LABEL,
     message: 'Apps Script API is running.'
   });
 }
@@ -87,6 +146,8 @@ function healthCheck() {
   const defectPhotoDriveWriteCheck = verifyDriveWriteAccess_(defectPhotoFolder);
 
   return {
+    env: CONFIG.ENV,
+    envLabel: CONFIG.ENV_LABEL,
     spreadsheetId: ss.getId(),
     spreadsheetName: ss.getName(),
     invoiceDriveFolderId: invoiceFolder.getId(),
@@ -107,6 +168,8 @@ function authorizeDrive() {
   const defectPhotoDriveWriteCheck = verifyDriveWriteAccess_(defectPhotoFolder);
 
   return {
+    env: CONFIG.ENV,
+    envLabel: CONFIG.ENV_LABEL,
     spreadsheetName: ss.getName(),
     invoiceDriveFolderId: invoiceFolder.getId(),
     invoiceDriveFolderName: invoiceFolder.getName(),
