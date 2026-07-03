@@ -731,63 +731,6 @@
             </article>
           </section>
 
-          <section class="inventory-filter-panel" aria-label="검색 필터">
-            <h2>검색 필터</h2>
-            <div class="inventory-filter-grid">
-              <label class="inventory-filter-field wide-search">
-                <span>제품명</span>
-                <div class="inventory-search-input">
-                  <input id="inventorySearch" type="search" placeholder="제품명을 검색하세요." />
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m16 16 4 4" />
-                  </svg>
-                </div>
-              </label>
-              <label class="inventory-filter-field">
-                <span>거래처명</span>
-                <select id="inventoryClientFilter">
-                  <option>전체</option>
-                </select>
-              </label>
-              <label class="inventory-filter-field">
-                <span>보관 위치</span>
-                <select id="inventoryStorageFilter">
-                  <option>보관 위치 검색</option>
-                </select>
-              </label>
-              <label class="inventory-filter-field">
-                <span>재고 상태</span>
-                <select id="inventoryStockFilter">
-                  <option>전체</option>
-                </select>
-              </label>
-              <label class="inventory-filter-field">
-                <span>공정 상태</span>
-                <select id="inventoryProcessFilter">
-                  <option>전체</option>
-                </select>
-              </label>
-            </div>
-            <div class="inventory-filter-actions">
-              <span></span>
-              <button class="secondary-action inventory-reset-button" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M19 12a7 7 0 1 1-2.05-4.95" />
-                  <path d="M19 5v5h-5" />
-                </svg>
-                초기화
-              </button>
-              <button class="primary-action inventory-search-button" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m16 16 4 4" />
-                </svg>
-                조회
-              </button>
-            </div>
-          </section>
-
           <section class="table-panel inventory-list-panel" aria-label="재고 목록">
             <div class="inventory-list-header">
               <h2>재고 목록</h2>
@@ -799,6 +742,61 @@
                     <option>30개씩 보기</option>
                   </select>
                 </label>
+              </div>
+            </div>
+            <div class="inventory-filter-panel" aria-label="재고 검색 필터">
+              <div class="inventory-filter-grid">
+                <label class="inventory-filter-field wide-search">
+                  <span>제품명</span>
+                  <div class="inventory-search-input">
+                    <input id="inventorySearch" type="search" placeholder="제품명을 검색하세요." />
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m16 16 4 4" />
+                    </svg>
+                  </div>
+                </label>
+                <label class="inventory-filter-field">
+                  <span>거래처명</span>
+                  <select id="inventoryClientFilter">
+                    <option>전체</option>
+                  </select>
+                </label>
+                <label class="inventory-filter-field">
+                  <span>보관 위치</span>
+                  <select id="inventoryStorageFilter">
+                    <option>보관 위치 검색</option>
+                  </select>
+                </label>
+                <label class="inventory-filter-field">
+                  <span>재고 상태</span>
+                  <select id="inventoryStockFilter">
+                    <option>전체</option>
+                  </select>
+                </label>
+                <label class="inventory-filter-field">
+                  <span>공정 상태</span>
+                  <select id="inventoryProcessFilter">
+                    <option>전체</option>
+                  </select>
+                </label>
+              </div>
+              <div class="inventory-filter-actions">
+                <span></span>
+                <button class="secondary-action inventory-reset-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+                    <path d="M19 5v5h-5" />
+                  </svg>
+                  초기화
+                </button>
+                <button class="primary-action inventory-search-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m16 16 4 4" />
+                  </svg>
+                  조회
+                </button>
               </div>
             </div>
             <div class="table-scroll">
@@ -990,10 +988,6 @@
                 <strong><b id="shippingSettlementTotalBoxes">0</b><em>box</em></strong>
               </article>
               <article class="shipping-settlement-card">
-                <span>잔량</span>
-                <strong><b id="shippingSettlementRemainder">0</b><em>ea</em></strong>
-              </article>
-              <article class="shipping-settlement-card">
                 <span>총 검사 수량</span>
                 <strong><b id="shippingSettlementInspectedQuantity">0</b><em>ea</em></strong>
               </article>
@@ -1012,9 +1006,9 @@
             </div>
           </section>
 
-          <section class="table-panel shipping-list-panel" aria-label="출고 대상 목록">
+          <section class="table-panel shipping-list-panel" aria-label="출고 목록">
             <div class="shipping-list-header">
-              <h2>출고 대상 목록</h2>
+              <h2>출고 목록</h2>
               <div>
                 <label class="page-size">
                   <select>
@@ -1041,19 +1035,12 @@
                   <span>거래처명</span>
                   <select>
                     <option>전체</option>
-                    <option>(주)리치코스</option>
-                    <option>(주)정훈</option>
-                    <option>(주)코스앤텍</option>
                   </select>
                 </label>
                 <label class="shipping-filter-field">
                   <span>보관 위치</span>
                   <select>
                     <option>전체</option>
-                    <option>A-1</option>
-                    <option>A-2</option>
-                    <option>B-1</option>
-                    <option>B-2</option>
                   </select>
                 </label>
                 <label class="shipping-filter-field">
@@ -1068,7 +1055,6 @@
                   <span>출고 상태</span>
                   <select>
                     <option>전체</option>
-                    <option>출고 대기</option>
                     <option>출고대기(검수완료)</option>
                     <option>출고 보류</option>
                     <option>일부 출고</option>
@@ -1220,7 +1206,7 @@
             </div>
             <div class="table-footer shipping-table-footer">
               <span>전체 12건</span>
-              <div class="pagination" aria-label="출고 대상 목록 페이지">
+              <div class="pagination" aria-label="출고 목록 페이지">
                 <button type="button" aria-label="처음">
                   <svg viewBox="0 0 24 24"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5" /></svg>
                 </button>
