@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - "frontend/**"
       - ".github/workflows/pages.yml"
@@ -16,7 +17,7 @@ permissions:
 
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -25,8 +26,17 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout
+      - name: Checkout production
         uses: actions/checkout@v4
+        with:
+          ref: main
+          path: prod-src
+
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          path: dev-src
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -34,10 +44,10 @@ jobs:
       - name: Build Pages artifact
         run: |
           mkdir -p pages-dist/dev
-          cp -R frontend/. pages-dist/
-          cp -R frontend/. pages-dist/dev/
-          cp frontend/config.prod.js pages-dist/config.js
-          cp frontend/config.dev.js pages-dist/dev/config.js
+          cp -R prod-src/frontend/. pages-dist/
+          cp -R dev-src/frontend/. pages-dist/dev/
+          cp prod-src/frontend/config.prod.js pages-dist/config.js
+          cp dev-src/frontend/config.dev.js pages-dist/dev/config.js
           touch pages-dist/.nojekyll
 
       - name: Upload frontend
