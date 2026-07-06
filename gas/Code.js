@@ -870,7 +870,7 @@ function syncStockStatusesFromBoxSummary_(sheet, boxSummaryMap) {
 }
 
 function createProduct(payload) {
-  const required = ['업체명', '제품명', '발주량', '납기일', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
   required.forEach((field) => {
     if (!payload[field]) {
       throw new Error(`${field} 값이 필요합니다.`);
@@ -1091,7 +1091,7 @@ function getInboundBoxQrs(payload) {
 
 function updateProduct(payload) {
   const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
-  const required = ['업체명', '제품명', '발주량', '납기일', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
 
   if (!productId) {
     throw new Error('수정할 제품 ID가 필요합니다.');
