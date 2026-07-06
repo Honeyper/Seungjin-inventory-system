@@ -7,9 +7,11 @@ GitHub Pages 접속 URL은 아래 주소를 사용합니다.
 ```text
 운영: https://honeyper.github.io/Seungjin-inventory-system/
 개발: https://honeyper.github.io/Seungjin-inventory-system/dev/
+운영 모바일: https://honeyper.github.io/Seungjin-inventory-system/mobile/
+개발 모바일: https://honeyper.github.io/Seungjin-inventory-system/dev/mobile/
 ```
 
-두 URL 모두 `frontend/index.html`을 로그인 화면으로 보여줍니다.
+PC URL은 `frontend/index.html`, 모바일 URL은 `frontend/mobile/index.html`을 로그인 화면으로 보여줍니다.
 
 ## 배포 방식
 
@@ -22,6 +24,7 @@ GitHub Pages 접속 URL은 아래 주소를 사용합니다.
 - 개발 API 설정: `frontend/config.dev.js`를 `dev/config.js`로 적용
 - 운영 API: PRD Apps Script Web App URL
 - 개발 API: DEV Apps Script Web App URL
+- 모바일 운영/개발 화면은 같은 배포 산출물의 `/mobile/`, `/dev/mobile/` 경로로 제공합니다.
 
 `main` 브랜치에 push되면 `.github/workflows/pages.yml`이 실행되고 GitHub Pages에 자동 배포됩니다.
 

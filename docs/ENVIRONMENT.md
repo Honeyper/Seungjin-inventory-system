@@ -41,8 +41,6 @@ window.SEUNGJIN_CONFIG = {
 };
 ```
 
-DEV용 Apps Script Web App URL이 생기면 `ENV`를 `"dev"`로 바꾸고 `API_URL`을 DEV URL로 바꿔서 사용합니다.
-
 환경별 프론트 설정 파일은 아래처럼 관리합니다.
 
 ```text
@@ -52,6 +50,15 @@ frontend/config.js       실제 화면에서 읽는 설정
 ```
 
 운영 화면은 `config.prod.js` 내용을 `config.js`로, 개발 화면은 `config.dev.js` 내용을 `config.js`로 사용합니다.
+
+## 프론트 접속 URL
+
+```text
+운영 PC: https://honeyper.github.io/Seungjin-inventory-system/
+개발 PC: https://honeyper.github.io/Seungjin-inventory-system/dev/
+운영 모바일: https://honeyper.github.io/Seungjin-inventory-system/mobile/
+개발 모바일: https://honeyper.github.io/Seungjin-inventory-system/dev/mobile/
+```
 
 ## 배포 도구
 
@@ -65,9 +72,13 @@ node tools/apps-script-deploy.cjs . list dev
 
 새 DEV Apps Script 프로젝트는 이미 생성되어 있습니다. Google에서 새 스크립트 권한 승인이 필요하다고 막는 경우 Apps Script 편집기에서 DEV 프로젝트를 열고 `healthCheck` 또는 `setAppEnvironmentDev`를 한 번 실행해 권한을 승인합니다.
 
-## 아직 분리 필요
+## 드라이브 저장소
 
-현재 Drive 폴더 ID는 PRD/DEV가 같은 값을 사용합니다. 운영 파일과 테스트 파일을 완전히 분리하려면 아래 폴더도 DEV용으로 새로 만들고 `APP_ENVIRONMENTS.dev`에 반영해야 합니다.
+현재 PRD/DEV 드라이브 저장소는 분리되어 있습니다.
 
-- 거래명세표 저장 폴더
-- 출고/입고 불량사진 저장 폴더
+```text
+PRD: 1iHb4bqT45OHkzvYZR8bfH943i071UdPV
+DEV: 1nHvct8X2B7cX9cPHgq7F3A8x8EAlDQo3
+```
+
+거래명세표와 출고/입고 불량사진은 실행 중인 Apps Script 환경의 드라이브 폴더 아래에 저장됩니다.
