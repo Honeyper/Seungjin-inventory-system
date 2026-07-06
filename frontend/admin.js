@@ -6385,8 +6385,6 @@ function validateProductPayload(payload) {
     ["업체명", "거래처명을 선택해주세요."],
     ["제품명", "제품명을 입력해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
-    ["발주량", "발주량을 입력해주세요."],
-    ["납기일", "납기일을 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
     ["트레이 수량", "트레이 수량을 입력해주세요."]
   ];
@@ -6396,7 +6394,11 @@ function validateProductPayload(payload) {
     return missing[1];
   }
 
-  if (Number(productOrderQuantity.value) <= 0 || Number(productBoxQuantity.value) <= 0 || Number(productTrayQuantity.value) <= 0) {
+  if (
+    (productOrderQuantity.value.trim() && Number(productOrderQuantity.value) <= 0) ||
+    Number(productBoxQuantity.value) <= 0 ||
+    Number(productTrayQuantity.value) <= 0
+  ) {
     return "수량은 1 이상의 숫자로 입력해주세요.";
   }
 
