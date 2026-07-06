@@ -1,8 +1,9 @@
-name: Deploy development frontend
+name: Deploy frontend
 
 on:
   push:
     branches:
+      - main
       - dev
     paths:
       - "frontend/**"
@@ -16,7 +17,7 @@ permissions:
 
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -25,16 +26,17 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout development
-        uses: actions/checkout@v4
-        with:
-          path: dev-src
-
       - name: Checkout production
         uses: actions/checkout@v4
         with:
           ref: main
           path: prod-src
+
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          path: dev-src
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
