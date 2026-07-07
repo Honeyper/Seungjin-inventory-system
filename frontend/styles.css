@@ -1300,7 +1300,6 @@ input {
 }
 
 .inventory-reset-button,
-.inventory-search-button,
 .inventory-export-button,
 .detail-filter-button {
   min-height: 2.35rem;
@@ -1310,7 +1309,6 @@ input {
 }
 
 .inventory-reset-button svg,
-.inventory-search-button svg,
 .inventory-export-button svg,
 .detail-filter-button svg {
   width: 0.95rem;
@@ -1452,7 +1450,7 @@ input {
 
 .inventory-filter-grid {
   display: grid;
-  grid-template-columns: 1.25fr repeat(5, minmax(0, 1fr));
+  grid-template-columns: 1.25fr repeat(4, minmax(0, 1fr)) auto;
   gap: 0.8rem;
   align-items: end;
 }
@@ -1520,6 +1518,18 @@ input {
   display: grid;
   grid-template-columns: 1fr auto auto;
   margin-top: 0.75rem;
+}
+
+.inventory-filter-reset {
+  display: flex;
+  align-self: end;
+  min-width: 6.5rem;
+}
+
+.inventory-filter-reset .inventory-reset-button {
+  justify-content: center;
+  width: 100%;
+  min-height: 2.55rem;
 }
 
 .detail-filter-button {
@@ -1923,6 +1933,10 @@ input {
 
   .inventory-filter-actions {
     grid-template-columns: 1fr;
+  }
+
+  .inventory-filter-reset {
+    min-width: 0;
   }
 
   .inventory-summary-grid {
