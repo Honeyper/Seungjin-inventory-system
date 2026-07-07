@@ -1459,7 +1459,9 @@ function updateInbound(payload) {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
     ensureStockDbAttachmentHeaders_(stockSheet);
-    const rowInfo = findRowByHeaderValue_(stockSheet, ['관리 ID', '관리ID'], managementId, ['관리 ID', '입고일', '제품명']);
+    const rowInfo = findStockRowForInboundUpdate_(stockSheet, managementId, {
+      productId: payload.productId || payload.productCode || payload['제품ID'] || payload['제품 ID']
+    });
 
     if (!rowInfo) {
       throw new Error('수정할 입고 내역을 찾을 수 없습니다.');
@@ -2009,6 +2011,63 @@ function findRowByHeaderValue_(sheet, headerNames, targetValue, requiredHeaders)
   }
 
   return null;
+}
+
+function findStockRowForInboundUpdate_(sheet, managementId, data = {}) {
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getDisplayValues();
+  const richValues = dataRange.getRichTextValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명'])
+    || findHeaderRow_(values, ['관리ID', '입고일', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const managementIndex = findHeaderIndex_(indexes, ['관리 ID', '관리ID']);
+
+  if (managementIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  const candidates = [];
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const rowManagementId = String(values[rowIndex][managementIndex] || '').trim();
+
+    if (rowManagementId !== managementId) {
+      continue;
+    }
+
+    candidates.push({
+      rowNumber: rowIndex + 1,
+      rowValues: values[rowIndex],
+      richRowValues: richValues[rowIndex] || [],
+      headerRowIndex: headerInfo.rowIndex,
+      headers: headerInfo.headers,
+      indexes
+    });
+  }
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  const productId = normalizeInventoryIdentityPart_(data.productId || data['제품ID'] || data['제품 ID']);
+
+  if (productId) {
+    const productMatch = candidates.find((candidate) => {
+      const rowProductId = normalizeInventoryIdentityPart_(pickCell_(candidate.rowValues, indexes, ['제품ID', '제품 ID']));
+      return rowProductId === productId;
+    });
+
+    if (productMatch) {
+      return productMatch;
+    }
+  }
+
+  return candidates[0];
 }
 
 function fillBlankCells_(row, headers = []) {

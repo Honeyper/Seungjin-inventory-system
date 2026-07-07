@@ -6059,6 +6059,7 @@ async function saveInboundEdit() {
 async function getInboundEditPayload() {
   const payload = {
     managementId: state.activeDetailInboundId,
+    productId: state.activeDetailInboundProductId,
     inboundDate: inboundDetailContent.querySelector("#inboundEditDate")?.value.trim() || "",
     inboundTime: inboundDetailContent.querySelector("#inboundEditTime")?.value.trim() || "",
     inboundType: inboundDetailContent.querySelector("#inboundEditType")?.value.trim() || "",
