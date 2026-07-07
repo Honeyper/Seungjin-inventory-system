@@ -734,15 +734,6 @@
           <section class="table-panel inventory-list-panel" aria-label="재고 목록">
             <div class="inventory-list-header">
               <h2>재고 목록</h2>
-              <div>
-                <label class="page-size">
-                  <select>
-                    <option>10개씩 보기</option>
-                    <option>20개씩 보기</option>
-                    <option>30개씩 보기</option>
-                  </select>
-                </label>
-              </div>
             </div>
             <div class="inventory-filter-panel" aria-label="재고 검색 필터">
               <div class="inventory-filter-grid">
@@ -1054,7 +1045,7 @@
                   초기화
                 </button>
                 <label class="page-size shipping-filter-page-size">
-                  <select>
+                  <select id="shippingPageSizeSelect">
                     <option value="10">10개씩 보기</option>
                     <option value="20">20개씩 보기</option>
                     <option value="30">30개씩 보기</option>
