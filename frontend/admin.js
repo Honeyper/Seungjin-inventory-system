@@ -4097,6 +4097,7 @@ function normalizeInventoryRows(rows) {
     return mergeShippingBoxDraft({
       ...item,
       stockStatus,
+      process: item.process || item.finalProcess || "",
       processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
     });
   });
