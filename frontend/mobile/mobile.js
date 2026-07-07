@@ -282,11 +282,7 @@ function renderShippingList(rows) {
       <div class="empty-state">
         <div>
           <span class="empty-state-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M4 7 12 3l8 4-8 4-8-4z"></path>
-              <path d="M4 7v10l8 4 8-4V7"></path>
-              <path d="M12 11v10"></path>
-            </svg>
+            <img src="../assets/mobile-empty-box.svg" alt="" />
           </span>
           <h2>등록된 제품이 없습니다</h2>
           <p>출고할 제품을 등록해 주세요.</p>
@@ -349,13 +345,13 @@ function renderShippingItem(item) {
 function renderShippingLoading() {
   elements.mobileShippingCount.textContent = "0";
   elements.shippingListPanel.innerHTML = `
-    <div class="empty-state">
-      <div>
-        <span class="empty-state-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
-        </span>
-        <h2>불러오는 중입니다</h2>
-        <p>출고 목록을 확인하고 있습니다.</p>
+      <div class="empty-state">
+        <div>
+          <span class="empty-state-icon" aria-hidden="true">
+            <img src="../assets/mobile-empty-box.svg" alt="" />
+          </span>
+          <h2>불러오는 중입니다</h2>
+          <p>출고 목록을 확인하고 있습니다.</p>
       </div>
     </div>
   `;
@@ -364,12 +360,12 @@ function renderShippingLoading() {
 function renderShippingError(message) {
   elements.mobileShippingCount.textContent = "0";
   elements.shippingListPanel.innerHTML = `
-    <div class="empty-state">
-      <div>
-        <span class="empty-state-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>
-        </span>
-        <h2>목록을 불러오지 못했습니다</h2>
+      <div class="empty-state">
+        <div>
+          <span class="empty-state-icon" aria-hidden="true">
+            <img src="../assets/mobile-empty-box.svg" alt="" />
+          </span>
+          <h2>목록을 불러오지 못했습니다</h2>
         <p>${escapeHtml(message)}</p>
         <button class="primary-action" type="button" id="retryShippingButton">다시 시도</button>
       </div>
