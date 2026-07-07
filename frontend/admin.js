@@ -3011,6 +3011,7 @@ function updateShippingSettlementSummary() {
 
   const rows = getShippingSettlementItems();
   const boxItems = getShippingSettlementBoxItems();
+  const completedBoxItems = boxItems.filter((item) => item.status === "출고완료");
   let totalQuantity = 0;
   let totalBoxes = 0;
   let remainder = 0;
@@ -3026,7 +3027,7 @@ function updateShippingSettlementSummary() {
     remainder += parseShippingSettlementNumber(item.remainQuantity);
   });
 
-  boxItems.forEach((item) => {
+  completedBoxItems.forEach((item) => {
     totalBoxes += item.boxes;
     totalQuantity += item.quantity;
     if (item.inspectionQuantity > 0) {
