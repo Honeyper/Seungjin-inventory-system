@@ -64,6 +64,13 @@ const state = {
   pageSize: 10,
   shippingPage: 1,
   shippingPageSize: 10,
+  shippingFilters: {
+    query: "",
+    client: "",
+    storage: "",
+    inspection: "",
+    status: ""
+  },
   inboundPageSize: 10,
   query: "",
   clientFilter: "",
@@ -238,9 +245,14 @@ const shippingPagination = document.querySelector(".shipping-table-footer .pagin
 const shippingPageSizeSelect = document.querySelector(".shipping-table-footer .page-size select");
 const shippingSummaryCards = document.querySelectorAll(".shipping-summary-card");
 const shippingFilterPanel = document.querySelector(".shipping-list-filter");
+const shippingSearchInput = shippingFilterPanel?.querySelector(".shipping-search-field input") || null;
 const shippingFilterSelects = shippingFilterPanel?.querySelectorAll(".shipping-filter-field select") || [];
 const shippingClientFilter = shippingFilterSelects[0] || null;
 const shippingStorageFilter = shippingFilterSelects[1] || null;
+const shippingInspectionFilter = shippingFilterSelects[2] || null;
+const shippingStatusFilter = shippingFilterSelects[3] || null;
+const shippingFilterResetButton = shippingFilterPanel?.querySelector(".shipping-filter-actions .secondary-action") || null;
+const shippingFilterSearchButton = shippingFilterPanel?.querySelector(".shipping-filter-actions .primary-action") || null;
 const shippingInspectionModal = document.querySelector("#shippingInspectionModal");
 const shippingInspectionForm = document.querySelector("#shippingInspectionForm");
 const shippingInspectionMessage = document.querySelector("#shippingInspectionMessage");
@@ -673,6 +685,27 @@ pageSizeSelect.addEventListener("change", (event) => {
 shippingPageSizeSelect?.addEventListener("change", (event) => {
   state.shippingPageSize = Number.parseInt(event.target.value, 10) || 10;
   state.shippingPage = 1;
+  renderShippingTable();
+});
+shippingSearchInput?.addEventListener("input", (event) => {
+  state.shippingFilters.query = event.target.value.trim().toLowerCase();
+  state.shippingPage = 1;
+  renderShippingTable();
+});
+[shippingClientFilter, shippingStorageFilter, shippingInspectionFilter, shippingStatusFilter].forEach((select) => {
+  select?.addEventListener("change", () => {
+    syncShippingFilterState();
+    state.shippingPage = 1;
+    renderShippingTable();
+  });
+});
+shippingFilterSearchButton?.addEventListener("click", () => {
+  syncShippingFilterState();
+  state.shippingPage = 1;
+  renderShippingTable();
+});
+shippingFilterResetButton?.addEventListener("click", () => {
+  resetShippingFilters();
   renderShippingTable();
 });
 
@@ -2238,8 +2271,9 @@ function renderShippingTable(message = "") {
     return;
   }
 
-  const rows = getShippingRows();
-  renderShippingFilterOptions(rows);
+  const sourceRows = getShippingSourceRows();
+  renderShippingFilterOptions(sourceRows);
+  const rows = getShippingRows(sourceRows);
 
   if (message || !rows.length) {
     shippingTableBody.innerHTML = `
@@ -2342,12 +2376,122 @@ function renderShippingPagination(pageCount) {
   });
 }
 
-function getShippingRows() {
+function getShippingSourceRows() {
   return (state.inventoryRows || []).filter((item) => {
     const status = getEffectiveShippingStatus(item);
     const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
     return !["폐기"].includes(status) && (quantity > 0 || status === "출고완료");
   });
+}
+
+function getShippingRows(sourceRows = getShippingSourceRows()) {
+  syncShippingFilterState();
+  const filters = state.shippingFilters;
+
+  return sourceRows.filter((item) => {
+    const effectiveStatus = getEffectiveShippingStatus(item);
+
+    if (filters.client && item.clientName !== filters.client) {
+      return false;
+    }
+
+    if (filters.storage && item.storage !== filters.storage) {
+      return false;
+    }
+
+    if (filters.inspection && getShippingInspectionFilterValue(item) !== filters.inspection) {
+      return false;
+    }
+
+    if (filters.status && getShippingStatusFilterValue(item) !== filters.status) {
+      return false;
+    }
+
+    if (!filters.query) {
+      return true;
+    }
+
+    return [
+      item.managementId,
+      item.productId,
+      item.productName,
+      item.clientName,
+      item.batch,
+      item.finalProcess,
+      item.storage,
+      item.currentBoxCount,
+      item.currentTotalQuantity,
+      renderPlainShippingStatus(effectiveStatus),
+      isShippingInspected(item) ? SHIPPING_READY_STATUS_LABEL : "검수 전"
+    ].some((value) => String(value || "").toLowerCase().includes(filters.query));
+  });
+}
+
+function syncShippingFilterState() {
+  state.shippingFilters = {
+    query: shippingSearchInput?.value.trim().toLowerCase() || "",
+    client: shippingClientFilter?.value || "",
+    storage: shippingStorageFilter?.value || "",
+    inspection: shippingInspectionFilter?.value || "",
+    status: shippingStatusFilter?.value || ""
+  };
+}
+
+function resetShippingFilters() {
+  if (shippingSearchInput) {
+    shippingSearchInput.value = "";
+  }
+
+  [shippingClientFilter, shippingStorageFilter, shippingInspectionFilter, shippingStatusFilter].forEach((select) => {
+    if (select) {
+      select.value = "";
+    }
+  });
+
+  state.shippingPage = 1;
+  syncShippingFilterState();
+}
+
+function getShippingInspectionFilterValue(item) {
+  return isShippingInspected(item) ? SHIPPING_READY_STATUS_LABEL : "검수 전";
+}
+
+function getShippingStatusFilterValue(item) {
+  const status = getEffectiveShippingStatus(item);
+
+  if (status === "출고대기") {
+    return SHIPPING_READY_STATUS_LABEL;
+  }
+
+  if (status === "보류") {
+    return "출고 보류";
+  }
+
+  if (status === "일부 출고") {
+    return "일부 출고";
+  }
+
+  if (status === "출고완료") {
+    return "출고 완료";
+  }
+
+  return renderPlainShippingStatus(status);
+}
+
+function renderPlainShippingStatus(status) {
+  if (status === "출고대기") {
+    return "출고 대기";
+  }
+
+  if (status === "보류") {
+    return "출고 보류";
+  }
+
+  if (status === "출고완료") {
+    return "출고 완료";
+  }
+
+  return status || "보관";
 }
 
 function getEffectiveShippingStatus(item) {
