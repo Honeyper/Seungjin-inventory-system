@@ -3948,6 +3948,7 @@ function normalizeInventoryRows(rows) {
     return mergeShippingBoxDraft({
       ...item,
       stockStatus,
+      process: item.process || item.finalProcess || "",
       processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
     });
   });
@@ -5386,7 +5387,7 @@ function openActiveInboundEdit() {
     return;
   }
 
-  const inbound = state.todayInbounds.find((item) => item.managementId === state.activeInboundMenuRecord);
+  const inbound = getInboundByManagementId(state.activeInboundMenuRecord);
 
   if (!inbound) {
     showToast("수정할 입고 정보를 찾을 수 없습니다.");
@@ -5418,7 +5419,8 @@ function openDetailInboundEdit() {
 }
 
 function getInboundByManagementId(managementId) {
-  return state.todayInbounds.find((item) => item.managementId === managementId);
+  return state.todayInbounds.find((item) => item.managementId === managementId)
+    || state.inventoryRows.find((item) => item.managementId === managementId);
 }
 
 function setInboundDetailMode(mode) {

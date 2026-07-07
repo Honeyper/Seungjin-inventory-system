@@ -1530,8 +1530,6 @@ function updateInbound(payload) {
       defectPhotoUrls: finalDefectPhotoUrls
     });
 
-    deleteRowsByHeaderValue_(boxSheet, ['관리ID', '관리 ID'], managementId, ['박스ID', '관리ID', '제품명']);
-
     const boxRecords = [];
 
     for (let index = 1; index <= totalBoxCount; index += 1) {
@@ -1553,15 +1551,18 @@ function updateInbound(payload) {
       });
     }
 
-    const boxStartRow = appendBoxManagementRows_(boxSheet, boxRecords);
+    const boxSync = syncInboundBoxManagementRows_(boxSheet, managementId, boxRecords);
 
     return {
       managementId,
       updated: true,
       stockRow: rowInfo.rowNumber,
-      boxStartRow,
+      boxStartRow: boxSync.firstRowNumber,
       boxCount: boxRecords.length,
-      boxIds: boxRecords.map((record) => record.boxId)
+      boxIds: boxRecords.map((record) => record.boxId),
+      boxUpdatedRows: boxSync.updatedRows,
+      boxDeletedRows: boxSync.deletedRows,
+      boxInsertedRows: boxSync.insertedRows
     };
   } finally {
     lock.releaseLock();
@@ -1746,6 +1747,191 @@ function appendBoxManagementRows_(sheet, boxRecords) {
   });
 
   return appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber);
+}
+
+function syncInboundBoxManagementRows_(sheet, managementId, boxRecords) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['박스ID', '관리ID', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const managementIdIndex = findHeaderIndex_(indexes, ['관리ID', '관리 ID']);
+
+  if (managementIdIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  const existingRows = [];
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const rowManagementId = String(values[rowIndex][managementIdIndex] || '').trim();
+
+    if (rowManagementId === managementId) {
+      existingRows.push({
+        rowNumber: rowIndex + 1,
+        rowValues: values[rowIndex],
+        sequence: getBoxSequenceFromRow_(values[rowIndex], indexes)
+      });
+    }
+  }
+
+  const targetSequenceSet = new Set(boxRecords.map((record) => Number(record.sequence)));
+  const rowsBySequence = new Map();
+  const extraRows = [];
+
+  existingRows.forEach((rowInfo) => {
+    if (
+      Number.isFinite(rowInfo.sequence)
+      && targetSequenceSet.has(rowInfo.sequence)
+      && !rowsBySequence.has(rowInfo.sequence)
+    ) {
+      rowsBySequence.set(rowInfo.sequence, rowInfo);
+      return;
+    }
+
+    extraRows.push(rowInfo);
+  });
+
+  const blockedRows = extraRows.filter((rowInfo) => !isMutableInboundBoxRow_(rowInfo.rowValues, indexes));
+
+  if (blockedRows.length) {
+    const labels = blockedRows
+      .map((rowInfo) => rowInfo.sequence ? `${rowInfo.sequence}번` : pickCell_(rowInfo.rowValues, indexes, ['박스ID']) || `${rowInfo.rowNumber}행`)
+      .join(', ');
+    throw new Error(`출고/검수/QR 이력이 있는 박스는 자동 삭제할 수 없습니다: ${labels}`);
+  }
+
+  let updatedRows = 0;
+  const recordsToAppend = [];
+
+  boxRecords.forEach((record) => {
+    const existingRow = rowsBySequence.get(Number(record.sequence));
+
+    if (!existingRow) {
+      recordsToAppend.push(record);
+      return;
+    }
+
+    updatedRows += updateInboundBoxRowCells_(sheet, existingRow.rowNumber, existingRow.rowValues, indexes, record);
+  });
+
+  extraRows
+    .map((rowInfo) => rowInfo.rowNumber)
+    .sort((left, right) => right - left)
+    .forEach((rowNumber) => {
+      sheet.deleteRow(rowNumber);
+    });
+
+  const appendedStartRow = appendBoxManagementRows_(sheet, recordsToAppend);
+  const firstExistingRow = existingRows.length
+    ? Math.min.apply(null, existingRows.map((rowInfo) => rowInfo.rowNumber))
+    : 0;
+
+  return {
+    firstRowNumber: firstExistingRow || appendedStartRow || 0,
+    updatedRows,
+    deletedRows: extraRows.length,
+    insertedRows: recordsToAppend.length
+  };
+}
+
+function getBoxSequenceFromRow_(row, indexes) {
+  const sequence = displayQuantityToNumber_(pickCell_(row, indexes, ['박스순번', '박스 순번', '박스 번호']));
+
+  return Number.isFinite(sequence) && sequence > 0 ? sequence : 0;
+}
+
+function isMutableInboundBoxRow_(row, indexes) {
+  const status = normalizeHeaderValue_(pickCell_(row, indexes, ['상태', '재고 상태']));
+
+  if (status && status !== '-' && status !== '보관') {
+    return false;
+  }
+
+  const historyHeaders = [
+    'QR 생성 여부',
+    'QR 출력 여부',
+    'QR 생성 일시',
+    'QR 데이터',
+    '작업자',
+    '출고유형',
+    '출고 유형',
+    '출고일',
+    '출고시간',
+    '출고자',
+    '출고 검수일',
+    '출고검수일',
+    '출고 검수시간',
+    '출고검수시간',
+    '출고 검수자',
+    '출고검수자',
+    '출고 검수 수량',
+    '출고검수수량',
+    '검수일',
+    '검수시간',
+    '검수자',
+    '검수수량',
+    '불량률',
+    '불량 수량',
+    '불량수량',
+    '불량 사유',
+    '불량사유',
+    '불량 사진',
+    '불량사진'
+  ];
+
+  return !historyHeaders.some((header) => {
+    const value = normalizeHeaderValue_(pickCell_(row, indexes, [header]));
+    return value && value !== '-';
+  });
+}
+
+function normalizeHeaderValue_(value) {
+  return String(value || '').trim();
+}
+
+function updateInboundBoxRowCells_(sheet, rowNumber, row, indexes, record) {
+  const shouldUpdateMutableFields = isMutableInboundBoxRow_(row, indexes);
+  const changes = [
+    [['박스ID'], record.boxId],
+    [['관리ID', '관리 ID'], record.managementId],
+    [['박스순번', '박스 순번', '박스 번호'], record.sequence],
+    [['제품ID', '제품 ID'], record.productId],
+    [['제품명'], record.productName]
+  ];
+
+  if (shouldUpdateMutableFields) {
+    changes.push(
+      [['박스당 수량', '박스당수량'], record.boxQuantity],
+      [['현재 수량', '현재수량'], record.currentQuantity],
+      [['보관 위치', '보관위치', '보관 장소'], record.storage],
+      [['상태', '재고 상태'], record.status || '보관'],
+      [['등록 일시', '등록일시'], record.registeredDate]
+    );
+  }
+
+  let updated = 0;
+
+  changes.forEach(([headers, value]) => {
+    const index = findHeaderIndex_(indexes, headers);
+
+    if (index < 0) {
+      return;
+    }
+
+    const normalizedValue = String(value ?? '');
+    if (String(row[index] ?? '') === normalizedValue) {
+      return;
+    }
+
+    sheet.getRange(rowNumber, index + 1).setValue(value);
+    updated += 1;
+  });
+
+  return updated ? 1 : 0;
 }
 
 function buildBoxQrData_(record) {

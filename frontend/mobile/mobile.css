@@ -1182,3 +1182,471 @@ svg {
     font-size: 9px;
   }
 }
+
+/* 2026 mobile refresh: PC admin mood, field-first layout */
+body {
+  background:
+    linear-gradient(180deg, rgba(247, 249, 252, 0.96), rgba(235, 241, 248, 0.98)),
+    url("../assets/login-background.png") center / cover fixed;
+}
+
+.mobile-app {
+  width: 100%;
+  max-width: 430px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(243, 247, 252, 0.98) 100%);
+  box-shadow:
+    0 0 0 1px rgba(203, 214, 229, 0.72),
+    0 24px 60px rgba(6, 31, 76, 0.16);
+}
+
+.screen {
+  padding: max(18px, env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+}
+
+#loginScreen,
+#homeScreen {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(243, 247, 252, 0.95)),
+    url("../assets/login-background.png") center top / auto 360px no-repeat;
+}
+
+.mobile-brand {
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+}
+
+.mobile-brand::before {
+  content: "";
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: url("../assets/logo-generated.png") center / contain no-repeat;
+  box-shadow: 0 8px 18px rgba(8, 42, 98, 0.12);
+}
+
+.mobile-brand strong,
+.mobile-brand span {
+  grid-column: 2;
+}
+
+.mobile-brand strong {
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.mobile-brand span {
+  font-size: 11px;
+  color: #5d697a;
+}
+
+.login-hero,
+.welcome-panel {
+  overflow: hidden;
+  border-radius: 12px;
+  border-color: rgba(203, 214, 229, 0.9);
+  background:
+    linear-gradient(90deg, var(--gold) 0 4px, transparent 4px),
+    rgba(255, 255, 255, 0.88);
+  box-shadow: 0 16px 34px rgba(6, 31, 76, 0.1);
+}
+
+.login-hero {
+  min-height: 242px;
+  padding: 20px 16px 24px;
+  align-content: start;
+}
+
+.hero-copy {
+  margin-top: 28px;
+}
+
+.hero-copy p {
+  color: var(--gold);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+.hero-copy h1 {
+  max-width: 220px;
+  font-size: 30px;
+  line-height: 1.14;
+}
+
+.hero-copy span {
+  max-width: 205px;
+  margin-top: 12px;
+  color: #536277;
+  font-size: 14px;
+  line-height: 1.62;
+}
+
+.hero-visual {
+  display: block;
+  right: 14px;
+  bottom: 22px;
+  width: 104px;
+  height: 114px;
+  opacity: 1;
+}
+
+.phone-frame {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: block;
+  width: 64px;
+  height: 96px;
+  border: 5px solid var(--navy);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 24px rgba(6, 31, 76, 0.18);
+}
+
+.phone-notch {
+  display: block;
+  width: 26px;
+  height: 5px;
+  margin: 7px auto 0;
+  border-radius: 999px;
+  background: var(--navy);
+}
+
+.qr-mark {
+  position: absolute;
+  left: 15px;
+  top: 34px;
+  display: block;
+  width: 28px;
+  height: 28px;
+  background:
+    linear-gradient(var(--navy) 0 0) 0 0 / 9px 9px no-repeat,
+    linear-gradient(var(--navy) 0 0) 100% 0 / 9px 9px no-repeat,
+    linear-gradient(var(--navy) 0 0) 0 100% / 9px 9px no-repeat,
+    linear-gradient(var(--navy) 0 0) 100% 100% / 9px 9px no-repeat,
+    repeating-linear-gradient(90deg, var(--navy) 0 2px, transparent 2px 5px);
+}
+
+.box-stack {
+  position: absolute;
+  left: 0;
+  bottom: 4px;
+  display: block;
+  width: 64px;
+  height: 54px;
+}
+
+.box-stack span,
+.welcome-boxes span {
+  position: absolute;
+  display: block;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #e8aa4a, #d69432);
+  box-shadow: inset -10px -8px 0 rgba(157, 96, 17, 0.1);
+}
+
+.box-stack span:nth-child(1) {
+  left: 12px;
+  top: 0;
+  width: 36px;
+  height: 30px;
+}
+
+.box-stack span:nth-child(2) {
+  left: 0;
+  bottom: 0;
+  width: 36px;
+  height: 30px;
+}
+
+.box-stack span:nth-child(3) {
+  right: 0;
+  bottom: 0;
+  width: 36px;
+  height: 30px;
+}
+
+.login-card {
+  margin-top: -18px;
+  padding: 20px 18px 18px;
+  border-radius: 12px;
+  box-shadow: 0 20px 44px rgba(6, 31, 76, 0.13);
+}
+
+.login-card-head {
+  grid-template-columns: 48px 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.login-lock {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.login-card h2 {
+  font-size: 22px;
+}
+
+.mobile-field {
+  margin-top: 14px;
+}
+
+.field-control,
+.mobile-search,
+.date-chip-row button,
+.control-button,
+.nav-icon-button,
+.scan-button,
+.small-outline-button,
+.primary-action,
+.secondary-action {
+  border-radius: 8px;
+}
+
+.primary-action,
+.secondary-action {
+  min-height: 52px;
+}
+
+.secondary-action {
+  border-color: #c9d4e3;
+}
+
+.mobile-home-header {
+  align-items: center;
+  padding: 8px 0 18px;
+}
+
+.welcome-panel {
+  min-height: 162px;
+  margin-bottom: 14px;
+  padding: 22px 18px;
+}
+
+.welcome-panel h1 {
+  max-width: 250px;
+  font-size: 25px;
+  line-height: 1.35;
+}
+
+.welcome-panel p {
+  max-width: 225px;
+  margin-top: 8px;
+  line-height: 1.52;
+}
+
+.welcome-boxes {
+  position: absolute;
+  right: 24px;
+  bottom: 22px;
+  display: block;
+  width: 86px;
+  height: 64px;
+}
+
+.welcome-boxes span:nth-child(1) {
+  left: 28px;
+  top: 0;
+  width: 42px;
+  height: 36px;
+}
+
+.welcome-boxes span:nth-child(2) {
+  left: 0;
+  bottom: 0;
+  width: 46px;
+  height: 36px;
+}
+
+.welcome-boxes span:nth-child(3) {
+  right: 0;
+  bottom: 0;
+  width: 46px;
+  height: 36px;
+}
+
+.mobile-menu-list {
+  gap: 11px;
+}
+
+.mobile-menu-card {
+  grid-template-columns: 58px 1fr 32px;
+  min-height: 118px;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 13px 28px rgba(6, 31, 76, 0.08);
+}
+
+.mobile-menu-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 12px 0 0 12px;
+  background: var(--gold);
+  content: "";
+  opacity: 0;
+}
+
+.mobile-menu-card:not(.locked)::before {
+  opacity: 1;
+}
+
+.mobile-menu-card.locked {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: none;
+}
+
+.mobile-menu-card.locked .menu-copy,
+.mobile-menu-card.locked .menu-icon {
+  opacity: 0.52;
+}
+
+.menu-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+}
+
+.menu-copy {
+  gap: 6px;
+  padding: 20px 0 0;
+}
+
+.menu-copy strong {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.menu-copy small {
+  max-width: 210px;
+  color: #607089;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.status-pill {
+  top: 14px;
+  right: 14px;
+  min-height: 26px;
+  border-radius: 8px;
+}
+
+.menu-arrow {
+  align-self: center;
+  justify-self: end;
+  color: var(--navy);
+  font-size: 32px;
+}
+
+.lock-mark {
+  justify-self: end;
+  width: auto;
+  min-width: 34px;
+  min-height: 26px;
+  border-radius: 8px;
+  padding: 0 7px;
+  color: #7b8798;
+  font-size: 11px;
+  line-height: 26px;
+  text-align: center;
+  background: #eef2f6;
+}
+
+.mobile-toolbar {
+  min-height: 66px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.shipping-controls {
+  margin: 14px 0 12px;
+}
+
+.date-chip-row {
+  gap: 6px;
+}
+
+.date-chip-row button {
+  min-width: 74px;
+}
+
+.shipping-action-row {
+  grid-template-columns: 1fr auto auto;
+  padding: 8px 0 0;
+}
+
+.shipping-action-row p {
+  font-size: 15px;
+}
+
+.shipping-action-row strong {
+  font-size: 26px;
+}
+
+.shipping-item {
+  gap: 12px;
+  border-radius: 12px;
+  padding: 15px;
+}
+
+.shipping-item-top {
+  grid-template-columns: 1fr auto;
+  align-items: start;
+}
+
+.shipping-title {
+  font-size: 18px;
+}
+
+.process-pill {
+  min-width: 38px;
+  min-height: 28px;
+  border-radius: 8px;
+}
+
+.ship-now-button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  min-width: 66px;
+  min-height: 48px;
+  border-radius: 8px;
+  box-shadow: 0 10px 20px rgba(8, 42, 98, 0.2);
+}
+
+.item-metrics {
+  border-top-color: #dfe7f1;
+}
+
+.bottom-nav {
+  grid-template-columns: repeat(5, 1fr);
+  width: min(100%, 430px);
+  padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+}
+
+.bottom-nav button:nth-child(6) {
+  display: none;
+}
+
+.bottom-nav button {
+  min-height: 54px;
+  border-radius: 8px;
+  font-size: 9px;
+}
+
+.bottom-nav button.active {
+  color: var(--navy);
+  background: transparent;
+}
+
+.bottom-nav button.active svg {
+  stroke-width: 2.6;
+}
+
+.empty-state {
+  min-height: 380px;
+  border-radius: 12px;
+}
