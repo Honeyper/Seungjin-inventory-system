@@ -10,7 +10,9 @@ const state = {
   selectedShippingItem: null,
   isCompletingShipping: false,
   scannerStream: null,
-  scannerTimer: null
+  scannerTimer: null,
+  scannerCanvas: null,
+  scannerContext: null
 };
 
 const elements = {
@@ -467,6 +469,11 @@ async function handleConfirmShipping() {
 }
 
 async function openScanner() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showToast("이 브라우저에서는 카메라 촬영을 지원하지 않습니다. 수동 입력을 사용해주세요.");
+    return;
+  }
+
   elements.scannerScreen.hidden = false;
 
   try {
@@ -479,15 +486,13 @@ async function openScanner() {
     await elements.scannerVideo.play();
     startBarcodeDetection();
   } catch (error) {
+    closeScanner();
     showToast("카메라 권한을 허용하거나 수동 입력을 사용해주세요.");
   }
 }
 
 function closeScanner() {
-  if (state.scannerTimer) {
-    clearInterval(state.scannerTimer);
-    state.scannerTimer = null;
-  }
+  stopScannerTimer();
 
   if (state.scannerStream) {
     state.scannerStream.getTracks().forEach((track) => track.stop());
@@ -499,33 +504,93 @@ function closeScanner() {
 }
 
 function startBarcodeDetection() {
-  if (!("BarcodeDetector" in window)) {
-    showToast("이 브라우저는 QR 자동 인식을 지원하지 않습니다. 수동 입력을 사용해주세요.");
-    return;
-  }
+  stopScannerTimer();
 
-  let detector;
-  try {
-    detector = new BarcodeDetector({ formats: ["qr_code"] });
-  } catch (error) {
-    showToast("QR 자동 인식을 지원하지 않습니다. 수동 입력을 사용해주세요.");
-    return;
-  }
-  state.scannerTimer = setInterval(async () => {
-    if (!elements.scannerVideo.srcObject) {
-      return;
-    }
-
+  if ("BarcodeDetector" in window) {
     try {
-      const codes = await detector.detect(elements.scannerVideo);
-      if (codes.length) {
-        handleQrValue(codes[0].rawValue);
-      }
+      const detector = new BarcodeDetector({ formats: ["qr_code"] });
+      state.scannerTimer = setInterval(() => detectWithBarcodeDetector(detector), 450);
+      return;
     } catch (error) {
-      clearInterval(state.scannerTimer);
-      state.scannerTimer = null;
+      // Fall through to jsQR for browsers with partial BarcodeDetector support.
     }
-  }, 600);
+  }
+
+  if (typeof window.jsQR === "function") {
+    prepareScannerCanvas();
+    state.scannerTimer = setInterval(detectWithJsQr, 250);
+    return;
+  }
+
+  showToast("QR 인식 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+}
+
+function stopScannerTimer() {
+  if (state.scannerTimer) {
+    clearInterval(state.scannerTimer);
+    state.scannerTimer = null;
+  }
+}
+
+async function detectWithBarcodeDetector(detector) {
+  if (!isScannerVideoReady()) {
+    return;
+  }
+
+  try {
+    const codes = await detector.detect(elements.scannerVideo);
+    if (codes.length) {
+      handleQrValue(codes[0].rawValue);
+    }
+  } catch (error) {
+    // Ignore transient frame-read errors while the camera is warming up.
+  }
+}
+
+function detectWithJsQr() {
+  if (!isScannerVideoReady()) {
+    return;
+  }
+
+  const video = elements.scannerVideo;
+  const width = video.videoWidth;
+  const height = video.videoHeight;
+  if (!width || !height) {
+    return;
+  }
+
+  prepareScannerCanvas();
+  state.scannerCanvas.width = width;
+  state.scannerCanvas.height = height;
+  state.scannerContext.drawImage(video, 0, 0, width, height);
+
+  const imageData = state.scannerContext.getImageData(0, 0, width, height);
+  const code = window.jsQR(imageData.data, width, height, {
+    inversionAttempts: "attemptBoth"
+  });
+  if (code?.data) {
+    handleQrValue(code.data);
+  }
+}
+
+function prepareScannerCanvas() {
+  if (!state.scannerCanvas) {
+    state.scannerCanvas = document.createElement("canvas");
+  }
+  if (!state.scannerContext) {
+    state.scannerContext = state.scannerCanvas.getContext("2d", {
+      willReadFrequently: true
+    });
+  }
+}
+
+function isScannerVideoReady() {
+  return Boolean(
+    elements.scannerVideo?.srcObject &&
+      elements.scannerVideo.readyState >= 2 &&
+      elements.scannerVideo.videoWidth &&
+      elements.scannerVideo.videoHeight
+  );
 }
 
 function handleManualQrInput() {
