@@ -233,7 +233,6 @@ const inventoryPageSizeSelect = document.querySelector("#inventoryPageSizeSelect
 const inventoryLocationBoxBars = document.querySelector("#inventoryLocationBoxBars");
 const inventoryLocationQuantityBars = document.querySelector("#inventoryLocationQuantityBars");
 const inventoryLocationViewButtons = document.querySelectorAll("[data-inventory-location-view]");
-const inventorySearchButtons = document.querySelectorAll(".inventory-search-button");
 const inventoryResetButtons = document.querySelectorAll(".inventory-reset-button");
 const inventoryAttentionButtons = document.querySelectorAll("[data-inventory-attention]");
 const inventoryAttentionModal = document.querySelector("#inventoryAttentionModal");
@@ -437,9 +436,6 @@ inventorySearch?.addEventListener("input", (event) => {
     state.inventoryPage = 1;
     applyInventoryFilters();
   });
-});
-inventorySearchButtons.forEach((button) => {
-  button.addEventListener("click", () => loadInventoryDashboard());
 });
 inventoryResetButtons.forEach((button) => {
   button.addEventListener("click", () => {
