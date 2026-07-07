@@ -1001,15 +1001,6 @@
           <section class="table-panel shipping-list-panel" aria-label="출고 목록">
             <div class="shipping-list-header">
               <h2>출고 목록</h2>
-              <div>
-                <label class="page-size">
-                  <select>
-                    <option>10개씩 보기</option>
-                    <option>20개씩 보기</option>
-                    <option>30개씩 보기</option>
-                  </select>
-                </label>
-              </div>
             </div>
             <div class="shipping-filter-panel shipping-list-filter" aria-label="출고 검색 필터">
               <div class="shipping-filter-grid">
@@ -1062,13 +1053,13 @@
                   </svg>
                   초기화
                 </button>
-                <button class="primary-action" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m16 16 4 4" />
-                  </svg>
-                  조회
-                </button>
+                <label class="page-size shipping-filter-page-size">
+                  <select>
+                    <option value="10">10개씩 보기</option>
+                    <option value="20">20개씩 보기</option>
+                    <option value="30">30개씩 보기</option>
+                  </select>
+                </label>
               </div>
             </div>
             <div class="table-scroll">
@@ -1214,13 +1205,6 @@
                   <svg viewBox="0 0 24 24"><path d="m6 17 5-5-5-5M13 17l5-5-5-5" /></svg>
                 </button>
               </div>
-              <label class="page-size">
-                <select>
-                  <option>10개씩 보기</option>
-                  <option>20개씩 보기</option>
-                  <option>30개씩 보기</option>
-                </select>
-              </label>
             </div>
           </section>
         </div>

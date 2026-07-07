@@ -245,7 +245,7 @@ const shippingTable = document.querySelector(".shipping-table");
 const shippingTableBody = shippingTable?.querySelector("tbody");
 const shippingCountLabel = document.querySelector(".shipping-table-footer > span");
 const shippingPagination = document.querySelector(".shipping-table-footer .pagination");
-const shippingPageSizeSelect = document.querySelector(".shipping-table-footer .page-size select");
+const shippingPageSizeSelect = document.querySelector(".shipping-list-filter .page-size select");
 const shippingSummaryCards = document.querySelectorAll(".shipping-summary-card");
 const shippingFilterPanel = document.querySelector(".shipping-list-filter");
 const shippingSearchInput = shippingFilterPanel?.querySelector(".shipping-search-field input") || null;
@@ -255,7 +255,6 @@ const shippingStorageFilter = shippingFilterSelects[1] || null;
 const shippingInspectionFilter = shippingFilterSelects[2] || null;
 const shippingStatusFilter = shippingFilterSelects[3] || null;
 const shippingFilterResetButton = shippingFilterPanel?.querySelector(".shipping-filter-actions .secondary-action") || null;
-const shippingFilterSearchButton = shippingFilterPanel?.querySelector(".shipping-filter-actions .primary-action") || null;
 const shippingInspectionModal = document.querySelector("#shippingInspectionModal");
 const shippingInspectionForm = document.querySelector("#shippingInspectionForm");
 const shippingInspectionMessage = document.querySelector("#shippingInspectionMessage");
@@ -698,11 +697,6 @@ shippingSearchInput?.addEventListener("input", (event) => {
     state.shippingPage = 1;
     renderShippingTable();
   });
-});
-shippingFilterSearchButton?.addEventListener("click", () => {
-  syncShippingFilterState();
-  state.shippingPage = 1;
-  renderShippingTable();
 });
 shippingFilterResetButton?.addEventListener("click", () => {
   resetShippingFilters();
