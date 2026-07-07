@@ -82,6 +82,7 @@ const state = {
   editingProductCode: "",
   activeDetailProductCode: "",
   activeDetailInboundId: "",
+  activeDetailInboundProductId: "",
   activeQrInboundId: "",
   activeMenuProductCode: "",
   activeMenuButton: null,
@@ -4624,7 +4625,7 @@ function renderInventoryTable(message = "") {
         <td>${renderInventoryDueBadge(item)}</td>
         <td>
           <div class="inventory-action-group">
-            <button class="inventory-detail-button" type="button" data-inventory-detail="${escapeAttribute(item.managementId)}">상세</button>
+            <button class="inventory-detail-button" type="button" data-inventory-detail="${escapeAttribute(item.managementId)}" data-inventory-detail-product="${escapeAttribute(item.productId)}">상세</button>
             <button class="inventory-detail-button danger" type="button" data-inventory-delete="${escapeAttribute(item.managementId)}">삭제</button>
           </div>
         </td>
@@ -4638,8 +4639,7 @@ function renderInventoryTable(message = "") {
 
   inventoryTableBody.querySelectorAll("[data-inventory-detail]").forEach((button) => {
     button.addEventListener("click", () => {
-      const inbound = state.todayInbounds.find((item) => item.managementId === button.dataset.inventoryDetail)
-        || state.inventoryRows.find((item) => item.managementId === button.dataset.inventoryDetail);
+      const inbound = getInboundByManagementId(button.dataset.inventoryDetail, button.dataset.inventoryDetailProduct);
 
       if (!inbound) {
         showToast("입고 상세 정보를 찾을 수 없습니다.");
@@ -4751,6 +4751,7 @@ function renderInventoryDueBadge(item) {
 
 function openInventoryInboundDetail(inbound) {
   state.activeDetailInboundId = inbound.managementId;
+  state.activeDetailInboundProductId = inbound.productId || "";
   setInboundDetailMode("view");
   renderInboundDetail(inbound);
   inboundDetailModal.hidden = false;
@@ -4760,6 +4761,7 @@ function openInventoryInboundDetail(inbound) {
 
 function openShippingDetail(item) {
   state.activeDetailInboundId = item.managementId;
+  state.activeDetailInboundProductId = item.productId || "";
   if (inboundDetailTitle) {
     inboundDetailTitle.textContent = "출고 상세보기";
   }
@@ -5184,6 +5186,7 @@ function openActiveInboundDetail() {
 
   closeInboundRowActionMenu();
   state.activeDetailInboundId = inbound.managementId;
+  state.activeDetailInboundProductId = inbound.productId || "";
   setInboundDetailMode("view");
   renderInboundDetail(inbound);
   inboundDetailModal.hidden = false;
@@ -5195,6 +5198,7 @@ function closeInboundDetailModal() {
   inboundDetailModal.hidden = true;
   inboundDetailContent.innerHTML = "";
   state.activeDetailInboundId = "";
+  state.activeDetailInboundProductId = "";
   state.inboundEditDefectReasons = [];
   setInboundDetailMode("view");
 
@@ -5397,6 +5401,7 @@ function openActiveInboundEdit() {
 
   closeInboundRowActionMenu();
   state.activeDetailInboundId = inbound.managementId;
+  state.activeDetailInboundProductId = inbound.productId || "";
   setInboundDetailMode("edit");
   renderInboundEditForm(inbound);
   inboundDetailModal.hidden = false;
@@ -5405,7 +5410,7 @@ function openActiveInboundEdit() {
 }
 
 function openDetailInboundEdit() {
-  const inbound = getInboundByManagementId(state.activeDetailInboundId);
+  const inbound = getInboundByManagementId(state.activeDetailInboundId, state.activeDetailInboundProductId);
 
   if (!inbound) {
     showToast("수정할 입고 정보를 찾을 수 없습니다.");
@@ -5418,9 +5423,21 @@ function openDetailInboundEdit() {
   window.setTimeout(() => document.querySelector("#inboundEditBatch")?.focus(), 0);
 }
 
-function getInboundByManagementId(managementId) {
-  return state.todayInbounds.find((item) => item.managementId === managementId)
-    || state.inventoryRows.find((item) => item.managementId === managementId);
+function getInboundByManagementId(managementId, productId = "") {
+  if (!managementId) {
+    return null;
+  }
+
+  const hasSameManagementId = (item) => item.managementId === managementId;
+  const hasSameProductId = (item) => !productId || item.productId === productId;
+  const inventoryMatch = state.inventoryRows.find((item) => hasSameManagementId(item) && hasSameProductId(item));
+  const inboundMatch = state.todayInbounds.find((item) => hasSameManagementId(item) && hasSameProductId(item));
+
+  return inventoryMatch
+    || inboundMatch
+    || state.inventoryRows.find(hasSameManagementId)
+    || state.todayInbounds.find(hasSameManagementId)
+    || null;
 }
 
 function setInboundDetailMode(mode) {
@@ -6016,9 +6033,10 @@ async function saveInboundEdit() {
       await loadInventoryDashboard(false);
     }
     state.activeDetailInboundId = payload.managementId;
+    state.activeDetailInboundProductId = payload.productId || state.activeDetailInboundProductId || "";
     setInboundDetailMode("view");
 
-    const detailInbound = getInboundByManagementId(payload.managementId);
+    const detailInbound = getInboundByManagementId(payload.managementId, state.activeDetailInboundProductId);
     if (detailInbound) {
       renderInboundDetail(detailInbound);
     } else {
