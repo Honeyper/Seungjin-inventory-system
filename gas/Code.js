@@ -999,6 +999,7 @@ function getTodayInbounds(payload) {
 
 function getInboundBoxQrs(payload) {
   const managementId = String(payload?.managementId || payload?.['관리ID'] || payload?.['관리 ID'] || '').trim();
+  const productIdFilter = String(payload?.productId || payload?.productCode || payload?.['제품ID'] || payload?.['제품 ID'] || '').trim();
 
   if (!managementId) {
     throw new Error('입고 관리 ID가 필요합니다.');
@@ -1032,6 +1033,14 @@ function getInboundBoxQrs(payload) {
 
     if (String(sourceRow[managementIndex] || '').trim() !== managementId) {
       continue;
+    }
+
+    if (productIdFilter) {
+      const rowProductId = String(pickCell_(sourceRow, indexes, ['제품ID', '제품 ID']) || '').trim();
+
+      if (rowProductId !== productIdFilter) {
+        continue;
+      }
     }
 
     const row = sourceRow.slice(0, headers.length);
@@ -1195,6 +1204,7 @@ function deleteProduct(payload) {
 
 function deleteInbound(payload) {
   const managementId = String(payload.managementId || payload['관리 ID'] || payload['관리ID'] || '').trim();
+  const productId = String(payload.productId || payload.productCode || payload['제품ID'] || payload['제품 ID'] || '').trim();
 
   if (!managementId) {
     throw new Error('삭제할 입고 관리 ID가 필요합니다.');
@@ -1206,8 +1216,20 @@ function deleteInbound(payload) {
   try {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
-    const deletedStockRows = deleteRowsByHeaderValue_(stockSheet, ['관리 ID', '관리ID'], managementId, ['관리 ID', '입고일', '제품명']);
-    const deletedBoxRows = deleteRowsByHeaderValue_(boxSheet, ['관리ID', '관리 ID'], managementId, ['박스ID', '관리ID', '제품명']);
+    const deletedStockRows = deleteRowsByHeaderValueAndIdentity_(
+      stockSheet,
+      ['관리 ID', '관리ID'],
+      managementId,
+      { productId },
+      ['관리 ID', '입고일', '제품명']
+    );
+    const deletedBoxRows = deleteRowsByHeaderValueAndIdentity_(
+      boxSheet,
+      ['관리ID', '관리 ID'],
+      managementId,
+      { productId },
+      ['박스ID', '관리ID', '제품명']
+    );
 
     if (!deletedStockRows) {
       throw new Error('삭제할 입고 내역을 찾을 수 없습니다.');
@@ -1401,6 +1423,7 @@ function createInbound(payload) {
 
 function updateInbound(payload) {
   const managementId = String(payload.managementId || payload['관리 ID'] || payload['관리ID'] || '').trim();
+  const payloadProductId = String(payload.productId || payload.productCode || payload['제품ID'] || payload['제품 ID'] || '').trim();
 
   if (!managementId) {
     throw new Error('수정할 입고 관리 ID가 필요합니다.');
@@ -1459,7 +1482,18 @@ function updateInbound(payload) {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
     ensureStockDbAttachmentHeaders_(stockSheet);
-    const rowInfo = findRowByHeaderValue_(stockSheet, ['관리 ID', '관리ID'], managementId, ['관리 ID', '입고일', '제품명']);
+    const identityData = {
+      productId: payloadProductId,
+      productName: payload.productName || payload['제품명'],
+      clientName: payload.clientName || payload['업체명'] || payload['거래처명']
+    };
+    const rowInfo = findRowByHeaderValueAndIdentity_(
+      stockSheet,
+      ['관리 ID', '관리ID'],
+      managementId,
+      identityData,
+      ['관리 ID', '입고일', '제품명']
+    );
 
     if (!rowInfo) {
       throw new Error('수정할 입고 내역을 찾을 수 없습니다.');
@@ -1469,7 +1503,7 @@ function updateInbound(payload) {
     const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
-    const productId = dash_(pickCell_(row, rowInfo.indexes, ['제품ID', '제품 ID']));
+    const productId = dash_(payloadProductId || pickCell_(row, rowInfo.indexes, ['제품ID', '제품 ID']));
     const productName = dash_(pickCell_(row, rowInfo.indexes, ['제품명']));
     const clientName = dash_(pickCell_(row, rowInfo.indexes, ['업체명', '거래처명']));
     const registeredDate = dash_(pickCell_(row, rowInfo.indexes, ['등록 일시', '등록일시']));
@@ -1503,6 +1537,7 @@ function updateInbound(payload) {
     setRowValue_(row, rowInfo.indexes, ['입고 시간', '입고시간'], inboundTime);
     setRowValue_(row, rowInfo.indexes, ['입고 유형', '입고유형'], inboundType);
     setRowValue_(row, rowInfo.indexes, ['납기일'], dash_(payload.dueDate));
+    setRowValue_(row, rowInfo.indexes, ['제품ID', '제품 ID'], productId);
     setRowValue_(row, rowInfo.indexes, ['차수'], dash_(payload.batch));
     setRowValue_(row, rowInfo.indexes, ['최종공정'], process);
     setRowValue_(row, rowInfo.indexes, ['보관위치'], storage);
@@ -1530,14 +1565,20 @@ function updateInbound(payload) {
       defectPhotoUrls: finalDefectPhotoUrls
     });
 
-    deleteRowsByHeaderValue_(boxSheet, ['관리ID', '관리 ID'], managementId, ['박스ID', '관리ID', '제품명']);
+    deleteRowsByHeaderValueAndIdentity_(boxSheet, ['관리ID', '관리 ID'], managementId, {
+      productId,
+      productName
+    }, ['박스ID', '관리ID', '제품명']);
 
     const boxRecords = [];
 
     for (let index = 1; index <= totalBoxCount; index += 1) {
       const isRemainderBox = remainQuantity > 0 && index === totalBoxCount;
       const currentQuantity = isRemainderBox ? remainQuantity : boxQuantity;
-      const boxId = `${managementId}-B${String(index).padStart(3, '0')}`;
+      const boxIdBase = productId && !String(managementId).includes(productId)
+        ? `${managementId}-${productId}`
+        : managementId;
+      const boxId = `${boxIdBase}-B${String(index).padStart(3, '0')}`;
 
       boxRecords.push({
         boxId,
@@ -1788,6 +1829,91 @@ function deleteRowsByHeaderValue_(sheet, headerNames, targetValue, requiredHeade
   });
 
   return rowNumbers.length;
+}
+
+function deleteRowsByHeaderValueAndIdentity_(sheet, headerNames, targetValue, identityData, requiredHeaders) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, requiredHeaders);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const targetIndex = findHeaderIndex_(indexes, headerNames);
+
+  if (targetIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  const rowNumbers = [];
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    const value = String(row[targetIndex] || '').trim();
+
+    if (value === targetValue && isMatchingInventoryRow_(row, indexes, headerNames, targetValue, identityData || {})) {
+      rowNumbers.push(rowIndex + 1);
+    }
+  }
+
+  rowNumbers.reverse().forEach((rowNumber) => {
+    sheet.deleteRow(rowNumber);
+  });
+
+  return rowNumbers.length;
+}
+
+function findRowByHeaderValueAndIdentity_(sheet, headerNames, targetValue, identityData, requiredHeaders) {
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getDisplayValues();
+  const richValues = dataRange.getRichTextValues();
+  const headerInfo = findHeaderRow_(values, requiredHeaders);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const targetIndex = findHeaderIndex_(indexes, headerNames);
+
+  if (targetIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  const matches = [];
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    const value = String(row[targetIndex] || '').trim();
+
+    if (value !== targetValue) {
+      continue;
+    }
+
+    matches.push({
+      rowNumber: rowIndex + 1,
+      rowValues: row,
+      richRowValues: richValues[rowIndex] || [],
+      headerRowIndex: headerInfo.rowIndex,
+      headers: headerInfo.headers,
+      indexes
+    });
+  }
+
+  if (!matches.length) {
+    return null;
+  }
+
+  const identityMatches = matches.filter((match) => (
+    isMatchingInventoryRow_(match.rowValues, indexes, headerNames, targetValue, identityData || {})
+  ));
+
+  if (identityMatches.length) {
+    return identityMatches[0];
+  }
+
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function findRowByHeaderValue_(sheet, headerNames, targetValue, requiredHeaders) {
