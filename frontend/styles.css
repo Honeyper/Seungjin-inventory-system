@@ -1288,8 +1288,7 @@ input {
 }
 
 .inventory-heading-actions,
-.inventory-filter-actions,
-.inventory-list-header > div {
+.inventory-filter-actions {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -1816,6 +1815,42 @@ input {
 
 .inventory-table th {
   font-size: 0.84rem;
+}
+
+.inventory-total-row {
+  background: #f7fbff;
+  box-shadow: inset 0 -1px 0 #dbe7f5;
+}
+
+.inventory-total-row td {
+  border-bottom: 1px solid #dbe7f5;
+  color: var(--navy-dark);
+  font-weight: 900;
+}
+
+.inventory-total-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.1rem;
+  height: 1.5rem;
+  border-radius: 0.35rem;
+  background: #e6f2ff;
+  color: #0b64ce;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.inventory-total-value {
+  display: inline-block;
+  white-space: nowrap;
+  color: #08204a;
+  font-weight: 900;
+}
+
+.inventory-total-muted {
+  color: #7a8798;
+  font-weight: 800;
 }
 
 .inventory-detail-button {

@@ -245,7 +245,7 @@ const shippingTable = document.querySelector(".shipping-table");
 const shippingTableBody = shippingTable?.querySelector("tbody");
 const shippingCountLabel = document.querySelector(".shipping-table-footer > span");
 const shippingPagination = document.querySelector(".shipping-table-footer .pagination");
-const shippingPageSizeSelect = document.querySelector(".shipping-list-filter .page-size select");
+const shippingPageSizeSelect = document.querySelector("#shippingPageSizeSelect");
 const shippingSummaryCards = document.querySelectorAll(".shipping-summary-card");
 const shippingFilterPanel = document.querySelector(".shipping-list-filter");
 const shippingSearchInput = shippingFilterPanel?.querySelector(".shipping-search-field input") || null;
@@ -4728,6 +4728,47 @@ function applyInventoryFilters() {
   renderInventoryTable();
 }
 
+function countInventoryDistinct(rows, selector) {
+  return new Set(rows.map(selector)
+    .map((value) => String(value || "").trim())
+    .filter((value) => value && value !== "-")).size;
+}
+
+function renderInventoryAggregateRow(rows) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const totalRows = sourceRows.length;
+  const totalBoxes = sourceRows.reduce((sum, item) => sum + parseShippingSettlementNumber(item.currentBoxCount), 0);
+  const totalQuantity = sourceRows.reduce((sum, item) => sum + parseShippingSettlementNumber(item.currentTotalQuantity), 0);
+  const clientCount = countInventoryDistinct(sourceRows, (item) => item.clientName);
+  const productCount = countInventoryDistinct(sourceRows, (item) => item.productName);
+  const batchCount = countInventoryDistinct(sourceRows, (item) => item.batch);
+  const processCount = countInventoryDistinct(sourceRows, (item) => item.finalProcess);
+  const storageCount = countInventoryDistinct(sourceRows, (item) => item.storage);
+  const statusCount = countInventoryDistinct(sourceRows, (item) => item.processStatus);
+  const dueCount = sourceRows.filter((item) => {
+    const due = String(item.dueDate || "").trim();
+    return due && due !== "-";
+  }).length;
+
+  return `
+    <tr class="inventory-total-row">
+      <td><span class="inventory-total-label">합계</span></td>
+      <td><span class="inventory-total-muted">-</span></td>
+      <td><span class="inventory-total-value">${formatNumber(totalRows)}건</span></td>
+      <td><span class="inventory-total-value">${formatNumber(clientCount)}곳</span></td>
+      <td><span class="inventory-total-value">${formatNumber(productCount)}품목</span></td>
+      <td><span class="inventory-total-value">${formatNumber(batchCount)}개</span></td>
+      <td><span class="inventory-total-value">${formatNumber(processCount)}개</span></td>
+      <td><span class="inventory-total-value">${formatNumber(totalBoxes)} box</span></td>
+      <td><span class="inventory-total-value">${formatNumber(totalQuantity)} ea</span></td>
+      <td><span class="inventory-total-value">${formatNumber(storageCount)}곳</span></td>
+      <td><span class="inventory-total-value">${formatNumber(statusCount)}상태</span></td>
+      <td><span class="inventory-total-value">${formatNumber(dueCount)}건</span></td>
+      <td><span class="inventory-total-muted">-</span></td>
+    </tr>
+  `;
+}
+
 function renderInventoryTable(message = "") {
   if (!inventoryTableBody || !inventoryCountLabel) {
     return;
@@ -4746,7 +4787,9 @@ function renderInventoryTable(message = "") {
       </tr>
     `;
   } else {
-    inventoryTableBody.innerHTML = rows.map((item) => `
+    inventoryTableBody.innerHTML = [
+      renderInventoryAggregateRow(state.filteredInventoryRows),
+      ...rows.map((item) => `
       <tr>
         <td>
           <button class="inventory-qr-button qr-action" type="button" data-inventory-qr="${escapeAttribute(item.managementId)}" data-inventory-qr-product="${escapeAttribute(item.productId)}" aria-label="재고 QR 보기">
@@ -4774,7 +4817,8 @@ function renderInventoryTable(message = "") {
           </div>
         </td>
       </tr>
-    `).join("");
+    `)
+    ].join("");
   }
 
   inventoryTableBody.querySelectorAll("[data-inventory-qr]").forEach((button) => {
