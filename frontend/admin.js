@@ -230,6 +230,7 @@ const inventoryTableBody = document.querySelector("#inventoryTableBody");
 const inventoryCountLabel = document.querySelector("#inventoryCountLabel");
 const inventoryPagination = document.querySelector("#inventoryPagination");
 const inventoryPageSizeSelect = document.querySelector("#inventoryPageSizeSelect");
+const inventoryListTotals = document.querySelector("#inventoryListTotals");
 const inventoryLocationBoxBars = document.querySelector("#inventoryLocationBoxBars");
 const inventoryLocationQuantityBars = document.querySelector("#inventoryLocationQuantityBars");
 const inventoryLocationViewButtons = document.querySelectorAll("[data-inventory-location-view]");
@@ -4734,36 +4735,80 @@ function countInventoryDistinct(rows, selector) {
     .filter((value) => value && value !== "-")).size;
 }
 
-function renderInventoryAggregateRow(rows) {
+function buildInventoryAggregateStats(rows) {
   const sourceRows = Array.isArray(rows) ? rows : [];
-  const totalRows = sourceRows.length;
-  const totalBoxes = sourceRows.reduce((sum, item) => sum + parseShippingSettlementNumber(item.currentBoxCount), 0);
-  const totalQuantity = sourceRows.reduce((sum, item) => sum + parseShippingSettlementNumber(item.currentTotalQuantity), 0);
-  const clientCount = countInventoryDistinct(sourceRows, (item) => item.clientName);
-  const productCount = countInventoryDistinct(sourceRows, (item) => item.productName);
-  const batchCount = countInventoryDistinct(sourceRows, (item) => item.batch);
-  const processCount = countInventoryDistinct(sourceRows, (item) => item.finalProcess);
-  const storageCount = countInventoryDistinct(sourceRows, (item) => item.storage);
-  const statusCount = countInventoryDistinct(sourceRows, (item) => item.processStatus);
-  const dueCount = sourceRows.filter((item) => {
-    const due = String(item.dueDate || "").trim();
-    return due && due !== "-";
-  }).length;
+
+  return {
+    totalRows: sourceRows.length,
+    totalBoxes: sourceRows.reduce((sum, item) => sum + parseShippingSettlementNumber(item.currentBoxCount), 0),
+    totalQuantity: sourceRows.reduce((sum, item) => sum + parseShippingSettlementNumber(item.currentTotalQuantity), 0),
+    clientCount: countInventoryDistinct(sourceRows, (item) => item.clientName),
+    productCount: countInventoryDistinct(sourceRows, (item) => item.productName),
+    batchCount: countInventoryDistinct(sourceRows, (item) => item.batch),
+    processCount: countInventoryDistinct(sourceRows, (item) => item.finalProcess),
+    storageCount: countInventoryDistinct(sourceRows, (item) => item.storage),
+    statusCount: countInventoryDistinct(sourceRows, (item) => item.processStatus),
+    dueCount: sourceRows.filter((item) => {
+      const due = String(item.dueDate || "").trim();
+      return due && due !== "-";
+    }).length
+  };
+}
+
+function renderInventoryListTotals(rows, message = "") {
+  if (!inventoryListTotals) {
+    return;
+  }
+
+  if (message || !Array.isArray(rows) || !rows.length) {
+    inventoryListTotals.hidden = true;
+    inventoryListTotals.innerHTML = "";
+    return;
+  }
+
+  const stats = buildInventoryAggregateStats(rows);
+  inventoryListTotals.hidden = false;
+  inventoryListTotals.innerHTML = `
+    <div class="inventory-total-chip primary">
+      <span>전체</span>
+      <strong>${formatNumber(stats.totalRows)}건</strong>
+    </div>
+    <div class="inventory-total-chip">
+      <span>현재 박스 수</span>
+      <strong>${formatNumber(stats.totalBoxes)} box</strong>
+    </div>
+    <div class="inventory-total-chip">
+      <span>현재 총 수량</span>
+      <strong>${formatNumber(stats.totalQuantity)} ea</strong>
+    </div>
+    <div class="inventory-total-chip">
+      <span>거래처</span>
+      <strong>${formatNumber(stats.clientCount)}곳</strong>
+    </div>
+    <div class="inventory-total-chip">
+      <span>품목</span>
+      <strong>${formatNumber(stats.productCount)}개</strong>
+    </div>
+  `;
+}
+
+function renderInventoryAggregateRow(rows) {
+  const stats = buildInventoryAggregateStats(rows);
 
   return `
     <tr class="inventory-total-row">
       <td><span class="inventory-total-label">합계</span></td>
       <td><span class="inventory-total-muted">-</span></td>
-      <td><span class="inventory-total-value">${formatNumber(totalRows)}건</span></td>
-      <td><span class="inventory-total-value">${formatNumber(clientCount)}곳</span></td>
-      <td><span class="inventory-total-value">${formatNumber(productCount)}품목</span></td>
-      <td><span class="inventory-total-value">${formatNumber(batchCount)}개</span></td>
-      <td><span class="inventory-total-value">${formatNumber(processCount)}개</span></td>
-      <td><span class="inventory-total-value">${formatNumber(totalBoxes)} box</span></td>
-      <td><span class="inventory-total-value">${formatNumber(totalQuantity)} ea</span></td>
-      <td><span class="inventory-total-value">${formatNumber(storageCount)}곳</span></td>
-      <td><span class="inventory-total-value">${formatNumber(statusCount)}상태</span></td>
-      <td><span class="inventory-total-value">${formatNumber(dueCount)}건</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.totalRows)}건</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.clientCount)}곳</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.productCount)}품목</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.batchCount)}개</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.processCount)}개</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.totalBoxes)} box</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.totalQuantity)} ea</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.storageCount)}곳</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.statusCount)}상태</span></td>
+      <td><span class="inventory-total-value">${formatNumber(stats.dueCount)}건</span></td>
       <td><span class="inventory-total-muted">-</span></td>
     </tr>
   `;
@@ -4779,6 +4824,7 @@ function renderInventoryTable(message = "") {
   state.inventoryPage = Math.min(state.inventoryPage, pageCount);
   const start = (state.inventoryPage - 1) * state.inventoryPageSize;
   const rows = state.filteredInventoryRows.slice(start, start + state.inventoryPageSize);
+  renderInventoryListTotals(state.filteredInventoryRows, message);
 
   if (message || !rows.length) {
     inventoryTableBody.innerHTML = `
