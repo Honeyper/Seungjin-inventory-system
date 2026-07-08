@@ -12,12 +12,13 @@ const DEFAULT_CLIENTS = [
   "(주)코스엔텍",
   "(주)금호ENG",
   "뉴파트너스",
-  "필림텍",
+  "필립텍",
   "이루팩",
   "(주)디엠",
   "보경",
   "CPI",
-  "더승진(2공장)"
+  "더승진(2공장)",
+  "SJ패키지"
 ];
 
 const DEFECT_REASON_TONES = {
@@ -4313,7 +4314,7 @@ function buildInventoryAttentionSummary(rows, fallback = {}) {
   return {
     ...fallback,
     printWaitingBoxes: getInventoryBoxCountTotal(rows.filter(isInventoryPrintWaiting)),
-    unspecifiedStorageCount: rows.filter((row) => isUnspecifiedInventoryStorage(row.storage)).length,
+    unspecifiedStorageCount: rows.filter(isInventoryUnspecifiedStorageTarget).length,
     longStorageCount: rows.filter(isLongStoredInventory).length,
     holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ""))).length
   };
@@ -4465,7 +4466,7 @@ function getInventoryAttentionConfig(type) {
       tone: "orange",
       metricLabel: "보관 위치",
       metric: (item) => normalizeDisplayValue(item.storage),
-      filter: (item) => isUnspecifiedInventoryStorage(item.storage)
+      filter: isInventoryUnspecifiedStorageTarget
     },
     aging: {
       title: "장기 보관 재고",
@@ -4573,6 +4574,18 @@ function renderInventoryAttentionRow(item, config) {
 function isUnspecifiedInventoryStorage(value) {
   const normalized = String(value ?? "").trim();
   return !normalized || normalized === "-" || normalized === "미지정";
+}
+
+function isInventoryCompletedWithoutStorage(item) {
+  const status = normalizeInventoryStockStatus(item?.stockStatus || item?.processStatus || "");
+  const quantity = parseShippingSettlementNumber(item?.currentTotalQuantity || "");
+  const boxCount = parseShippingSettlementNumber(item?.currentBoxCount || "");
+
+  return status === "출고완료" && quantity <= 0 && boxCount <= 0;
+}
+
+function isInventoryUnspecifiedStorageTarget(item) {
+  return isUnspecifiedInventoryStorage(item?.storage) && !isInventoryCompletedWithoutStorage(item);
 }
 
 function renderInventoryFilterOptions(filters) {
@@ -4698,6 +4711,10 @@ function applyInventoryFilters() {
     }
 
     if (filters.storage && item.storage !== filters.storage) {
+      return false;
+    }
+
+    if (filters.storage && isInventoryCompletedWithoutStorage(item)) {
       return false;
     }
 
