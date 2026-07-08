@@ -3243,12 +3243,13 @@ function makeClientCode_(clientName) {
     '(주)코스엔텍': 'CNT',
     '(주)금호ENG': 'KHE',
     '뉴파트너스': 'NP',
-    '필림텍': 'PLT',
+    '필립텍': 'PLT',
     '이루팩': 'IRP',
     '(주)디엠': 'DM',
     '보경': 'BK',
     'CPI': 'CPI',
-    '더승진(2공장)': 'SJ2'
+    '더승진(2공장)': 'SJ2',
+    'SJ패키지': 'SJP'
   };
 
   if (knownCodes[name]) {
