@@ -1796,7 +1796,8 @@ function syncInboundBoxManagementRows_(sheet, managementId, boxRecords) {
     throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
   }
 
-  const existingRows = [];
+  const identityRows = [];
+  const managementRows = [];
   const identityData = boxRecords.length
     ? {
       productId: boxRecords[0].productId,
@@ -1807,18 +1808,24 @@ function syncInboundBoxManagementRows_(sheet, managementId, boxRecords) {
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
     const rowManagementId = String(values[rowIndex][managementIdIndex] || '').trim();
 
-    if (
-      rowManagementId === managementId
-      && isMatchingInventoryRow_(values[rowIndex], indexes, ['관리ID', '관리 ID'], managementId, identityData)
-    ) {
-      existingRows.push({
-        rowNumber: rowIndex + 1,
-        rowValues: values[rowIndex],
-        sequence: getBoxSequenceFromRow_(values[rowIndex], indexes)
-      });
+    if (rowManagementId !== managementId) {
+      continue;
+    }
+
+    const rowInfo = {
+      rowNumber: rowIndex + 1,
+      rowValues: values[rowIndex],
+      sequence: getBoxSequenceFromRow_(values[rowIndex], indexes)
+    };
+
+    managementRows.push(rowInfo);
+
+    if (isMatchingInventoryRow_(values[rowIndex], indexes, ['관리ID', '관리 ID'], managementId, identityData)) {
+      identityRows.push(rowInfo);
     }
   }
 
+  const existingRows = identityRows.length ? identityRows : managementRows;
   const targetSequenceSet = new Set(boxRecords.map((record) => Number(record.sequence)));
   const rowsBySequence = new Map();
   const extraRows = [];
