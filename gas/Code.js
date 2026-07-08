@@ -1836,16 +1836,8 @@ function syncInboundBoxManagementRows_(sheet, managementId, boxRecords) {
     extraRows.push(rowInfo);
   });
 
-  const blockedRows = extraRows.filter((rowInfo) => !isMutableInboundBoxRow_(rowInfo.rowValues, indexes));
-
-  if (blockedRows.length) {
-    const labels = blockedRows
-      .map((rowInfo) => rowInfo.sequence ? `${rowInfo.sequence}번` : pickCell_(rowInfo.rowValues, indexes, ['박스ID']) || `${rowInfo.rowNumber}행`)
-      .join(', ');
-    throw new Error(`출고/검수/QR 이력이 있는 박스는 자동 삭제할 수 없습니다: ${labels}`);
-  }
-
   let updatedRows = 0;
+  let retiredRows = 0;
   const recordsToAppend = [];
 
   boxRecords.forEach((record) => {
@@ -1859,12 +1851,9 @@ function syncInboundBoxManagementRows_(sheet, managementId, boxRecords) {
     updatedRows += updateInboundBoxRowCells_(sheet, existingRow.rowNumber, existingRow.rowValues, indexes, record);
   });
 
-  extraRows
-    .map((rowInfo) => rowInfo.rowNumber)
-    .sort((left, right) => right - left)
-    .forEach((rowNumber) => {
-      sheet.deleteRow(rowNumber);
-    });
+  extraRows.forEach((rowInfo) => {
+    retiredRows += retireInboundBoxRow_(sheet, rowInfo.rowNumber, rowInfo.rowValues, indexes);
+  });
 
   const appendedStartRow = appendBoxManagementRows_(sheet, recordsToAppend);
   const firstExistingRow = existingRows.length
@@ -1874,7 +1863,8 @@ function syncInboundBoxManagementRows_(sheet, managementId, boxRecords) {
   return {
     firstRowNumber: firstExistingRow || appendedStartRow || 0,
     updatedRows,
-    deletedRows: extraRows.length,
+    deletedRows: 0,
+    retiredRows,
     insertedRows: recordsToAppend.length
   };
 }
@@ -1930,25 +1920,106 @@ function isMutableInboundBoxRow_(row, indexes) {
   });
 }
 
+function hasBoxQrHistory_(row, indexes) {
+  return [
+    'QR 생성 여부',
+    'QR 출력 여부',
+    'QR 생성 일시',
+    'QR 데이터'
+  ].some((header) => {
+    const value = normalizeHeaderValue_(pickCell_(row, indexes, [header]));
+    return value && value !== '-';
+  });
+}
+
+function hasBoxOperationalHistory_(row, indexes) {
+  const status = normalizeHeaderValue_(pickCell_(row, indexes, ['상태', '재고 상태']));
+
+  if (status && !['-', '보관', '폐기'].includes(status)) {
+    return true;
+  }
+
+  return [
+    '작업자',
+    '출고유형',
+    '출고 유형',
+    '출고일',
+    '출고시간',
+    '출고자',
+    '출고 검수일',
+    '출고검수일',
+    '출고 검수시간',
+    '출고검수시간',
+    '출고 검수자',
+    '출고검수자',
+    '출고 검수 수량',
+    '출고검수수량',
+    '검수일',
+    '검수시간',
+    '검수자',
+    '검수수량',
+    '불량률',
+    '불량 수량',
+    '불량수량',
+    '불량 사유',
+    '불량사유',
+    '불량 사진',
+    '불량사진'
+  ].some((header) => {
+    const value = normalizeHeaderValue_(pickCell_(row, indexes, [header]));
+    return value && value !== '-';
+  });
+}
+
+function retireInboundBoxRow_(sheet, rowNumber, row, indexes) {
+  if (hasBoxOperationalHistory_(row, indexes)) {
+    return 0;
+  }
+
+  const changes = [
+    [['현재 수량', '현재수량'], formatEa_(0)],
+    [['상태', '재고 상태'], '폐기'],
+    [['비고'], '재고 수정으로 제외']
+  ];
+  let updated = 0;
+
+  changes.forEach(([headers, value]) => {
+    const index = findHeaderIndex_(indexes, headers);
+
+    if (index < 0 || String(row[index] ?? '') === String(value ?? '')) {
+      return;
+    }
+
+    sheet.getRange(rowNumber, index + 1).setValue(value);
+    updated += 1;
+  });
+
+  return updated ? 1 : 0;
+}
+
 function normalizeHeaderValue_(value) {
   return String(value || '').trim();
 }
 
 function updateInboundBoxRowCells_(sheet, rowNumber, row, indexes, record) {
-  const shouldUpdateMutableFields = isMutableInboundBoxRow_(row, indexes);
+  const hasQrHistory = hasBoxQrHistory_(row, indexes);
+  const hasOperationalHistory = hasBoxOperationalHistory_(row, indexes);
   const changes = [
-    [['박스ID'], record.boxId],
     [['관리ID', '관리 ID'], record.managementId],
     [['박스순번', '박스 순번', '박스 번호'], record.sequence],
     [['제품ID', '제품 ID'], record.productId],
-    [['제품명'], record.productName]
+    [['제품명'], record.productName],
+    [['보관 위치', '보관위치', '보관 장소'], record.storage]
   ];
 
-  if (shouldUpdateMutableFields) {
+  if (!hasQrHistory) {
+    changes.unshift([['박스ID'], record.boxId]);
+  }
+
+  if (!hasOperationalHistory) {
     changes.push(
       [['박스당 수량', '박스당수량'], record.boxQuantity],
       [['현재 수량', '현재수량'], record.currentQuantity],
-      [['보관 위치', '보관위치', '보관 장소'], record.storage],
       [['상태', '재고 상태'], record.status || '보관'],
       [['등록 일시', '등록일시'], record.registeredDate]
     );
