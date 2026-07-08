@@ -1784,6 +1784,53 @@ input {
   background: var(--gold);
 }
 
+.inventory-list-totals {
+  display: grid;
+  grid-template-columns: 1.05fr repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0.8rem 1.15rem;
+  border-bottom: 1px solid #e5ebf2;
+  background: #f8fbff;
+}
+
+.inventory-list-totals[hidden] {
+  display: none;
+}
+
+.inventory-total-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: 2.6rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #dfe8f4;
+  border-radius: 0.45rem;
+  background: #fff;
+}
+
+.inventory-total-chip.primary {
+  border-color: rgba(8, 42, 98, 0.18);
+  background: #edf5ff;
+}
+
+.inventory-total-chip span {
+  overflow: hidden;
+  color: #65758c;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-total-chip strong {
+  color: var(--navy-dark);
+  font-size: 0.92rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .inventory-export-button {
   color: var(--navy-dark);
   font-weight: 900;
