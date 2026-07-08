@@ -4755,19 +4755,12 @@ function buildInventoryAggregateStats(rows) {
   };
 }
 
-function renderInventoryListTotals(rows, message = "") {
+function renderInventoryListTotals(rows) {
   if (!inventoryListTotals) {
     return;
   }
 
-  if (message || !Array.isArray(rows) || !rows.length) {
-    inventoryListTotals.hidden = true;
-    inventoryListTotals.innerHTML = "";
-    return;
-  }
-
-  const stats = buildInventoryAggregateStats(rows);
-  inventoryListTotals.hidden = false;
+  const stats = buildInventoryAggregateStats(Array.isArray(rows) ? rows : []);
   inventoryListTotals.innerHTML = `
     <div class="inventory-total-chip primary">
       <span>전체</span>
@@ -4824,7 +4817,7 @@ function renderInventoryTable(message = "") {
   state.inventoryPage = Math.min(state.inventoryPage, pageCount);
   const start = (state.inventoryPage - 1) * state.inventoryPageSize;
   const rows = state.filteredInventoryRows.slice(start, start + state.inventoryPageSize);
-  renderInventoryListTotals(state.filteredInventoryRows, message);
+  renderInventoryListTotals(state.filteredInventoryRows);
 
   if (message || !rows.length) {
     inventoryTableBody.innerHTML = `

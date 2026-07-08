@@ -1793,10 +1793,6 @@ input {
   background: #f8fbff;
 }
 
-.inventory-list-totals[hidden] {
-  display: none;
-}
-
 .inventory-total-chip {
   display: flex;
   align-items: center;
