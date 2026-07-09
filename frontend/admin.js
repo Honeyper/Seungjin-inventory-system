@@ -688,6 +688,7 @@ pageSizeSelect.addEventListener("change", (event) => {
 });
 
 productColor?.addEventListener("change", syncCustomProductColorFields);
+productCustomColorName?.addEventListener("input", applySuggestedCustomProductColor);
 productCustomColorValue?.addEventListener("input", updateCustomProductColorPreview);
 
 shippingPageSizeSelect?.addEventListener("change", (event) => {
@@ -6740,6 +6741,19 @@ function updateCustomProductColorPreview() {
   productCustomColorPreview.style.background = normalizeHexColor(productCustomColorValue.value) || "#0b63f6";
 }
 
+function applySuggestedCustomProductColor() {
+  if (!productCustomColorValue) {
+    return;
+  }
+
+  const suggestedColor = getNamedColorHex(productCustomColorName.value);
+  if (suggestedColor) {
+    productCustomColorValue.value = suggestedColor;
+  }
+
+  updateCustomProductColorPreview();
+}
+
 function normalizeEditableValue(value) {
   const normalized = String(value ?? "").trim();
   return normalized === "-" ? "" : normalized;
@@ -6968,7 +6982,16 @@ function getColorValue(color) {
   }
 
   const label = typeof color === "object" ? color.label : color;
-  const normalized = String(label || "").replace(/\s+/g, "");
+  return getNamedColorValue(label) || "#d8e1ee";
+}
+
+function getNamedColorHex(color) {
+  const value = getNamedColorValue(color);
+  return normalizeHexColor(value);
+}
+
+function getNamedColorValue(color) {
+  const normalized = String(color || "").replace(/\s+/g, "");
   const map = {
     투명: "linear-gradient(135deg, #ffffff 0 45%, #dbe4ef 45% 55%, #ffffff 55% 100%)",
     아이보리: "#eee6cf",
@@ -6978,13 +7001,29 @@ function getColorValue(color) {
     검정: "#111111",
     베이지: "#ead9b4",
     연두: "#a6d68b",
+    민트: "#52c7a7",
     크라프트: "#c99254",
     네이비: "#082a62",
     레드: "#c91818",
-    빨강: "#c91818"
+    빨강: "#c91818",
+    핑크: "#f472b6",
+    하늘: "#60a5fa",
+    하늘색: "#60a5fa",
+    블루: "#2563eb",
+    파랑: "#2563eb",
+    그레이: "#8a97aa",
+    회색: "#8a97aa",
+    실버: "#a8b3c2",
+    골드: "#c99a2e",
+    옐로우: "#facc15",
+    노랑: "#facc15",
+    오렌지: "#f97316",
+    주황: "#f97316",
+    퍼플: "#8b5cf6",
+    보라: "#8b5cf6"
   };
 
-  return map[normalized] || "#d8e1ee";
+  return map[normalized] || "";
 }
 
 function setStatus(message, type = "info") {
