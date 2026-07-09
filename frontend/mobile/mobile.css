@@ -1636,15 +1636,14 @@ img {
 /* Mobile premium visual pass */
 .mobile-app {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 244, 252, 0.98)),
-    #f3f7fc;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 241, 249, 0.98)),
+    #eef4fb;
 }
 
 #loginScreen {
-  padding: max(20px, env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));
+  padding: max(20px, env(safe-area-inset-top)) 18px calc(30px + env(safe-area-inset-bottom));
   background:
-    radial-gradient(circle at 74% 4%, rgba(11, 99, 246, 0.12), transparent 30%),
-    linear-gradient(180deg, #ffffff 0%, #eef4fb 100%);
+    linear-gradient(180deg, #061f4c 0 47%, #eef4fb 47% 100%);
 }
 
 #homeScreen {
@@ -1655,57 +1654,65 @@ img {
 }
 
 .login-hero {
-  min-height: 524px;
+  min-height: 506px;
   margin: calc(-1 * max(20px, env(safe-area-inset-top))) -18px 0;
-  padding: max(30px, calc(env(safe-area-inset-top) + 22px)) 28px 78px;
-  border-bottom: 1px solid rgba(197, 212, 230, 0.68);
-  border-radius: 0 0 34px 34px;
+  padding: max(30px, calc(env(safe-area-inset-top) + 22px)) 26px 84px;
+  border-bottom: 1px solid rgba(208, 161, 75, 0.28);
+  border-radius: 0 0 32px 32px;
   background:
-    linear-gradient(93deg, rgba(255, 255, 255, 0.99) 0%, rgba(255, 255, 255, 0.94) 47%, rgba(238, 246, 255, 0.7) 100%),
-    url("../assets/login-background.png") 58% center / auto 100% no-repeat;
-  box-shadow: 0 24px 60px rgba(6, 31, 76, 0.1);
+    linear-gradient(112deg, rgba(6, 31, 76, 0.98) 0%, rgba(8, 42, 98, 0.94) 52%, rgba(11, 99, 246, 0.54) 100%);
+  box-shadow: 0 28px 70px rgba(6, 31, 76, 0.22);
 }
 
 .login-hero::before {
-  top: 118px;
-  right: 114px;
-  width: 8px;
-  height: 8px;
-  background: rgba(11, 99, 246, 0.15);
+  top: 112px;
+  right: 100px;
+  width: 7px;
+  height: 7px;
+  background: rgba(208, 161, 75, 0.55);
   box-shadow:
-    -31px 44px 0 rgba(11, 99, 246, 0.08),
-    55px 15px 0 rgba(11, 99, 246, 0.08),
-    82px 90px 0 rgba(208, 161, 75, 0.12);
+    -31px 44px 0 rgba(255, 255, 255, 0.18),
+    55px 15px 0 rgba(11, 99, 246, 0.28),
+    82px 90px 0 rgba(208, 161, 75, 0.18);
 }
 
 .login-hero::after {
   display: block;
   left: 28px;
-  bottom: 152px;
-  width: 36px;
-  height: 36px;
-  border: 7px solid rgba(11, 99, 246, 0.06);
+  bottom: 142px;
+  width: 42px;
+  height: 42px;
+  border: 8px solid rgba(255, 255, 255, 0.07);
 }
 
 .mobile-brand {
   gap: 11px;
 }
 
-.mobile-brand img {
+.login-hero .mobile-brand img {
   width: 44px;
   height: 44px;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.18));
 }
 
-.mobile-brand .brand-copy strong {
-  color: var(--blue);
+.login-hero .mobile-brand .brand-copy strong {
+  color: #ffffff;
   font-size: 31px;
   letter-spacing: 0;
 }
 
-.mobile-brand .brand-copy em {
-  color: #59687c;
+.login-hero .mobile-brand .brand-copy em {
+  color: rgba(255, 255, 255, 0.72);
   font-size: 11px;
   letter-spacing: 0.04em;
+}
+
+#homeScreen .mobile-brand .brand-copy strong {
+  color: var(--blue);
+}
+
+#homeScreen .mobile-brand .brand-copy em {
+  color: #59687c;
 }
 
 .hero-copy {
@@ -1714,39 +1721,50 @@ img {
 
 .hero-copy p {
   margin-bottom: 11px;
-  font-size: 23px;
+  color: var(--gold);
+  font-size: 22px;
 }
 
 .hero-copy h1 {
   max-width: 270px;
-  color: var(--navy-dark);
-  font-size: 46px;
+  color: #ffffff;
+  font-size: 44px;
   line-height: 1.04;
   letter-spacing: 0;
 }
 
 .hero-copy span {
-  max-width: 266px;
+  max-width: 248px;
   margin-top: 22px;
-  color: #4e5e73;
+  color: rgba(255, 255, 255, 0.76);
   font-size: 16px;
   font-weight: 800;
   line-height: 1.72;
 }
 
 .hero-logistics-art {
-  right: -58px;
-  bottom: 8px;
-  width: 330px;
+  right: -54px;
+  bottom: 18px;
+  width: 246px;
+  height: 330px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 30px 0 0 30px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 26px 52px rgba(0, 0, 0, 0.24);
 }
 
 .hero-logistics-art img {
+  width: 100%;
+  height: 100%;
   border-radius: 0;
-  filter: drop-shadow(0 26px 34px rgba(6, 31, 76, 0.2));
+  object-fit: cover;
+  object-position: 56% 63%;
+  filter: none;
 }
 
 .login-card {
-  margin-top: -50px;
+  margin-top: -62px;
   padding: 30px 20px 24px;
   border-color: rgba(196, 210, 228, 0.92);
   border-radius: 26px;
@@ -1783,6 +1801,17 @@ img {
   border-radius: 15px;
 }
 
+.primary-action {
+  gap: 10px;
+  background: linear-gradient(180deg, #082e6c, #061f4c);
+  box-shadow: 0 18px 30px rgba(6, 31, 76, 0.26);
+}
+
+.primary-action svg {
+  width: 24px;
+  height: 24px;
+}
+
 .secondary-action {
   border-width: 2px;
 }
@@ -1797,8 +1826,7 @@ img {
   border-color: rgba(196, 210, 228, 0.9);
   border-radius: 24px;
   background:
-    linear-gradient(100deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 54%, rgba(236, 245, 255, 0.9) 100%),
-    url("../assets/login-background.png") 61% center / auto 100% no-repeat;
+    linear-gradient(100deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 54%, rgba(236, 245, 255, 0.9) 100%);
   box-shadow: 0 24px 62px rgba(6, 31, 76, 0.13);
 }
 
@@ -1826,13 +1854,20 @@ img {
 }
 
 .welcome-art {
-  right: -82px;
-  bottom: -42px;
-  width: 298px;
+  right: -70px;
+  bottom: -36px;
+  width: 258px;
+  height: 248px;
+  overflow: hidden;
+  border-radius: 26px 0 0 26px;
   opacity: 0.96;
 }
 
 .welcome-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 58% 68%;
   filter: drop-shadow(0 25px 35px rgba(6, 31, 76, 0.16));
 }
 
@@ -1929,7 +1964,7 @@ img {
 
 @media (max-width: 374px) {
   .login-hero {
-    min-height: 494px;
+    min-height: 492px;
     padding-left: 22px;
     padding-right: 22px;
   }
@@ -1945,8 +1980,9 @@ img {
   }
 
   .hero-logistics-art {
-    right: -72px;
-    width: 292px;
+    right: -70px;
+    width: 218px;
+    height: 308px;
   }
 
   .welcome-art {
