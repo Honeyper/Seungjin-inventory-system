@@ -6127,7 +6127,7 @@ input {
 .qr-sheet {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 66.5mm;
+  grid-auto-rows: 62.5mm;
   align-content: start;
   width: 210mm;
   min-height: 297mm;
@@ -6159,7 +6159,7 @@ input {
 .box-qr-label {
   box-sizing: border-box;
   min-height: 0;
-  height: 66.5mm;
+  height: 62.5mm;
   overflow: hidden;
   padding: 1.45mm 1.35mm;
   border: 1px dashed #7c899b;
