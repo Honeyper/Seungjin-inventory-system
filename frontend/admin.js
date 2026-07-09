@@ -5616,6 +5616,7 @@ function renderInboundQrSheet(inbound, boxes) {
             ${renderQrProcessCheck("1도")}
             ${renderQrProcessCheck("2도")}
             ${renderQrProcessCheck("3도")}
+            ${renderQrProcessCheck("관리자 확인")}
           </div>
         </div>
         <dl class="box-qr-meta">
@@ -5629,16 +5630,12 @@ function renderInboundQrSheet(inbound, boxes) {
           </div>
           <div>
             <dt>포장 날짜</dt>
-            <dd>${escapeHtml(packagingDate)}</dd>
+            <dd></dd>
           </div>
         </dl>
         <div class="box-qr-signatures" aria-label="서명란">
           <div class="box-qr-signature">
             <span>작업자 서명</span>
-            <i aria-hidden="true"></i>
-          </div>
-          <div class="box-qr-signature">
-            <span>관리자 서명</span>
             <i aria-hidden="true"></i>
           </div>
         </div>
