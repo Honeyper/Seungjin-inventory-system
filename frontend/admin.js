@@ -139,6 +139,7 @@ const productCodePreview = document.querySelector("#productCodePreview");
 const productClientName = document.querySelector("#productClientName");
 const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
+const productColorPreview = document.querySelector("#productColorPreview");
 const productOrderQuantity = document.querySelector("#productOrderQuantity");
 const productDueDate = document.querySelector("#productDueDate");
 const productBoxQuantity = document.querySelector("#productBoxQuantity");
@@ -682,6 +683,8 @@ pageSizeSelect.addEventListener("change", (event) => {
   state.page = 1;
   renderProducts();
 });
+
+productColor?.addEventListener("input", updateProductColorPreview);
 
 shippingPageSizeSelect?.addEventListener("change", (event) => {
   state.shippingPageSize = Number.parseInt(event.target.value, 10) || 10;
@@ -6564,12 +6567,14 @@ function openProductModal(mode = "create", product = null) {
   saveProductButton.textContent = mode === "edit" ? "수정 저장" : "저장";
   productCodePreview.placeholder = mode === "edit" ? "제품코드는 수정할 수 없습니다." : "자동 생성됩니다.";
   renderClientOptions();
+  updateProductColorPreview();
 
   if (mode === "edit" && product) {
     productCodePreview.value = product.productCode || "";
     setSelectValue(productClientName, product.clientName);
     productNameInput.value = normalizeEditableValue(product.productName);
     productColor.value = parseProductColorValue(product.color).label;
+    updateProductColorPreview();
     productForm.querySelector(`input[name="productUsage"][value="${normalizeUsageStatus(product.useStatus)}"]`)?.click();
     productOrderQuantity.value = extractQuantityNumber(product.orderQuantity);
     productDueDate.value = toDateInputValue(product.dueDate);
@@ -6823,6 +6828,14 @@ function renderColor(color) {
   return `<span class="color-chip"><i style="background:${getColorValue(parsed)}"></i>${escapeHtml(parsed.label)}</span>`;
 }
 
+function updateProductColorPreview() {
+  if (!productColorPreview || !productColor) {
+    return;
+  }
+
+  productColorPreview.style.background = getColorValue(productColor.value);
+}
+
 function normalizeDisplayValue(value) {
   const normalized = String(value ?? "").trim();
   return normalized || "-";
@@ -6885,36 +6898,114 @@ function getColorValue(color) {
 }
 
 function getNamedColorValue(color) {
-  const normalized = String(color || "").replace(/\s+/g, "");
+  const directHex = normalizeHexColor(color);
+  if (directHex) {
+    return directHex;
+  }
+
+  const normalized = String(color || "").replace(/[\s_-]+/g, "").toLowerCase();
   const map = {
     투명: "linear-gradient(135deg, #ffffff 0 45%, #dbe4ef 45% 55%, #ffffff 55% 100%)",
+    투명색: "linear-gradient(135deg, #ffffff 0 45%, #dbe4ef 45% 55%, #ffffff 55% 100%)",
+    클리어: "linear-gradient(135deg, #ffffff 0 45%, #dbe4ef 45% 55%, #ffffff 55% 100%)",
+    clear: "linear-gradient(135deg, #ffffff 0 45%, #dbe4ef 45% 55%, #ffffff 55% 100%)",
+    transparent: "linear-gradient(135deg, #ffffff 0 45%, #dbe4ef 45% 55%, #ffffff 55% 100%)",
     아이보리: "#eee6cf",
+    ivory: "#eee6cf",
+    미색: "#eee6cf",
     화이트: "#ffffff",
     흰색: "#ffffff",
+    하양: "#ffffff",
+    백색: "#ffffff",
+    white: "#ffffff",
     블랙: "#111111",
     검정: "#111111",
+    검은색: "#111111",
+    흑색: "#111111",
+    black: "#111111",
     베이지: "#ead9b4",
+    beige: "#ead9b4",
+    크림: "#f2e7cf",
+    cream: "#f2e7cf",
     연두: "#a6d68b",
+    연두색: "#a6d68b",
+    라임: "#84cc16",
+    lime: "#84cc16",
+    그린: "#22c55e",
+    초록: "#22c55e",
+    초록색: "#22c55e",
+    녹색: "#22c55e",
+    green: "#22c55e",
+    진녹색: "#166534",
+    다크그린: "#166534",
+    darkgreen: "#166534",
+    올리브: "#6b8e23",
+    olive: "#6b8e23",
+    카키: "#8a8f54",
+    khaki: "#8a8f54",
     민트: "#52c7a7",
+    민트색: "#52c7a7",
+    mint: "#52c7a7",
     크라프트: "#c99254",
+    kraft: "#c99254",
+    브라운: "#8b5e34",
+    갈색: "#8b5e34",
+    brown: "#8b5e34",
+    카멜: "#b7791f",
+    camel: "#b7791f",
     네이비: "#082a62",
+    남색: "#082a62",
+    navy: "#082a62",
     레드: "#c91818",
     빨강: "#c91818",
+    빨간색: "#c91818",
+    적색: "#c91818",
+    red: "#c91818",
+    와인: "#7f1d1d",
+    버건디: "#7f1d1d",
+    burgundy: "#7f1d1d",
     핑크: "#f472b6",
+    분홍: "#f472b6",
+    분홍색: "#f472b6",
+    pink: "#f472b6",
     하늘: "#60a5fa",
     하늘색: "#60a5fa",
+    스카이: "#60a5fa",
+    sky: "#60a5fa",
+    skyblue: "#60a5fa",
     블루: "#2563eb",
     파랑: "#2563eb",
+    파란색: "#2563eb",
+    청색: "#2563eb",
+    blue: "#2563eb",
+    로얄블루: "#1d4ed8",
+    royalblue: "#1d4ed8",
     그레이: "#8a97aa",
     회색: "#8a97aa",
+    gray: "#8a97aa",
+    grey: "#8a97aa",
     실버: "#a8b3c2",
+    은색: "#a8b3c2",
+    silver: "#a8b3c2",
     골드: "#c99a2e",
+    금색: "#c99a2e",
+    gold: "#c99a2e",
     옐로우: "#facc15",
     노랑: "#facc15",
+    노란색: "#facc15",
+    황색: "#facc15",
+    yellow: "#facc15",
     오렌지: "#f97316",
     주황: "#f97316",
+    주황색: "#f97316",
+    orange: "#f97316",
     퍼플: "#8b5cf6",
-    보라: "#8b5cf6"
+    보라: "#8b5cf6",
+    보라색: "#8b5cf6",
+    purple: "#8b5cf6",
+    자주: "#a21caf",
+    자주색: "#a21caf",
+    magenta: "#d946ef"
   };
 
   return map[normalized] || "";

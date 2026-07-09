@@ -4722,6 +4722,29 @@ input {
   background-size: 1rem;
 }
 
+.color-input-preview {
+  position: relative;
+  display: block;
+}
+
+.color-input-preview input {
+  padding-right: 3.4rem;
+}
+
+.color-input-preview i {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 1px solid rgba(8, 42, 98, 0.24);
+  border-radius: 50%;
+  background: #d8e1ee;
+  box-shadow: inset 0 0 0 0.12rem rgba(255, 255, 255, 0.52);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .form-field input:not([type="radio"]):focus,
 .form-field select:focus,
 .form-field textarea:focus {
