@@ -6161,63 +6161,77 @@ input {
   min-height: 0;
   height: 42mm;
   overflow: hidden;
-  padding: 1.25mm 1.5mm;
+  padding: 0.8mm 1.25mm;
   border: 1px dashed #7c899b;
   color: var(--navy-dark);
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
+.box-qr-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 4mm;
+  margin-bottom: 0.35mm;
+  border-radius: 0.8mm;
+  background: #090f19;
+  color: #fff;
+  font-size: 7pt;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .box-qr-process {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 5.3mm;
-  margin-bottom: 1.15mm;
-  border-radius: 0.8mm;
-  background: #090f19;
-  color: #fff;
-  font-size: 7.5pt;
+  height: 3.1mm;
+  margin-bottom: 0.55mm;
+  border: 0.45pt solid #8792a2;
+  border-radius: 0.6mm;
+  color: #111827;
+  font-size: 5.8pt;
   font-weight: 900;
   line-height: 1;
 }
 
 .box-qr-main {
   display: grid;
-  grid-template-columns: 18.2mm 1fr;
-  gap: 1.3mm;
+  grid-template-columns: 16mm 1fr;
+  gap: 1mm;
   align-items: start;
 }
 
 .box-qr-image {
-  width: 18.2mm;
-  height: 18.2mm;
+  width: 16mm;
+  height: 16mm;
   image-rendering: crisp-edges;
 }
 
 .box-qr-checks {
   display: grid;
-  gap: 0.75mm;
-  padding-top: 0.35mm;
+  gap: 0.45mm;
+  padding-top: 0.15mm;
 }
 
 .box-qr-checks span {
   display: grid;
-  grid-template-columns: 1fr 3.8mm;
+  grid-template-columns: 1fr 3.3mm;
   align-items: center;
-  height: 3.75mm;
-  padding: 0 1.1mm;
+  height: 3.3mm;
+  padding: 0 0.8mm;
   border: 0.4pt solid #8792a2;
   border-radius: 0.6mm;
   color: #111827;
-  font-size: 5.8pt;
+  font-size: 5.4pt;
   font-weight: 800;
 }
 
 .box-qr-checks i {
   display: block;
-  width: 2.8mm;
-  height: 2.8mm;
+  width: 2.45mm;
+  height: 2.45mm;
   margin-left: auto;
   border: 0.45pt solid #111827;
   background: #fff;
@@ -6235,24 +6249,24 @@ input {
 }
 
 .box-qr-meta {
-  margin: 1.15mm 0 0;
+  margin: 0.55mm 0 0;
   border-top: 0.45pt solid #cbd5e1;
 }
 
 .box-qr-meta div {
   display: grid;
-  grid-template-columns: 17.5mm 1fr;
+  grid-template-columns: 15.8mm 1fr;
   align-items: center;
-  min-height: 5.9mm;
+  min-height: 3.55mm;
   border-bottom: 0.45pt solid #cbd5e1;
 }
 
 .box-qr-meta dt,
 .box-qr-meta dd {
   margin: 0;
-  font-size: 6.6pt;
+  font-size: 5.6pt;
   font-weight: 900;
-  line-height: 1.15;
+  line-height: 1.05;
 }
 
 .box-qr-meta dt {
@@ -6266,25 +6280,40 @@ input {
   overflow-wrap: anywhere;
 }
 
+.box-qr-admin-mark {
+  display: inline-block;
+  width: 3.1mm;
+  height: 3.1mm;
+  border: 0.55pt solid #111827;
+  background: #fff;
+  vertical-align: middle;
+}
+
 .box-qr-label-work {
   height: 49.5mm;
   padding: 0.45mm 0.85mm;
 }
 
-.box-qr-label-work .box-qr-process {
-  height: 5.2mm;
+.box-qr-label-work .box-qr-title {
+  height: 4.5mm;
   margin-bottom: 0.45mm;
   font-size: 7.8pt;
 }
 
+.box-qr-label-work .box-qr-process {
+  height: 3.4mm;
+  margin-bottom: 0.5mm;
+  font-size: 6.3pt;
+}
+
 .box-qr-label-work .box-qr-main {
-  grid-template-columns: 22mm 1fr;
+  grid-template-columns: 20mm 1fr;
   gap: 1.3mm;
 }
 
 .box-qr-label-work .box-qr-image {
-  width: 22mm;
-  height: 22mm;
+  width: 20mm;
+  height: 20mm;
 }
 
 .box-qr-label-work .box-qr-checks {
@@ -6294,7 +6323,7 @@ input {
 
 .box-qr-label-work .box-qr-checks span {
   grid-template-columns: 1fr 4.6mm;
-  height: 6.55mm;
+  height: 5.8mm;
   padding: 0 1.15mm;
   font-size: 7.2pt;
 }
@@ -6310,7 +6339,7 @@ input {
 
 .box-qr-label-work .box-qr-meta div {
   grid-template-columns: 17mm 1fr;
-  min-height: 4.55mm;
+  min-height: 3.65mm;
 }
 
 .box-qr-label-work .box-qr-meta dt,
@@ -6320,15 +6349,15 @@ input {
 
 .box-qr-work-fields {
   display: grid;
-  gap: 0.3mm;
-  margin-top: 0.35mm;
+  gap: 0.2mm;
+  margin-top: 0.25mm;
 }
 
 .box-qr-work-field {
   display: grid;
   grid-template-columns: 17mm 1fr;
   align-items: end;
-  min-height: 3.85mm;
+  min-height: 3.3mm;
 }
 
 .box-qr-work-field span {
@@ -6340,7 +6369,7 @@ input {
 
 .box-qr-work-field i {
   display: block;
-  height: 2.85mm;
+  height: 2.35mm;
   border-bottom: 0.55pt solid #111827;
 }
 

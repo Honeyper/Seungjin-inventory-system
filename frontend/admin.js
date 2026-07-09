@@ -5588,6 +5588,7 @@ function renderInboundQrSheet(inbound, boxes) {
   const total = boxes.length;
   const processText = getInboundQrProcessText(inbound);
   const productName = inbound.productName || boxes[0]?.productName || "-";
+  const packagingDate = inbound.inboundDate || boxes[0]?.inboundDate || "-";
 
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
@@ -5600,12 +5601,14 @@ function renderInboundQrSheet(inbound, boxes) {
         total,
         qrData,
         processText,
-        productName
+        productName,
+        packagingDate
       });
     }
 
     return `
       <article class="box-qr-label">
+        <div class="box-qr-title">승진 관리 시스템</div>
         <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
         <div class="box-qr-main">
           <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
@@ -5624,6 +5627,14 @@ function renderInboundQrSheet(inbound, boxes) {
             <dt>박스 정보</dt>
             <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
           </div>
+          <div>
+            <dt>포장시간</dt>
+            <dd>${escapeHtml(packagingDate)}</dd>
+          </div>
+          <div>
+            <dt>관리자 확인</dt>
+            <dd><span class="box-qr-admin-mark" aria-hidden="true"></span></dd>
+          </div>
         </dl>
       </article>
     `;
@@ -5638,9 +5649,10 @@ function updateInboundQrLayoutButtons() {
   });
 }
 
-function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, productName }) {
+function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, productName, packagingDate }) {
   return `
     <article class="box-qr-label box-qr-label-work">
+      <div class="box-qr-title">승진 관리 시스템</div>
       <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
       <div class="box-qr-main">
         <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
@@ -5659,6 +5671,10 @@ function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, p
           <dt>박스 정보</dt>
           <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
         </div>
+        <div>
+          <dt>포장시간</dt>
+          <dd>${escapeHtml(packagingDate)}</dd>
+        </div>
       </dl>
       <div class="box-qr-work-fields" aria-label="작업자 기입란">
         <div class="box-qr-work-field">
@@ -5666,7 +5682,7 @@ function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, p
           <i aria-hidden="true"></i>
         </div>
         <div class="box-qr-work-field">
-          <span>서명</span>
+          <span>관리자 확인</span>
           <i aria-hidden="true"></i>
         </div>
       </div>
