@@ -1680,7 +1680,15 @@
                   <option value="크라프트">크라프트</option>
                   <option value="네이비">네이비</option>
                   <option value="레드">레드</option>
+                  <option value="__custom">직접 입력</option>
                 </select>
+                <div id="productCustomColorFields" class="custom-color-fields" hidden>
+                  <input id="productCustomColorName" type="text" placeholder="색상명을 입력하세요." />
+                  <div class="custom-color-picker" aria-label="사용자 지정 색상 선택">
+                    <input id="productCustomColorValue" type="color" value="#0b63f6" />
+                    <span id="productCustomColorPreview" aria-hidden="true"></span>
+                  </div>
+                </div>
               </label>
 
               <fieldset class="form-field usage-field">
