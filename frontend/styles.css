@@ -6127,7 +6127,7 @@ input {
 .qr-sheet {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 74.25mm;
+  grid-auto-rows: 66.5mm;
   align-content: start;
   width: 210mm;
   min-height: 297mm;
@@ -6159,7 +6159,7 @@ input {
 .box-qr-label {
   box-sizing: border-box;
   min-height: 0;
-  height: 74.25mm;
+  height: 66.5mm;
   overflow: hidden;
   padding: 1.45mm 1.35mm;
   border: 1px dashed #7c899b;
@@ -6198,14 +6198,14 @@ input {
 
 .box-qr-main {
   display: grid;
-  grid-template-columns: 20mm 1fr;
+  grid-template-columns: 23.35mm 1fr;
   gap: 1.1mm;
   align-items: start;
 }
 
 .box-qr-image {
-  width: 20mm;
-  height: 20mm;
+  width: 23.35mm;
+  height: 23.35mm;
   image-rendering: crisp-edges;
 }
 
@@ -6290,14 +6290,14 @@ input {
 
 .box-qr-signatures {
   display: grid;
-  margin-top: 1.4mm;
+  margin-top: 0.6mm;
 }
 
 .box-qr-signature {
   display: grid;
   grid-template-columns: 17.5mm 1fr;
-  align-items: end;
-  min-height: 7.2mm;
+  align-items: center;
+  min-height: 4.6mm;
 }
 
 .box-qr-signature span {
@@ -6309,7 +6309,7 @@ input {
 
 .box-qr-signature i {
   display: block;
-  height: 4.7mm;
+  height: 2.5mm;
   border-bottom: 0.55pt solid #111827;
 }
 
