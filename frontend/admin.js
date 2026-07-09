@@ -5630,7 +5630,7 @@ function renderInboundQrSheet(inbound, boxes) {
           </div>
           <div>
             <dt>포장 날짜</dt>
-            <dd></dd>
+            <dd class="box-qr-date-blank">_____월 _____일</dd>
           </div>
         </dl>
         <div class="box-qr-signatures" aria-label="서명란">

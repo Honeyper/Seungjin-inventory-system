@@ -6288,16 +6288,22 @@ input {
   overflow-wrap: anywhere;
 }
 
+.box-qr-date-blank {
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .box-qr-signatures {
   display: grid;
-  margin-top: 0.6mm;
+  margin-top: 0;
+  border-bottom: 0.45pt solid #cbd5e1;
 }
 
 .box-qr-signature {
   display: grid;
   grid-template-columns: 17.5mm 1fr;
   align-items: center;
-  min-height: 4.6mm;
+  min-height: 5.2mm;
 }
 
 .box-qr-signature span {
@@ -6309,7 +6315,7 @@ input {
 
 .box-qr-signature i {
   display: block;
-  height: 2.5mm;
+  height: 2.4mm;
   border-bottom: 0.55pt solid #111827;
 }
 
