@@ -39,6 +39,7 @@ const elements = {
   acceptConfirmButton: document.querySelector("#acceptConfirmButton"),
   scannerScreen: document.querySelector("#scannerScreen"),
   scannerVideo: document.querySelector("#scannerVideo"),
+  scannerHelpText: document.querySelector("#scannerHelpText"),
   closeScannerButton: document.querySelector("#closeScannerButton"),
   toggleFlashButton: document.querySelector("#toggleFlashButton"),
   albumQrButton: document.querySelector("#albumQrButton"),
@@ -472,6 +473,14 @@ async function handleConfirmShipping() {
 
 async function openScanner() {
   elements.scannerScreen.hidden = false;
+  setScannerHelp("QR 코드가 인식되지 않으면 수동 입력을 사용해주세요.");
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setScannerHelp("이 브라우저에서는 카메라를 열 수 없습니다. 수동 입력으로 진행해주세요.");
+    showToast("카메라 기능을 사용할 수 없어 수동 입력을 사용해주세요.");
+    window.setTimeout(handleManualQrInput, 200);
+    return;
+  }
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -483,6 +492,7 @@ async function openScanner() {
     await elements.scannerVideo.play();
     startBarcodeDetection();
   } catch (error) {
+    setScannerHelp("카메라 권한이 차단되었습니다. 권한을 허용하거나 수동 입력을 사용해주세요.");
     showToast("카메라 권한을 허용하거나 수동 입력을 사용해주세요.");
   }
 }
@@ -504,7 +514,8 @@ function closeScanner() {
 
 function startBarcodeDetection() {
   if (!("BarcodeDetector" in window)) {
-    showToast("이 브라우저는 QR 자동 인식을 지원하지 않습니다. 수동 입력을 사용해주세요.");
+    setScannerHelp("현재 브라우저는 QR 자동 인식을 지원하지 않습니다. 아래 수동 입력을 사용해주세요.");
+    showToast("QR 자동 인식 미지원 브라우저입니다. 수동 입력을 사용해주세요.");
     return;
   }
 
@@ -512,6 +523,7 @@ function startBarcodeDetection() {
   try {
     detector = new BarcodeDetector({ formats: ["qr_code"] });
   } catch (error) {
+    setScannerHelp("현재 브라우저는 QR 자동 인식을 지원하지 않습니다. 아래 수동 입력을 사용해주세요.");
     showToast("QR 자동 인식을 지원하지 않습니다. 수동 입력을 사용해주세요.");
     return;
   }
@@ -528,8 +540,16 @@ function startBarcodeDetection() {
     } catch (error) {
       clearInterval(state.scannerTimer);
       state.scannerTimer = null;
+      setScannerHelp("QR 자동 인식이 중단되었습니다. 수동 입력으로 진행해주세요.");
+      showToast("QR 자동 인식이 중단되었습니다. 수동 입력을 사용해주세요.");
     }
   }, 600);
+}
+
+function setScannerHelp(message) {
+  if (elements.scannerHelpText) {
+    elements.scannerHelpText.textContent = message;
+  }
 }
 
 function handleManualQrInput() {

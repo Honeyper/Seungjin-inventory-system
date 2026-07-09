@@ -12,13 +12,13 @@ const DEFAULT_CLIENTS = [
   "(주)코스엔텍",
   "(주)금호ENG",
   "뉴파트너스",
+  "SJ패키지",
   "필립텍",
   "이루팩",
   "(주)디엠",
   "보경",
   "CPI",
-  "더승진(2공장)",
-  "SJ패키지"
+  "더승진(2공장)"
 ];
 
 const DEFECT_REASON_TONES = {
@@ -3943,7 +3943,12 @@ async function loadProducts() {
 
   try {
     const result = await requestApi("getProducts");
-    state.products = Array.isArray(result.products) ? result.products : [];
+    state.products = Array.isArray(result.products)
+      ? result.products.map((product) => ({
+        ...product,
+        clientName: normalizeClientName(product.clientName)
+      }))
+      : [];
     renderClientOptions();
     renderClientFilterOptions();
     renderInboundProductPicker();
@@ -4577,7 +4582,7 @@ function isUnspecifiedInventoryStorage(value) {
 }
 
 function isInventoryCompletedWithoutStorage(item) {
-  const status = normalizeInventoryStockStatus(item?.stockStatus || item?.processStatus || "");
+  const status = getEffectiveShippingStatus(item) || normalizeInventoryStockStatus(item?.stockStatus || item?.processStatus || "");
   const quantity = parseShippingSettlementNumber(item?.currentTotalQuantity || "");
   const boxCount = parseShippingSettlementNumber(item?.currentBoxCount || "");
 
@@ -6554,10 +6559,10 @@ function closeProductModal() {
 }
 
 function renderClientOptions() {
-  const clients = [...new Set([
-    ...state.products.map((product) => product.clientName).filter(Boolean),
+  const clients = buildClientOptions([
+    ...state.products.map((product) => product.clientName),
     ...DEFAULT_CLIENTS
-  ])].sort((left, right) => left.localeCompare(right, "ko-KR"));
+  ]);
 
   const currentValue = productClientName.value;
   productClientName.innerHTML = [
@@ -6571,8 +6576,7 @@ function renderClientOptions() {
 }
 
 function renderClientFilterOptions() {
-  const clients = [...new Set(state.products.map((product) => product.clientName).filter(Boolean))]
-    .sort((left, right) => left.localeCompare(right, "ko-KR"));
+  const clients = buildClientOptions(state.products.map((product) => product.clientName));
   const currentValue = state.clientFilter;
 
   productClientFilter.innerHTML = [
@@ -6587,6 +6591,27 @@ function renderClientFilterOptions() {
 
   state.clientFilter = "";
   productClientFilter.value = "";
+}
+
+function buildClientOptions(values) {
+  return [...new Set(values.map(normalizeClientName).filter(Boolean))]
+    .filter((client) => client !== "필림텍")
+    .sort((left, right) => {
+      const leftDefaultIndex = DEFAULT_CLIENTS.indexOf(left);
+      const rightDefaultIndex = DEFAULT_CLIENTS.indexOf(right);
+
+      if (leftDefaultIndex >= 0 || rightDefaultIndex >= 0) {
+        if (leftDefaultIndex < 0) {
+          return 1;
+        }
+        if (rightDefaultIndex < 0) {
+          return -1;
+        }
+        return leftDefaultIndex - rightDefaultIndex;
+      }
+
+      return left.localeCompare(right, "ko-KR");
+    });
 }
 
 function setSelectValue(select, value) {
@@ -6665,7 +6690,7 @@ function getProductFormPayload() {
 
   return {
     "등록자": session?.name || "Admin",
-    "업체명": productClientName.value.trim(),
+    "업체명": normalizeClientName(productClientName.value),
     "제품명": productNameInput.value.trim(),
     "색상": productColor.value.trim(),
     "사용 여부": usage,
@@ -6759,6 +6784,14 @@ function renderColor(color) {
 function normalizeDisplayValue(value) {
   const normalized = String(value ?? "").trim();
   return normalized || "-";
+}
+
+function normalizeClientName(value) {
+  const normalized = String(value ?? "").trim();
+  const aliases = {
+    "필림텍": "필립텍"
+  };
+  return aliases[normalized] || normalized;
 }
 
 function normalizeUsageStatus(value) {

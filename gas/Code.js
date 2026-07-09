@@ -615,7 +615,7 @@ function getProducts() {
         createdBy: pickCell_(row, indexes, ['등록자']),
         productId: productCode,
         productCode,
-        clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
+        clientName: normalizeClientName_(pickCell_(row, indexes, ['업체명', '거래처명'])),
         productName: pickCell_(row, indexes, ['제품명']),
         color: pickCell_(row, indexes, ['색상']),
         useStatus: pickCell_(row, indexes, ['사용 여부', '사용여부']),
@@ -889,7 +889,7 @@ function createProduct(payload) {
   const indexes = indexHeaders_(headers);
   const now = new Date();
   const timezone = 'Asia/Seoul';
-  const clientName = String(payload['업체명'] || '').trim();
+  const clientName = normalizeClientName_(payload['업체명']);
   const productId = payload['제품 ID'] || payload['제품ID'] || makeClientProductId_(clientName, values, indexes);
   const row = new Array(headers.length).fill('');
 
@@ -1136,7 +1136,7 @@ function updateProduct(payload) {
       const timezone = 'Asia/Seoul';
       const row = headers.map((_, columnIndex) => values[rowIndex][columnIndex] || '');
 
-      setRowValue_(row, indexes, ['업체명', '거래처명'], payload['업체명']);
+      setRowValue_(row, indexes, ['업체명', '거래처명'], normalizeClientName_(payload['업체명']));
       setRowValue_(row, indexes, ['제품명'], payload['제품명']);
       setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
       setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
@@ -2604,6 +2604,15 @@ function normalizeStockStatusText_(value) {
   return aliases[compact] || normalized;
 }
 
+function normalizeClientName_(value) {
+  const normalized = String(value || '').trim();
+  const aliases = {
+    '필림텍': '필립텍'
+  };
+
+  return aliases[normalized] || normalized;
+}
+
 function normalizeInventoryIdentityPart_(value) {
   return String(value || '')
     .replace(/\s+/g, '')
@@ -3243,6 +3252,7 @@ function makeClientCode_(clientName) {
     '(주)코스엔텍': 'CNT',
     '(주)금호ENG': 'KHE',
     '뉴파트너스': 'NP',
+    '필림텍': 'PLT',
     '필립텍': 'PLT',
     '이루팩': 'IRP',
     '(주)디엠': 'DM',
