@@ -6126,8 +6126,8 @@ input {
 
 .qr-sheet {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 49.5mm;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 74.25mm;
   align-content: start;
   width: 210mm;
   min-height: 297mm;
@@ -6159,9 +6159,9 @@ input {
 .box-qr-label {
   box-sizing: border-box;
   min-height: 0;
-  height: 49.5mm;
+  height: 74.25mm;
   overflow: hidden;
-  padding: 0.85mm 1.2mm;
+  padding: 1.6mm 1.9mm;
   border: 1px dashed #7c899b;
   color: var(--navy-dark);
   break-inside: avoid;
@@ -6172,12 +6172,12 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 4.1mm;
-  margin-bottom: 0.35mm;
+  height: 6mm;
+  margin-bottom: 0.7mm;
   border-radius: 0.8mm;
   background: #090f19;
   color: #fff;
-  font-size: 7.2pt;
+  font-size: 10pt;
   font-weight: 900;
   line-height: 1;
 }
@@ -6186,52 +6186,52 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 3.05mm;
-  margin-bottom: 0.45mm;
+  height: 4.8mm;
+  margin-bottom: 1mm;
   border: 0.45pt solid #8792a2;
   border-radius: 0.6mm;
   color: #111827;
-  font-size: 5.7pt;
+  font-size: 8.5pt;
   font-weight: 900;
   line-height: 1;
 }
 
 .box-qr-main {
   display: grid;
-  grid-template-columns: 17mm 1fr;
-  gap: 0.9mm;
+  grid-template-columns: 28mm 1fr;
+  gap: 1.5mm;
   align-items: start;
 }
 
 .box-qr-image {
-  width: 17mm;
-  height: 17mm;
+  width: 28mm;
+  height: 28mm;
   image-rendering: crisp-edges;
 }
 
 .box-qr-checks {
   display: grid;
-  gap: 0.32mm;
+  gap: 0.8mm;
   padding-top: 0.05mm;
 }
 
 .box-qr-checks span {
   display: grid;
-  grid-template-columns: 1fr 3.3mm;
+  grid-template-columns: 1fr 5.5mm;
   align-items: center;
-  height: 3.12mm;
-  padding: 0 0.7mm;
+  height: 6.1mm;
+  padding: 0 1.2mm;
   border: 0.4pt solid #8792a2;
   border-radius: 0.6mm;
   color: #111827;
-  font-size: 5.15pt;
-  font-weight: 800;
+  font-size: 9pt;
+  font-weight: 900;
 }
 
 .box-qr-checks i {
   display: block;
-  width: 2.3mm;
-  height: 2.3mm;
+  width: 4.4mm;
+  height: 4.4mm;
   margin-left: auto;
   border: 0.45pt solid #111827;
   background: #fff;
@@ -6249,32 +6249,32 @@ input {
 }
 
 .box-qr-meta {
-  margin: 0.55mm 0 0;
+  margin: 0.95mm 0 0;
   border-top: 0.45pt solid #cbd5e1;
 }
 
 .box-qr-meta div {
   display: grid;
-  grid-template-columns: 16.2mm 1fr;
+  grid-template-columns: 19.5mm 1fr;
   align-items: center;
-  min-height: 3.35mm;
+  min-height: 5.2mm;
   border-bottom: 0.45pt solid #cbd5e1;
 }
 
 .box-qr-meta div:first-child {
-  min-height: 4.85mm;
+  min-height: 7mm;
 }
 
 .box-qr-meta dt,
 .box-qr-meta dd {
   margin: 0;
-  font-size: 5.45pt;
+  font-size: 8pt;
   font-weight: 900;
-  line-height: 1.08;
+  line-height: 1.1;
 }
 
 .box-qr-meta div:first-child dd {
-  font-size: 5.45pt;
+  font-size: 8.2pt;
 }
 
 .box-qr-meta dt {
@@ -6290,26 +6290,26 @@ input {
 
 .box-qr-signatures {
   display: grid;
-  margin-top: 0.55mm;
+  margin-top: 1.4mm;
 }
 
 .box-qr-signature {
   display: grid;
-  grid-template-columns: 16.2mm 1fr;
+  grid-template-columns: 19.5mm 1fr;
   align-items: end;
-  min-height: 3.55mm;
+  min-height: 7.2mm;
 }
 
 .box-qr-signature span {
   color: #46566b;
-  font-size: 5.45pt;
+  font-size: 8pt;
   font-weight: 900;
   line-height: 1;
 }
 
 .box-qr-signature i {
   display: block;
-  height: 2.15mm;
+  height: 4.7mm;
   border-bottom: 0.55pt solid #111827;
 }
 
