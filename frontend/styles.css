@@ -6161,7 +6161,7 @@ input {
   min-height: 0;
   height: 49.5mm;
   overflow: hidden;
-  padding: 1mm 1.35mm;
+  padding: 0.85mm 1.2mm;
   border: 1px dashed #7c899b;
   color: var(--navy-dark);
   break-inside: avoid;
@@ -6172,12 +6172,12 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 3.8mm;
-  margin-bottom: 0.3mm;
+  height: 4.1mm;
+  margin-bottom: 0.35mm;
   border-radius: 0.8mm;
   background: #090f19;
   color: #fff;
-  font-size: 6.7pt;
+  font-size: 7.2pt;
   font-weight: 900;
   line-height: 1;
 }
@@ -6186,26 +6186,26 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 2.9mm;
+  height: 3.05mm;
   margin-bottom: 0.45mm;
   border: 0.45pt solid #8792a2;
   border-radius: 0.6mm;
   color: #111827;
-  font-size: 5.4pt;
+  font-size: 5.7pt;
   font-weight: 900;
   line-height: 1;
 }
 
 .box-qr-main {
   display: grid;
-  grid-template-columns: 16.5mm 1fr;
-  gap: 1mm;
+  grid-template-columns: 17mm 1fr;
+  gap: 0.9mm;
   align-items: start;
 }
 
 .box-qr-image {
-  width: 16.5mm;
-  height: 16.5mm;
+  width: 17mm;
+  height: 17mm;
   image-rendering: crisp-edges;
 }
 
@@ -6219,12 +6219,12 @@ input {
   display: grid;
   grid-template-columns: 1fr 3.3mm;
   align-items: center;
-  height: 3mm;
+  height: 3.12mm;
   padding: 0 0.7mm;
   border: 0.4pt solid #8792a2;
   border-radius: 0.6mm;
   color: #111827;
-  font-size: 5pt;
+  font-size: 5.15pt;
   font-weight: 800;
 }
 
@@ -6249,32 +6249,32 @@ input {
 }
 
 .box-qr-meta {
-  margin: 0.65mm 0 0;
+  margin: 0.55mm 0 0;
   border-top: 0.45pt solid #cbd5e1;
 }
 
 .box-qr-meta div {
   display: grid;
-  grid-template-columns: 16mm 1fr;
+  grid-template-columns: 16.2mm 1fr;
   align-items: center;
-  min-height: 3.45mm;
+  min-height: 3.35mm;
   border-bottom: 0.45pt solid #cbd5e1;
 }
 
 .box-qr-meta div:first-child {
-  min-height: 5.35mm;
+  min-height: 4.85mm;
 }
 
 .box-qr-meta dt,
 .box-qr-meta dd {
   margin: 0;
-  font-size: 5.2pt;
+  font-size: 5.45pt;
   font-weight: 900;
   line-height: 1.08;
 }
 
 .box-qr-meta div:first-child dd {
-  font-size: 5.15pt;
+  font-size: 5.45pt;
 }
 
 .box-qr-meta dt {
@@ -6290,19 +6290,19 @@ input {
 
 .box-qr-signatures {
   display: grid;
-  margin-top: 0.75mm;
+  margin-top: 0.55mm;
 }
 
 .box-qr-signature {
   display: grid;
-  grid-template-columns: 16mm 1fr;
+  grid-template-columns: 16.2mm 1fr;
   align-items: end;
-  min-height: 3.8mm;
+  min-height: 3.55mm;
 }
 
 .box-qr-signature span {
   color: #46566b;
-  font-size: 5.2pt;
+  font-size: 5.45pt;
   font-weight: 900;
   line-height: 1;
 }
