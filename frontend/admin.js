@@ -139,10 +139,6 @@ const productCodePreview = document.querySelector("#productCodePreview");
 const productClientName = document.querySelector("#productClientName");
 const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
-const productCustomColorFields = document.querySelector("#productCustomColorFields");
-const productCustomColorName = document.querySelector("#productCustomColorName");
-const productCustomColorValue = document.querySelector("#productCustomColorValue");
-const productCustomColorPreview = document.querySelector("#productCustomColorPreview");
 const productOrderQuantity = document.querySelector("#productOrderQuantity");
 const productDueDate = document.querySelector("#productDueDate");
 const productBoxQuantity = document.querySelector("#productBoxQuantity");
@@ -686,10 +682,6 @@ pageSizeSelect.addEventListener("change", (event) => {
   state.page = 1;
   renderProducts();
 });
-
-productColor?.addEventListener("change", syncCustomProductColorFields);
-productCustomColorName?.addEventListener("input", applySuggestedCustomProductColor);
-productCustomColorValue?.addEventListener("input", updateCustomProductColorPreview);
 
 shippingPageSizeSelect?.addEventListener("change", (event) => {
   state.shippingPageSize = Number.parseInt(event.target.value, 10) || 10;
@@ -6572,13 +6564,12 @@ function openProductModal(mode = "create", product = null) {
   saveProductButton.textContent = mode === "edit" ? "수정 저장" : "저장";
   productCodePreview.placeholder = mode === "edit" ? "제품코드는 수정할 수 없습니다." : "자동 생성됩니다.";
   renderClientOptions();
-  resetCustomProductColorFields();
 
   if (mode === "edit" && product) {
     productCodePreview.value = product.productCode || "";
     setSelectValue(productClientName, product.clientName);
     productNameInput.value = normalizeEditableValue(product.productName);
-    setProductColorInput(product.color);
+    productColor.value = parseProductColorValue(product.color).label;
     productForm.querySelector(`input[name="productUsage"][value="${normalizeUsageStatus(product.useStatus)}"]`)?.click();
     productOrderQuantity.value = extractQuantityNumber(product.orderQuantity);
     productDueDate.value = toDateInputValue(product.dueDate);
@@ -6682,78 +6673,6 @@ function setSelectValue(select, value) {
   select.value = normalized;
 }
 
-function resetCustomProductColorFields() {
-  if (productColor) {
-    productColor.value = "";
-  }
-  if (productCustomColorName) {
-    productCustomColorName.value = "";
-  }
-  if (productCustomColorValue) {
-    productCustomColorValue.value = "#0b63f6";
-  }
-  syncCustomProductColorFields();
-}
-
-function setProductColorInput(color) {
-  const parsed = parseProductColorValue(color);
-
-  if (!parsed.label) {
-    resetCustomProductColorFields();
-    return;
-  }
-
-  if (parsed.hex) {
-    productColor.value = "__custom";
-    productCustomColorName.value = parsed.label;
-    productCustomColorValue.value = parsed.hex;
-    syncCustomProductColorFields();
-    return;
-  }
-
-  setSelectValue(productColor, parsed.label);
-  syncCustomProductColorFields();
-}
-
-function syncCustomProductColorFields() {
-  const isCustom = productColor?.value === "__custom";
-
-  if (productCustomColorFields) {
-    productCustomColorFields.hidden = !isCustom;
-  }
-
-  if (productCustomColorName) {
-    productCustomColorName.required = isCustom;
-  }
-
-  if (productCustomColorValue) {
-    productCustomColorValue.required = isCustom;
-  }
-
-  updateCustomProductColorPreview();
-}
-
-function updateCustomProductColorPreview() {
-  if (!productCustomColorPreview || !productCustomColorValue) {
-    return;
-  }
-
-  productCustomColorPreview.style.background = normalizeHexColor(productCustomColorValue.value) || "#0b63f6";
-}
-
-function applySuggestedCustomProductColor() {
-  if (!productCustomColorValue) {
-    return;
-  }
-
-  const suggestedColor = getNamedColorHex(productCustomColorName.value);
-  if (suggestedColor) {
-    productCustomColorValue.value = suggestedColor;
-  }
-
-  updateCustomProductColorPreview();
-}
-
 function normalizeEditableValue(value) {
   const normalized = String(value ?? "").trim();
   return normalized === "-" ? "" : normalized;
@@ -6815,7 +6734,7 @@ function getProductFormPayload() {
     "등록자": session?.name || "Admin",
     "업체명": normalizeClientName(productClientName.value),
     "제품명": productNameInput.value.trim(),
-    "색상": getProductColorPayloadValue(),
+    "색상": productColor.value.trim(),
     "사용 여부": usage,
     "발주량": orderQuantity ? `${Number(orderQuantity).toLocaleString("ko-KR")} ea` : "",
     "납기일": productDueDate.value.trim(),
@@ -6823,16 +6742,6 @@ function getProductFormPayload() {
     "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
     "비고": productNote.value.trim()
   };
-}
-
-function getProductColorPayloadValue() {
-  if (productColor.value !== "__custom") {
-    return productColor.value.trim();
-  }
-
-  const label = productCustomColorName.value.trim();
-  const hex = normalizeHexColor(productCustomColorValue.value);
-  return label && hex ? `${label}|${hex}` : "";
 }
 
 function validateProductPayload(payload) {
@@ -6847,16 +6756,6 @@ function validateProductPayload(payload) {
   const missing = requiredFields.find(([field]) => !payload[field]);
   if (missing) {
     return missing[1];
-  }
-
-  if (productColor.value === "__custom") {
-    if (!productCustomColorName.value.trim()) {
-      return "사용자 지정 색상명을 입력해주세요.";
-    }
-
-    if (!normalizeHexColor(productCustomColorValue.value)) {
-      return "사용자 지정 색상을 선택해주세요.";
-    }
   }
 
   if (
@@ -6983,11 +6882,6 @@ function getColorValue(color) {
 
   const label = typeof color === "object" ? color.label : color;
   return getNamedColorValue(label) || "#d8e1ee";
-}
-
-function getNamedColorHex(color) {
-  const value = getNamedColorValue(color);
-  return normalizeHexColor(value);
 }
 
 function getNamedColorValue(color) {

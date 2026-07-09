@@ -4722,44 +4722,6 @@ input {
   background-size: 1rem;
 }
 
-.custom-color-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 3.1rem;
-  gap: 0.55rem;
-  margin-top: 0.55rem;
-}
-
-.custom-color-picker {
-  position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 3.1rem;
-  border: 1px solid #dce4ef;
-  border-radius: 0.38rem;
-  background: #fff;
-  cursor: pointer;
-  box-shadow: inset 0 0.08rem 0.2rem rgba(8, 42, 98, 0.03);
-}
-
-.custom-color-picker input[type="color"] {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.custom-color-picker span {
-  width: 1.35rem;
-  height: 1.35rem;
-  border: 1px solid rgba(8, 42, 98, 0.22);
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 0.12rem rgba(255, 255, 255, 0.52);
-}
-
 .form-field input:not([type="radio"]):focus,
 .form-field select:focus,
 .form-field textarea:focus {
