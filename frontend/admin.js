@@ -5628,14 +5628,20 @@ function renderInboundQrSheet(inbound, boxes) {
             <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
           </div>
           <div>
-            <dt>포장시간</dt>
+            <dt>포장 날짜</dt>
             <dd>${escapeHtml(packagingDate)}</dd>
           </div>
-          <div>
-            <dt>관리자 확인</dt>
-            <dd><span class="box-qr-admin-mark" aria-hidden="true"></span></dd>
-          </div>
         </dl>
+        <div class="box-qr-signatures" aria-label="서명란">
+          <div class="box-qr-signature">
+            <span>작업자 서명</span>
+            <i aria-hidden="true"></i>
+          </div>
+          <div class="box-qr-signature">
+            <span>관리자 서명</span>
+            <i aria-hidden="true"></i>
+          </div>
+        </div>
       </article>
     `;
   }).join("");
@@ -5672,7 +5678,7 @@ function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, p
           <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
         </div>
         <div>
-          <dt>포장시간</dt>
+          <dt>포장 날짜</dt>
           <dd>${escapeHtml(packagingDate)}</dd>
         </div>
       </dl>
@@ -5682,7 +5688,11 @@ function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, p
           <i aria-hidden="true"></i>
         </div>
         <div class="box-qr-work-field">
-          <span>관리자 확인</span>
+          <span>작업자 서명</span>
+          <i aria-hidden="true"></i>
+        </div>
+        <div class="box-qr-work-field">
+          <span>관리자 서명</span>
           <i aria-hidden="true"></i>
         </div>
       </div>
