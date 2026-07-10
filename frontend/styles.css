@@ -6228,6 +6228,12 @@ input {
   font-weight: 900;
 }
 
+.box-qr-checks span.is-disabled {
+  color: #8a94a3;
+  border-color: #c4ccd6;
+  background: #edf1f5;
+}
+
 .box-qr-checks i {
   display: block;
   width: 4.1mm;
@@ -6235,6 +6241,11 @@ input {
   margin-left: auto;
   border: 0.45pt solid #111827;
   background: #fff;
+}
+
+.box-qr-checks span.is-disabled i {
+  border-color: #a6afbb;
+  background: #f4f6f8;
 }
 
 .box-qr-checks i.checked::after {

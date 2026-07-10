@@ -5613,9 +5613,9 @@ function renderInboundQrSheet(inbound, boxes) {
         <div class="box-qr-main">
           <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
           <div class="box-qr-checks" aria-label="공정 체크">
-            ${renderQrProcessCheck("1도")}
-            ${renderQrProcessCheck("2도")}
-            ${renderQrProcessCheck("3도")}
+            ${renderQrProcessCheck("1도", processText)}
+            ${renderQrProcessCheck("2도", processText)}
+            ${renderQrProcessCheck("3도", processText)}
             ${renderQrProcessCheck("관리자 확인")}
           </div>
         </div>
@@ -5660,9 +5660,9 @@ function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, p
       <div class="box-qr-main">
         <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
         <div class="box-qr-checks" aria-label="공정 체크">
-          ${renderQrProcessCheck("1도")}
-          ${renderQrProcessCheck("2도")}
-          ${renderQrProcessCheck("3도")}
+          ${renderQrProcessCheck("1도", processText)}
+          ${renderQrProcessCheck("2도", processText)}
+          ${renderQrProcessCheck("3도", processText)}
         </div>
       </div>
       <dl class="box-qr-meta">
@@ -5697,9 +5697,21 @@ function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, p
   `;
 }
 
-function renderQrProcessCheck(label) {
+function getQrProcessStep(value) {
+  const match = String(value || "").match(/([1-3])\s*도/);
+  return match ? Number(match[1]) : 0;
+}
+
+function isQrProcessDisabled(label, finalProcess) {
+  const step = getQrProcessStep(label);
+  const finalStep = getQrProcessStep(finalProcess);
+  return Boolean(step && finalStep && step > finalStep);
+}
+
+function renderQrProcessCheck(label, finalProcess = "") {
+  const isDisabled = isQrProcessDisabled(label, finalProcess);
   return `
-    <span>
+    <span class="${isDisabled ? "is-disabled" : ""}"${isDisabled ? ' aria-disabled="true"' : ""}>
       ${escapeHtml(label)}
       <i aria-hidden="true"></i>
     </span>
