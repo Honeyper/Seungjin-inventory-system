@@ -90,7 +90,7 @@ function bindEvents() {
     showToast("앨범 QR 선택은 다음 단계에서 연결합니다.");
   });
   elements.manualQrButton?.addEventListener("click", handleManualQrInput);
-  elements.scannerDoneButton?.addEventListener("click", closeScanner);
+  elements.scannerDoneButton?.addEventListener("click", handleCompleteScannedShipping);
   elements.toggleFlashButton?.addEventListener("click", () => {
     showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
   });
@@ -416,14 +416,10 @@ async function handleConfirmShipping() {
   }
 
   const item = state.selectedShippingItem;
-  const scannedBox = getScannedBox(item);
-  const scannedBoxNumber = normalizeDisplay(scannedBox?.number || item.scannedBoxNumber || "");
-  const selectedBoxes = scannedBox
-    ? (isBoxWaitingForShipping(scannedBox) && scannedBoxNumber !== "-" ? [scannedBoxNumber] : [])
-    : getActiveBoxes(item).map((box) => box.number).filter(Boolean);
+  const selectedBoxes = getSelectedBoxNumbers(item);
 
   if (!selectedBoxes.length) {
-    showToast(scannedBox ? "이 박스는 출고대기 상태가 아닙니다." : "출고대기 등록된 박스가 없습니다.");
+    showToast("출고 처리할 박스 번호가 없습니다.");
     closeConfirmModal();
     return;
   }
@@ -433,25 +429,7 @@ async function handleConfirmShipping() {
   elements.acceptConfirmButton.textContent = "처리 중";
 
   try {
-    const now = new Date();
-    const result = await requestApi("updateShippingStatus", {
-      managementId: item.managementId,
-      productId: item.productId,
-      clientName: item.clientName,
-      productName: item.productName,
-      batch: item.batch,
-      finalProcess: item.finalProcess,
-      storageLocation: item.storage,
-      storage: item.storage,
-      status: "출고완료",
-      shippingType: "정상출고",
-      "출고유형": "정상출고",
-      "출고 유형": "정상출고",
-      shippingDate: toDateKey(now),
-      shippingTime: toTimeKey(now),
-      shipper: state.user?.name || "Admin",
-      selectedBoxes
-    });
+    const result = await completeShippingItem(item, selectedBoxes);
 
     closeConfirmModal();
     showToast(result?.isPartialShipping ? "선택 박스를 출고 완료 처리했습니다." : "출고 완료 처리했습니다.");
@@ -463,6 +441,96 @@ async function handleConfirmShipping() {
     elements.acceptConfirmButton.disabled = false;
     elements.acceptConfirmButton.textContent = "확인";
   }
+}
+
+async function handleCompleteScannedShipping() {
+  if (state.isCompletingShipping) {
+    return;
+  }
+
+  const items = [...state.scannedShippingRows];
+  if (!items.length) {
+    showToast("출고 처리할 박스를 먼저 스캔해주세요.");
+    return;
+  }
+
+  state.isCompletingShipping = true;
+  elements.scannerDoneButton.disabled = true;
+  elements.scannerDoneButton.textContent = "처리 중";
+
+  let completedCount = 0;
+  const failedItems = [];
+
+  try {
+    for (const item of items) {
+      const selectedBoxes = getSelectedBoxNumbers(item);
+      if (!selectedBoxes.length) {
+        failedItems.push(item);
+        continue;
+      }
+
+      try {
+        await completeShippingItem(item, selectedBoxes);
+        completedCount += selectedBoxes.length;
+      } catch (error) {
+        failedItems.push(item);
+      }
+    }
+
+    if (completedCount > 0) {
+      triggerScanFeedback();
+      state.scannedShippingRows = failedItems;
+      applyShippingFilters();
+      showToast(failedItems.length ? `${completedCount}개 박스 출고 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 출고 완료`);
+      if (!failedItems.length) {
+        closeScanner();
+      }
+      await loadShippingDashboard({ silent: true });
+    } else {
+      showToast("출고 처리된 박스가 없습니다.");
+    }
+  } finally {
+    state.isCompletingShipping = false;
+    elements.scannerDoneButton.disabled = false;
+    elements.scannerDoneButton.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
+      출고
+    `;
+  }
+}
+
+async function completeShippingItem(item, selectedBoxes) {
+  const now = new Date();
+  const scannedBox = getScannedBox(item);
+  const inspectionQuantity = parseNumber(scannedBox?.currentQuantity || scannedBox?.quantity || item.currentTotalQuantity);
+
+  return requestApi("updateShippingStatus", {
+    managementId: item.managementId,
+    productId: item.productId,
+    clientName: item.clientName,
+    productName: item.productName,
+    batch: item.batch,
+    finalProcess: item.finalProcess,
+    storageLocation: item.storage,
+    storage: item.storage,
+    status: "출고완료",
+    shippingType: "정상출고",
+    "출고유형": "정상출고",
+    "출고 유형": "정상출고",
+    shippingDate: toDateKey(now),
+    shippingTime: toTimeKey(now),
+    shipper: state.user?.name || "Admin",
+    selectedBoxes,
+    forceCompleteShipping: true,
+    autoShippingInspection: true,
+    inspectionDate: toDateKey(now),
+    inspectionTime: toTimeKey(now),
+    inspector: state.user?.name || "Admin",
+    inspectionQuantity: inspectionQuantity || "",
+    defectQuantity: 0,
+    defectRate: "0%",
+    defectReason: "양호"
+  });
 }
 
 async function openScanner() {
@@ -993,8 +1061,17 @@ function getScannedBoxLabel(item) {
   return boxId !== "-" ? `박스 ${boxId}` : "";
 }
 
-function isBoxWaitingForShipping(box) {
-  return normalizeText(box?.status).includes("출고대기");
+function getSelectedBoxNumbers(item) {
+  const scannedBox = getScannedBox(item);
+  if (scannedBox) {
+    const boxNumber = String(scannedBox.number || scannedBox.sequence || item?.scannedBoxNumber || "").trim();
+    return boxNumber ? [boxNumber] : [];
+  }
+
+  return getKnownBoxes(item)
+    .filter((box) => !normalizeText(box.status).includes("출고완료"))
+    .map((box) => String(box.number || box.sequence || "").trim())
+    .filter(Boolean);
 }
 
 function triggerScanFeedback() {

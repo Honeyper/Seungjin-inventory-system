@@ -1490,6 +1490,14 @@ img {
   border-right-color: rgba(255, 255, 255, 0.24);
 }
 
+.scanner-list-panel .scanner-bottom.single-action {
+  grid-template-columns: 1fr;
+}
+
+.scanner-list-panel .scanner-bottom.single-action button:first-child {
+  border-right: 0;
+}
+
 .toast {
   position: fixed;
   left: 50%;

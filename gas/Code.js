@@ -2816,6 +2816,10 @@ function updateShippingStatus(payload) {
   const shippingTime = dash_(payload.shippingTime || Utilities.formatDate(now, timezone, 'HH:mm'));
   const shippingType = dash_(payload.shippingType || payload['출고유형'] || payload['출고 유형'] || '정상출고');
   const shipper = dash_(payload.shipper || payload.userName || 'Admin');
+  const autoShippingInspection = payload.autoShippingInspection === true || String(payload.autoShippingInspection || '').toLowerCase() === 'true';
+  const inspectionDate = dash_(payload.inspectionDate || shippingDate);
+  const inspectionTime = dash_(payload.inspectionTime || shippingTime);
+  const inspector = dash_(payload.inspector || shipper);
   const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
   const boxUpdateResult = updateShippingStatusBoxRows_(boxSheet, managementId, {
     productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
@@ -2829,7 +2833,17 @@ function updateShippingStatus(payload) {
     shippingDate,
     shippingTime,
     shipper,
-    selectedBoxes
+    selectedBoxes,
+    forceCompleteShipping: payload.forceCompleteShipping === true || String(payload.forceCompleteShipping || '').toLowerCase() === 'true',
+    autoShippingInspection,
+    inspectionDate,
+    inspectionTime,
+    inspector,
+    inspectionQuantity: payload.inspectionQuantity,
+    defectQuantity: payload.defectQuantity,
+    defectRate: payload.defectRate || '0%',
+    defectReason: payload.defectReason || '양호',
+    defectPhotoFolderUrl: payload.defectPhotoFolderUrl || '-'
   });
   const finalStatus = status === '출고완료' && boxUpdateResult.remainingActiveRows > 0
     ? '일부 출고'
@@ -2898,9 +2912,14 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     let rowStatus = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
     const isAlreadyShipped = /출고완료/.test(rowStatus);
     const isSelectedBox = selectedBoxNumbers.has(sequence);
+    const forceCompleteShipping = data.forceCompleteShipping === true;
     const canCompleteShipping = data.status === '출고완료'
       && isSelectedBox
-      && isShippingCompletionReadyBoxRow_(values[rowIndex], indexes, rawRowStatus);
+      && (
+        forceCompleteShipping
+          ? !isAlreadyShipped && !/폐기/.test(rowStatus)
+          : isShippingCompletionReadyBoxRow_(values[rowIndex], indexes, rawRowStatus)
+      );
     const shouldUpdate = data.status === '출고완료'
       ? canCompleteShipping
       : isSelectedBox && !isAlreadyShipped;
@@ -2915,6 +2934,21 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], data.shippingDate);
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], data.shippingTime);
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], data.shipper);
+
+        if (data.autoShippingInspection === true) {
+          const payloadInspectionQuantity = displayQuantityToNumber_(data.inspectionQuantity);
+          const inspectionQuantity = payloadInspectionQuantity > 0
+            ? formatEa_(payloadInspectionQuantity)
+            : currentQuantity > 0 ? formatEa_(currentQuantity) : '-';
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], data.inspectionDate);
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수시간', '검수시간'], data.inspectionTime);
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수자', '검수자'], data.inspector);
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], inspectionQuantity);
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], formatEa_(displayQuantityToNumber_(data.defectQuantity)));
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason || '양호');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], data.defectRate || '0%');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
+        }
       } else if (data.status === '검수완료') {
         if (shippingTypeIndex >= 0) {
           sheet.getRange(rowIndex + 1, shippingTypeIndex + 1).setValue('');
