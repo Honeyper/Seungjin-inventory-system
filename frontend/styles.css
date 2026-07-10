@@ -6444,18 +6444,18 @@ input {
 }
 
 .box-qr-standard-process.is-disabled {
-  background: #edf1f5;
+  background: #111827;
 }
 
 .box-qr-standard-process.is-disabled span,
 .box-qr-standard-process.is-disabled em,
 .box-qr-standard-process.is-disabled b {
-  color: #8a94a3;
+  color: #cbd5e1;
 }
 
 .box-qr-standard-process.is-disabled i {
-  border-color: #a6afbb;
-  background: #f4f6f8;
+  border-color: #cbd5e1;
+  background: #111827;
 }
 
 .box-qr-standard-admin {
