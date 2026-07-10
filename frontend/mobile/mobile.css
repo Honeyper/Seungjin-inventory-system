@@ -2710,6 +2710,11 @@ img {
     width: 20px;
     height: 20px;
   }
+
+  #loginScreen .secondary-action img {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 /* Align the mobile home mood with the desktop admin shell. */
@@ -3096,6 +3101,13 @@ img {
 #loginScreen .secondary-action svg {
   color: var(--navy-dark);
   stroke: var(--navy-dark);
+}
+
+#loginScreen .secondary-action img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 6px rgba(8, 42, 98, 0.14));
 }
 
 @media (max-height: 700px) {
