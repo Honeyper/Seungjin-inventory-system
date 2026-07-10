@@ -3105,10 +3105,9 @@ img {
 }
 
 #loginScreen .secondary-action img {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
-  filter: drop-shadow(0 3px 6px rgba(8, 42, 98, 0.14));
 }
 
 @media (max-height: 700px) {
