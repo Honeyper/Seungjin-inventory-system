@@ -2455,8 +2455,10 @@ img {
 }
 
 #loginScreen .field-control > img {
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 6px rgba(8, 42, 98, 0.12));
 }
 
 #loginScreen .field-control input {
@@ -2670,8 +2672,8 @@ img {
   }
 
   #loginScreen .field-control > img {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
   }
 
   #loginScreen .field-control input {
