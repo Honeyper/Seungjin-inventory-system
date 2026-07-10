@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260710-login-ref" />
+    <link rel="stylesheet" href="./mobile.css?v=20260710-shipping-scan" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -187,7 +187,11 @@
             </svg>
             <input id="shippingSearchInput" type="search" placeholder="제품명 / 업체명 검색" />
           </label>
-          <div class="date-chip-row" id="dateChipRow" aria-label="조회 날짜"></div>
+          <div class="shipping-live-clock" aria-label="현재 일시">
+            <span>오늘</span>
+            <strong id="shippingLiveDate">-</strong>
+            <time id="shippingLiveTime" datetime="">--:--:--</time>
+          </div>
           <div class="shipping-action-row">
             <p>총 <strong id="mobileShippingCount">0</strong>건</p>
             <button class="control-button" id="refreshShippingButton" type="button">
@@ -264,15 +268,28 @@
         </header>
         <p class="scanner-tip">제품 박스의 QR 코드를 스캔해 주세요.</p>
         <p class="scanner-help" id="scannerHelpText">QR 코드가 인식되지 않으면 수동 입력을 사용해주세요.</p>
-        <div class="scanner-bottom">
-          <button id="albumQrButton" type="button">
-            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"></path><path d="m4 15 4-4 4 4 3-3 5 5"></path></svg>
-            앨범에서 QR 선택
-          </button>
-          <button id="manualQrButton" type="button">
-            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
-            수동 입력
-          </button>
+        <div class="scanner-list-panel">
+          <div class="scanner-list-header">
+            <div>
+              <span>현재 스캔 목록</span>
+              <strong><b id="scannerScannedCount">0</b>건</strong>
+            </div>
+            <button id="manualQrButton" type="button">
+              <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+              수동 입력
+            </button>
+          </div>
+          <div class="scanner-scanned-list" id="scannerScannedList" aria-live="polite"></div>
+          <div class="scanner-bottom">
+            <button id="albumQrButton" type="button">
+              <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"></path><path d="m4 15 4-4 4 4 3-3 5 5"></path></svg>
+              앨범에서 QR 선택
+            </button>
+            <button id="scannerDoneButton" type="button">
+              <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
+              스캔 완료
+            </button>
+          </div>
         </div>
       </section>
 

@@ -5,12 +5,15 @@ const state = {
   user: null,
   dashboard: [],
   filteredRows: [],
-  selectedDate: toDateKey(new Date()),
+  scannedShippingRows: [],
   query: "",
   selectedShippingItem: null,
   isCompletingShipping: false,
   scannerStream: null,
-  scannerTimer: null
+  scannerTimer: null,
+  scannerLastValue: "",
+  isProcessingScan: false,
+  clockTimer: null
 };
 
 const elements = {
@@ -27,7 +30,8 @@ const elements = {
   logoutButton: document.querySelector("#mobileLogoutButton"),
   mobileUserName: document.querySelector("#mobileUserName"),
   shippingSearchInput: document.querySelector("#shippingSearchInput"),
-  dateChipRow: document.querySelector("#dateChipRow"),
+  shippingLiveDate: document.querySelector("#shippingLiveDate"),
+  shippingLiveTime: document.querySelector("#shippingLiveTime"),
   mobileShippingCount: document.querySelector("#mobileShippingCount"),
   refreshShippingButton: document.querySelector("#refreshShippingButton"),
   filterShippingButton: document.querySelector("#filterShippingButton"),
@@ -40,10 +44,13 @@ const elements = {
   scannerScreen: document.querySelector("#scannerScreen"),
   scannerVideo: document.querySelector("#scannerVideo"),
   scannerHelpText: document.querySelector("#scannerHelpText"),
+  scannerScannedCount: document.querySelector("#scannerScannedCount"),
+  scannerScannedList: document.querySelector("#scannerScannedList"),
   closeScannerButton: document.querySelector("#closeScannerButton"),
   toggleFlashButton: document.querySelector("#toggleFlashButton"),
   albumQrButton: document.querySelector("#albumQrButton"),
   manualQrButton: document.querySelector("#manualQrButton"),
+  scannerDoneButton: document.querySelector("#scannerDoneButton"),
   toast: document.querySelector("#mobileToast")
 };
 
@@ -51,7 +58,7 @@ initializeMobileApp();
 
 function initializeMobileApp() {
   bindEvents();
-  renderDateChips();
+  updateShippingClock();
 
   const savedSession = readSavedSession();
   if (savedSession) {
@@ -81,6 +88,7 @@ function bindEvents() {
     showToast("앨범 QR 선택은 다음 단계에서 연결합니다.");
   });
   elements.manualQrButton?.addEventListener("click", handleManualQrInput);
+  elements.scannerDoneButton?.addEventListener("click", closeScanner);
   elements.toggleFlashButton?.addEventListener("click", () => {
     showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
   });
@@ -160,6 +168,7 @@ function logout() {
   state.user = null;
   state.dashboard = [];
   state.filteredRows = [];
+  state.scannedShippingRows = [];
   showScreen("login");
 }
 
@@ -184,10 +193,10 @@ function showHome() {
 
 function showShipping() {
   showScreen("shipping");
+  startShippingClock();
+  applyShippingFilters();
   if (!state.dashboard.length) {
-    loadShippingDashboard();
-  } else {
-    applyShippingFilters();
+    loadShippingDashboard({ silent: true });
   }
 }
 
@@ -210,26 +219,34 @@ function showScreen(name) {
     document.querySelector('#bottomNav [data-mobile-route="home"]')?.classList.add("active");
   }
 
+  if (name !== "shipping") {
+    stopShippingClock();
+  }
+
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
-async function loadShippingDashboard() {
-  renderShippingLoading();
+async function loadShippingDashboard(options = {}) {
+  if (!options.silent && !state.scannedShippingRows.length) {
+    renderShippingLoading();
+  }
 
   try {
     const data = await requestApi("getInventoryDashboard");
     state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
     applyShippingFilters();
   } catch (error) {
+    if (options.silent) {
+      showToast(error.message || "출고 목록을 불러오지 못했습니다.");
+      return;
+    }
     renderShippingError(error.message || "출고 목록을 불러오지 못했습니다.");
   }
 }
 
 function applyShippingFilters() {
   const query = state.query;
-  const rows = state.dashboard
-    .filter(isMobileShippingCandidate)
-    .filter((row) => matchesSelectedDate(row))
+  const rows = state.scannedShippingRows
     .filter((row) => {
       if (!query) {
         return true;
@@ -248,6 +265,7 @@ function applyShippingFilters() {
 
   state.filteredRows = rows;
   renderShippingList(rows);
+  renderScannerScannedList();
 }
 
 function isMobileShippingCandidate(row) {
@@ -259,20 +277,6 @@ function isMobileShippingCandidate(row) {
   });
 
   return hasActiveShippingBox || (status.includes("출고대기") && activeBoxes.length > 0);
-}
-
-function matchesSelectedDate(row) {
-  const rowDates = [
-    row.shippingInspectionDate,
-    row.shippingDate,
-    row.inboundDate
-  ].map(toDateKeyFromValue).filter(Boolean);
-
-  if (!rowDates.length) {
-    return true;
-  }
-
-  return rowDates.includes(state.selectedDate);
 }
 
 function renderShippingList(rows) {
@@ -291,11 +295,11 @@ function renderShippingList(rows) {
           </span>
           <h2>등록된 제품이 없습니다</h2>
           <p>출고할 제품을 등록해 주세요.</p>
-          <button class="primary-action" type="button" id="emptyRefreshButton">새로고침</button>
+          <button class="primary-action" type="button" id="emptyScanButton">제품 등록하기</button>
         </div>
       </div>
     `;
-    document.querySelector("#emptyRefreshButton")?.addEventListener("click", loadShippingDashboard);
+    document.querySelector("#emptyScanButton")?.addEventListener("click", openScanner);
     return;
   }
 
@@ -379,34 +383,6 @@ function renderShippingError(message) {
   document.querySelector("#retryShippingButton")?.addEventListener("click", loadShippingDashboard);
 }
 
-function renderDateChips() {
-  const dates = Array.from({ length: 5 }, (_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - index);
-    return date;
-  });
-
-  elements.dateChipRow.innerHTML = [
-    ...dates.map((date) => {
-      const key = toDateKey(date);
-      return `<button type="button" data-mobile-date="${key}" class="${key === state.selectedDate ? "active" : ""}">${formatShortDate(date)}</button>`;
-    }),
-    `<button type="button" data-mobile-date-calendar aria-label="날짜 선택">▣</button>`
-  ].join("");
-
-  elements.dateChipRow.querySelectorAll("[data-mobile-date]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.selectedDate = button.dataset.mobileDate;
-      renderDateChips();
-      applyShippingFilters();
-    });
-  });
-
-  elements.dateChipRow.querySelector("[data-mobile-date-calendar]")?.addEventListener("click", () => {
-    showToast("달력 선택은 다음 단계에서 연결합니다.");
-  });
-}
-
 function openConfirmModal(item) {
   state.selectedShippingItem = item;
   const boxes = getActiveBoxes(item);
@@ -473,6 +449,8 @@ async function handleConfirmShipping() {
 
 async function openScanner() {
   elements.scannerScreen.hidden = false;
+  state.scannerLastValue = "";
+  renderScannerScannedList();
   setScannerHelp("QR 코드가 인식되지 않으면 수동 입력을 사용해주세요.");
 
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -559,17 +537,186 @@ function handleManualQrInput() {
   }
 }
 
-function handleQrValue(rawValue) {
+async function handleQrValue(rawValue) {
   const value = String(rawValue || "").trim();
   if (!value) {
     return;
   }
 
-  closeScanner();
-  elements.shippingSearchInput.value = value;
-  state.query = value.toLowerCase();
-  applyShippingFilters();
-  showToast("스캔한 값으로 목록을 검색했습니다.");
+  if (state.isProcessingScan || state.scannerLastValue === value) {
+    return;
+  }
+
+  state.isProcessingScan = true;
+  state.scannerLastValue = value;
+
+  try {
+    await ensureDashboardLoaded();
+    const matched = findShippingByQrValue(value);
+
+    if (!matched) {
+      setScannerHelp("일치하는 출고대기 제품을 찾지 못했습니다. QR 또는 출고 상태를 확인해주세요.");
+      showToast("일치하는 출고대기 제품이 없습니다.");
+      return;
+    }
+
+    const key = getShippingKey(matched);
+    if (state.scannedShippingRows.some((row) => getShippingKey(row) === key)) {
+      setScannerHelp("이미 스캔된 제품입니다. 다른 박스를 계속 스캔할 수 있습니다.");
+      showToast("이미 등록된 제품입니다.");
+      return;
+    }
+
+    state.scannedShippingRows = [matched, ...state.scannedShippingRows];
+    state.query = "";
+    if (elements.shippingSearchInput) {
+      elements.shippingSearchInput.value = "";
+    }
+    applyShippingFilters();
+    setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
+    showToast("스캔한 제품을 등록했습니다.");
+  } catch (error) {
+    setScannerHelp(error.message || "스캔한 제품 정보를 확인하지 못했습니다.");
+    showToast(error.message || "제품 정보를 확인하지 못했습니다.");
+  } finally {
+    window.setTimeout(() => {
+      state.scannerLastValue = "";
+      state.isProcessingScan = false;
+    }, 1200);
+  }
+}
+
+async function ensureDashboardLoaded() {
+  if (state.dashboard.length) {
+    return;
+  }
+  const data = await requestApi("getInventoryDashboard");
+  state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
+}
+
+function findShippingByQrValue(rawValue) {
+  const parsed = parseQrValue(rawValue);
+  const text = normalizeScanValue(rawValue);
+
+  return state.dashboard
+    .filter(isMobileShippingCandidate)
+    .find((row) => {
+      const activeBoxes = getActiveBoxes(row);
+      const rowValues = [
+        row.managementId,
+        row.productId,
+        row.clientName,
+        row.productName,
+        row.batch,
+        row.finalProcess,
+        row.storage
+      ].map(normalizeScanValue);
+
+      if (parsed.managementId && normalizeScanValue(row.managementId) !== parsed.managementId) {
+        return false;
+      }
+
+      if (parsed.productId && normalizeScanValue(row.productId) !== parsed.productId) {
+        return false;
+      }
+
+      if (parsed.boxId) {
+        const hasBox = activeBoxes.some((box) => normalizeScanValue(box.boxId) === parsed.boxId);
+        if (hasBox) {
+          return true;
+        }
+        if (parsed.managementId || parsed.productId) {
+          return true;
+        }
+      }
+
+      if (parsed.boxNumber && activeBoxes.some((box) => String(box.number || "") === parsed.boxNumber)) {
+        return true;
+      }
+
+      return rowValues.some((value) => value && value.includes(text));
+    });
+}
+
+function parseQrValue(rawValue) {
+  const text = String(rawValue || "").trim();
+  try {
+    const parsed = JSON.parse(text);
+    return {
+      boxId: normalizeScanValue(parsed.b || parsed.boxId),
+      managementId: normalizeScanValue(parsed.m || parsed.managementId),
+      productId: normalizeScanValue(parsed.p || parsed.productId),
+      boxNumber: String(parsed.n || parsed.number || "").trim()
+    };
+  } catch (error) {
+    return {
+      boxId: normalizeScanValue(text),
+      managementId: "",
+      productId: "",
+      boxNumber: ""
+    };
+  }
+}
+
+function renderScannerScannedList() {
+  if (elements.scannerScannedCount) {
+    elements.scannerScannedCount.textContent = String(state.scannedShippingRows.length);
+  }
+
+  if (!elements.scannerScannedList) {
+    return;
+  }
+
+  if (!state.scannedShippingRows.length) {
+    elements.scannerScannedList.innerHTML = `
+      <div class="scanner-empty">
+        <strong>아직 스캔한 제품이 없습니다</strong>
+        <span>상단 카메라에 제품 박스 QR을 맞춰주세요.</span>
+      </div>
+    `;
+    return;
+  }
+
+  elements.scannerScannedList.innerHTML = state.scannedShippingRows.map((item, index) => {
+    const activeBoxes = getActiveBoxes(item);
+    const boxCount = activeBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
+    return `
+      <article class="scanner-scanned-item">
+        <span>${index + 1}</span>
+        <div>
+          <strong>${escapeHtml(normalizeDisplay(item.productName || "-"))}</strong>
+          <small>${escapeHtml(normalizeDisplay(item.clientName || "-"))} · ${escapeHtml(normalizeDisplay(item.finalProcess || "-"))} · ${formatNumber(boxCount)}box</small>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function startShippingClock() {
+  updateShippingClock();
+  if (state.clockTimer) {
+    return;
+  }
+  state.clockTimer = window.setInterval(updateShippingClock, 1000);
+}
+
+function stopShippingClock() {
+  if (!state.clockTimer) {
+    return;
+  }
+  window.clearInterval(state.clockTimer);
+  state.clockTimer = null;
+}
+
+function updateShippingClock() {
+  const now = new Date();
+  if (elements.shippingLiveDate) {
+    elements.shippingLiveDate.textContent = formatLongDate(now);
+  }
+  if (elements.shippingLiveTime) {
+    elements.shippingLiveTime.textContent = toTimeKeyWithSeconds(now);
+    elements.shippingLiveTime.dateTime = now.toISOString();
+  }
 }
 
 async function requestApi(action, payload = {}, options = {}) {
@@ -658,6 +805,14 @@ function toTimeKey(date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function toTimeKeyWithSeconds(date) {
+  return [
+    String(date.getHours()).padStart(2, "0"),
+    String(date.getMinutes()).padStart(2, "0"),
+    String(date.getSeconds()).padStart(2, "0")
+  ].join(":");
+}
+
 function toDateKeyFromValue(value) {
   const text = String(value || "").trim();
   if (!text || text === "-") {
@@ -679,6 +834,15 @@ function toDateKeyFromValue(value) {
 function formatShortDate(date) {
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
   return `${date.getMonth() + 1}.${date.getDate()} (${weekdays[date.getDay()]})`;
+}
+
+function formatLongDate(date) {
+  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")} (${weekdays[date.getDay()]})`;
+}
+
+function normalizeScanValue(value) {
+  return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
 }
 
 function escapeHtml(value) {
