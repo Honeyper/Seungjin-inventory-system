@@ -15,7 +15,10 @@ const state = {
   scannerCanvasContext: null,
   scannerLastValue: "",
   isProcessingScan: false,
-  clockTimer: null
+  clockTimer: null,
+  scannerSheetStartY: 0,
+  scannerSheetDragging: false,
+  scannerSheetMoved: false
 };
 
 const elements = {
@@ -46,6 +49,8 @@ const elements = {
   scannerScreen: document.querySelector("#scannerScreen"),
   scannerVideo: document.querySelector("#scannerVideo"),
   scannerHelpText: document.querySelector("#scannerHelpText"),
+  scannerListPanel: document.querySelector("#scannerListPanel"),
+  scannerSheetHandle: document.querySelector("#scannerSheetHandle"),
   scannerScannedCount: document.querySelector("#scannerScannedCount"),
   scannerScannedList: document.querySelector("#scannerScannedList"),
   closeScannerButton: document.querySelector("#closeScannerButton"),
@@ -96,6 +101,7 @@ function bindEvents() {
   });
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
+  bindScannerSheetEvents();
 
   document.querySelectorAll("[data-mobile-route]").forEach((button) => {
     button.addEventListener("click", () => navigate(button.dataset.mobileRoute));
@@ -119,6 +125,65 @@ function bindEvents() {
       closeConfirmModal();
     }
   });
+}
+
+function bindScannerSheetEvents() {
+  const dragTarget = elements.scannerSheetHandle || elements.scannerListPanel;
+  if (!dragTarget || !elements.scannerListPanel) {
+    return;
+  }
+
+  dragTarget.addEventListener("click", () => {
+    if (state.scannerSheetMoved) {
+      state.scannerSheetMoved = false;
+      return;
+    }
+    toggleScannerSheet();
+  });
+
+  dragTarget.addEventListener("pointerdown", (event) => {
+    state.scannerSheetDragging = true;
+    state.scannerSheetStartY = event.clientY;
+    dragTarget.setPointerCapture?.(event.pointerId);
+  });
+
+  dragTarget.addEventListener("pointerup", (event) => {
+    if (!state.scannerSheetDragging) {
+      return;
+    }
+
+    const deltaY = event.clientY - state.scannerSheetStartY;
+    const moved = Math.abs(deltaY) > 36;
+    state.scannerSheetDragging = false;
+    dragTarget.releasePointerCapture?.(event.pointerId);
+
+    if (deltaY < -36) {
+      state.scannerSheetMoved = true;
+      setScannerSheetExpanded(true);
+    } else if (deltaY > 36) {
+      state.scannerSheetMoved = true;
+      setScannerSheetExpanded(false);
+    }
+
+    if (!moved) {
+      state.scannerSheetMoved = false;
+    }
+  });
+
+  dragTarget.addEventListener("pointercancel", () => {
+    state.scannerSheetDragging = false;
+  });
+}
+
+function toggleScannerSheet() {
+  setScannerSheetExpanded(!elements.scannerListPanel?.classList.contains("expanded"));
+}
+
+function setScannerSheetExpanded(expanded) {
+  elements.scannerListPanel?.classList.toggle("expanded", expanded);
+  if (elements.scannerSheetHandle) {
+    elements.scannerSheetHandle.setAttribute("aria-label", expanded ? "스캔 목록 접기" : "스캔 목록 펼치기");
+  }
 }
 
 async function handleAdminLogin(event) {
@@ -536,6 +601,7 @@ async function completeShippingItem(item, selectedBoxes) {
 async function openScanner() {
   elements.scannerScreen.hidden = false;
   state.scannerLastValue = "";
+  setScannerSheetExpanded(false);
   renderScannerScannedList();
   setScannerHelp("QR 코드가 인식되지 않으면 수동 입력을 사용해주세요.");
 
