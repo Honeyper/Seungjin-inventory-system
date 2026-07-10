@@ -1,7 +1,7 @@
 :root {
   --navy: #082a62;
   --navy-dark: #061f4c;
-  --blue: #0b63f6;
+  --blue: #082e6c;
   --gold: #d0a14b;
   --ink: #172234;
   --muted: #66758b;
@@ -104,8 +104,8 @@ img {
 #loginScreen,
 #homeScreen {
   background:
-    radial-gradient(circle at 16% 18%, rgba(11, 99, 246, 0.08), transparent 24%),
-    radial-gradient(circle at 80% 12%, rgba(11, 99, 246, 0.07), transparent 30%),
+    radial-gradient(circle at 16% 18%, rgba(8, 42, 98, 0.08), transparent 24%),
+    radial-gradient(circle at 80% 12%, rgba(8, 42, 98, 0.07), transparent 30%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 254, 0.96));
 }
 
@@ -151,7 +151,7 @@ img {
   position: absolute;
   z-index: 1;
   border-radius: 999px;
-  background: rgba(11, 99, 246, 0.08);
+  background: rgba(8, 42, 98, 0.08);
   content: "";
 }
 
@@ -161,8 +161,8 @@ img {
   width: 9px;
   height: 9px;
   box-shadow:
-    -26px 32px 0 rgba(11, 99, 246, 0.06),
-    62px 18px 0 rgba(11, 99, 246, 0.07);
+    -26px 32px 0 rgba(8, 42, 98, 0.06),
+    62px 18px 0 rgba(8, 42, 98, 0.07);
 }
 
 .login-hero::after {
@@ -170,7 +170,7 @@ img {
   bottom: 58px;
   width: 54px;
   height: 54px;
-  border: 9px solid rgba(11, 99, 246, 0.05);
+  border: 9px solid rgba(8, 42, 98, 0.05);
   background: transparent;
 }
 
@@ -307,7 +307,7 @@ img {
 
 .field-control:focus-within {
   border-color: var(--blue);
-  box-shadow: 0 0 0 4px rgba(11, 99, 246, 0.1);
+  box-shadow: 0 0 0 4px rgba(8, 42, 98, 0.1);
 }
 
 .field-control > svg {
@@ -376,8 +376,8 @@ img {
 
 .primary-action {
   color: #fff;
-  background: linear-gradient(180deg, var(--blue), #0848d6);
-  box-shadow: 0 16px 26px rgba(11, 99, 246, 0.28);
+  background: linear-gradient(180deg, #082e6c, #061f4c);
+  box-shadow: 0 16px 26px rgba(8, 42, 98, 0.24);
 }
 
 .primary-action:disabled,
@@ -448,7 +448,7 @@ img {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 14% 18%, rgba(11, 99, 246, 0.11), transparent 26%),
+    radial-gradient(circle at 14% 18%, rgba(8, 42, 98, 0.11), transparent 26%),
     radial-gradient(circle at 86% 18%, rgba(208, 161, 75, 0.12), transparent 24%);
   content: "";
   pointer-events: none;
@@ -668,8 +668,8 @@ img {
   color: #fff;
   font-size: 14px;
   font-weight: 900;
-  background: linear-gradient(180deg, var(--blue), #0848d6);
-  box-shadow: 0 12px 22px rgba(11, 99, 246, 0.22);
+  background: linear-gradient(180deg, #082e6c, #061f4c);
+  box-shadow: 0 12px 22px rgba(8, 42, 98, 0.2);
 }
 
 .scan-button svg {
@@ -697,7 +697,7 @@ img {
 
 .mobile-search:focus-within {
   border-color: var(--blue);
-  box-shadow: 0 0 0 4px rgba(11, 99, 246, 0.1);
+  box-shadow: 0 0 0 4px rgba(8, 42, 98, 0.1);
 }
 
 .mobile-search svg {
@@ -787,8 +787,8 @@ img {
 .date-chip-row button.active {
   border-color: var(--blue);
   color: #fff;
-  background: linear-gradient(180deg, var(--blue), #0848d6);
-  box-shadow: 0 10px 18px rgba(11, 99, 246, 0.2);
+  background: linear-gradient(180deg, #082e6c, #061f4c);
+  box-shadow: 0 10px 18px rgba(8, 42, 98, 0.18);
 }
 
 .shipping-action-row {
@@ -965,8 +965,8 @@ img {
 
 .ship-now-button {
   color: #fff;
-  background: linear-gradient(180deg, var(--blue), #0848d6);
-  box-shadow: 0 14px 24px rgba(11, 99, 246, 0.23);
+  background: linear-gradient(180deg, #082e6c, #061f4c);
+  box-shadow: 0 14px 24px rgba(8, 42, 98, 0.2);
 }
 
 .ship-pending-button {
@@ -1224,7 +1224,7 @@ img {
   top: 48%;
   width: min(76vw, 330px);
   height: min(76vw, 330px);
-  border: 3px solid rgba(11, 99, 246, 0.98);
+  border: 3px solid rgba(8, 42, 98, 0.98);
   border-radius: 14px;
   transform: translate(-50%, -50%);
   box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.08);
@@ -1236,8 +1236,8 @@ img {
   right: -14px;
   top: 50%;
   height: 2px;
-  background: rgba(11, 99, 246, 0.86);
-  box-shadow: 0 0 16px rgba(11, 99, 246, 0.9);
+  background: rgba(8, 42, 98, 0.86);
+  box-shadow: 0 0 16px rgba(8, 42, 98, 0.76);
   content: "";
 }
 
@@ -1694,10 +1694,10 @@ img {
   right: 118px;
   width: 8px;
   height: 8px;
-  background: rgba(11, 99, 246, 0.12);
+  background: rgba(8, 42, 98, 0.12);
   box-shadow:
-    -20px 26px 0 rgba(11, 99, 246, 0.06),
-    58px 12px 0 rgba(11, 99, 246, 0.08);
+    -20px 26px 0 rgba(8, 42, 98, 0.06),
+    58px 12px 0 rgba(8, 42, 98, 0.08);
 }
 
 .login-hero::after {
@@ -1962,14 +1962,14 @@ img {
 #loginScreen {
   padding: max(28px, env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
   background:
-    radial-gradient(circle at 74% 8%, rgba(11, 99, 246, 0.08), transparent 26%),
+    radial-gradient(circle at 74% 8%, rgba(8, 42, 98, 0.08), transparent 26%),
     linear-gradient(180deg, #ffffff 0%, #f2f6fc 100%);
 }
 
 #homeScreen {
   padding: max(20px, env(safe-area-inset-top)) 18px calc(90px + env(safe-area-inset-bottom));
   background:
-    radial-gradient(circle at 78% 0%, rgba(11, 99, 246, 0.1), transparent 26%),
+    radial-gradient(circle at 78% 0%, rgba(8, 42, 98, 0.1), transparent 26%),
     linear-gradient(180deg, #ffffff 0%, #eef4fb 100%);
 }
 
@@ -1989,11 +1989,11 @@ img {
   right: 66px;
   width: 8px;
   height: 8px;
-  background: rgba(11, 99, 246, 0.1);
+  background: rgba(8, 42, 98, 0.1);
   box-shadow:
-    -42px 34px 0 rgba(11, 99, 246, 0.06),
-    70px 18px 0 rgba(11, 99, 246, 0.09),
-    -152px 236px 0 rgba(11, 99, 246, 0.05);
+    -42px 34px 0 rgba(8, 42, 98, 0.06),
+    70px 18px 0 rgba(8, 42, 98, 0.09),
+    -152px 236px 0 rgba(8, 42, 98, 0.05);
 }
 
 .login-hero::after {
@@ -2004,8 +2004,8 @@ img {
   height: 118px;
   border: 0;
   background:
-    radial-gradient(circle at center, transparent 0 15px, rgba(11, 99, 246, 0.08) 16px 22px, transparent 23px),
-    linear-gradient(135deg, rgba(11, 99, 246, 0.08), transparent 72%);
+    radial-gradient(circle at center, transparent 0 15px, rgba(8, 42, 98, 0.08) 16px 22px, transparent 23px),
+    linear-gradient(135deg, rgba(8, 42, 98, 0.08), transparent 72%);
 }
 
 .mobile-brand {
@@ -2142,8 +2142,8 @@ img {
 .primary-action {
   gap: 0;
   margin-top: 18px;
-  background: linear-gradient(180deg, var(--blue), #0848d6);
-  box-shadow: 0 16px 26px rgba(11, 99, 246, 0.24);
+  background: linear-gradient(180deg, #082e6c, #061f4c);
+  box-shadow: 0 16px 26px rgba(8, 42, 98, 0.2);
 }
 
 .primary-action:disabled,
@@ -2188,8 +2188,8 @@ img {
 
 .welcome-panel::after {
   background:
-    radial-gradient(circle at 22% 16%, rgba(11, 99, 246, 0.1), transparent 25%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(11, 99, 246, 0.04));
+    radial-gradient(circle at 22% 16%, rgba(8, 42, 98, 0.1), transparent 25%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(8, 42, 98, 0.04));
 }
 
 .welcome-panel > div:first-child {
