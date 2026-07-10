@@ -2356,3 +2356,358 @@ img {
     height: 66px;
   }
 }
+
+/* Keep the login view inside the visible mobile viewport, including iPhone Safari. */
+#loginScreen {
+  height: 100svh;
+  min-height: 100svh;
+  overflow: hidden;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+}
+
+#loginScreen.active {
+  display: flex;
+  flex-direction: column;
+}
+
+#loginScreen .login-hero {
+  flex: 0 1 auto;
+  min-height: clamp(230px, 36svh, 330px);
+  margin: calc(-1 * max(16px, env(safe-area-inset-top))) -16px 0;
+  padding: max(28px, calc(env(safe-area-inset-top) + 18px)) 22px 0;
+}
+
+#loginScreen .login-hero .mobile-brand .brand-copy strong {
+  font-size: 34px;
+}
+
+#loginScreen .login-hero .mobile-brand .brand-copy em {
+  font-size: 13px;
+}
+
+#loginScreen .hero-copy {
+  margin-top: 24px;
+}
+
+#loginScreen .hero-copy p {
+  margin-bottom: 7px;
+  font-size: 20px;
+}
+
+#loginScreen .hero-copy h1 {
+  font-size: 34px;
+  line-height: 1.08;
+}
+
+#loginScreen .hero-copy span {
+  max-width: 230px;
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+#loginScreen .hero-logistics-art {
+  right: -12px;
+  bottom: 0;
+  width: 236px;
+  height: 214px;
+}
+
+#loginScreen .login-card {
+  flex: 0 0 auto;
+  margin-top: -10px;
+  padding: 18px 16px 14px;
+  border-radius: 16px;
+}
+
+#loginScreen .login-card-head {
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+#loginScreen .login-lock,
+#loginScreen .login-lock img {
+  width: 62px;
+  height: 62px;
+}
+
+#loginScreen .login-card h2 {
+  font-size: 27px;
+}
+
+#loginScreen .login-card p {
+  font-size: 13px;
+}
+
+#loginScreen .mobile-field {
+  gap: 6px;
+  margin-top: 10px;
+}
+
+#loginScreen .mobile-field > span:first-child {
+  font-size: 14px;
+}
+
+#loginScreen .field-control {
+  min-height: 50px;
+  padding: 0 12px;
+}
+
+#loginScreen .field-control > img {
+  width: 22px;
+  height: 22px;
+}
+
+#loginScreen .field-control input {
+  font-size: 15px;
+}
+
+#loginScreen .ghost-icon-button {
+  width: 34px;
+  height: 34px;
+}
+
+#loginScreen .ghost-icon-button img {
+  width: 22px;
+  height: 22px;
+}
+
+#loginScreen .form-message {
+  min-height: 16px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+#loginScreen .primary-action,
+#loginScreen .secondary-action {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+#loginScreen .primary-action {
+  margin-top: 8px;
+}
+
+#loginScreen .secondary-action {
+  margin-top: 8px;
+}
+
+@media (max-height: 700px) {
+  #loginScreen {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  #loginScreen .login-hero {
+    min-height: clamp(168px, 30svh, 220px);
+    margin-top: calc(-1 * max(12px, env(safe-area-inset-top)));
+    padding-top: max(20px, calc(env(safe-area-inset-top) + 10px));
+  }
+
+  #loginScreen .login-hero .mobile-brand .brand-copy strong {
+    font-size: 30px;
+  }
+
+  #loginScreen .login-hero .mobile-brand .brand-copy em {
+    font-size: 12px;
+  }
+
+  #loginScreen .hero-copy {
+    margin-top: 14px;
+  }
+
+  #loginScreen .hero-copy p {
+    margin-bottom: 4px;
+    font-size: 17px;
+  }
+
+  #loginScreen .hero-copy h1 {
+    font-size: 29px;
+  }
+
+  #loginScreen .hero-copy span {
+    display: none;
+  }
+
+  #loginScreen .hero-logistics-art {
+    right: -28px;
+    width: 205px;
+    height: 168px;
+  }
+
+  #loginScreen .login-card {
+    margin-top: -6px;
+    padding: 14px 14px 12px;
+  }
+
+  #loginScreen .login-card-head {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  #loginScreen .login-lock,
+  #loginScreen .login-lock img {
+    width: 50px;
+    height: 50px;
+  }
+
+  #loginScreen .login-card h2 {
+    font-size: 23px;
+  }
+
+  #loginScreen .mobile-field {
+    margin-top: 8px;
+  }
+
+  #loginScreen .field-control {
+    min-height: 46px;
+  }
+
+  #loginScreen .primary-action,
+  #loginScreen .secondary-action {
+    min-height: 44px;
+  }
+}
+
+@media (max-height: 610px) {
+  #loginScreen .login-hero {
+    min-height: 128px;
+  }
+
+  #loginScreen .hero-copy {
+    display: none;
+  }
+
+  #loginScreen .hero-logistics-art {
+    display: none;
+  }
+
+  #loginScreen .login-card {
+    margin-top: 8px;
+  }
+
+  #loginScreen .login-card-head {
+    grid-template-columns: 44px minmax(0, 1fr);
+    margin-bottom: 8px;
+  }
+
+  #loginScreen .login-lock,
+  #loginScreen .login-lock img {
+    width: 44px;
+    height: 44px;
+  }
+
+  #loginScreen .login-card h2 {
+    font-size: 21px;
+  }
+
+  #loginScreen .login-card p {
+    display: none;
+  }
+
+  #loginScreen .field-control {
+    min-height: 42px;
+  }
+
+  #loginScreen .form-message {
+    min-height: 14px;
+    margin-top: 4px;
+  }
+
+  #loginScreen .primary-action,
+  #loginScreen .secondary-action {
+    min-height: 40px;
+  }
+}
+
+@media (max-height: 430px) {
+  #loginScreen {
+    padding: max(8px, env(safe-area-inset-top)) 12px max(8px, env(safe-area-inset-bottom));
+  }
+
+  #loginScreen .login-hero {
+    display: none;
+  }
+
+  #loginScreen .login-card {
+    width: 100%;
+    max-width: 430px;
+    margin: 0 auto;
+    padding: 8px 10px;
+  }
+
+  #loginScreen .login-card-head {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  #loginScreen .login-lock,
+  #loginScreen .login-lock img {
+    width: 34px;
+    height: 34px;
+  }
+
+  #loginScreen .login-card h2 {
+    font-size: 19px;
+  }
+
+  #loginScreen .mobile-field {
+    gap: 3px;
+    margin-top: 6px;
+  }
+
+  #loginScreen .mobile-field > span:first-child {
+    font-size: 12px;
+  }
+
+  #loginScreen .field-control {
+    min-height: 35px;
+    border-radius: 8px;
+    padding: 0 10px;
+  }
+
+  #loginScreen .field-control > img {
+    width: 18px;
+    height: 18px;
+  }
+
+  #loginScreen .field-control input {
+    font-size: 14px;
+  }
+
+  #loginScreen .ghost-icon-button {
+    width: 30px;
+    height: 30px;
+  }
+
+  #loginScreen .ghost-icon-button img {
+    width: 18px;
+    height: 18px;
+  }
+
+  #loginScreen .form-message {
+    min-height: 10px;
+    margin-top: 2px;
+    font-size: 10px;
+  }
+
+  #loginScreen .primary-action,
+  #loginScreen .secondary-action {
+    min-height: 34px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  #loginScreen .primary-action,
+  #loginScreen .secondary-action {
+    margin-top: 4px;
+  }
+
+  #loginScreen .secondary-action svg {
+    width: 20px;
+    height: 20px;
+  }
+}
