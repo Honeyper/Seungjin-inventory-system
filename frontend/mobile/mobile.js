@@ -261,7 +261,12 @@ function applyShippingFilters() {
         row.productName,
         row.batch,
         row.finalProcess,
-        row.storage
+        row.storage,
+        row.scannedBoxId,
+        row.scannedBoxNumber,
+        row.scannedBox?.boxId,
+        row.scannedBox?.number,
+        row.scannedBox?.status
       ].some((value) => String(value || "").toLowerCase().includes(query));
     });
 
@@ -310,12 +315,18 @@ function renderShippingList(rows) {
 
 function renderShippingItem(item) {
   const key = getShippingKey(item);
+  const scannedBox = getScannedBox(item);
   const displayBoxes = getKnownBoxes(item);
-  const boxCount = displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
-  const totalQuantity = sumBoxQuantity(displayBoxes) || parseNumber(item.currentTotalQuantity);
-  const remainingQuantity = parseNumber(item.currentTotalQuantity);
+  const boxCount = scannedBox ? 1 : displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
+  const totalQuantity = scannedBox
+    ? parseNumber(scannedBox.quantity || scannedBox.currentQuantity || item.currentTotalQuantity)
+    : sumBoxQuantity(displayBoxes) || parseNumber(item.currentTotalQuantity);
+  const remainingQuantity = scannedBox
+    ? parseNumber(scannedBox.currentQuantity || scannedBox.quantity || item.currentTotalQuantity)
+    : parseNumber(item.currentTotalQuantity);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
+  const boxLabel = getScannedBoxLabel(item);
   const processClass = /2|3/.test(process) ? "green" : "";
 
   return `
@@ -325,7 +336,7 @@ function renderShippingItem(item) {
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             ${escapeHtml(normalizeDisplay(item.productName || "-"))}
-            <small>| ${escapeHtml(batch)}</small>
+            <small>| ${escapeHtml(batch)}${boxLabel ? ` · ${escapeHtml(boxLabel)}` : ""}</small>
           </div>
         </div>
         <span class="process-pill ${processClass}">${escapeHtml(process)}</span>
@@ -387,8 +398,9 @@ function renderShippingError(message) {
 
 function openConfirmModal(item) {
   state.selectedShippingItem = item;
+  const scannedBoxLabel = getScannedBoxLabel(item);
   const boxes = getActiveBoxes(item);
-  const boxText = boxes.length ? ` · ${boxes.length}box` : "";
+  const boxText = scannedBoxLabel ? ` · ${scannedBoxLabel}` : boxes.length ? ` · ${boxes.length}box` : "";
   elements.confirmProductName.textContent = `${normalizeDisplay(item.productName)} | ${normalizeDisplay(item.batch || "-")} | ${normalizeDisplay(item.finalProcess || "-")}${boxText}`;
   elements.confirmModal.hidden = false;
 }
@@ -404,10 +416,14 @@ async function handleConfirmShipping() {
   }
 
   const item = state.selectedShippingItem;
-  const selectedBoxes = getActiveBoxes(item).map((box) => box.number).filter(Boolean);
+  const scannedBox = getScannedBox(item);
+  const scannedBoxNumber = normalizeDisplay(scannedBox?.number || item.scannedBoxNumber || "");
+  const selectedBoxes = scannedBox
+    ? (isBoxWaitingForShipping(scannedBox) && scannedBoxNumber !== "-" ? [scannedBoxNumber] : [])
+    : getActiveBoxes(item).map((box) => box.number).filter(Boolean);
 
   if (!selectedBoxes.length) {
-    showToast("출고대기 등록된 박스가 없습니다.");
+    showToast(scannedBox ? "이 박스는 출고대기 상태가 아닙니다." : "출고대기 등록된 박스가 없습니다.");
     closeConfirmModal();
     return;
   }
@@ -676,15 +692,15 @@ async function handleQrValue(rawValue) {
     const matched = findShippingByQrValue(value);
 
     if (!matched) {
-      setScannerHelp("일치하는 제품을 찾지 못했습니다. QR 또는 제품 정보를 확인해주세요.");
-      showToast("일치하는 제품이 없습니다.");
+      setScannerHelp("일치하는 박스를 찾지 못했습니다. QR 또는 박스 정보를 확인해주세요.");
+      showToast("일치하는 박스가 없습니다.");
       return;
     }
 
     const key = getShippingKey(matched);
     if (state.scannedShippingRows.some((row) => getShippingKey(row) === key)) {
-      setScannerHelp("이미 스캔된 제품입니다. 다른 박스를 계속 스캔할 수 있습니다.");
-      showToast("이미 등록된 제품입니다.");
+      setScannerHelp("이미 스캔된 박스입니다. 다른 박스를 계속 스캔할 수 있습니다.");
+      showToast("이미 등록된 박스입니다.");
       return;
     }
 
@@ -694,8 +710,9 @@ async function handleQrValue(rawValue) {
       elements.shippingSearchInput.value = "";
     }
     applyShippingFilters();
+    triggerScanFeedback();
     setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
-    showToast("스캔한 제품을 등록했습니다.");
+    showToast("스캔한 박스를 등록했습니다.");
   } catch (error) {
     setScannerHelp(error.message || "스캔한 제품 정보를 확인하지 못했습니다.");
     showToast(error.message || "제품 정보를 확인하지 못했습니다.");
@@ -719,43 +736,92 @@ function findShippingByQrValue(rawValue) {
   const parsed = parseQrValue(rawValue);
   const text = normalizeScanValue(rawValue);
 
-  return state.dashboard
-    .find((row) => {
-      const boxes = getKnownBoxes(row);
-      const rowValues = [
-        row.managementId,
-        row.productId,
-        row.clientName,
-        row.productName,
-        row.batch,
-        row.finalProcess,
-        row.storage
-      ].map(normalizeScanValue);
+  for (const row of state.dashboard) {
+    const boxes = getKnownBoxes(row);
+    const rowValues = [
+      row.managementId,
+      row.productId,
+      row.clientName,
+      row.productName,
+      row.batch,
+      row.finalProcess,
+      row.storage
+    ].map(normalizeScanValue);
 
-      if (parsed.managementId && normalizeScanValue(row.managementId) !== parsed.managementId) {
-        return false;
-      }
+    if (parsed.managementId && normalizeScanValue(row.managementId) !== parsed.managementId) {
+      continue;
+    }
 
-      if (parsed.productId && normalizeScanValue(row.productId) !== parsed.productId) {
-        return false;
-      }
+    if (parsed.productId && normalizeScanValue(row.productId) !== parsed.productId) {
+      continue;
+    }
 
-      if (parsed.boxId) {
-        const hasBox = boxes.some((box) => normalizeScanValue(box.boxId) === parsed.boxId);
-        if (hasBox) {
-          return true;
-        }
-        if (parsed.managementId || parsed.productId) {
-          return true;
-        }
-      }
+    const matchedBox = findMatchedBox(boxes, parsed);
+    if (matchedBox) {
+      return buildScannedBoxItem(row, matchedBox, parsed, rawValue);
+    }
 
-      if (parsed.boxNumber && boxes.some((box) => String(box.number || "") === parsed.boxNumber)) {
-        return true;
-      }
+    if (parsed.managementId || parsed.productId) {
+      return buildScannedBoxItem(row, createParsedBox(parsed), parsed, rawValue);
+    }
 
-      return rowValues.some((value) => value && value.includes(text));
+    if (text && rowValues.some((value) => value && value.includes(text))) {
+      return buildScannedBoxItem(row, boxes[0] || createParsedBox(parsed), parsed, rawValue);
+    }
+  }
+
+  return null;
+}
+
+function findMatchedBox(boxes, parsed) {
+  if (!Array.isArray(boxes) || !boxes.length) {
+    return null;
+  }
+
+  if (parsed.boxId) {
+    const matchedById = boxes.find((box) => {
+      return [box?.boxId, box?.id, box?.qrId].some((value) => normalizeScanValue(value) === parsed.boxId);
     });
+    if (matchedById) {
+      return matchedById;
+    }
+  }
+
+  if (parsed.boxNumber) {
+    const matchedByNumber = boxes.find((box) => {
+      return String(box?.number || box?.sequence || "").trim() === parsed.boxNumber;
+    });
+    if (matchedByNumber) {
+      return matchedByNumber;
+    }
+  }
+
+  return null;
+}
+
+function buildScannedBoxItem(row, box, parsed, rawValue) {
+  const scannedBox = {
+    ...(box || {}),
+    boxId: box?.boxId || parsed.boxId || "",
+    number: box?.number || box?.sequence || parsed.boxNumber || ""
+  };
+
+  return {
+    ...row,
+    scannedBox,
+    scannedBoxId: scannedBox.boxId,
+    scannedBoxNumber: scannedBox.number,
+    scannedQrValue: rawValue
+  };
+}
+
+function createParsedBox(parsed) {
+  return {
+    boxId: parsed.boxId || "",
+    number: parsed.boxNumber || "",
+    status: "",
+    quantity: ""
+  };
 }
 
 function parseQrValue(rawValue) {
@@ -798,14 +864,16 @@ function renderScannerScannedList() {
   }
 
   elements.scannerScannedList.innerHTML = state.scannedShippingRows.map((item, index) => {
-    const displayBoxes = getKnownBoxes(item);
-    const boxCount = displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
+    const scannedBox = getScannedBox(item);
+    const boxLabel = getScannedBoxLabel(item) || "박스 정보 없음";
+    const boxQuantity = scannedBox ? parseNumber(scannedBox.quantity || scannedBox.currentQuantity) : 0;
+    const quantityText = boxQuantity ? ` · ${formatNumber(boxQuantity)}ea` : "";
     return `
       <article class="scanner-scanned-item">
         <span>${index + 1}</span>
         <div>
           <strong>${escapeHtml(normalizeDisplay(item.productName || "-"))}</strong>
-          <small>${escapeHtml(normalizeDisplay(item.clientName || "-"))} · ${escapeHtml(normalizeDisplay(item.finalProcess || "-"))} · ${formatNumber(boxCount)}box</small>
+          <small>${escapeHtml(normalizeDisplay(item.clientName || "-"))} · ${escapeHtml(normalizeDisplay(item.finalProcess || "-"))} · ${escapeHtml(boxLabel)}${quantityText}</small>
         </div>
       </article>
     `;
@@ -876,12 +944,63 @@ function showToast(message) {
 }
 
 function getShippingKey(item) {
+  const boxKey = getScannedBoxKey(item);
   return [
     item.managementId,
     item.productId,
     item.storage,
-    item.productName
+    item.productName,
+    boxKey
   ].map((value) => String(value || "").replace(/\s+/g, "_")).join("__");
+}
+
+function getScannedBox(item) {
+  if (item?.scannedBox) {
+    return item.scannedBox;
+  }
+
+  if (item?.scannedBoxId || item?.scannedBoxNumber) {
+    return {
+      boxId: item.scannedBoxId || "",
+      number: item.scannedBoxNumber || "",
+      status: ""
+    };
+  }
+
+  return null;
+}
+
+function getScannedBoxKey(item) {
+  const box = getScannedBox(item);
+  return normalizeScanValue(
+    item?.scannedBoxId ||
+    box?.boxId ||
+    item?.scannedBoxNumber ||
+    box?.number ||
+    item?.scannedQrValue ||
+    ""
+  );
+}
+
+function getScannedBoxLabel(item) {
+  const box = getScannedBox(item);
+  const boxNumber = normalizeDisplay(item?.scannedBoxNumber || box?.number || box?.sequence || "");
+  if (boxNumber !== "-") {
+    return `${boxNumber}번 박스`;
+  }
+
+  const boxId = normalizeDisplay(item?.scannedBoxId || box?.boxId || "");
+  return boxId !== "-" ? `박스 ${boxId}` : "";
+}
+
+function isBoxWaitingForShipping(box) {
+  return normalizeText(box?.status).includes("출고대기");
+}
+
+function triggerScanFeedback() {
+  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    navigator.vibrate(80);
+  }
 }
 
 function getActiveBoxes(item) {
