@@ -1315,9 +1315,9 @@ img {
 
 .scanner-frame {
   top: 30dvh;
-  width: min(72vw, 300px);
-  height: min(46dvh, 280px);
-  max-height: 280px;
+  width: min(88vw, 380px);
+  height: min(44dvh, 320px);
+  max-height: 320px;
 }
 
 .scanner-help {

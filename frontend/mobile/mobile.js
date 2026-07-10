@@ -464,16 +464,54 @@ async function openScanner() {
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30, max: 30 }
+      },
       audio: false
     });
     state.scannerStream = stream;
+    await tuneScannerCamera(stream);
     elements.scannerVideo.srcObject = stream;
     await elements.scannerVideo.play();
     startBarcodeDetection();
   } catch (error) {
     setScannerHelp("카메라 권한이 차단되었습니다. 권한을 허용하거나 수동 입력을 사용해주세요.");
     showToast("카메라 권한을 허용하거나 수동 입력을 사용해주세요.");
+  }
+}
+
+async function tuneScannerCamera(stream) {
+  const [track] = stream.getVideoTracks();
+  if (!track?.getCapabilities || !track.applyConstraints) {
+    return;
+  }
+
+  const capabilities = track.getCapabilities();
+  const advanced = [];
+
+  if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+    advanced.push({ focusMode: "continuous" });
+  }
+
+  if (Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
+    advanced.push({ exposureMode: "continuous" });
+  }
+
+  if (Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
+    advanced.push({ whiteBalanceMode: "continuous" });
+  }
+
+  if (!advanced.length) {
+    return;
+  }
+
+  try {
+    await track.applyConstraints({ advanced });
+  } catch (error) {
+    // 일부 모바일 브라우저는 capabilities를 알려줘도 constraint 적용을 거부합니다.
   }
 }
 
@@ -493,21 +531,13 @@ function closeScanner() {
 }
 
 function startBarcodeDetection() {
+  const detector = createBarcodeDetector();
   if (typeof window.jsQR === "function") {
-    startJsQrDetection();
+    startJsQrDetection(detector);
     return;
   }
 
-  if (!("BarcodeDetector" in window)) {
-    setScannerHelp("QR 인식 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하거나 수동 입력을 사용해주세요.");
-    showToast("QR 인식 모듈 로딩에 실패했습니다.");
-    return;
-  }
-
-  let detector;
-  try {
-    detector = new BarcodeDetector({ formats: ["qr_code"] });
-  } catch (error) {
+  if (!detector) {
     setScannerHelp("QR 인식 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하거나 수동 입력을 사용해주세요.");
     showToast("QR 인식 모듈 로딩에 실패했습니다.");
     return;
@@ -531,7 +561,19 @@ function startBarcodeDetection() {
   }, 600);
 }
 
-function startJsQrDetection() {
+function createBarcodeDetector() {
+  if (!("BarcodeDetector" in window)) {
+    return null;
+  }
+
+  try {
+    return new BarcodeDetector({ formats: ["qr_code"] });
+  } catch (error) {
+    return null;
+  }
+}
+
+function startJsQrDetection(detector = null) {
   if (typeof window.jsQR !== "function") {
     setScannerHelp("QR 인식 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하거나 수동 입력을 사용해주세요.");
     showToast("QR 인식 모듈 로딩에 실패했습니다.");
@@ -543,8 +585,13 @@ function startJsQrDetection() {
     state.scannerCanvasContext = state.scannerCanvas.getContext("2d", { willReadFrequently: true });
   }
 
-  setScannerHelp("QR 코드를 화면 중앙에 맞춰주세요.");
-  state.scannerTimer = window.setInterval(() => {
+  setScannerHelp("QR 코드가 화면 안에 들어오게 비춰주세요.");
+  let isDetectingFrame = false;
+  state.scannerTimer = window.setInterval(async () => {
+    if (isDetectingFrame) {
+      return;
+    }
+
     const video = elements.scannerVideo;
     const context = state.scannerCanvasContext;
 
@@ -558,7 +605,22 @@ function startJsQrDetection() {
       return;
     }
 
-    const scale = Math.min(1, 900 / Math.max(sourceWidth, sourceHeight));
+    isDetectingFrame = true;
+
+    try {
+      if (detector) {
+        const codes = await detector.detect(video);
+        if (codes.length) {
+          handleQrValue(codes[0].rawValue);
+          isDetectingFrame = false;
+          return;
+        }
+      }
+    } catch (error) {
+      detector = null;
+    }
+
+    const scale = Math.min(1, 1600 / Math.max(sourceWidth, sourceHeight));
     const width = Math.max(1, Math.floor(sourceWidth * scale));
     const height = Math.max(1, Math.floor(sourceHeight * scale));
 
@@ -577,8 +639,10 @@ function startJsQrDetection() {
       state.scannerTimer = null;
       setScannerHelp("QR 인식 중 문제가 발생했습니다. 수동 입력으로 진행해주세요.");
       showToast("QR 인식이 중단되었습니다.");
+    } finally {
+      isDetectingFrame = false;
     }
-  }, 250);
+  }, 180);
 }
 
 function setScannerHelp(message) {
