@@ -313,7 +313,7 @@ async function loadShippingDashboard(options = {}) {
 
 function applyShippingFilters() {
   const query = state.query;
-  const rows = state.scannedShippingRows
+  const rows = groupScannedShippingRows(state.scannedShippingRows
     .filter((row) => {
       if (!query) {
         return true;
@@ -333,11 +333,45 @@ function applyShippingFilters() {
         row.scannedBox?.number,
         row.scannedBox?.status
       ].some((value) => String(value || "").toLowerCase().includes(query));
-    });
+    }));
 
   state.filteredRows = rows;
   renderShippingList(rows);
   renderScannerScannedList();
+}
+
+function groupScannedShippingRows(rows) {
+  const groups = new Map();
+
+  rows.forEach((row) => {
+    const key = getShippingProductGroupKey(row);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        ...row,
+        productGroupKey: key,
+        scannedItems: [],
+        scannedBoxes: [],
+        scannedBoxCount: 0,
+        scannedTotalQuantity: 0,
+        scannedCurrentQuantity: 0
+      });
+    }
+
+    const group = groups.get(key);
+    const scannedBox = getScannedBox(row);
+    const totalQuantity = getBoxTotalQuantity(scannedBox, row);
+    const currentQuantity = getBoxCurrentQuantity(scannedBox, row);
+
+    group.scannedItems.push(row);
+    if (scannedBox) {
+      group.scannedBoxes.push(scannedBox);
+    }
+    group.scannedBoxCount += 1;
+    group.scannedTotalQuantity += totalQuantity;
+    group.scannedCurrentQuantity += currentQuantity;
+  });
+
+  return Array.from(groups.values());
 }
 
 function isMobileShippingCandidate(row) {
@@ -382,16 +416,23 @@ function renderShippingItem(item) {
   const key = getShippingKey(item);
   const scannedBox = getScannedBox(item);
   const displayBoxes = getKnownBoxes(item);
-  const boxCount = scannedBox ? 1 : displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
-  const totalQuantity = scannedBox
-    ? parseNumber(scannedBox.quantity || scannedBox.currentQuantity || item.currentTotalQuantity)
-    : sumBoxQuantity(displayBoxes) || parseNumber(item.currentTotalQuantity);
-  const remainingQuantity = scannedBox
-    ? parseNumber(scannedBox.currentQuantity || scannedBox.quantity || item.currentTotalQuantity)
-    : parseNumber(item.currentTotalQuantity);
+  const isProductGroup = Array.isArray(item.scannedItems);
+  const boxCount = isProductGroup
+    ? item.scannedBoxCount
+    : scannedBox ? 1 : displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
+  const totalQuantity = isProductGroup
+    ? item.scannedTotalQuantity
+    : scannedBox
+      ? getBoxTotalQuantity(scannedBox, item)
+      : sumBoxQuantity(displayBoxes) || parseNumber(item.currentTotalQuantity);
+  const currentQuantity = isProductGroup
+    ? item.scannedCurrentQuantity
+    : scannedBox
+      ? getBoxCurrentQuantity(scannedBox, item)
+      : parseNumber(item.currentTotalQuantity);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
-  const boxLabel = getScannedBoxLabel(item);
+  const boxLabel = isProductGroup ? `스캔 ${formatNumber(boxCount)}박스` : getScannedBoxLabel(item);
   const processClass = /2|3/.test(process) ? "green" : "";
 
   return `
@@ -410,19 +451,19 @@ function renderShippingItem(item) {
       <p class="item-worker"><span>작업자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
       <div class="item-metrics">
         <span class="metric">
+          <span>스캔 박스</span>
+          <strong>${formatNumber(boxCount)}</strong>
+          <small>box</small>
+        </span>
+        <span class="metric">
           <span>총 수량</span>
           <strong>${formatNumber(totalQuantity)}</strong>
           <small>ea</small>
         </span>
         <span class="metric">
-          <span>잔량</span>
-          <strong class="blue">${formatNumber(remainingQuantity)}</strong>
+          <span>현재 수량</span>
+          <strong class="blue">${formatNumber(currentQuantity)}</strong>
           <small>ea</small>
-        </span>
-        <span class="metric">
-          <span>박스 수</span>
-          <strong>${formatNumber(boxCount)}</strong>
-          <small>box</small>
         </span>
       </div>
     </article>
@@ -465,7 +506,9 @@ function openConfirmModal(item) {
   state.selectedShippingItem = item;
   const scannedBoxLabel = getScannedBoxLabel(item);
   const boxes = getActiveBoxes(item);
-  const boxText = scannedBoxLabel ? ` · ${scannedBoxLabel}` : boxes.length ? ` · ${boxes.length}box` : "";
+  const boxText = Array.isArray(item.scannedItems)
+    ? ` · ${item.scannedBoxCount}box`
+    : scannedBoxLabel ? ` · ${scannedBoxLabel}` : boxes.length ? ` · ${boxes.length}box` : "";
   elements.confirmProductName.textContent = `${normalizeDisplay(item.productName)} | ${normalizeDisplay(item.batch || "-")} | ${normalizeDisplay(item.finalProcess || "-")}${boxText}`;
   elements.confirmModal.hidden = false;
 }
@@ -494,10 +537,18 @@ async function handleConfirmShipping() {
   elements.acceptConfirmButton.textContent = "처리 중";
 
   try {
-    const result = await completeShippingItem(item, selectedBoxes);
+    const targetItems = Array.isArray(item.scannedItems) ? item.scannedItems : [item];
+    const result = await completeShippingItems(targetItems);
 
     closeConfirmModal();
-    showToast(result?.isPartialShipping ? "선택 박스를 출고 완료 처리했습니다." : "출고 완료 처리했습니다.");
+    if (result.completedCount > 0) {
+      const failedSet = new Set(result.failedItems);
+      state.scannedShippingRows = state.scannedShippingRows.filter((row) => !targetItems.includes(row) || failedSet.has(row));
+      applyShippingFilters();
+      showToast(result.failedItems.length ? `${result.completedCount}개 박스 출고 완료, ${result.failedItems.length}건 실패` : `${result.completedCount}개 박스 출고 완료`);
+    } else {
+      showToast("출고 처리된 박스가 없습니다.");
+    }
     await loadShippingDashboard();
   } catch (error) {
     showToast(error.message || "출고 처리 중 문제가 발생했습니다.");
@@ -523,24 +574,8 @@ async function handleCompleteScannedShipping() {
   elements.scannerDoneButton.disabled = true;
   elements.scannerDoneButton.textContent = "처리 중";
 
-  let completedCount = 0;
-  const failedItems = [];
-
   try {
-    for (const item of items) {
-      const selectedBoxes = getSelectedBoxNumbers(item);
-      if (!selectedBoxes.length) {
-        failedItems.push(item);
-        continue;
-      }
-
-      try {
-        await completeShippingItem(item, selectedBoxes);
-        completedCount += selectedBoxes.length;
-      } catch (error) {
-        failedItems.push(item);
-      }
-    }
+    const { completedCount, failedItems } = await completeShippingItems(items);
 
     if (completedCount > 0) {
       triggerScanFeedback();
@@ -562,6 +597,28 @@ async function handleCompleteScannedShipping() {
       출고
     `;
   }
+}
+
+async function completeShippingItems(items) {
+  let completedCount = 0;
+  const failedItems = [];
+
+  for (const item of items) {
+    const selectedBoxes = getSelectedBoxNumbers(item);
+    if (!selectedBoxes.length) {
+      failedItems.push(item);
+      continue;
+    }
+
+    try {
+      await completeShippingItem(item, selectedBoxes);
+      completedCount += selectedBoxes.length;
+    } catch (error) {
+      failedItems.push(item);
+    }
+  }
+
+  return { completedCount, failedItems };
 }
 
 async function completeShippingItem(item, selectedBoxes) {
@@ -1078,6 +1135,10 @@ function showToast(message) {
 }
 
 function getShippingKey(item) {
+  if (item?.productGroupKey) {
+    return item.productGroupKey;
+  }
+
   const boxKey = getScannedBoxKey(item);
   return [
     item.managementId,
@@ -1086,6 +1147,17 @@ function getShippingKey(item) {
     item.productName,
     boxKey
   ].map((value) => String(value || "").replace(/\s+/g, "_")).join("__");
+}
+
+function getShippingProductGroupKey(item) {
+  return [
+    item.managementId,
+    item.productId,
+    item.storage,
+    item.productName,
+    item.batch,
+    item.finalProcess
+  ].map((value) => normalizeScanValue(value) || "-").join("__");
 }
 
 function getScannedBox(item) {
@@ -1128,6 +1200,12 @@ function getScannedBoxLabel(item) {
 }
 
 function getSelectedBoxNumbers(item) {
+  if (Array.isArray(item?.scannedItems)) {
+    return item.scannedItems
+      .flatMap((row) => getSelectedBoxNumbers(row))
+      .filter(Boolean);
+  }
+
   const scannedBox = getScannedBox(item);
   if (scannedBox) {
     const boxNumber = String(scannedBox.number || scannedBox.sequence || item?.scannedBoxNumber || "").trim();
@@ -1138,6 +1216,24 @@ function getSelectedBoxNumbers(item) {
     .filter((box) => !normalizeText(box.status).includes("출고완료"))
     .map((box) => String(box.number || box.sequence || "").trim())
     .filter(Boolean);
+}
+
+function getBoxTotalQuantity(box, item) {
+  return parseNumber(
+    box?.originalQuantity ||
+    box?.totalQuantity ||
+    box?.boxQuantity ||
+    box?.quantity ||
+    item?.currentTotalQuantity
+  );
+}
+
+function getBoxCurrentQuantity(box, item) {
+  return parseNumber(
+    box?.currentQuantity ||
+    box?.quantity ||
+    item?.currentTotalQuantity
+  );
 }
 
 function triggerScanFeedback() {
