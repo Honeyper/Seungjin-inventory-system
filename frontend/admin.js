@@ -5722,7 +5722,6 @@ function renderQrProcessDateCheck(label, finalProcess = "") {
     <div class="box-qr-standard-process${isDisabled ? " is-disabled" : ""}"${isDisabled ? ' aria-disabled="true"' : ""}>
       <span>${escapeHtml(label)}</span>
       <i aria-hidden="true"></i>
-      <em>포장일</em>
       <b>____월 ____일</b>
     </div>
   `;

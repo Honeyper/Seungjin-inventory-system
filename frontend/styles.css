@@ -6433,10 +6433,10 @@ input {
 
 .box-qr-standard-process b {
   grid-column: 3;
-  grid-row: 2;
-  align-self: start;
+  grid-row: 1 / 3;
+  align-self: center;
   color: #0b1628;
-  font-size: 6.9pt;
+  font-size: 8pt;
   font-weight: 900;
   line-height: 1.05;
   white-space: nowrap;
