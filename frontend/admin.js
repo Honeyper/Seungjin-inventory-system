@@ -5606,38 +5606,36 @@ function renderInboundQrSheet(inbound, boxes) {
       });
     }
 
+    const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스`;
+
     return `
-      <article class="box-qr-label">
+      <article class="box-qr-label box-qr-label-standard">
         <div class="box-qr-title">승진 관리 시스템</div>
         <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
-        <div class="box-qr-main">
-          <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
-          <div class="box-qr-checks" aria-label="공정 체크">
-            ${renderQrProcessCheck("1도", processText)}
-            ${renderQrProcessCheck("2도", processText)}
-            ${renderQrProcessCheck("3도", processText)}
-            ${renderQrProcessCheck("관리자 확인")}
+        <div class="box-qr-standard-main">
+          <div class="box-qr-standard-code">
+            <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
+          </div>
+          <div class="box-qr-standard-checks" aria-label="공정별 포장일 및 확인">
+            ${renderQrProcessDateCheck("1도", processText)}
+            ${renderQrProcessDateCheck("2도", processText)}
+            ${renderQrProcessDateCheck("3도", processText)}
+            <div class="box-qr-standard-admin">
+              <span>관리자 확인</span>
+              <i aria-hidden="true"></i>
+            </div>
           </div>
         </div>
-        <dl class="box-qr-meta">
-          <div>
-            <dt>제품명</dt>
-            <dd>${escapeHtml(productName)}</dd>
-          </div>
-          <div>
-            <dt>박스 정보</dt>
-            <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
-          </div>
-          <div>
-            <dt>포장 날짜</dt>
-            <dd class="box-qr-date-blank">_____월 _____일</dd>
-          </div>
-        </dl>
-        <div class="box-qr-signatures" aria-label="서명란">
-          <div class="box-qr-signature">
-            <span>작업자 서명</span>
-            <i aria-hidden="true"></i>
-          </div>
+        <div class="box-qr-standard-row box-qr-standard-product">
+          <span>제품명</span>
+          <strong>${escapeHtml(productName)}</strong>
+        </div>
+        <div class="box-qr-standard-row box-qr-standard-signature" aria-label="작업자 서명란">
+          <span>작업자<br />서명</span>
+          <i aria-hidden="true"></i>
+        </div>
+        <div class="box-qr-standard-footer">
+          <strong>${escapeHtml(boxLabel)}</strong>
         </div>
       </article>
     `;
@@ -5715,6 +5713,18 @@ function renderQrProcessCheck(label, finalProcess = "") {
       ${escapeHtml(label)}
       <i aria-hidden="true"></i>
     </span>
+  `;
+}
+
+function renderQrProcessDateCheck(label, finalProcess = "") {
+  const isDisabled = isQrProcessDisabled(label, finalProcess);
+  return `
+    <div class="box-qr-standard-process${isDisabled ? " is-disabled" : ""}"${isDisabled ? ' aria-disabled="true"' : ""}>
+      <span>${escapeHtml(label)}</span>
+      <i aria-hidden="true"></i>
+      <em>포장일</em>
+      <b>____월 ____일</b>
+    </div>
   `;
 }
 

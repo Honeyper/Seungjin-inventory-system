@@ -6330,6 +6330,212 @@ input {
   border-bottom: 0.55pt solid #111827;
 }
 
+.box-qr-label-standard {
+  display: grid;
+  grid-template-rows: 8.4mm 6.2mm 25.2mm 8.7mm 9.2mm 4.8mm;
+  gap: 0;
+  padding: 0;
+  border: 0.6pt solid #111827;
+  border-radius: 1mm;
+  color: #0b1628;
+  background: #fff;
+}
+
+.box-qr-label-standard .box-qr-title {
+  height: auto;
+  margin: 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, #071426, #020813);
+  font-size: 14.5pt;
+  letter-spacing: 0;
+}
+
+.box-qr-label-standard .box-qr-process {
+  height: auto;
+  margin: 0;
+  border: 0;
+  border-bottom: 0.6pt solid #111827;
+  border-radius: 0;
+  color: #0b1628;
+  font-size: 13.6pt;
+  line-height: 1;
+}
+
+.box-qr-standard-main {
+  display: grid;
+  grid-template-columns: 21.6mm 1fr;
+  min-height: 0;
+  border-bottom: 0.6pt solid #111827;
+}
+
+.box-qr-standard-code {
+  display: grid;
+  place-items: center;
+  border-right: 0.6pt solid #111827;
+}
+
+.box-qr-label-standard .box-qr-image {
+  width: 20.2mm;
+  height: 20.2mm;
+}
+
+.box-qr-standard-checks {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr) 6.3mm;
+  min-width: 0;
+}
+
+.box-qr-standard-process,
+.box-qr-standard-admin {
+  display: grid;
+  grid-template-columns: 9.5mm 5mm minmax(0, 1fr);
+  grid-template-rows: 1fr 1fr;
+  align-items: center;
+  min-width: 0;
+  border-bottom: 0.45pt solid #cbd5e1;
+}
+
+.box-qr-standard-process:last-of-type {
+  border-bottom-color: #111827;
+}
+
+.box-qr-standard-process span,
+.box-qr-standard-admin span {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  padding-left: 1.1mm;
+  color: #0b1628;
+  font-size: 11.1pt;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.box-qr-standard-process i,
+.box-qr-standard-admin i {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: block;
+  width: 4mm;
+  height: 4mm;
+  border: 0.5pt solid #111827;
+  background: #fff;
+}
+
+.box-qr-standard-process em {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: end;
+  color: #0b1628;
+  font-size: 7.1pt;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.box-qr-standard-process b {
+  grid-column: 3;
+  grid-row: 2;
+  align-self: start;
+  color: #0b1628;
+  font-size: 6.9pt;
+  font-weight: 900;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.box-qr-standard-process.is-disabled {
+  background: #edf1f5;
+}
+
+.box-qr-standard-process.is-disabled span,
+.box-qr-standard-process.is-disabled em,
+.box-qr-standard-process.is-disabled b {
+  color: #8a94a3;
+}
+
+.box-qr-standard-process.is-disabled i {
+  border-color: #a6afbb;
+  background: #f4f6f8;
+}
+
+.box-qr-standard-admin {
+  grid-template-columns: 1fr 5.4mm;
+  grid-template-rows: 1fr;
+  border-bottom: 0;
+}
+
+.box-qr-standard-admin span {
+  grid-column: 1;
+  grid-row: 1;
+  padding-left: 1.2mm;
+  font-size: 10pt;
+}
+
+.box-qr-standard-admin i {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.box-qr-standard-row {
+  display: grid;
+  grid-template-columns: 10.8mm 1fr;
+  min-height: 0;
+  border-bottom: 0.6pt solid #111827;
+}
+
+.box-qr-standard-row > span {
+  display: grid;
+  place-items: center;
+  padding: 0 0.7mm;
+  color: #fff;
+  text-align: center;
+  font-size: 9.8pt;
+  font-weight: 900;
+  line-height: 1.08;
+  background: linear-gradient(180deg, #071426, #020813);
+}
+
+.box-qr-standard-product strong {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 0 1.2mm;
+  color: #0b1628;
+  text-align: center;
+  font-size: 9.8pt;
+  font-weight: 900;
+  line-height: 1.08;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.box-qr-standard-signature i {
+  min-height: 0;
+  background: #fff;
+}
+
+.box-qr-standard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 0;
+  padding: 0 0.8mm;
+}
+
+.box-qr-standard-footer strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20.8mm;
+  height: 4mm;
+  border: 0.6pt solid #111827;
+  border-radius: 0.8mm;
+  color: #0b1628;
+  font-size: 9.8pt;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .box-qr-label-work {
   height: 59.4mm;
   padding: 0.7mm 1.1mm;
