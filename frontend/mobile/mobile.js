@@ -59,6 +59,7 @@ const elements = {
   toggleFlashButton: document.querySelector("#toggleFlashButton"),
   albumQrButton: document.querySelector("#albumQrButton"),
   manualQrButton: document.querySelector("#manualQrButton"),
+  scannerPendingButton: document.querySelector("#scannerPendingButton"),
   scannerDoneButton: document.querySelector("#scannerDoneButton"),
   toast: document.querySelector("#mobileToast")
 };
@@ -97,7 +98,8 @@ function bindEvents() {
     showToast("앨범 QR 선택은 다음 단계에서 연결합니다.");
   });
   elements.manualQrButton?.addEventListener("click", handleManualQrInput);
-  elements.scannerDoneButton?.addEventListener("click", handleCompleteScannedShipping);
+  elements.scannerPendingButton?.addEventListener("click", () => handleCompleteScannedShipping("pending"));
+  elements.scannerDoneButton?.addEventListener("click", () => handleCompleteScannedShipping("complete"));
   elements.toggleFlashButton?.addEventListener("click", () => {
     showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
   });
@@ -576,38 +578,53 @@ async function handleConfirmShipping() {
   }
 }
 
-async function handleCompleteScannedShipping() {
+async function handleCompleteScannedShipping(action = "complete") {
   if (state.isCompletingShipping) {
     return;
   }
 
+  const isPendingAction = action === "pending";
+  const actionLabel = isPendingAction ? "출고대기 변경" : "출고";
   const items = [...state.scannedShippingRows];
   if (!items.length) {
-    showToast("출고 처리할 박스를 먼저 스캔해주세요.");
+    showToast(isPendingAction ? "출고대기로 변경할 박스를 먼저 스캔해주세요." : "출고 처리할 박스를 먼저 스캔해주세요.");
     return;
   }
 
   state.isCompletingShipping = true;
+  if (elements.scannerPendingButton) {
+    elements.scannerPendingButton.disabled = true;
+  }
   elements.scannerDoneButton.disabled = true;
-  elements.scannerDoneButton.textContent = "처리 중";
+  const activeButton = isPendingAction ? elements.scannerPendingButton : elements.scannerDoneButton;
+  if (activeButton) {
+    activeButton.textContent = "처리 중";
+  }
 
   try {
-    const { completedCount, failedItems } = await completeShippingItems(items, "complete");
+    const { completedCount, failedItems } = await completeShippingItems(items, action);
 
     if (completedCount > 0) {
       triggerScanFeedback();
       state.scannedShippingRows = failedItems;
       applyShippingFilters();
-      showToast(failedItems.length ? `${completedCount}개 박스 출고 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 출고 완료`);
+      showToast(failedItems.length ? `${completedCount}개 박스 ${actionLabel} 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 ${actionLabel} 완료`);
       if (!failedItems.length) {
         closeScanner();
       }
       await loadShippingDashboard({ silent: true });
     } else {
-      showToast("출고 처리된 박스가 없습니다.");
+      showToast(isPendingAction ? "출고대기로 변경된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
     }
   } finally {
     state.isCompletingShipping = false;
+    if (elements.scannerPendingButton) {
+      elements.scannerPendingButton.disabled = false;
+      elements.scannerPendingButton.innerHTML = `
+        <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
+        출고대기
+      `;
+    }
     elements.scannerDoneButton.disabled = false;
     elements.scannerDoneButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
