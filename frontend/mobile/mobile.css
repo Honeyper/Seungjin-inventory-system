@@ -3034,11 +3034,11 @@ img {
 }
 
 #loginScreen .hero-logistics-art {
-  right: -36px;
-  bottom: 6px;
-  width: 226px;
-  height: 206px;
-  opacity: 0.18;
+  right: 10px;
+  bottom: 8px;
+  width: min(194px, 48vw);
+  height: 188px;
+  opacity: 0.16;
 }
 
 #loginScreen .hero-logistics-art img {
@@ -3135,8 +3135,9 @@ img {
   }
 
   #loginScreen .hero-logistics-art {
-    width: 178px;
-    height: 148px;
+    right: 8px;
+    width: min(158px, 44vw);
+    height: 136px;
     opacity: 0.12;
   }
 }
