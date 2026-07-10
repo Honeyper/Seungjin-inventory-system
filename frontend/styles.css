@@ -6352,11 +6352,9 @@ input {
 
 .box-qr-label-standard .box-qr-process {
   height: auto;
-  margin: 0;
-  border: 0;
-  border-bottom: 0.6pt solid #111827;
-  border-radius: 0;
-  box-shadow: inset 0 0 0 0.6pt #111827;
+  margin: 0.45mm 1.1mm;
+  border: 0.6pt solid #111827;
+  border-radius: 0.8mm;
   color: #0b1628;
   font-size: 11.4pt;
   line-height: 1;
@@ -6498,8 +6496,10 @@ input {
 
 .box-qr-standard-product > span,
 .box-qr-standard-signature > span {
+  color: #46566b;
   font-size: 7.8pt;
   line-height: 1.05;
+  background: #fff;
 }
 
 .box-qr-standard-product strong {
@@ -6535,7 +6535,7 @@ input {
   justify-content: center;
   min-width: 20.8mm;
   height: 3.45mm;
-  border: 0.6pt solid #111827;
+  border: 0;
   border-radius: 0.8mm;
   color: #0b1628;
   font-size: 9.8pt;
