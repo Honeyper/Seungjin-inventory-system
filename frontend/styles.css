@@ -6522,10 +6522,10 @@ input {
 
 .box-qr-standard-footer {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   min-height: 0;
-  padding: 0 0.8mm;
+  padding: 0.35mm 0.8mm 0.65mm;
 }
 
 .box-qr-standard-footer strong {
@@ -6533,7 +6533,7 @@ input {
   align-items: center;
   justify-content: center;
   min-width: 20.8mm;
-  height: 4mm;
+  height: 3.45mm;
   border: 0.6pt solid #111827;
   border-radius: 0.8mm;
   color: #0b1628;
