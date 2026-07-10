@@ -946,16 +946,33 @@ img {
   background: var(--green-soft);
 }
 
-.ship-now-button {
+.shipping-card-actions {
+  display: grid;
+  grid-template-columns: minmax(88px, auto) minmax(72px, auto);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.ship-now-button,
+.ship-pending-button {
   min-width: 72px;
   min-height: 52px;
   border: 0;
   border-radius: 10px;
-  color: #fff;
   font-size: 18px;
   font-weight: 900;
+}
+
+.ship-now-button {
+  color: #fff;
   background: linear-gradient(180deg, var(--blue), #0848d6);
   box-shadow: 0 14px 24px rgba(11, 99, 246, 0.23);
+}
+
+.ship-pending-button {
+  color: var(--navy);
+  background: #eef4ff;
+  border: 1px solid #c9d7ee;
 }
 
 .item-worker {
@@ -1596,8 +1613,9 @@ img {
     grid-template-columns: 1fr auto;
   }
 
-  .ship-now-button {
+  .shipping-card-actions {
     grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
   }
 
   .shipping-action-row {
