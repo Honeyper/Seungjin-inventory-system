@@ -6526,15 +6526,15 @@ input {
   align-items: flex-start;
   justify-content: flex-end;
   min-height: 0;
-  padding: 0.35mm 0.8mm 0.65mm;
+  padding: 0.2mm 0.8mm 0.35mm;
 }
 
 .box-qr-standard-footer strong {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20.8mm;
-  height: 3.45mm;
+  min-width: 22.8mm;
+  height: 4.15mm;
   border: 0;
   border-radius: 0.8mm;
   color: #0b1628;
