@@ -208,7 +208,8 @@ async function handleAdminLogin(event) {
     return;
   }
 
-  elements.adminLoginButton.disabled = true;
+  setAdminLoginLoading(true);
+  setLoginMessage("관리자 계정 확인 중입니다.", "info");
 
   try {
     const result = await requestApi("login", { accountId, password }, { unwrap: false });
@@ -225,7 +226,30 @@ async function handleAdminLogin(event) {
   } catch (error) {
     setLoginMessage(error.message || "로그인 서버에 연결할 수 없습니다.");
   } finally {
-    elements.adminLoginButton.disabled = false;
+    setAdminLoginLoading(false);
+  }
+}
+
+function setAdminLoginLoading(isLoading) {
+  if (!elements.adminLoginButton) {
+    return;
+  }
+
+  elements.adminLoginButton.disabled = isLoading;
+  elements.adminLoginButton.classList.toggle("is-loading", isLoading);
+  elements.adminLoginButton.setAttribute("aria-busy", String(isLoading));
+
+  const labelNode = Array.from(elements.adminLoginButton.childNodes).find(
+    (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim(),
+  );
+
+  if (!elements.adminLoginButton.dataset.defaultLabel && labelNode) {
+    elements.adminLoginButton.dataset.defaultLabel = labelNode.textContent.trim();
+  }
+
+  if (labelNode) {
+    const label = isLoading ? "로그인 중..." : elements.adminLoginButton.dataset.defaultLabel;
+    labelNode.textContent = ` ${label}`;
   }
 }
 
@@ -1166,6 +1190,7 @@ function readSavedSession() {
 function setLoginMessage(message, type = "error") {
   elements.loginMessage.textContent = message;
   elements.loginMessage.classList.toggle("success", type === "success");
+  elements.loginMessage.classList.toggle("info", type === "info");
 }
 
 function showToast(message) {

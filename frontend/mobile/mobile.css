@@ -361,6 +361,10 @@ img {
   color: var(--green);
 }
 
+.form-message.info {
+  color: var(--blue);
+}
+
 .primary-action,
 .secondary-action {
   display: inline-flex;
@@ -397,6 +401,35 @@ img {
 .secondary-action svg {
   width: 24px;
   height: 24px;
+}
+
+.secondary-action.is-loading {
+  position: relative;
+  color: #fff;
+  border-color: var(--navy-dark);
+  background: linear-gradient(180deg, #082e6c, #061f4c);
+  box-shadow: 0 14px 22px rgba(8, 42, 98, 0.18);
+}
+
+.secondary-action.is-loading img {
+  display: none;
+}
+
+.secondary-action.is-loading::before {
+  content: "";
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  border: 3px solid rgba(255, 255, 255, 0.38);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: adminLoginSpin 0.75s linear infinite;
+}
+
+@keyframes adminLoginSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .compact {
@@ -3097,6 +3130,11 @@ img {
   border-color: var(--navy-dark);
   border-radius: 8px;
   color: var(--navy-dark);
+}
+
+#loginScreen .secondary-action.is-loading {
+  color: #fff;
+  border-color: var(--navy-dark);
 }
 
 #loginScreen .secondary-action svg {
