@@ -310,9 +310,9 @@ function renderShippingList(rows) {
 
 function renderShippingItem(item) {
   const key = getShippingKey(item);
-  const activeBoxes = getActiveBoxes(item);
-  const boxCount = activeBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
-  const totalQuantity = sumBoxQuantity(activeBoxes) || parseNumber(item.currentTotalQuantity);
+  const displayBoxes = getKnownBoxes(item);
+  const boxCount = displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
+  const totalQuantity = sumBoxQuantity(displayBoxes) || parseNumber(item.currentTotalQuantity);
   const remainingQuantity = parseNumber(item.currentTotalQuantity);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
@@ -612,8 +612,8 @@ async function handleQrValue(rawValue) {
     const matched = findShippingByQrValue(value);
 
     if (!matched) {
-      setScannerHelp("일치하는 출고대기 제품을 찾지 못했습니다. QR 또는 출고 상태를 확인해주세요.");
-      showToast("일치하는 출고대기 제품이 없습니다.");
+      setScannerHelp("일치하는 제품을 찾지 못했습니다. QR 또는 제품 정보를 확인해주세요.");
+      showToast("일치하는 제품이 없습니다.");
       return;
     }
 
@@ -656,9 +656,8 @@ function findShippingByQrValue(rawValue) {
   const text = normalizeScanValue(rawValue);
 
   return state.dashboard
-    .filter(isMobileShippingCandidate)
     .find((row) => {
-      const activeBoxes = getActiveBoxes(row);
+      const boxes = getKnownBoxes(row);
       const rowValues = [
         row.managementId,
         row.productId,
@@ -678,7 +677,7 @@ function findShippingByQrValue(rawValue) {
       }
 
       if (parsed.boxId) {
-        const hasBox = activeBoxes.some((box) => normalizeScanValue(box.boxId) === parsed.boxId);
+        const hasBox = boxes.some((box) => normalizeScanValue(box.boxId) === parsed.boxId);
         if (hasBox) {
           return true;
         }
@@ -687,7 +686,7 @@ function findShippingByQrValue(rawValue) {
         }
       }
 
-      if (parsed.boxNumber && activeBoxes.some((box) => String(box.number || "") === parsed.boxNumber)) {
+      if (parsed.boxNumber && boxes.some((box) => String(box.number || "") === parsed.boxNumber)) {
         return true;
       }
 
@@ -735,8 +734,8 @@ function renderScannerScannedList() {
   }
 
   elements.scannerScannedList.innerHTML = state.scannedShippingRows.map((item, index) => {
-    const activeBoxes = getActiveBoxes(item);
-    const boxCount = activeBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
+    const displayBoxes = getKnownBoxes(item);
+    const boxCount = displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
     return `
       <article class="scanner-scanned-item">
         <span>${index + 1}</span>
@@ -827,6 +826,42 @@ function getActiveBoxes(item) {
     const status = normalizeText(box.status);
     return status.includes("출고대기");
   });
+}
+
+function getKnownBoxes(item) {
+  const sources = [
+    item?.activeShippingBoxes,
+    item?.allShippingBoxes,
+    item?.shippedShippingBoxes,
+    item?.boxes
+  ];
+  const seen = new Set();
+  const merged = [];
+
+  sources.forEach((boxes) => {
+    if (!Array.isArray(boxes)) {
+      return;
+    }
+
+    boxes.forEach((box) => {
+      const key = [
+        box?.boxId,
+        box?.number,
+        box?.sequence,
+        box?.status,
+        box?.quantity
+      ].map((value) => String(value || "")).join("|");
+
+      if (seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+      merged.push(box);
+    });
+  });
+
+  return merged;
 }
 
 function sumBoxQuantity(boxes) {
