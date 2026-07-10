@@ -6495,6 +6495,12 @@ input {
   background: linear-gradient(180deg, #071426, #020813);
 }
 
+.box-qr-standard-product > span,
+.box-qr-standard-signature > span {
+  font-size: 7.8pt;
+  line-height: 1.05;
+}
+
 .box-qr-standard-product strong {
   display: grid;
   place-items: center;
