@@ -3281,14 +3281,15 @@ img {
 #homeScreen .menu-icon {
   grid-column: 1;
   grid-row: 1;
-  width: 46px;
-  height: 46px;
+  width: 54px;
+  height: 54px;
   border-radius: 12px;
 }
 
 #homeScreen .menu-icon img {
-  width: 46px;
-  height: 46px;
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
 }
 
 #homeScreen .status-pill {
@@ -3365,8 +3366,8 @@ img {
 
   #homeScreen .menu-icon,
   #homeScreen .menu-icon img {
-    width: 35px;
-    height: 35px;
+    width: 42px;
+    height: 42px;
   }
 
   #homeScreen .status-pill {
