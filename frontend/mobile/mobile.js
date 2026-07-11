@@ -2,6 +2,10 @@ const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "";
 const SESSION_KEY = "seungjinMobileSession";
 const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
+const BARCODE_DETECT_INTERVAL_MS = 900;
+const JSQR_DETECT_INTERVAL_MS = 420;
+const JSQR_MAX_EDGE = 960;
+const SHIPPING_CLOCK_INTERVAL_MS = 10000;
 
 const state = {
   user: null,
@@ -110,6 +114,8 @@ function bindEvents() {
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
   bindScannerSheetEvents();
+  document.addEventListener("visibilitychange", handlePageVisibilityChange);
+  window.addEventListener("pagehide", releaseScannerStream);
 
   document.querySelectorAll("[data-mobile-route]").forEach((button) => {
     button.addEventListener("click", () => navigate(button.dataset.mobileRoute));
@@ -353,9 +359,22 @@ function showScreen(name) {
 
   if (name !== "shipping") {
     stopShippingClock();
+    releaseScannerStream();
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function handlePageVisibilityChange() {
+  if (document.hidden) {
+    releaseScannerStream();
+    stopShippingClock();
+    return;
+  }
+
+  if (elements.shippingScreen?.classList.contains("active")) {
+    startShippingClock();
+  }
 }
 
 function restoreSavedRoute() {
@@ -815,9 +834,9 @@ async function getScannerStream() {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
       facingMode: { ideal: "environment" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      frameRate: { ideal: 30, max: 30 }
+      width: { ideal: 1280, max: 1280 },
+      height: { ideal: 720, max: 720 },
+      frameRate: { ideal: 15, max: 20 }
     },
     audio: false
   });
@@ -879,16 +898,7 @@ async function tuneScannerCamera(stream) {
 }
 
 function closeScanner() {
-  if (state.scannerTimer) {
-    clearInterval(state.scannerTimer);
-    state.scannerTimer = null;
-  }
-
-  if (elements.scannerVideo) {
-    elements.scannerVideo.pause();
-  }
-
-  elements.scannerScreen.hidden = true;
+  releaseScannerStream();
 }
 
 function releaseScannerStream() {
@@ -930,7 +940,7 @@ function startBarcodeDetection() {
     return;
   }
   state.scannerTimer = setInterval(async () => {
-    if (!elements.scannerVideo.srcObject) {
+    if (document.hidden || elements.scannerScreen.hidden || !elements.scannerVideo.srcObject) {
       return;
     }
 
@@ -945,7 +955,7 @@ function startBarcodeDetection() {
       setScannerHelp("QR 자동 인식이 중단되었습니다. 수동 입력으로 진행해주세요.");
       showToast("QR 자동 인식이 중단되었습니다.");
     }
-  }, 600);
+  }, BARCODE_DETECT_INTERVAL_MS);
 }
 
 function createBarcodeDetector() {
@@ -982,7 +992,7 @@ function startJsQrDetection(detector = null) {
     const video = elements.scannerVideo;
     const context = state.scannerCanvasContext;
 
-    if (!video?.srcObject || !context || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+    if (document.hidden || elements.scannerScreen.hidden || !video?.srcObject || !context || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
       return;
     }
 
@@ -1007,7 +1017,7 @@ function startJsQrDetection(detector = null) {
       detector = null;
     }
 
-    const scale = Math.min(1, 1600 / Math.max(sourceWidth, sourceHeight));
+    const scale = Math.min(1, JSQR_MAX_EDGE / Math.max(sourceWidth, sourceHeight));
     const width = Math.max(1, Math.floor(sourceWidth * scale));
     const height = Math.max(1, Math.floor(sourceHeight * scale));
 
@@ -1029,7 +1039,7 @@ function startJsQrDetection(detector = null) {
     } finally {
       isDetectingFrame = false;
     }
-  }, 180);
+  }, JSQR_DETECT_INTERVAL_MS);
 }
 
 function setScannerHelp(message) {
@@ -1257,7 +1267,7 @@ function startShippingClock() {
   if (state.clockTimer) {
     return;
   }
-  state.clockTimer = window.setInterval(updateShippingClock, 1000);
+  state.clockTimer = window.setInterval(updateShippingClock, SHIPPING_CLOCK_INTERVAL_MS);
 }
 
 function stopShippingClock() {
