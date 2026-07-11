@@ -1208,6 +1208,32 @@ img {
   color: var(--muted);
   font-size: 14px;
   font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.confirm-meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.confirm-meta-list[hidden] {
+  display: none;
+}
+
+.confirm-meta-list span {
+  min-height: 26px;
+  border: 1px solid rgba(196, 210, 228, 0.9);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--navy-dark);
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.1;
 }
 
 .dialog-actions {

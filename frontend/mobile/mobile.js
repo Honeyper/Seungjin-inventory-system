@@ -69,6 +69,7 @@ const elements = {
   confirmModal: document.querySelector("#confirmModal"),
   confirmMessage: document.querySelector("#confirmMessage"),
   confirmProductName: document.querySelector("#confirmProductName"),
+  confirmMetaList: document.querySelector("#confirmMetaList"),
   cancelConfirmButton: document.querySelector("#cancelConfirmButton"),
   acceptConfirmButton: document.querySelector("#acceptConfirmButton"),
   scannerScreen: document.querySelector("#scannerScreen"),
@@ -821,8 +822,13 @@ function openConfirmModal(item, action = "complete") {
   const scannedBoxLabel = getScannedBoxLabel(item);
   const boxes = getActiveBoxes(item);
   const boxText = Array.isArray(item.scannedItems)
-    ? ` · ${item.scannedBoxCount}box`
-    : scannedBoxLabel ? ` · ${scannedBoxLabel}` : boxes.length ? ` · ${boxes.length}box` : "";
+    ? `${formatNumber(item.scannedBoxCount)}box`
+    : scannedBoxLabel || (boxes.length ? `${formatNumber(boxes.length)}box` : "");
+  const metaParts = [
+    normalizeDisplay(item.batch || "-"),
+    normalizeDisplay(item.finalProcess || "-"),
+    boxText
+  ].filter((value) => value && value !== "-");
   const isPendingAction = action === "pending";
   if (elements.confirmMessage) {
     elements.confirmMessage.textContent = isPendingAction
@@ -830,7 +836,8 @@ function openConfirmModal(item, action = "complete") {
       : "해당 제품을 출고 처리하시겠습니까?";
   }
   elements.acceptConfirmButton.textContent = isPendingAction ? "출고대기 등록" : "출고";
-  elements.confirmProductName.textContent = `${normalizeDisplay(item.productName)} | ${normalizeDisplay(item.batch || "-")} | ${normalizeDisplay(item.finalProcess || "-")}${boxText}`;
+  elements.confirmProductName.textContent = normalizeDisplay(item.productName);
+  renderConfirmMeta(metaParts);
   elements.confirmModal.hidden = false;
 }
 
@@ -857,16 +864,33 @@ function openScannedShippingConfirmModal(action = "complete") {
     elements.confirmMessage.textContent = `스캔한 ${formatNumber(boxCount)}개 박스를 ${actionLabel} 처리하시겠습니까?`;
   }
   elements.acceptConfirmButton.textContent = actionLabel;
-  elements.confirmProductName.textContent = totalQuantity
-    ? `총 ${formatNumber(boxCount)}box · ${formatNumber(totalQuantity)}ea`
-    : `총 ${formatNumber(boxCount)}box`;
+  elements.confirmProductName.textContent = "스캔한 박스";
+  renderConfirmMeta(totalQuantity
+    ? [`총 ${formatNumber(boxCount)}box`, `${formatNumber(totalQuantity)}ea`]
+    : [`총 ${formatNumber(boxCount)}box`]);
   elements.confirmModal.hidden = false;
+}
+
+function renderConfirmMeta(parts = []) {
+  if (!elements.confirmMetaList) {
+    return;
+  }
+
+  const values = parts
+    .map((part) => normalizeDisplay(part))
+    .filter((part) => part && part !== "-");
+
+  elements.confirmMetaList.hidden = !values.length;
+  elements.confirmMetaList.innerHTML = values
+    .map((part) => `<span>${escapeHtml(part)}</span>`)
+    .join("");
 }
 
 function closeConfirmModal() {
   state.selectedShippingItem = null;
   state.selectedShippingAction = "complete";
   state.selectedConfirmMode = "item";
+  renderConfirmMeta([]);
   elements.confirmModal.hidden = true;
 }
 

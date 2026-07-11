@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260712-fast-qr-scan" />
+    <link rel="stylesheet" href="./mobile.css?v=20260712-confirm-meta-layout" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -244,6 +244,7 @@
           <h2 id="confirmTitle">출고 확인</h2>
           <p id="confirmMessage">해당 제품을 출고 처리하시겠습니까?</p>
           <strong id="confirmProductName">-</strong>
+          <div class="confirm-meta-list" id="confirmMetaList" aria-label="출고 상세"></div>
           <div class="dialog-actions">
             <button class="secondary-action compact" id="cancelConfirmButton" type="button">취소</button>
             <button class="primary-action compact" id="acceptConfirmButton" type="button">확인</button>
@@ -297,6 +298,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260712-fast-qr-scan"></script>
+    <script src="./mobile.js?v=20260712-confirm-meta-layout"></script>
   </body>
 </html>
