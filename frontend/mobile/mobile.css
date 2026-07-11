@@ -3972,6 +3972,30 @@ img {
   white-space: nowrap;
 }
 
+#shippingScreen .shipping-remove-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(196, 210, 228, 0.9);
+  border-radius: 10px;
+  color: #647083;
+  background: #fff;
+}
+
+#shippingScreen .shipping-remove-button svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+#shippingScreen .shipping-remove-button:active {
+  color: #fff;
+  background: var(--navy-dark);
+}
+
 #shippingScreen .process-pill {
   min-width: 36px;
   min-height: 30px;
@@ -4629,6 +4653,17 @@ img {
   font-size: 11px;
 }
 
+#shippingScreen .shipping-remove-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+#shippingScreen .shipping-remove-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 #shippingScreen .shipping-card-actions {
   gap: 7px;
   margin-top: 3px;
@@ -4722,6 +4757,11 @@ img {
     max-width: 72px;
     padding: 4px 6px;
     font-size: 10px;
+  }
+
+  #shippingScreen .shipping-remove-button {
+    width: 30px;
+    height: 30px;
   }
 
   #shippingScreen .metric {

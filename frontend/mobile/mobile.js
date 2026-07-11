@@ -129,6 +129,12 @@ function bindEvents() {
   });
 
   elements.shippingListPanel?.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-mobile-shipping-remove]");
+    if (removeButton) {
+      removeScannedShippingGroup(removeButton.dataset.mobileShippingRemove);
+      return;
+    }
+
     const shippingButton = event.target.closest("[data-mobile-shipping]");
     if (!shippingButton) {
       return;
@@ -557,6 +563,12 @@ function renderShippingItem(item) {
         <div class="shipping-meta-stack">
           <span class="process-pill ${processClass}">${escapeHtml(process)}</span>
           ${metaParts.map((part) => `<span class="shipping-meta-pill">${escapeHtml(part)}</span>`).join("")}
+          <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}" aria-label="스캔 항목 삭제">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
         </div>
         <div class="shipping-card-actions">
           <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending">출고대기</button>
@@ -1352,6 +1364,23 @@ function removeScannedShippingRow(index) {
   applyShippingFilters();
   triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
   showToast("스캔 목록에서 삭제했습니다.");
+}
+
+function removeScannedShippingGroup(key) {
+  if (!key) {
+    return;
+  }
+
+  const previousCount = state.scannedShippingRows.length;
+  state.scannedShippingRows = state.scannedShippingRows.filter((row) => getShippingProductGroupKey(row) !== key);
+  if (state.scannedShippingRows.length === previousCount) {
+    return;
+  }
+
+  saveScannedShippingRows();
+  applyShippingFilters();
+  triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
+  showToast("출고 등록 목록에서 삭제했습니다.");
 }
 
 function startShippingClock() {
