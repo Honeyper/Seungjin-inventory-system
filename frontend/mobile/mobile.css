@@ -3973,22 +3973,14 @@ img {
 }
 
 #shippingScreen .shipping-remove-button {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
+  min-height: 42px;
+  padding: 0 8px;
   border: 1px solid rgba(196, 210, 228, 0.9);
-  border-radius: 10px;
+  border-radius: 9px;
   color: #647083;
-  background: #fff;
-}
-
-#shippingScreen .shipping-remove-button svg {
-  width: 17px;
-  height: 17px;
-  stroke: currentColor;
-  stroke-width: 2.4;
-  stroke-linecap: round;
+  background: #f8fafc;
+  font-size: 14px;
+  font-weight: 900;
 }
 
 #shippingScreen .shipping-remove-button:active {
@@ -4007,11 +3999,12 @@ img {
 
 #shippingScreen .shipping-card-actions {
   grid-column: 1 / -1;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 0.72fr 1fr 1fr;
 }
 
 #shippingScreen .ship-now-button,
-#shippingScreen .ship-pending-button {
+#shippingScreen .ship-pending-button,
+#shippingScreen .shipping-remove-button {
   min-height: 42px;
   border-radius: 9px;
   font-size: 15px;
@@ -4654,23 +4647,19 @@ img {
 }
 
 #shippingScreen .shipping-remove-button {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-}
-
-#shippingScreen .shipping-remove-button svg {
-  width: 16px;
-  height: 16px;
+  min-height: 40px;
+  font-size: 14px;
 }
 
 #shippingScreen .shipping-card-actions {
   gap: 7px;
   margin-top: 3px;
+  grid-template-columns: 0.72fr 1fr 1fr;
 }
 
 #shippingScreen .ship-now-button,
-#shippingScreen .ship-pending-button {
+#shippingScreen .ship-pending-button,
+#shippingScreen .shipping-remove-button {
   min-height: 40px;
   font-size: 15px;
 }
@@ -4760,8 +4749,8 @@ img {
   }
 
   #shippingScreen .shipping-remove-button {
-    width: 30px;
-    height: 30px;
+    min-height: 38px;
+    font-size: 13px;
   }
 
   #shippingScreen .metric {

@@ -563,14 +563,9 @@ function renderShippingItem(item) {
         <div class="shipping-meta-stack">
           <span class="process-pill ${processClass}">${escapeHtml(process)}</span>
           ${metaParts.map((part) => `<span class="shipping-meta-pill">${escapeHtml(part)}</span>`).join("")}
-          <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}" aria-label="스캔 항목 삭제">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18"></path>
-              <path d="m6 6 12 12"></path>
-            </svg>
-          </button>
         </div>
         <div class="shipping-card-actions">
+          <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}">삭제</button>
           <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending">출고대기</button>
           <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
         </div>
