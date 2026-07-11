@@ -1110,6 +1110,12 @@ img {
   height: 22px;
 }
 
+.bottom-nav-image-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -3222,6 +3228,11 @@ img {
     width: 19px;
     height: 19px;
   }
+
+  .bottom-nav-image-icon {
+    width: 21px;
+    height: 21px;
+  }
 }
 
 /* Make the fitted home screen easier to scan as a dashboard. */
@@ -3848,8 +3859,24 @@ img {
 }
 
 #shippingScreen .shipping-item-top {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
   gap: 8px;
+}
+
+#shippingScreen .shipping-box-art {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffaf0, #eef4fb);
+  border: 1px solid rgba(196, 210, 228, 0.85);
+}
+
+#shippingScreen .shipping-box-art img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
 }
 
 #shippingScreen .shipping-client {
@@ -4457,12 +4484,24 @@ img {
 }
 
 #shippingScreen .shipping-item-top {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: start;
 }
 
-#shippingScreen .shipping-item-top > div {
+#shippingScreen .shipping-box-art {
+  width: 44px;
+  height: 44px;
+  margin-top: 1px;
+  border-radius: 12px;
+}
+
+#shippingScreen .shipping-box-art img {
+  width: 37px;
+  height: 37px;
+}
+
+#shippingScreen .shipping-item-copy {
   min-width: 0;
 }
 
@@ -4563,6 +4602,21 @@ img {
 
   #shippingScreen .process-pill {
     margin-top: 24px;
+  }
+
+  #shippingScreen .shipping-item-top {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+  }
+
+  #shippingScreen .shipping-box-art {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  #shippingScreen .shipping-box-art img {
+    width: 32px;
+    height: 32px;
   }
 
   #shippingScreen .metric {

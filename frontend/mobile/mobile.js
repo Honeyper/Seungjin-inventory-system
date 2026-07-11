@@ -9,6 +9,7 @@ const SHIPPING_CLOCK_INTERVAL_MS = 10000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
 const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
+const SHIPPING_BOX_ICON_SRC = "../assets/mobile-shipping-box-icon-2d.png?v=20260712-shipping-box-icon";
 
 const state = {
   user: null,
@@ -499,11 +500,7 @@ function renderShippingList(rows) {
       <div class="empty-state">
         <div>
           <span class="empty-state-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M4 7 12 3l8 4-8 4-8-4z"></path>
-              <path d="M4 7v10l8 4 8-4V7"></path>
-              <path d="M12 11v10"></path>
-            </svg>
+            <img src="${SHIPPING_BOX_ICON_SRC}" alt="" />
           </span>
           <h2>등록된 제품이 없습니다</h2>
           <p>출고할 제품을 등록해 주세요.</p>
@@ -544,7 +541,10 @@ function renderShippingItem(item) {
   return `
     <article class="shipping-item">
       <div class="shipping-item-top">
-        <div>
+        <span class="shipping-box-art" aria-hidden="true">
+          <img src="${SHIPPING_BOX_ICON_SRC}" alt="" loading="lazy" />
+        </span>
+        <div class="shipping-item-copy">
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
