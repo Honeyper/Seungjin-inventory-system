@@ -30,7 +30,8 @@ const state = {
   scannerSheetStartY: 0,
   scannerSheetDeltaY: 0,
   scannerSheetDragging: false,
-  scannerSheetMoved: false
+  scannerSheetMoved: false,
+  vibrationNoticeShown: false
 };
 
 const elements = {
@@ -807,6 +808,8 @@ async function completeShippingItem(item, selectedBoxes, action = "complete") {
 async function openScanner() {
   elements.scannerScreen.hidden = false;
   state.scannerLastValue = "";
+  primeScanFeedback();
+  notifyUnsupportedVibrationOnce();
   setScannerSheetExpanded(false);
   renderScannerScannedList();
   setScannerHelp("QR 코드가 인식되지 않으면 수동 입력을 사용해주세요.");
@@ -1456,12 +1459,51 @@ function getBoxCurrentQuantity(box, item) {
   );
 }
 
-function triggerScanFeedback(pattern = SCAN_SUCCESS_VIBRATION) {
-  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") {
+function canUseVibration() {
+  return typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+}
+
+function primeScanFeedback() {
+  triggerScanFeedback(1, { visual: false });
+}
+
+function notifyUnsupportedVibrationOnce() {
+  if (state.vibrationNoticeShown || canUseVibration()) {
+    return;
+  }
+
+  state.vibrationNoticeShown = true;
+  showToast("이 브라우저는 웹 진동을 지원하지 않아 화면 효과로 안내합니다.");
+}
+
+function triggerScanFeedback(pattern = SCAN_SUCCESS_VIBRATION, options = {}) {
+  if (options.visual !== false) {
+    pulseScannerFeedback();
+  }
+
+  if (!canUseVibration()) {
     return false;
   }
 
-  return navigator.vibrate(pattern) === true;
+  try {
+    return navigator.vibrate(pattern) === true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function pulseScannerFeedback() {
+  if (!elements.scannerScreen || elements.scannerScreen.hidden) {
+    return;
+  }
+
+  elements.scannerScreen.classList.remove("is-scan-feedback");
+  void elements.scannerScreen.offsetWidth;
+  elements.scannerScreen.classList.add("is-scan-feedback");
+  window.clearTimeout(pulseScannerFeedback.timer);
+  pulseScannerFeedback.timer = window.setTimeout(() => {
+    elements.scannerScreen?.classList.remove("is-scan-feedback");
+  }, 420);
 }
 
 function getActiveBoxes(item) {

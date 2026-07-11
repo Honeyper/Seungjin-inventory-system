@@ -1280,6 +1280,37 @@ img {
   content: "";
 }
 
+.scanner-screen.is-scan-feedback .scanner-frame {
+  animation: scanFeedbackPulse 420ms ease-out;
+}
+
+.scanner-screen.is-scan-feedback .scanner-frame::after {
+  background: rgba(208, 161, 75, 0.96);
+  box-shadow: 0 0 22px rgba(208, 161, 75, 0.95);
+}
+
+@keyframes scanFeedbackPulse {
+  0% {
+    border-color: rgba(208, 161, 75, 1);
+    box-shadow:
+      0 0 0 999px rgba(0, 0, 0, 0.08),
+      0 0 0 0 rgba(208, 161, 75, 0.55);
+    transform: translate(-50%, -50%) scale(1);
+  }
+  55% {
+    border-color: rgba(208, 161, 75, 1);
+    box-shadow:
+      0 0 0 999px rgba(0, 0, 0, 0.08),
+      0 0 0 12px rgba(208, 161, 75, 0.12);
+    transform: translate(-50%, -50%) scale(1.018);
+  }
+  100% {
+    border-color: rgba(8, 42, 98, 0.98);
+    box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.08);
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 .scanner-help {
   position: absolute;
   z-index: 2;
