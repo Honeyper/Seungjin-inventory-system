@@ -19,6 +19,7 @@ const state = {
   isProcessingScan: false,
   clockTimer: null,
   scannerSheetStartY: 0,
+  scannerSheetDeltaY: 0,
   scannerSheetDragging: false,
   scannerSheetMoved: false
 };
@@ -150,7 +151,29 @@ function bindScannerSheetEvents() {
   dragTarget.addEventListener("pointerdown", (event) => {
     state.scannerSheetDragging = true;
     state.scannerSheetStartY = event.clientY;
+    state.scannerSheetDeltaY = 0;
+    elements.scannerListPanel.classList.add("is-dragging");
     dragTarget.setPointerCapture?.(event.pointerId);
+  });
+
+  dragTarget.addEventListener("pointermove", (event) => {
+    if (!state.scannerSheetDragging) {
+      return;
+    }
+
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+
+    const deltaY = event.clientY - state.scannerSheetStartY;
+    const isExpanded = elements.scannerListPanel.classList.contains("expanded");
+    const dragLimit = isExpanded ? 120 : 84;
+    const previewOffset = isExpanded
+      ? Math.max(0, Math.min(deltaY, dragLimit))
+      : Math.min(0, Math.max(deltaY, -dragLimit));
+
+    state.scannerSheetDeltaY = deltaY;
+    elements.scannerListPanel.style.transform = `translate3d(0, ${previewOffset}px, 0)`;
   });
 
   dragTarget.addEventListener("pointerup", (event) => {
@@ -158,9 +181,12 @@ function bindScannerSheetEvents() {
       return;
     }
 
-    const deltaY = event.clientY - state.scannerSheetStartY;
+    const deltaY = state.scannerSheetDeltaY || event.clientY - state.scannerSheetStartY;
     const moved = Math.abs(deltaY) > 36;
     state.scannerSheetDragging = false;
+    state.scannerSheetDeltaY = 0;
+    elements.scannerListPanel.classList.remove("is-dragging");
+    elements.scannerListPanel.style.transform = "";
     dragTarget.releasePointerCapture?.(event.pointerId);
 
     if (deltaY < -36) {
@@ -178,6 +204,9 @@ function bindScannerSheetEvents() {
 
   dragTarget.addEventListener("pointercancel", () => {
     state.scannerSheetDragging = false;
+    state.scannerSheetDeltaY = 0;
+    elements.scannerListPanel.classList.remove("is-dragging");
+    elements.scannerListPanel.style.transform = "";
   });
 }
 

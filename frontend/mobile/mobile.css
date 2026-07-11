@@ -4204,14 +4204,26 @@ img {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 247, 253, 0.98));
   box-shadow: 0 -20px 52px rgba(0, 0, 0, 0.32);
+  transform: translate3d(0, 0, 0);
+  will-change: height, transform;
 }
 
 .scanner-list-panel.expanded {
   height: calc(100svh - max(70px, calc(env(safe-area-inset-top) + 52px)));
 }
 
+.scanner-list-panel.is-dragging {
+  transition: none;
+}
+
 .scanner-sheet-handle {
   height: 20px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.scanner-sheet-handle:active {
+  cursor: grabbing;
 }
 
 .scanner-sheet-handle::before {
