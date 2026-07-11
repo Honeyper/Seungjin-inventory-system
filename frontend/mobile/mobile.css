@@ -2987,6 +2987,243 @@ img {
   }
 }
 
+/* Keep the post-login home screen inside one mobile viewport. */
+#homeScreen {
+  height: 100vh;
+  height: 100dvh;
+  height: 100svh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  padding: max(14px, env(safe-area-inset-top)) 14px calc(76px + env(safe-area-inset-bottom));
+}
+
+#homeScreen.active {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+#homeScreen .mobile-home-header {
+  margin: calc(-1 * max(14px, env(safe-area-inset-top))) -14px 8px;
+  padding: max(10px, env(safe-area-inset-top)) 14px 9px;
+}
+
+#homeScreen .mobile-brand img {
+  width: 36px;
+  height: 36px;
+}
+
+#homeScreen .mobile-brand .brand-copy strong {
+  font-size: 23px;
+}
+
+#homeScreen .small-outline-button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+#homeScreen .welcome-panel {
+  min-height: 0;
+  height: 150px;
+  margin-bottom: 8px;
+}
+
+#homeScreen .welcome-panel > div:first-child {
+  padding: 16px 14px;
+}
+
+#homeScreen .welcome-panel h1 {
+  font-size: 24px;
+  line-height: 1.18;
+}
+
+#homeScreen .welcome-panel p {
+  max-width: 220px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.38;
+}
+
+#homeScreen .welcome-panel::before {
+  width: 68px;
+  height: 68px;
+}
+
+#homeScreen .welcome-art {
+  right: -70px;
+  bottom: -58px;
+  width: 205px;
+  height: 190px;
+}
+
+#homeScreen .mobile-menu-list {
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#homeScreen .mobile-menu-card {
+  grid-template-columns: 44px minmax(0, 1fr) 22px;
+  gap: 9px;
+  min-height: 0;
+  padding: 8px 10px 8px 12px;
+}
+
+#homeScreen .menu-icon,
+#homeScreen .menu-icon img {
+  width: 42px;
+  height: 42px;
+}
+
+#homeScreen .menu-copy {
+  gap: 2px;
+  padding: 0;
+}
+
+#homeScreen .menu-copy strong {
+  font-size: 17px;
+  line-height: 1.12;
+}
+
+#homeScreen .menu-copy small {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.24;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+#homeScreen .status-pill {
+  top: 7px;
+  right: 8px;
+  min-height: 20px;
+  padding: 0 7px;
+  font-size: 9px;
+}
+
+#homeScreen .menu-arrow {
+  font-size: 24px;
+}
+
+@media (max-height: 700px) {
+  #homeScreen {
+    padding: max(8px, env(safe-area-inset-top)) 10px calc(66px + env(safe-area-inset-bottom));
+  }
+
+  #homeScreen .mobile-home-header {
+    margin: calc(-1 * max(8px, env(safe-area-inset-top))) -10px 6px;
+    padding: max(7px, env(safe-area-inset-top)) 10px 7px;
+  }
+
+  #homeScreen .mobile-brand img {
+    width: 32px;
+    height: 32px;
+  }
+
+  #homeScreen .mobile-brand .brand-copy strong {
+    font-size: 20px;
+  }
+
+  #homeScreen .mobile-brand .brand-copy em {
+    font-size: 9px;
+  }
+
+  #homeScreen .small-outline-button {
+    min-height: 30px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  #homeScreen .welcome-panel {
+    height: 102px;
+    margin-bottom: 6px;
+  }
+
+  #homeScreen .welcome-panel > div:first-child {
+    padding: 11px 12px;
+  }
+
+  #homeScreen .welcome-panel h1 {
+    font-size: 19px;
+  }
+
+  #homeScreen .welcome-panel p {
+    max-width: 205px;
+    margin-top: 5px;
+    font-size: 11px;
+    line-height: 1.24;
+  }
+
+  #homeScreen .welcome-panel::before {
+    width: 48px;
+    height: 48px;
+  }
+
+  #homeScreen .welcome-art {
+    right: -68px;
+    bottom: -62px;
+    width: 175px;
+    height: 160px;
+  }
+
+  #homeScreen .mobile-menu-list {
+    gap: 5px;
+  }
+
+  #homeScreen .mobile-menu-card {
+    grid-template-columns: 36px minmax(0, 1fr) 18px;
+    gap: 7px;
+    padding: 6px 8px 6px 10px;
+  }
+
+  #homeScreen .menu-icon,
+  #homeScreen .menu-icon img {
+    width: 34px;
+    height: 34px;
+  }
+
+  #homeScreen .menu-copy strong {
+    font-size: 14px;
+  }
+
+  #homeScreen .menu-copy small {
+    font-size: 10px;
+    line-height: 1.16;
+    -webkit-line-clamp: 1;
+  }
+
+  #homeScreen .status-pill {
+    top: 5px;
+    right: 6px;
+    min-height: 17px;
+    padding: 0 5px;
+    font-size: 8px;
+  }
+
+  #homeScreen .menu-arrow {
+    font-size: 19px;
+  }
+
+  .bottom-nav {
+    padding-top: 5px;
+    padding-bottom: max(5px, env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav button {
+    min-height: 46px;
+    font-size: 9px;
+  }
+
+  .bottom-nav svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
 /* Align the first login view with the desktop brand/login mood. */
 #loginScreen {
   background:
