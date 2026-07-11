@@ -4117,6 +4117,23 @@ img {
   color: var(--gold);
 }
 
+#shippingScreen .metric-count-row {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+#shippingScreen .metric-count-row strong {
+  margin-top: 0;
+}
+
+#shippingScreen .metric-count-row small {
+  margin-top: 0;
+}
+
 #shippingScreen .metric-action-row {
   display: inline-flex;
   align-items: center;

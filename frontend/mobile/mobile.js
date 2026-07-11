@@ -588,6 +588,21 @@ function getShippingBoxCount(item) {
   return getKnownBoxes(item).length || parseNumber(item?.currentBoxCount || item?.boxTotalCount);
 }
 
+function getShippingTotalBoxCount(item, fallbackCount = 0) {
+  const fallback = parseNumber(fallbackCount);
+
+  if (Array.isArray(item?.scannedItems)) {
+    const totalCounts = item.scannedItems.map((row) => getShippingTotalBoxCount(row, 1));
+    return Math.max(fallback, ...totalCounts);
+  }
+
+  return Math.max(
+    fallback,
+    getKnownBoxes(item).length,
+    parseNumber(item?.boxTotalCount || item?.totalBoxCount || item?.currentBoxCount)
+  );
+}
+
 function getShippingAvailableQuantity(item) {
   if (Array.isArray(item?.scannedItems)) {
     return item.scannedItems.reduce((sum, row) => sum + getShippingAvailableQuantity(row), 0);
@@ -700,6 +715,7 @@ function renderShippingItem(item) {
   const boxCount = isProductGroup
     ? item.scannedBoxCount
     : scannedBox ? 1 : displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
+  const totalBoxCount = getShippingTotalBoxCount(item, boxCount);
   const totalQuantity = isProductGroup
     ? item.scannedTotalQuantity
     : scannedBox
@@ -742,8 +758,10 @@ function renderShippingItem(item) {
       <div class="item-metrics">
         <span class="metric">
           <span>스캔 박스</span>
-          <strong>${formatNumber(boxCount)}</strong>
-          <small>box</small>
+          <span class="metric-count-row">
+            <strong>${formatNumber(boxCount)}</strong>
+            <small>/ 총 ${formatNumber(totalBoxCount)}box</small>
+          </span>
         </span>
         <span class="metric">
           <span>출고 가능 수량</span>
