@@ -106,6 +106,8 @@ function bindEvents() {
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
   bindScannerSheetEvents();
+  window.addEventListener("pagehide", releaseScannerStream);
+  window.addEventListener("beforeunload", releaseScannerStream);
 
   document.querySelectorAll("[data-mobile-route]").forEach((button) => {
     button.addEventListener("click", () => navigate(button.dataset.mobileRoute));
@@ -260,6 +262,7 @@ function togglePassword() {
 }
 
 function logout() {
+  releaseScannerStream();
   sessionStorage.removeItem(SESSION_KEY);
   state.user = null;
   state.dashboard = [];
@@ -737,24 +740,56 @@ async function openScanner() {
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        frameRate: { ideal: 30, max: 30 }
-      },
-      audio: false
-    });
-    state.scannerStream = stream;
-    await tuneScannerCamera(stream);
-    elements.scannerVideo.srcObject = stream;
+    const stream = await getScannerStream();
+    if (elements.scannerVideo.srcObject !== stream) {
+      elements.scannerVideo.srcObject = stream;
+    }
     await elements.scannerVideo.play();
     startBarcodeDetection();
   } catch (error) {
     setScannerHelp("카메라 권한이 차단되었습니다. 권한을 허용하거나 수동 입력을 사용해주세요.");
     showToast("카메라 권한을 허용하거나 수동 입력을 사용해주세요.");
   }
+}
+
+async function getScannerStream() {
+  const reusableStream = getReusableScannerStream();
+  if (reusableStream) {
+    return reusableStream;
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      frameRate: { ideal: 30, max: 30 }
+    },
+    audio: false
+  });
+
+  state.scannerStream = stream;
+  stream.getTracks().forEach((track) => {
+    track.addEventListener("ended", () => {
+      if (state.scannerStream === stream && !getReusableScannerStream()) {
+        state.scannerStream = null;
+        if (elements.scannerVideo?.srcObject === stream) {
+          elements.scannerVideo.srcObject = null;
+        }
+      }
+    });
+  });
+  await tuneScannerCamera(stream);
+  return stream;
+}
+
+function getReusableScannerStream() {
+  const stream = state.scannerStream;
+  if (!stream) {
+    return null;
+  }
+
+  return stream.getVideoTracks().some((track) => track.readyState === "live") ? stream : null;
 }
 
 async function tuneScannerCamera(stream) {
@@ -795,16 +830,40 @@ function closeScanner() {
     state.scannerTimer = null;
   }
 
+  if (elements.scannerVideo) {
+    elements.scannerVideo.pause();
+  }
+
+  elements.scannerScreen.hidden = true;
+}
+
+function releaseScannerStream() {
+  if (state.scannerTimer) {
+    clearInterval(state.scannerTimer);
+    state.scannerTimer = null;
+  }
+
+  if (elements.scannerScreen) {
+    elements.scannerScreen.hidden = true;
+  }
+
+  if (elements.scannerVideo) {
+    elements.scannerVideo.pause();
+    elements.scannerVideo.srcObject = null;
+  }
+
   if (state.scannerStream) {
     state.scannerStream.getTracks().forEach((track) => track.stop());
     state.scannerStream = null;
   }
-
-  elements.scannerVideo.srcObject = null;
-  elements.scannerScreen.hidden = true;
 }
 
 function startBarcodeDetection() {
+  if (state.scannerTimer) {
+    clearInterval(state.scannerTimer);
+    state.scannerTimer = null;
+  }
+
   const detector = createBarcodeDetector();
   if (typeof window.jsQR === "function") {
     startJsQrDetection(detector);
