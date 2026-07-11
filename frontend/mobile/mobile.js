@@ -1,6 +1,7 @@
 const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "";
 const SESSION_KEY = "seungjinMobileSession";
 const ROUTE_KEY = "seungjinMobileRoute";
+const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
 
 const state = {
   user: null,
@@ -75,6 +76,7 @@ function initializeMobileApp() {
   const savedSession = readSavedSession();
   if (savedSession) {
     state.user = savedSession;
+    state.scannedShippingRows = readSavedScannedRows();
     restoreSavedRoute();
     return;
   }
@@ -293,6 +295,7 @@ function logout() {
   releaseScannerStream();
   sessionStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(ROUTE_KEY);
+  sessionStorage.removeItem(SCANNED_ROWS_KEY);
   state.user = null;
   state.dashboard = [];
   state.filteredRows = [];
@@ -639,6 +642,7 @@ async function handleConfirmShipping() {
     if (result.completedCount > 0) {
       const failedSet = new Set(result.failedItems);
       state.scannedShippingRows = state.scannedShippingRows.filter((row) => !targetItems.includes(row) || failedSet.has(row));
+      saveScannedShippingRows();
       applyShippingFilters();
       showToast(result.failedItems.length ? `${result.completedCount}개 박스 ${actionLabel} 완료, ${result.failedItems.length}건 실패` : `${result.completedCount}개 박스 ${actionLabel} 완료`);
     } else {
@@ -683,6 +687,7 @@ async function handleCompleteScannedShipping(action = "complete") {
     if (completedCount > 0) {
       triggerScanFeedback();
       state.scannedShippingRows = failedItems;
+      saveScannedShippingRows();
       applyShippingFilters();
       showToast(failedItems.length ? `${completedCount}개 박스 ${actionLabel} 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 ${actionLabel} 완료`);
       if (!failedItems.length) {
@@ -1071,6 +1076,7 @@ async function handleQrValue(rawValue) {
     }
 
     state.scannedShippingRows = [matched, ...state.scannedShippingRows];
+    saveScannedShippingRows();
     state.query = "";
     if (elements.shippingSearchInput) {
       elements.shippingSearchInput.value = "";
@@ -1292,6 +1298,27 @@ function readSavedSession() {
     return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
   } catch (error) {
     return null;
+  }
+}
+
+function readSavedScannedRows() {
+  try {
+    const rows = JSON.parse(sessionStorage.getItem(SCANNED_ROWS_KEY) || "[]");
+    return Array.isArray(rows) ? rows : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveScannedShippingRows() {
+  try {
+    if (!state.scannedShippingRows.length) {
+      sessionStorage.removeItem(SCANNED_ROWS_KEY);
+      return;
+    }
+    sessionStorage.setItem(SCANNED_ROWS_KEY, JSON.stringify(state.scannedShippingRows));
+  } catch (error) {
+    console.warn("Failed to save scanned shipping rows.", error);
   }
 }
 
