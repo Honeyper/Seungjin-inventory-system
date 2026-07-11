@@ -548,6 +548,13 @@ function renderShippingItem(item) {
     : scannedBox
       ? getBoxCurrentQuantity(scannedBox, item)
       : parseNumber(item.currentTotalQuantity);
+  const boxUnitQuantityText = getBoxUnitQuantityText(item, {
+    isProductGroup,
+    scannedBox,
+    displayBoxes,
+    totalQuantity,
+    boxCount
+  });
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
   const boxLabel = isProductGroup ? `스캔 ${formatNumber(boxCount)}박스` : getScannedBoxLabel(item);
@@ -571,7 +578,6 @@ function renderShippingItem(item) {
           ${metaParts.map((part) => `<span class="shipping-meta-pill">${escapeHtml(part)}</span>`).join("")}
         </div>
         <div class="shipping-card-actions">
-          <button class="shipping-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}">삭제</button>
           <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending">출고대기</button>
           <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
@@ -585,14 +591,15 @@ function renderShippingItem(item) {
           <small>box</small>
         </span>
         <span class="metric">
-          <span>총 수량</span>
-          <strong>${formatNumber(totalQuantity)}</strong>
+          <span>박스당 수량</span>
+          <strong>${escapeHtml(boxUnitQuantityText)}</strong>
           <small>ea</small>
         </span>
         <span class="metric">
           <span>현재 수량</span>
           <strong class="blue">${formatNumber(currentQuantity)}</strong>
           <small>ea</small>
+          <button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>
         </span>
       </div>
     </article>
@@ -1712,6 +1719,41 @@ function getBoxCurrentQuantity(box, item) {
     box?.quantity ||
     item?.currentTotalQuantity
   );
+}
+
+function getBoxUnitQuantityText(item, options = {}) {
+  const quantities = [];
+  const pushQuantity = (box, row) => {
+    const quantity = getBoxCurrentQuantity(box, row) || getBoxTotalQuantity(box, row);
+    if (quantity) {
+      quantities.push(quantity);
+    }
+  };
+
+  if (options.isProductGroup && Array.isArray(item?.scannedItems)) {
+    item.scannedItems.forEach((row) => pushQuantity(getScannedBox(row), row));
+  } else if (options.scannedBox) {
+    pushQuantity(options.scannedBox, item);
+  } else {
+    (options.displayBoxes || getKnownBoxes(item)).forEach((box) => pushQuantity(box, item));
+  }
+
+  const uniqueQuantities = Array.from(new Set(quantities));
+  if (uniqueQuantities.length === 1) {
+    return formatNumber(uniqueQuantities[0]);
+  }
+
+  if (uniqueQuantities.length > 1) {
+    return "혼합";
+  }
+
+  const boxCount = parseNumber(options.boxCount);
+  const totalQuantity = parseNumber(options.totalQuantity);
+  if (boxCount > 1 && totalQuantity) {
+    return formatNumber(Math.round(totalQuantity / boxCount));
+  }
+
+  return formatNumber(totalQuantity);
 }
 
 function canUseVibration() {

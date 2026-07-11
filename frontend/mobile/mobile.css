@@ -3990,7 +3990,6 @@ img {
   white-space: nowrap;
 }
 
-#shippingScreen .shipping-quantity-button,
 #shippingScreen .shipping-remove-button {
   min-height: 42px;
   padding: 0 8px;
@@ -4002,13 +4001,6 @@ img {
   font-weight: 900;
 }
 
-#shippingScreen .shipping-quantity-button {
-  color: var(--navy-dark);
-  background: #fff7e8;
-  border-color: rgba(208, 161, 75, 0.55);
-}
-
-#shippingScreen .shipping-quantity-button:active,
 #shippingScreen .shipping-remove-button:active {
   color: #fff;
   background: var(--navy-dark);
@@ -4025,12 +4017,11 @@ img {
 
 #shippingScreen .shipping-card-actions {
   grid-column: 1 / -1;
-  grid-template-columns: 1fr 0.72fr 1fr 1fr;
+  grid-template-columns: 0.72fr 1fr 1fr;
 }
 
 #shippingScreen .ship-now-button,
 #shippingScreen .ship-pending-button,
-#shippingScreen .shipping-quantity-button,
 #shippingScreen .shipping-remove-button {
   min-height: 42px;
   border-radius: 9px;
@@ -4073,6 +4064,26 @@ img {
 
 #shippingScreen .metric strong.blue {
   color: var(--gold);
+}
+
+#shippingScreen .metric-quantity-button {
+  justify-self: center;
+  min-height: 28px;
+  min-width: 78px;
+  margin-top: 7px;
+  padding: 0 10px;
+  border: 1px solid rgba(208, 161, 75, 0.55);
+  border-radius: 8px;
+  color: var(--navy-dark);
+  background: #fff7e8;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#shippingScreen .metric-quantity-button:active {
+  color: #fff;
+  background: var(--navy-dark);
 }
 
 @media (max-height: 700px) {
@@ -4680,7 +4691,6 @@ img {
   font-size: 11px;
 }
 
-#shippingScreen .shipping-quantity-button,
 #shippingScreen .shipping-remove-button {
   min-height: 40px;
   font-size: 14px;
@@ -4689,12 +4699,11 @@ img {
 #shippingScreen .shipping-card-actions {
   gap: 7px;
   margin-top: 3px;
-  grid-template-columns: 1fr 0.72fr 1fr 1fr;
+  grid-template-columns: 0.72fr 1fr 1fr;
 }
 
 #shippingScreen .ship-now-button,
 #shippingScreen .ship-pending-button,
-#shippingScreen .shipping-quantity-button,
 #shippingScreen .shipping-remove-button {
   min-height: 40px;
   font-size: 15px;
@@ -4784,18 +4793,25 @@ img {
     font-size: 10px;
   }
 
-  #shippingScreen .shipping-quantity-button,
   #shippingScreen .shipping-remove-button {
     min-height: 38px;
     font-size: 13px;
   }
 
   #shippingScreen .metric {
-    min-height: 74px;
+    min-height: 82px;
   }
 
   #shippingScreen .metric strong {
     margin-top: 6px;
     font-size: 18px;
+  }
+
+  #shippingScreen .metric-quantity-button {
+    min-height: 26px;
+    min-width: 70px;
+    margin-top: 5px;
+    padding: 0 8px;
+    font-size: 11px;
   }
 }
