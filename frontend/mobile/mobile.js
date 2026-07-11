@@ -129,6 +129,12 @@ function bindEvents() {
   });
 
   elements.shippingListPanel?.addEventListener("click", (event) => {
+    const quantityButton = event.target.closest("[data-mobile-shipping-quantity]");
+    if (quantityButton) {
+      openShippingQuantityEditor(quantityButton.dataset.mobileShippingQuantity);
+      return;
+    }
+
     const removeButton = event.target.closest("[data-mobile-shipping-remove]");
     if (removeButton) {
       removeScannedShippingGroup(removeButton.dataset.mobileShippingRemove);
@@ -565,6 +571,7 @@ function renderShippingItem(item) {
           ${metaParts.map((part) => `<span class="shipping-meta-pill">${escapeHtml(part)}</span>`).join("")}
         </div>
         <div class="shipping-card-actions">
+          <button class="shipping-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}">삭제</button>
           <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending">출고대기</button>
           <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
@@ -824,6 +831,7 @@ async function completeShippingItem(item, selectedBoxes, action = "complete") {
   const scannedBox = getScannedBox(item);
   const inspectionQuantity = parseNumber(scannedBox?.currentQuantity || scannedBox?.quantity || item.currentTotalQuantity);
   const isPendingAction = action === "pending";
+  const boxQuantities = getSelectedBoxQuantities(item, selectedBoxes);
 
   const payload = {
     managementId: item.managementId,
@@ -841,7 +849,8 @@ async function completeShippingItem(item, selectedBoxes, action = "complete") {
     shippingDate: toDateKey(now),
     shippingTime: toTimeKey(now),
     shipper: state.user?.name || "Admin",
-    selectedBoxes
+    selectedBoxes,
+    boxQuantities
   };
 
   if (isPendingAction) {
@@ -1328,6 +1337,7 @@ function renderScannerScannedList() {
           <strong>${escapeHtml(normalizeDisplay(item.productName || "-"))}</strong>
           <small>${escapeHtml(normalizeDisplay(item.clientName || "-"))} · ${escapeHtml(normalizeDisplay(item.finalProcess || "-"))} · ${escapeHtml(boxLabel)}${quantityText}</small>
         </div>
+        <button class="scanner-quantity-button" type="button" data-scanner-quantity="${index}">수량</button>
         <button class="scanner-remove-button" type="button" data-scanner-remove="${index}" aria-label="스캔 항목 삭제">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M18 6 6 18"></path>
@@ -1340,6 +1350,12 @@ function renderScannerScannedList() {
 }
 
 function handleScannerListClick(event) {
+  const quantityButton = event.target.closest("[data-scanner-quantity]");
+  if (quantityButton) {
+    openScannerQuantityEditor(Number(quantityButton.dataset.scannerQuantity));
+    return;
+  }
+
   const removeButton = event.target.closest("[data-scanner-remove]");
   if (!removeButton) {
     return;
@@ -1347,6 +1363,108 @@ function handleScannerListClick(event) {
 
   const index = Number(removeButton.dataset.scannerRemove);
   removeScannedShippingRow(index);
+}
+
+function openScannerQuantityEditor(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= state.scannedShippingRows.length) {
+    return;
+  }
+
+  editScannedBoxQuantity(state.scannedShippingRows[index]);
+}
+
+function openShippingQuantityEditor(key) {
+  const items = getShippingQuantityItems(key);
+  if (!items.length) {
+    showToast("수량을 변경할 스캔 항목을 찾지 못했습니다.");
+    return;
+  }
+
+  if (items.length === 1) {
+    editScannedBoxQuantity(items[0]);
+    return;
+  }
+
+  const list = items.map((item, index) => {
+    const label = getScannedBoxLabel(item) || `${index + 1}번 박스`;
+    return `${index + 1}. ${label} - ${formatNumber(getEditableBoxQuantity(item))}ea`;
+  }).join("\n");
+  const selected = window.prompt(`수량을 변경할 박스를 선택하세요.\n\n${list}`, "1");
+  if (selected === null) {
+    return;
+  }
+
+  const selectedIndex = Number.parseInt(selected, 10) - 1;
+  if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= items.length) {
+    showToast("박스 번호를 다시 확인해주세요.");
+    return;
+  }
+
+  editScannedBoxQuantity(items[selectedIndex]);
+}
+
+function getShippingQuantityItems(key) {
+  if (!key) {
+    return [];
+  }
+
+  const visibleItem = state.filteredRows.find((row) => getShippingKey(row) === key);
+  if (Array.isArray(visibleItem?.scannedItems)) {
+    return visibleItem.scannedItems;
+  }
+
+  if (visibleItem) {
+    return [visibleItem];
+  }
+
+  return state.scannedShippingRows.filter((row) => getShippingProductGroupKey(row) === key);
+}
+
+function editScannedBoxQuantity(item) {
+  const currentQuantity = getEditableBoxQuantity(item);
+  const label = getScannedBoxLabel(item) || "선택한 박스";
+  const input = window.prompt(`${label} 수량을 입력하세요.`, currentQuantity ? String(currentQuantity) : "");
+  if (input === null) {
+    return;
+  }
+
+  const nextQuantity = parseNumber(input);
+  if (!nextQuantity || nextQuantity < 1) {
+    showToast("수량은 1 이상으로 입력해주세요.");
+    return;
+  }
+
+  setScannedBoxQuantity(item, nextQuantity);
+  saveScannedShippingRows();
+  applyShippingFilters();
+  showToast(`${label} 수량을 ${formatNumber(nextQuantity)}ea로 변경했습니다.`);
+}
+
+function getEditableBoxQuantity(item) {
+  const box = getScannedBox(item);
+  return parseNumber(
+    box?.currentQuantity ||
+    box?.quantity ||
+    box?.boxQuantity ||
+    box?.totalQuantity ||
+    item?.currentTotalQuantity
+  );
+}
+
+function setScannedBoxQuantity(item, quantity) {
+  if (!item) {
+    return;
+  }
+
+  const box = getScannedBox(item) || {};
+  item.scannedBox = box;
+  box.quantity = quantity;
+  box.currentQuantity = quantity;
+  box.boxQuantity = quantity;
+  box.totalQuantity = quantity;
+  box.originalQuantity = quantity;
+  item.currentTotalQuantity = quantity;
+  item.scannedQuantityEdited = true;
 }
 
 function removeScannedShippingRow(index) {
@@ -1545,6 +1663,37 @@ function getSelectedBoxNumbers(item) {
     .filter((box) => !normalizeText(box.status).includes("출고완료"))
     .map((box) => String(box.number || box.sequence || "").trim())
     .filter(Boolean);
+}
+
+function getSelectedBoxQuantities(item, selectedBoxes = []) {
+  const quantities = {};
+  const selectedSet = new Set(selectedBoxes.map((boxNumber) => String(boxNumber).trim()).filter(Boolean));
+  const scannedBox = getScannedBox(item);
+  const candidates = [
+    scannedBox,
+    ...getKnownBoxes(item)
+  ].filter(Boolean);
+
+  candidates.forEach((box) => {
+    const number = String(box.number || box.sequence || item?.scannedBoxNumber || "").trim();
+    if (!number || !selectedSet.has(number)) {
+      return;
+    }
+
+    const quantity = getBoxCurrentQuantity(box, item);
+    if (quantity) {
+      quantities[number] = quantity;
+    }
+  });
+
+  if (scannedBox && !Object.keys(quantities).length && selectedBoxes.length === 1) {
+    const quantity = getBoxCurrentQuantity(scannedBox, item);
+    if (quantity) {
+      quantities[selectedBoxes[0]] = quantity;
+    }
+  }
+
+  return quantities;
 }
 
 function getBoxTotalQuantity(box, item) {
