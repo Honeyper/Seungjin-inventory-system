@@ -10,6 +10,13 @@ const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
 const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
 const SHIPPING_BOX_ICON_SRC = "../assets/mobile-shipping-box-icon-2d.png?v=20260712-shipping-box-icon";
+const SHIPPING_SORT_OPTIONS = [
+  { key: "productName", label: "이름순" },
+  { key: "clientName", label: "거래처명순" },
+  { key: "boxQuantity", label: "박스당 수량 많은 순" },
+  { key: "scannedBoxes", label: "스캔박스순" },
+  { key: "quantity", label: "수량 많은 순" }
+];
 
 const state = {
   user: null,
@@ -17,6 +24,7 @@ const state = {
   filteredRows: [],
   scannedShippingRows: [],
   query: "",
+  shippingSortMode: "scannedBoxes",
   selectedShippingItem: null,
   selectedShippingAction: "complete",
   selectedConfirmMode: "item",
@@ -54,6 +62,7 @@ const elements = {
   mobileShippingCount: document.querySelector("#mobileShippingCount"),
   refreshShippingButton: document.querySelector("#refreshShippingButton"),
   filterShippingButton: document.querySelector("#filterShippingButton"),
+  shippingFilterMenu: document.querySelector("#shippingFilterMenu"),
   shippingListPanel: document.querySelector("#shippingListPanel"),
   openScannerButton: document.querySelector("#openScannerButton"),
   confirmModal: document.querySelector("#confirmModal"),
@@ -80,6 +89,7 @@ const elements = {
 initializeMobileApp();
 
 function initializeMobileApp() {
+  renderShippingSortMenu();
   bindEvents();
   updateShippingClock();
 
@@ -98,10 +108,12 @@ function bindEvents() {
   elements.loginForm?.addEventListener("submit", handleAdminLogin);
   elements.togglePassword?.addEventListener("click", togglePassword);
   elements.logoutButton?.addEventListener("click", logout);
-  elements.refreshShippingButton?.addEventListener("click", loadShippingDashboard);
-  elements.filterShippingButton?.addEventListener("click", () => {
-    showToast("상세 필터는 다음 단계에서 연결합니다.");
+  elements.refreshShippingButton?.addEventListener("click", handleRefreshShipping);
+  elements.filterShippingButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleShippingSortMenu();
   });
+  elements.shippingFilterMenu?.addEventListener("click", handleShippingSortMenuClick);
   elements.shippingSearchInput?.addEventListener("input", (event) => {
     state.query = event.target.value.trim().toLowerCase();
     applyShippingFilters();
@@ -122,6 +134,7 @@ function bindEvents() {
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
   bindScannerSheetEvents();
   document.addEventListener("visibilitychange", handlePageVisibilityChange);
+  document.addEventListener("click", closeShippingSortMenu);
   window.addEventListener("pagehide", releaseScannerStream);
 
   document.querySelectorAll("[data-mobile-route]").forEach((button) => {
@@ -424,12 +437,14 @@ async function loadShippingDashboard(options = {}) {
     const data = await requestApi("getInventoryDashboard");
     state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
     applyShippingFilters();
+    return true;
   } catch (error) {
     if (options.silent) {
       showToast(error.message || "출고 목록을 불러오지 못했습니다.");
-      return;
+      return false;
     }
     renderShippingError(error.message || "출고 목록을 불러오지 못했습니다.");
+    return false;
   }
 }
 
@@ -457,9 +472,156 @@ function applyShippingFilters() {
       ].some((value) => String(value || "").toLowerCase().includes(query));
     }));
 
-  state.filteredRows = rows;
-  renderShippingList(rows);
+  const sortedRows = sortShippingRows(rows);
+  state.filteredRows = sortedRows;
+  renderShippingList(sortedRows);
   renderScannerScannedList();
+}
+
+async function handleRefreshShipping() {
+  if (elements.refreshShippingButton?.disabled) {
+    return;
+  }
+
+  closeShippingSortMenu();
+  elements.refreshShippingButton.disabled = true;
+  elements.refreshShippingButton.classList.add("is-loading");
+
+  try {
+    const didRefresh = await loadShippingDashboard({ silent: true });
+    if (didRefresh) {
+      showToast("출고 목록을 새로고침했습니다.");
+    }
+  } finally {
+    elements.refreshShippingButton.disabled = false;
+    elements.refreshShippingButton.classList.remove("is-loading");
+  }
+}
+
+function renderShippingSortMenu() {
+  if (!elements.shippingFilterMenu) {
+    return;
+  }
+
+  elements.shippingFilterMenu.innerHTML = SHIPPING_SORT_OPTIONS.map((option) => `
+    <button type="button" role="menuitem" data-shipping-sort="${escapeHtml(option.key)}" aria-pressed="${option.key === state.shippingSortMode ? "true" : "false"}">
+      ${escapeHtml(option.label)}
+    </button>
+  `).join("");
+}
+
+function toggleShippingSortMenu() {
+  if (!elements.shippingFilterMenu) {
+    return;
+  }
+
+  renderShippingSortMenu();
+  const willOpen = elements.shippingFilterMenu.hidden;
+  elements.shippingFilterMenu.hidden = !willOpen;
+  elements.filterShippingButton?.setAttribute("aria-expanded", String(willOpen));
+}
+
+function closeShippingSortMenu() {
+  if (!elements.shippingFilterMenu || elements.shippingFilterMenu.hidden) {
+    return;
+  }
+
+  elements.shippingFilterMenu.hidden = true;
+  elements.filterShippingButton?.setAttribute("aria-expanded", "false");
+}
+
+function handleShippingSortMenuClick(event) {
+  const button = event.target.closest("[data-shipping-sort]");
+  if (!button) {
+    return;
+  }
+
+  event.stopPropagation();
+  state.shippingSortMode = button.dataset.shippingSort || "scannedBoxes";
+  applyShippingFilters();
+  closeShippingSortMenu();
+  const option = SHIPPING_SORT_OPTIONS.find((entry) => entry.key === state.shippingSortMode);
+  showToast(`${option?.label || "필터"}으로 정렬했습니다.`);
+}
+
+function sortShippingRows(rows) {
+  const sortedRows = [...rows];
+  const mode = state.shippingSortMode;
+
+  sortedRows.sort((a, b) => {
+    if (mode === "productName") {
+      return compareShippingText(a.productName, b.productName) || compareShippingText(a.clientName, b.clientName);
+    }
+
+    if (mode === "clientName") {
+      return compareShippingText(a.clientName, b.clientName) || compareShippingText(a.productName, b.productName);
+    }
+
+    if (mode === "boxQuantity") {
+      return getShippingBoxUnitQuantity(b) - getShippingBoxUnitQuantity(a) || compareShippingText(a.productName, b.productName);
+    }
+
+    if (mode === "quantity") {
+      return getShippingAvailableQuantity(b) - getShippingAvailableQuantity(a) || compareShippingText(a.productName, b.productName);
+    }
+
+    return getShippingBoxCount(b) - getShippingBoxCount(a) || compareShippingText(a.productName, b.productName);
+  });
+
+  return sortedRows;
+}
+
+function compareShippingText(a, b) {
+  return normalizeDisplay(a || "").localeCompare(normalizeDisplay(b || ""), "ko");
+}
+
+function getShippingBoxCount(item) {
+  if (Array.isArray(item?.scannedItems)) {
+    return parseNumber(item.scannedBoxCount) || item.scannedItems.length;
+  }
+
+  const scannedBox = getScannedBox(item);
+  if (scannedBox) {
+    return 1;
+  }
+
+  return getKnownBoxes(item).length || parseNumber(item?.currentBoxCount || item?.boxTotalCount);
+}
+
+function getShippingAvailableQuantity(item) {
+  if (Array.isArray(item?.scannedItems)) {
+    return item.scannedItems.reduce((sum, row) => sum + getShippingAvailableQuantity(row), 0);
+  }
+
+  const scannedBox = getScannedBox(item);
+  if (scannedBox) {
+    return getBoxTotalQuantity(scannedBox, item);
+  }
+
+  return sumBoxQuantity(getKnownBoxes(item)) || parseNumber(item?.currentTotalQuantity);
+}
+
+function getShippingBoxUnitQuantity(item) {
+  if (Array.isArray(item?.scannedItems)) {
+    return item.scannedItems.reduce((maxQuantity, row) => Math.max(maxQuantity, getShippingBoxUnitQuantity(row)), 0);
+  }
+
+  const scannedBox = getScannedBox(item);
+  if (scannedBox) {
+    return getBoxTotalQuantity(scannedBox, item) || getBoxCurrentQuantity(scannedBox, item);
+  }
+
+  const quantities = getKnownBoxes(item)
+    .map((box) => getBoxTotalQuantity(box, item) || getBoxCurrentQuantity(box, item))
+    .filter(Boolean);
+
+  if (quantities.length) {
+    return Math.max(...quantities);
+  }
+
+  const boxCount = getShippingBoxCount(item);
+  const availableQuantity = getShippingAvailableQuantity(item);
+  return boxCount > 1 ? Math.round(availableQuantity / boxCount) : availableQuantity;
 }
 
 function groupScannedShippingRows(rows) {

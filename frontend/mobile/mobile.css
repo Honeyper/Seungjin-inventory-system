@@ -711,6 +711,7 @@ img {
 }
 
 .shipping-controls {
+  position: relative;
   display: grid;
   gap: 12px;
   margin: 18px 0 14px;
@@ -862,6 +863,56 @@ img {
 .control-button svg {
   width: 20px;
   height: 20px;
+}
+
+.control-button:disabled {
+  opacity: 0.68;
+}
+
+.control-button.is-loading svg {
+  animation: mobileSpin 0.85s linear infinite;
+}
+
+.shipping-filter-menu {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: calc(100% + 6px);
+  display: grid;
+  gap: 5px;
+  width: min(240px, 74vw);
+  padding: 8px;
+  border: 1px solid rgba(196, 210, 228, 0.98);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 34px rgba(6, 31, 76, 0.16);
+}
+
+.shipping-filter-menu[hidden] {
+  display: none;
+}
+
+.shipping-filter-menu button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 11px;
+  color: #374151;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.shipping-filter-menu button[aria-pressed="true"] {
+  color: #fff;
+  background: var(--navy-dark);
+}
+
+@keyframes mobileSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .shipping-list-panel {

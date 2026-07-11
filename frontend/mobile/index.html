@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260712-shipping-available-quantity" />
+    <link rel="stylesheet" href="./mobile.css?v=20260712-shipping-sort-filter" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -199,13 +199,14 @@
               </svg>
               새로고침
             </button>
-            <button class="control-button" id="filterShippingButton" type="button">
+            <button class="control-button" id="filterShippingButton" type="button" aria-haspopup="menu" aria-expanded="false">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h16M7 12h10M10 17h4"></path>
               </svg>
               필터
             </button>
           </div>
+          <div class="shipping-filter-menu" id="shippingFilterMenu" hidden role="menu" aria-label="출고 목록 정렬"></div>
         </div>
 
         <section class="shipping-list-panel" id="shippingListPanel" aria-live="polite"></section>
@@ -296,6 +297,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260712-shipping-available-quantity"></script>
+    <script src="./mobile.js?v=20260712-shipping-sort-filter"></script>
   </body>
 </html>
