@@ -4442,3 +4442,135 @@ img {
     display: none;
   }
 }
+
+/* Tighten scanned shipping cards after returning from QR scan. */
+#shippingScreen .shipping-item {
+  gap: 7px;
+  padding: 10px 11px 9px;
+  align-content: start;
+  align-self: start;
+}
+
+#shippingScreen .shipping-list-panel {
+  align-content: start;
+  align-items: start;
+}
+
+#shippingScreen .shipping-item-top {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+#shippingScreen .shipping-item-top > div {
+  min-width: 0;
+}
+
+#shippingScreen .shipping-product-name {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--navy-dark);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.16;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+#shippingScreen .shipping-title small {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: #647083;
+  font-size: 12px;
+  line-height: 1.16;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#shippingScreen .process-pill {
+  align-self: start;
+  min-width: 39px;
+  min-height: 32px;
+  margin-top: 34px;
+  padding: 0 9px;
+  font-size: 15px;
+}
+
+#shippingScreen .shipping-card-actions {
+  gap: 7px;
+  margin-top: 3px;
+}
+
+#shippingScreen .ship-now-button,
+#shippingScreen .ship-pending-button {
+  min-height: 40px;
+  font-size: 15px;
+}
+
+#shippingScreen .item-worker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+#shippingScreen .item-worker span {
+  margin-right: 0;
+}
+
+#shippingScreen .item-metrics {
+  margin-top: 3px;
+  padding-top: 8px;
+}
+
+#shippingScreen .metric {
+  gap: 0;
+  align-content: start;
+  min-height: 82px;
+}
+
+#shippingScreen .metric span,
+#shippingScreen .metric small {
+  line-height: 1.1;
+}
+
+#shippingScreen .metric span {
+  font-size: 12px;
+}
+
+#shippingScreen .metric strong {
+  margin-top: 8px;
+  font-size: 20px;
+  line-height: 1.05;
+}
+
+#shippingScreen .metric small {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+@media (max-height: 700px), (max-width: 340px) {
+  #shippingScreen .shipping-product-name {
+    font-size: 16px;
+    -webkit-line-clamp: 2;
+  }
+
+  #shippingScreen .process-pill {
+    margin-top: 24px;
+  }
+
+  #shippingScreen .metric {
+    min-height: 74px;
+  }
+
+  #shippingScreen .metric strong {
+    margin-top: 6px;
+    font-size: 18px;
+  }
+}

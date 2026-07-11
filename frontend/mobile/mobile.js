@@ -522,7 +522,7 @@ function renderShippingItem(item) {
         <div>
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
-            ${escapeHtml(normalizeDisplay(item.productName || "-"))}
+            <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
             <small>| ${escapeHtml(batch)}${boxLabel ? ` · ${escapeHtml(boxLabel)}` : ""}</small>
           </div>
         </div>
