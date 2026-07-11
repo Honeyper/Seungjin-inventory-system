@@ -19,6 +19,7 @@ const state = {
   query: "",
   selectedShippingItem: null,
   selectedShippingAction: "complete",
+  selectedConfirmMode: "item",
   isCompletingShipping: false,
   scannerStream: null,
   scannerTimer: null,
@@ -112,8 +113,8 @@ function bindEvents() {
   });
   elements.manualQrButton?.addEventListener("click", handleManualQrInput);
   elements.scannerScannedList?.addEventListener("click", handleScannerListClick);
-  elements.scannerPendingButton?.addEventListener("click", () => handleCompleteScannedShipping("pending"));
-  elements.scannerDoneButton?.addEventListener("click", () => handleCompleteScannedShipping("complete"));
+  elements.scannerPendingButton?.addEventListener("click", () => openScannedShippingConfirmModal("pending"));
+  elements.scannerDoneButton?.addEventListener("click", () => openScannedShippingConfirmModal("complete"));
   elements.toggleFlashButton?.addEventListener("click", () => {
     showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
   });
@@ -617,6 +618,7 @@ function renderShippingError(message) {
 }
 
 function openConfirmModal(item, action = "complete") {
+  state.selectedConfirmMode = "item";
   state.selectedShippingItem = item;
   state.selectedShippingAction = action;
   const scannedBoxLabel = getScannedBoxLabel(item);
@@ -635,13 +637,60 @@ function openConfirmModal(item, action = "complete") {
   elements.confirmModal.hidden = false;
 }
 
+function openScannedShippingConfirmModal(action = "complete") {
+  if (state.isCompletingShipping) {
+    return;
+  }
+
+  const items = [...state.scannedShippingRows];
+  const isPendingAction = action === "pending";
+  if (!items.length) {
+    showToast(isPendingAction ? "출고대기로 변경할 박스를 먼저 스캔해주세요." : "출고 처리할 박스를 먼저 스캔해주세요.");
+    return;
+  }
+
+  const boxCount = items.length;
+  const totalQuantity = items.reduce((sum, item) => sum + getBoxCurrentQuantity(getScannedBox(item), item), 0);
+  const actionLabel = isPendingAction ? "출고대기" : "출고";
+  state.selectedConfirmMode = "scannerBatch";
+  state.selectedShippingItem = null;
+  state.selectedShippingAction = action;
+
+  if (elements.confirmMessage) {
+    elements.confirmMessage.textContent = `스캔한 ${formatNumber(boxCount)}개 박스를 ${actionLabel} 처리하시겠습니까?`;
+  }
+  elements.acceptConfirmButton.textContent = actionLabel;
+  elements.confirmProductName.textContent = totalQuantity
+    ? `총 ${formatNumber(boxCount)}box · ${formatNumber(totalQuantity)}ea`
+    : `총 ${formatNumber(boxCount)}box`;
+  elements.confirmModal.hidden = false;
+}
+
 function closeConfirmModal() {
   state.selectedShippingItem = null;
   state.selectedShippingAction = "complete";
+  state.selectedConfirmMode = "item";
   elements.confirmModal.hidden = true;
 }
 
 async function handleConfirmShipping() {
+  if (state.selectedConfirmMode === "scannerBatch") {
+    if (state.isCompletingShipping) {
+      return;
+    }
+
+    elements.acceptConfirmButton.disabled = true;
+    elements.acceptConfirmButton.textContent = "처리 중";
+    try {
+      await handleCompleteScannedShipping(state.selectedShippingAction || "complete");
+      closeConfirmModal();
+    } finally {
+      elements.acceptConfirmButton.disabled = false;
+      elements.acceptConfirmButton.textContent = "확인";
+    }
+    return;
+  }
+
   if (!state.selectedShippingItem || state.isCompletingShipping) {
     return;
   }
