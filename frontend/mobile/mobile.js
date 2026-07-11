@@ -579,7 +579,7 @@ function renderShippingItem(item) {
         </div>
         <div class="shipping-card-actions">
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}">삭제</button>
-          <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending">출고대기</button>
+          <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending">출고대기 등록</button>
           <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
         </div>
       </div>
@@ -598,8 +598,10 @@ function renderShippingItem(item) {
         <span class="metric">
           <span>현재 수량</span>
           <strong class="blue">${formatNumber(currentQuantity)}</strong>
-          <small>ea</small>
-          <button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>
+          <span class="metric-action-row">
+            <small>ea</small>
+            <button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>
+          </span>
         </span>
       </div>
     </article>
@@ -650,10 +652,10 @@ function openConfirmModal(item, action = "complete") {
   const isPendingAction = action === "pending";
   if (elements.confirmMessage) {
     elements.confirmMessage.textContent = isPendingAction
-      ? "해당 제품을 출고대기로 변경하시겠습니까?"
+      ? "해당 제품을 출고대기로 등록하시겠습니까?"
       : "해당 제품을 출고 처리하시겠습니까?";
   }
-  elements.acceptConfirmButton.textContent = isPendingAction ? "출고대기" : "출고";
+  elements.acceptConfirmButton.textContent = isPendingAction ? "출고대기 등록" : "출고";
   elements.confirmProductName.textContent = `${normalizeDisplay(item.productName)} | ${normalizeDisplay(item.batch || "-")} | ${normalizeDisplay(item.finalProcess || "-")}${boxText}`;
   elements.confirmModal.hidden = false;
 }
@@ -666,13 +668,13 @@ function openScannedShippingConfirmModal(action = "complete") {
   const items = [...state.scannedShippingRows];
   const isPendingAction = action === "pending";
   if (!items.length) {
-    showToast(isPendingAction ? "출고대기로 변경할 박스를 먼저 스캔해주세요." : "출고 처리할 박스를 먼저 스캔해주세요.");
+    showToast(isPendingAction ? "출고대기로 등록할 박스를 먼저 스캔해주세요." : "출고 처리할 박스를 먼저 스캔해주세요.");
     return;
   }
 
   const boxCount = items.length;
   const totalQuantity = items.reduce((sum, item) => sum + getBoxCurrentQuantity(getScannedBox(item), item), 0);
-  const actionLabel = isPendingAction ? "출고대기" : "출고";
+  const actionLabel = isPendingAction ? "출고대기 등록" : "출고";
   state.selectedConfirmMode = "scannerBatch";
   state.selectedShippingItem = null;
   state.selectedShippingAction = action;
@@ -721,7 +723,7 @@ async function handleConfirmShipping() {
   const selectedBoxes = getSelectedBoxNumbers(item);
 
   if (!selectedBoxes.length) {
-    showToast(action === "pending" ? "출고대기로 변경할 박스 번호가 없습니다." : "출고 처리할 박스 번호가 없습니다.");
+    showToast(action === "pending" ? "출고대기로 등록할 박스 번호가 없습니다." : "출고 처리할 박스 번호가 없습니다.");
     closeConfirmModal();
     return;
   }
@@ -733,7 +735,7 @@ async function handleConfirmShipping() {
   try {
     const targetItems = Array.isArray(item.scannedItems) ? item.scannedItems : [item];
     const result = await completeShippingItems(targetItems, action);
-    const actionLabel = action === "pending" ? "출고대기 변경" : "출고";
+    const actionLabel = action === "pending" ? "출고대기 등록" : "출고";
 
     closeConfirmModal();
     if (result.completedCount > 0) {
@@ -743,11 +745,11 @@ async function handleConfirmShipping() {
       applyShippingFilters();
       showToast(result.failedItems.length ? `${result.completedCount}개 박스 ${actionLabel} 완료, ${result.failedItems.length}건 실패` : `${result.completedCount}개 박스 ${actionLabel} 완료`);
     } else {
-      showToast(action === "pending" ? "출고대기로 변경된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
+      showToast(action === "pending" ? "출고대기로 등록된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
     }
     await loadShippingDashboard();
   } catch (error) {
-    showToast(error.message || (action === "pending" ? "출고대기 변경 중 문제가 발생했습니다." : "출고 처리 중 문제가 발생했습니다."));
+    showToast(error.message || (action === "pending" ? "출고대기 등록 중 문제가 발생했습니다." : "출고 처리 중 문제가 발생했습니다."));
   } finally {
     state.isCompletingShipping = false;
     elements.acceptConfirmButton.disabled = false;
@@ -761,10 +763,10 @@ async function handleCompleteScannedShipping(action = "complete") {
   }
 
   const isPendingAction = action === "pending";
-  const actionLabel = isPendingAction ? "출고대기 변경" : "출고";
+  const actionLabel = isPendingAction ? "출고대기 등록" : "출고";
   const items = [...state.scannedShippingRows];
   if (!items.length) {
-    showToast(isPendingAction ? "출고대기로 변경할 박스를 먼저 스캔해주세요." : "출고 처리할 박스를 먼저 스캔해주세요.");
+    showToast(isPendingAction ? "출고대기로 등록할 박스를 먼저 스캔해주세요." : "출고 처리할 박스를 먼저 스캔해주세요.");
     return;
   }
 
@@ -792,7 +794,7 @@ async function handleCompleteScannedShipping(action = "complete") {
       }
       await loadShippingDashboard({ silent: true });
     } else {
-      showToast(isPendingAction ? "출고대기로 변경된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
+      showToast(isPendingAction ? "출고대기로 등록된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
     }
   } finally {
     state.isCompletingShipping = false;
@@ -800,7 +802,7 @@ async function handleCompleteScannedShipping(action = "complete") {
       elements.scannerPendingButton.disabled = false;
       elements.scannerPendingButton.innerHTML = `
         <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
-        출고대기
+        출고대기 등록
       `;
     }
     elements.scannerDoneButton.disabled = false;
