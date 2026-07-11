@@ -6,6 +6,9 @@ const BARCODE_DETECT_INTERVAL_MS = 900;
 const JSQR_DETECT_INTERVAL_MS = 420;
 const JSQR_MAX_EDGE = 960;
 const SHIPPING_CLOCK_INTERVAL_MS = 10000;
+const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
+const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
+const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
 
 const state = {
   user: null,
@@ -704,7 +707,7 @@ async function handleCompleteScannedShipping(action = "complete") {
     const { completedCount, failedItems } = await completeShippingItems(items, action);
 
     if (completedCount > 0) {
-      triggerScanFeedback();
+      triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
       state.scannedShippingRows = failedItems;
       saveScannedShippingRows();
       applyShippingFilters();
@@ -1080,6 +1083,7 @@ async function handleQrValue(rawValue) {
 
     const key = getShippingKey(matched);
     if (state.scannedShippingRows.some((row) => getShippingKey(row) === key)) {
+      triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
       setScannerHelp("이미 스캔된 박스입니다. 다른 박스를 계속 스캔할 수 있습니다.");
       showToast("이미 등록된 박스입니다.");
       return;
@@ -1092,7 +1096,7 @@ async function handleQrValue(rawValue) {
       elements.shippingSearchInput.value = "";
     }
     applyShippingFilters();
-    triggerScanFeedback();
+    triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
     setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
     showToast("스캔한 박스를 등록했습니다.");
   } catch (error) {
@@ -1449,10 +1453,12 @@ function getBoxCurrentQuantity(box, item) {
   );
 }
 
-function triggerScanFeedback() {
-  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-    navigator.vibrate(80);
+function triggerScanFeedback(pattern = SCAN_SUCCESS_VIBRATION) {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") {
+    return false;
   }
+
+  return navigator.vibrate(pattern) === true;
 }
 
 function getActiveBoxes(item) {
