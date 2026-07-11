@@ -3224,6 +3224,190 @@ img {
   }
 }
 
+/* Make the fitted home screen easier to scan as a dashboard. */
+#homeScreen .welcome-panel {
+  height: 132px;
+}
+
+#homeScreen .welcome-panel > div:first-child {
+  padding: 15px 15px;
+}
+
+#homeScreen .welcome-panel h1 {
+  font-size: 23px;
+}
+
+#homeScreen .welcome-panel p {
+  max-width: 260px;
+  font-size: 12px;
+}
+
+#homeScreen .mobile-menu-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+#homeScreen .mobile-menu-card {
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch;
+  align-items: start;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+#homeScreen .mobile-menu-card:not(.locked) {
+  border-color: rgba(208, 161, 75, 0.62);
+  background:
+    linear-gradient(145deg, rgba(255, 247, 231, 0.82), rgba(255, 255, 255, 0.98) 48%),
+    #fff;
+  box-shadow: 0 12px 28px rgba(138, 90, 8, 0.12);
+}
+
+#homeScreen .mobile-menu-card:not(.locked)::after {
+  inset: auto 12px 10px 12px;
+  width: auto;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gold), rgba(208, 161, 75, 0.22));
+}
+
+#homeScreen .mobile-menu-card::before {
+  display: none;
+}
+
+#homeScreen .menu-icon {
+  grid-column: 1;
+  grid-row: 1;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+}
+
+#homeScreen .menu-icon img {
+  width: 46px;
+  height: 46px;
+}
+
+#homeScreen .status-pill {
+  position: static;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  justify-self: end;
+  min-height: 22px;
+  padding: 0 8px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+#homeScreen .menu-copy {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-content: start;
+  gap: 5px;
+  padding: 0;
+}
+
+#homeScreen .menu-copy strong {
+  font-size: 19px;
+  line-height: 1.12;
+}
+
+#homeScreen .menu-copy small {
+  font-size: 11px;
+  line-height: 1.28;
+  -webkit-line-clamp: 2;
+}
+
+#homeScreen .menu-arrow {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: end;
+  justify-self: end;
+  font-size: 25px;
+}
+
+#homeScreen .lock-mark {
+  display: none;
+}
+
+@media (max-height: 700px) {
+  #homeScreen .welcome-panel {
+    height: 88px;
+  }
+
+  #homeScreen .welcome-panel > div:first-child {
+    padding: 10px 11px;
+  }
+
+  #homeScreen .welcome-panel h1 {
+    font-size: 18px;
+  }
+
+  #homeScreen .welcome-panel p {
+    max-width: 220px;
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  #homeScreen .mobile-menu-list {
+    gap: 8px;
+  }
+
+  #homeScreen .mobile-menu-card {
+    gap: 7px;
+    padding: 9px;
+  }
+
+  #homeScreen .menu-icon,
+  #homeScreen .menu-icon img {
+    width: 35px;
+    height: 35px;
+  }
+
+  #homeScreen .status-pill {
+    min-height: 18px;
+    padding: 0 6px;
+    font-size: 8px;
+  }
+
+  #homeScreen .menu-copy {
+    gap: 3px;
+  }
+
+  #homeScreen .menu-copy strong {
+    font-size: 15px;
+  }
+
+  #homeScreen .menu-copy small {
+    font-size: 9px;
+    line-height: 1.16;
+    -webkit-line-clamp: 2;
+  }
+
+  #homeScreen .menu-arrow {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 340px) {
+  #homeScreen .mobile-menu-card {
+    padding: 8px;
+  }
+
+  #homeScreen .menu-copy strong {
+    font-size: 13px;
+    line-height: 1.14;
+  }
+
+  #homeScreen .menu-copy small {
+    font-size: 8.5px;
+  }
+}
+
 /* Align the first login view with the desktop brand/login mood. */
 #loginScreen {
   background:
