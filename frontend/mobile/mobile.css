@@ -3312,12 +3312,12 @@ img {
 }
 
 #homeScreen .menu-copy strong {
-  font-size: 19px;
+  font-size: 21px;
   line-height: 1.12;
 }
 
 #homeScreen .menu-copy small {
-  font-size: 11px;
+  font-size: 12.5px;
   line-height: 1.28;
   -webkit-line-clamp: 2;
 }
@@ -3379,11 +3379,11 @@ img {
   }
 
   #homeScreen .menu-copy strong {
-    font-size: 15px;
+    font-size: 16px;
   }
 
   #homeScreen .menu-copy small {
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1.16;
     -webkit-line-clamp: 2;
   }
@@ -3399,12 +3399,12 @@ img {
   }
 
   #homeScreen .menu-copy strong {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.14;
   }
 
   #homeScreen .menu-copy small {
-    font-size: 8.5px;
+    font-size: 9px;
   }
 }
 
