@@ -1540,7 +1540,7 @@ img {
 
 .scanner-scanned-item {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr) 38px;
   gap: 10px;
   align-items: center;
   border: 1px solid rgba(201, 213, 229, 0.92);
@@ -1582,6 +1582,30 @@ img {
   color: #607087;
   font-size: 12px;
   font-weight: 800;
+}
+
+.scanner-remove-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(201, 213, 229, 0.95);
+  border-radius: 12px;
+  color: #647083;
+  background: #f8fafc;
+}
+
+.scanner-remove-button svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.scanner-remove-button:active {
+  color: #fff;
+  background: var(--navy-dark);
 }
 
 .scanner-list-panel .scanner-bottom {
@@ -4377,7 +4401,7 @@ img {
 }
 
 .scanner-scanned-item {
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 32px minmax(0, 1fr) 36px;
   border-radius: 12px;
   padding: 10px;
 }
@@ -4392,6 +4416,17 @@ img {
 .scanner-scanned-item strong {
   color: var(--navy-dark);
   font-size: 15px;
+}
+
+.scanner-remove-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+}
+
+.scanner-remove-button svg {
+  width: 17px;
+  height: 17px;
 }
 
 .scanner-list-panel .scanner-bottom {

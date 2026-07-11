@@ -111,6 +111,7 @@ function bindEvents() {
     showToast("앨범 QR 선택은 다음 단계에서 연결합니다.");
   });
   elements.manualQrButton?.addEventListener("click", handleManualQrInput);
+  elements.scannerScannedList?.addEventListener("click", handleScannerListClick);
   elements.scannerPendingButton?.addEventListener("click", () => handleCompleteScannedShipping("pending"));
   elements.scannerDoneButton?.addEventListener("click", () => handleCompleteScannedShipping("complete"));
   elements.toggleFlashButton?.addEventListener("click", () => {
@@ -1271,9 +1272,37 @@ function renderScannerScannedList() {
           <strong>${escapeHtml(normalizeDisplay(item.productName || "-"))}</strong>
           <small>${escapeHtml(normalizeDisplay(item.clientName || "-"))} · ${escapeHtml(normalizeDisplay(item.finalProcess || "-"))} · ${escapeHtml(boxLabel)}${quantityText}</small>
         </div>
+        <button class="scanner-remove-button" type="button" data-scanner-remove="${index}" aria-label="스캔 항목 삭제">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
       </article>
     `;
   }).join("");
+}
+
+function handleScannerListClick(event) {
+  const removeButton = event.target.closest("[data-scanner-remove]");
+  if (!removeButton) {
+    return;
+  }
+
+  const index = Number(removeButton.dataset.scannerRemove);
+  removeScannedShippingRow(index);
+}
+
+function removeScannedShippingRow(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= state.scannedShippingRows.length) {
+    return;
+  }
+
+  state.scannedShippingRows.splice(index, 1);
+  saveScannedShippingRows();
+  applyShippingFilters();
+  triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
+  showToast("스캔 목록에서 삭제했습니다.");
 }
 
 function startShippingClock() {
