@@ -3891,10 +3891,30 @@ img {
 }
 
 #shippingScreen .shipping-title small {
-  display: block;
-  margin-top: 2px;
-  font-size: 13px;
-  line-height: 1.2;
+  display: none;
+}
+
+#shippingScreen .shipping-meta-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  min-width: 62px;
+}
+
+#shippingScreen .shipping-meta-pill {
+  max-width: 96px;
+  overflow: hidden;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #596779;
+  background: #f5f8fc;
+  border: 1px solid rgba(196, 210, 228, 0.78);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #shippingScreen .process-pill {
@@ -4519,23 +4539,28 @@ img {
 }
 
 #shippingScreen .shipping-title small {
-  display: block;
-  overflow: hidden;
-  margin-top: 3px;
-  color: #647083;
-  font-size: 12px;
-  line-height: 1.16;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 #shippingScreen .process-pill {
   align-self: start;
   min-width: 39px;
   min-height: 32px;
-  margin-top: 34px;
+  margin-top: 0;
   padding: 0 9px;
   font-size: 15px;
+}
+
+#shippingScreen .shipping-meta-stack {
+  align-self: start;
+  gap: 5px;
+  margin-top: 1px;
+}
+
+#shippingScreen .shipping-meta-pill {
+  max-width: 92px;
+  padding: 5px 8px;
+  font-size: 11px;
 }
 
 #shippingScreen .shipping-card-actions {
@@ -4601,7 +4626,10 @@ img {
   }
 
   #shippingScreen .process-pill {
-    margin-top: 24px;
+    min-width: 34px;
+    min-height: 28px;
+    padding: 0 7px;
+    font-size: 13px;
   }
 
   #shippingScreen .shipping-item-top {
@@ -4617,6 +4645,17 @@ img {
   #shippingScreen .shipping-box-art img {
     width: 32px;
     height: 32px;
+  }
+
+  #shippingScreen .shipping-meta-stack {
+    min-width: 54px;
+    gap: 4px;
+  }
+
+  #shippingScreen .shipping-meta-pill {
+    max-width: 72px;
+    padding: 4px 6px;
+    font-size: 10px;
   }
 
   #shippingScreen .metric {

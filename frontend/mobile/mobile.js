@@ -536,6 +536,7 @@ function renderShippingItem(item) {
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
   const boxLabel = isProductGroup ? `스캔 ${formatNumber(boxCount)}박스` : getScannedBoxLabel(item);
+  const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
 
   return `
@@ -548,10 +549,12 @@ function renderShippingItem(item) {
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
-            <small>| ${escapeHtml(batch)}${boxLabel ? ` · ${escapeHtml(boxLabel)}` : ""}</small>
           </div>
         </div>
-        <span class="process-pill ${processClass}">${escapeHtml(process)}</span>
+        <div class="shipping-meta-stack">
+          <span class="process-pill ${processClass}">${escapeHtml(process)}</span>
+          ${metaParts.map((part) => `<span class="shipping-meta-pill">${escapeHtml(part)}</span>`).join("")}
+        </div>
         <div class="shipping-card-actions">
           <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending">출고대기</button>
           <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
