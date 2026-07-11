@@ -3636,3 +3636,421 @@ img {
     display: none;
   }
 }
+
+/* Keep the shipping workflow inside one mobile viewport. */
+#shippingScreen {
+  height: 100vh;
+  height: 100dvh;
+  height: 100svh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  padding: max(10px, env(safe-area-inset-top)) 12px calc(78px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 82% 0%, rgba(208, 161, 75, 0.13), transparent 23%),
+    linear-gradient(180deg, #ffffff 0%, #eef4fb 100%);
+}
+
+#shippingScreen.active {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+#shippingScreen .mobile-toolbar {
+  position: static;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  min-height: 54px;
+  margin: calc(-1 * max(10px, env(safe-area-inset-top))) -12px 8px;
+  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+  border-bottom-color: rgba(196, 210, 228, 0.9);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 10px 26px rgba(6, 31, 76, 0.06);
+}
+
+#shippingScreen .mobile-toolbar h1 {
+  color: var(--navy-dark);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+#shippingScreen .nav-icon-button {
+  width: 36px;
+  height: 36px;
+  color: var(--navy-dark);
+}
+
+#shippingScreen .nav-icon-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+#shippingScreen .scan-button {
+  min-height: 38px;
+  gap: 5px;
+  border-radius: 9px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: linear-gradient(180deg, var(--navy-dark), #061f4c);
+  box-shadow: 0 10px 20px rgba(8, 42, 98, 0.18);
+}
+
+#shippingScreen .scan-button svg {
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+}
+
+#shippingScreen .shipping-controls {
+  gap: 7px;
+  min-height: 0;
+  margin: 0 0 8px;
+}
+
+#shippingScreen .mobile-search {
+  min-height: 44px;
+  gap: 9px;
+  border-color: rgba(196, 210, 228, 0.96);
+  border-radius: 10px;
+  padding: 0 12px;
+  box-shadow: 0 8px 18px rgba(6, 31, 76, 0.05);
+}
+
+#shippingScreen .mobile-search:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(208, 161, 75, 0.16);
+}
+
+#shippingScreen .mobile-search svg {
+  width: 19px;
+  height: 19px;
+  color: var(--blue);
+}
+
+#shippingScreen .mobile-search input {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+#shippingScreen .shipping-live-clock {
+  min-height: 38px;
+  gap: 7px;
+  border-color: rgba(196, 210, 228, 0.96);
+  border-radius: 10px;
+  padding: 0 10px;
+  box-shadow: 0 8px 18px rgba(6, 31, 76, 0.045);
+}
+
+#shippingScreen .shipping-live-clock span {
+  min-height: 24px;
+  padding: 0 9px;
+  font-size: 12px;
+  background: var(--gold);
+}
+
+#shippingScreen .shipping-live-clock strong {
+  font-size: 14px;
+}
+
+#shippingScreen .shipping-live-clock time {
+  color: var(--navy-dark);
+  font-size: 15px;
+}
+
+#shippingScreen .shipping-action-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 7px;
+  padding: 0;
+}
+
+#shippingScreen .shipping-action-row p {
+  align-self: center;
+  color: var(--navy-dark);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+#shippingScreen .shipping-action-row strong {
+  color: var(--gold);
+  font-size: 25px;
+}
+
+#shippingScreen .control-button {
+  min-height: 38px;
+  gap: 5px;
+  border-color: rgba(196, 210, 228, 0.98);
+  border-radius: 9px;
+  padding: 0 10px;
+  color: var(--navy-dark);
+  font-size: 13px;
+  box-shadow: 0 8px 18px rgba(6, 31, 76, 0.045);
+}
+
+#shippingScreen .control-button svg {
+  width: 17px;
+  height: 17px;
+  color: var(--gold);
+}
+
+#shippingScreen .shipping-list-panel {
+  min-height: 0;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1px 2px;
+  scrollbar-width: none;
+}
+
+#shippingScreen .shipping-list-panel::-webkit-scrollbar {
+  display: none;
+}
+
+#shippingScreen .empty-state {
+  min-height: 100%;
+  border-radius: 14px;
+  padding: 16px 14px;
+  box-shadow: 0 18px 42px rgba(6, 31, 76, 0.09);
+}
+
+#shippingScreen .empty-state-icon {
+  width: 96px;
+  height: 78px;
+}
+
+#shippingScreen .empty-state-icon svg {
+  color: var(--blue);
+}
+
+#shippingScreen .empty-state h2 {
+  margin-top: 12px;
+  color: var(--navy-dark);
+  font-size: 22px;
+}
+
+#shippingScreen .empty-state p {
+  margin: 6px 0 14px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+#shippingScreen .empty-state .primary-action {
+  min-height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+#shippingScreen .shipping-item {
+  gap: 9px;
+  border-color: rgba(196, 210, 228, 0.95);
+  border-radius: 13px;
+  padding: 12px;
+  box-shadow: 0 12px 28px rgba(6, 31, 76, 0.075);
+}
+
+#shippingScreen .shipping-item-top {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+#shippingScreen .shipping-client {
+  font-size: 13px;
+}
+
+#shippingScreen .shipping-title {
+  margin-top: 2px;
+  color: var(--navy-dark);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+#shippingScreen .shipping-title small {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+#shippingScreen .process-pill {
+  min-width: 36px;
+  min-height: 30px;
+  border-radius: 9px;
+  color: var(--navy-dark);
+  background: #fff3dc;
+  font-size: 14px;
+}
+
+#shippingScreen .shipping-card-actions {
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr 1fr;
+}
+
+#shippingScreen .ship-now-button,
+#shippingScreen .ship-pending-button {
+  min-height: 42px;
+  border-radius: 9px;
+  font-size: 15px;
+}
+
+#shippingScreen .ship-now-button {
+  background: linear-gradient(180deg, var(--navy-dark), #061f4c);
+}
+
+#shippingScreen .ship-pending-button {
+  color: var(--navy-dark);
+  background: #fff7e8;
+  border-color: rgba(208, 161, 75, 0.45);
+}
+
+#shippingScreen .item-worker {
+  font-size: 13px;
+}
+
+#shippingScreen .item-worker span {
+  color: var(--gold);
+}
+
+#shippingScreen .item-metrics {
+  padding-top: 9px;
+}
+
+#shippingScreen .metric {
+  gap: 2px;
+}
+
+#shippingScreen .metric span {
+  font-size: 12px;
+}
+
+#shippingScreen .metric strong {
+  font-size: 20px;
+}
+
+#shippingScreen .metric strong.blue {
+  color: var(--gold);
+}
+
+@media (max-height: 700px) {
+  #shippingScreen {
+    padding: max(7px, env(safe-area-inset-top)) 10px calc(62px + env(safe-area-inset-bottom));
+  }
+
+  #shippingScreen .mobile-toolbar {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    min-height: 48px;
+    margin: calc(-1 * max(7px, env(safe-area-inset-top))) -10px 6px;
+    padding: max(6px, env(safe-area-inset-top)) 10px 6px;
+  }
+
+  #shippingScreen .mobile-toolbar h1 {
+    font-size: 19px;
+  }
+
+  #shippingScreen .nav-icon-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  #shippingScreen .scan-button {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  #shippingScreen .shipping-controls {
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+
+  #shippingScreen .mobile-search {
+    min-height: 39px;
+    padding: 0 10px;
+  }
+
+  #shippingScreen .mobile-search input {
+    font-size: 14px;
+  }
+
+  #shippingScreen .shipping-live-clock {
+    min-height: 34px;
+  }
+
+  #shippingScreen .shipping-live-clock span {
+    min-height: 21px;
+    font-size: 11px;
+  }
+
+  #shippingScreen .shipping-live-clock strong,
+  #shippingScreen .shipping-live-clock time {
+    font-size: 13px;
+  }
+
+  #shippingScreen .shipping-action-row p {
+    font-size: 13px;
+  }
+
+  #shippingScreen .shipping-action-row strong {
+    font-size: 22px;
+  }
+
+  #shippingScreen .control-button {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  #shippingScreen .empty-state {
+    padding: 12px;
+  }
+
+  #shippingScreen .empty-state-icon {
+    width: 76px;
+    height: 60px;
+  }
+
+  #shippingScreen .empty-state h2 {
+    font-size: 19px;
+  }
+
+  #shippingScreen .empty-state p {
+    font-size: 13px;
+  }
+}
+
+@media (max-height: 610px) {
+  #shippingScreen .shipping-live-clock {
+    display: none;
+  }
+
+  #shippingScreen .shipping-item {
+    padding: 10px;
+  }
+
+  #shippingScreen .shipping-title {
+    font-size: 16px;
+  }
+
+  #shippingScreen .ship-now-button,
+  #shippingScreen .ship-pending-button {
+    min-height: 38px;
+    font-size: 14px;
+  }
+
+  #shippingScreen .metric strong {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 340px) {
+  #shippingScreen .mobile-toolbar h1 {
+    font-size: 18px;
+  }
+
+  #shippingScreen .scan-button {
+    padding: 0 7px;
+    font-size: 11px;
+  }
+
+  #shippingScreen .control-button {
+    padding: 0 7px;
+  }
+}
