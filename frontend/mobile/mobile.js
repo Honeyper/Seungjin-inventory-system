@@ -548,13 +548,6 @@ function renderShippingItem(item) {
     : scannedBox
       ? getBoxCurrentQuantity(scannedBox, item)
       : parseNumber(item.currentTotalQuantity);
-  const boxUnitQuantityText = getBoxUnitQuantityText(item, {
-    isProductGroup,
-    scannedBox,
-    displayBoxes,
-    totalQuantity,
-    boxCount
-  });
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
   const boxLabel = isProductGroup ? `스캔 ${formatNumber(boxCount)}박스` : getScannedBoxLabel(item);
@@ -591,8 +584,8 @@ function renderShippingItem(item) {
           <small>box</small>
         </span>
         <span class="metric">
-          <span>박스당 수량</span>
-          <strong>${escapeHtml(boxUnitQuantityText)}</strong>
+          <span>출고 가능 수량</span>
+          <strong>${formatNumber(totalQuantity)}</strong>
           <small>ea</small>
         </span>
         <span class="metric">
@@ -1721,41 +1714,6 @@ function getBoxCurrentQuantity(box, item) {
     box?.quantity ||
     item?.currentTotalQuantity
   );
-}
-
-function getBoxUnitQuantityText(item, options = {}) {
-  const quantities = [];
-  const pushQuantity = (box, row) => {
-    const quantity = getBoxCurrentQuantity(box, row) || getBoxTotalQuantity(box, row);
-    if (quantity) {
-      quantities.push(quantity);
-    }
-  };
-
-  if (options.isProductGroup && Array.isArray(item?.scannedItems)) {
-    item.scannedItems.forEach((row) => pushQuantity(getScannedBox(row), row));
-  } else if (options.scannedBox) {
-    pushQuantity(options.scannedBox, item);
-  } else {
-    (options.displayBoxes || getKnownBoxes(item)).forEach((box) => pushQuantity(box, item));
-  }
-
-  const uniqueQuantities = Array.from(new Set(quantities));
-  if (uniqueQuantities.length === 1) {
-    return formatNumber(uniqueQuantities[0]);
-  }
-
-  if (uniqueQuantities.length > 1) {
-    return "혼합";
-  }
-
-  const boxCount = parseNumber(options.boxCount);
-  const totalQuantity = parseNumber(options.totalQuantity);
-  if (boxCount > 1 && totalQuantity) {
-    return formatNumber(Math.round(totalQuantity / boxCount));
-  }
-
-  return formatNumber(totalQuantity);
 }
 
 function canUseVibration() {
