@@ -2,9 +2,9 @@ const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "";
 const SESSION_KEY = "seungjinMobileSession";
 const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
-const BARCODE_DETECT_INTERVAL_MS = 900;
-const JSQR_DETECT_INTERVAL_MS = 420;
-const JSQR_MAX_EDGE = 960;
+const BARCODE_DETECT_INTERVAL_MS = 750;
+const JSQR_DETECT_INTERVAL_MS = 650;
+const JSQR_MAX_EDGE = 720;
 const SHIPPING_CLOCK_INTERVAL_MS = 10000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
@@ -845,7 +845,7 @@ async function getScannerStream() {
       facingMode: { ideal: "environment" },
       width: { ideal: 1280, max: 1280 },
       height: { ideal: 720, max: 720 },
-      frameRate: { ideal: 15, max: 20 }
+      frameRate: { ideal: 24, max: 30 }
     },
     audio: false
   });
@@ -1030,8 +1030,12 @@ function startJsQrDetection(detector = null) {
     const width = Math.max(1, Math.floor(sourceWidth * scale));
     const height = Math.max(1, Math.floor(sourceHeight * scale));
 
-    state.scannerCanvas.width = width;
-    state.scannerCanvas.height = height;
+    if (state.scannerCanvas.width !== width) {
+      state.scannerCanvas.width = width;
+    }
+    if (state.scannerCanvas.height !== height) {
+      state.scannerCanvas.height = height;
+    }
     context.drawImage(video, 0, 0, width, height);
 
     try {
