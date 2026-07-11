@@ -728,7 +728,7 @@ function renderShippingItem(item) {
       : parseNumber(item.currentTotalQuantity);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
-  const boxLabel = isProductGroup ? `스캔 ${formatNumber(boxCount)}박스` : getScannedBoxLabel(item);
+  const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 스캔` : getScannedBoxLabel(item);
   const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
 
