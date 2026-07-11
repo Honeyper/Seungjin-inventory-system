@@ -107,8 +107,6 @@ function bindEvents() {
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
   bindScannerSheetEvents();
-  window.addEventListener("pagehide", releaseScannerStream);
-  window.addEventListener("beforeunload", releaseScannerStream);
 
   document.querySelectorAll("[data-mobile-route]").forEach((button) => {
     button.addEventListener("click", () => navigate(button.dataset.mobileRoute));
