@@ -2,9 +2,10 @@ const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "";
 const SESSION_KEY = "seungjinMobileSession";
 const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
-const BARCODE_DETECT_INTERVAL_MS = 750;
-const JSQR_DETECT_INTERVAL_MS = 650;
-const JSQR_MAX_EDGE = 720;
+const BARCODE_DETECT_INTERVAL_MS = 260;
+const JSQR_DETECT_INTERVAL_MS = 260;
+const JSQR_MAX_EDGE = 1120;
+const SCAN_PROCESSING_LOCK_MS = 380;
 const SHIPPING_CLOCK_INTERVAL_MS = 10000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
@@ -1091,9 +1092,10 @@ async function getScannerStream() {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
       facingMode: { ideal: "environment" },
-      width: { ideal: 1280, max: 1280 },
-      height: { ideal: 720, max: 720 },
-      frameRate: { ideal: 24, max: 30 }
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      frameRate: { ideal: 30, max: 30 },
+      resizeMode: { ideal: "none" }
     },
     audio: false
   });
@@ -1143,14 +1145,29 @@ async function tuneScannerCamera(stream) {
     advanced.push({ whiteBalanceMode: "continuous" });
   }
 
-  if (!advanced.length) {
+  if (advanced.length) {
+    try {
+      await track.applyConstraints({ advanced });
+    } catch (error) {
+      // 일부 모바일 브라우저는 capabilities를 알려줘도 constraint 적용을 거부합니다.
+    }
+  }
+
+  const zoom = capabilities.zoom;
+  if (!zoom || typeof zoom.max !== "number" || zoom.max <= 1 || !track.applyConstraints) {
+    return;
+  }
+
+  const minZoom = typeof zoom.min === "number" ? zoom.min : 1;
+  const targetZoom = Math.min(zoom.max, Math.max(minZoom, 1.18));
+  if (targetZoom <= minZoom) {
     return;
   }
 
   try {
-    await track.applyConstraints({ advanced });
+    await track.applyConstraints({ advanced: [{ zoom: targetZoom }] });
   } catch (error) {
-    // 일부 모바일 브라우저는 capabilities를 알려줘도 constraint 적용을 거부합니다.
+    // 줌 제어가 막힌 브라우저에서는 기본 화각 그대로 사용합니다.
   }
 }
 
@@ -1239,7 +1256,7 @@ function startJsQrDetection(detector = null) {
     state.scannerCanvasContext = state.scannerCanvas.getContext("2d", { willReadFrequently: true });
   }
 
-  setScannerHelp("QR 코드가 화면 안에 들어오게 비춰주세요.");
+  setScannerHelp("QR이 화면에 보이면 자동 인식합니다. 박스 안에 딱 맞추지 않아도 됩니다.");
   let isDetectingFrame = false;
   state.scannerTimer = window.setInterval(async () => {
     if (isDetectingFrame) {
@@ -1364,7 +1381,7 @@ async function handleQrValue(rawValue) {
     window.setTimeout(() => {
       state.scannerLastValue = "";
       state.isProcessingScan = false;
-    }, 1200);
+    }, SCAN_PROCESSING_LOCK_MS);
   }
 }
 

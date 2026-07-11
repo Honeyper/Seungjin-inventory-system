@@ -4322,8 +4322,8 @@ img {
 
 .scanner-shade {
   background:
-    linear-gradient(180deg, rgba(2, 4, 10, 0.72) 0%, rgba(2, 4, 10, 0.18) 28%, rgba(2, 4, 10, 0.1) 62%, rgba(2, 4, 10, 0.8) 100%),
-    radial-gradient(circle at 50% 42%, transparent 0 118px, rgba(2, 4, 10, 0.36) 154px, rgba(2, 4, 10, 0.62) 100%);
+    linear-gradient(180deg, rgba(2, 4, 10, 0.64) 0%, rgba(2, 4, 10, 0.12) 28%, rgba(2, 4, 10, 0.08) 62%, rgba(2, 4, 10, 0.74) 100%),
+    radial-gradient(circle at 50% 42%, transparent 0 34vmin, rgba(2, 4, 10, 0.24) 43vmin, rgba(2, 4, 10, 0.54) 100%);
 }
 
 .scanner-header {
@@ -4380,9 +4380,9 @@ img {
 
 .scanner-frame {
   top: calc((100svh - var(--scanner-panel-height)) * 0.52 + 14px);
-  width: min(68vw, 286px);
-  height: min(68vw, 286px);
-  max-height: 286px;
+  width: min(86vw, 440px);
+  height: min(58svh, 440px);
+  max-height: 440px;
   border: 2px solid rgba(255, 255, 255, 0.66);
   border-radius: 22px;
   box-shadow:
@@ -4624,8 +4624,8 @@ img {
 
   .scanner-frame {
     top: calc((100svh - var(--scanner-panel-height)) * 0.54 + 18px);
-    width: min(58vw, 210px);
-    height: min(58vw, 210px);
+    width: min(82vw, 320px);
+    height: min(48svh, 320px);
   }
 
   .scanner-frame::before {
@@ -4685,8 +4685,8 @@ img {
   }
 
   .scanner-frame {
-    width: min(54vw, 174px);
-    height: min(54vw, 174px);
+    width: min(78vw, 260px);
+    height: min(44svh, 260px);
   }
 
   .scanner-help {
