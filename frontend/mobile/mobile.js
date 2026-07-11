@@ -1,5 +1,6 @@
 const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "";
 const SESSION_KEY = "seungjinMobileSession";
+const ROUTE_KEY = "seungjinMobileRoute";
 
 const state = {
   user: null,
@@ -73,7 +74,7 @@ function initializeMobileApp() {
   const savedSession = readSavedSession();
   if (savedSession) {
     state.user = savedSession;
-    showHome();
+    restoreSavedRoute();
     return;
   }
 
@@ -264,6 +265,7 @@ function togglePassword() {
 function logout() {
   releaseScannerStream();
   sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(ROUTE_KEY);
   state.user = null;
   state.dashboard = [];
   state.filteredRows = [];
@@ -309,6 +311,7 @@ function showScreen(name) {
   Object.values(screens).forEach((screen) => screen?.classList.remove("active"));
   screens[name]?.classList.add("active");
   elements.bottomNav.hidden = name === "login";
+  saveCurrentRoute(name);
 
   document.querySelectorAll("#bottomNav [data-mobile-route]").forEach((button) => {
     button.classList.toggle("active", button.dataset.mobileRoute === name);
@@ -323,6 +326,25 @@ function showScreen(name) {
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function restoreSavedRoute() {
+  const route = sessionStorage.getItem(ROUTE_KEY);
+  if (route === "shipping") {
+    showShipping();
+    return;
+  }
+
+  showHome();
+}
+
+function saveCurrentRoute(name) {
+  if (name === "home" || name === "shipping") {
+    sessionStorage.setItem(ROUTE_KEY, name);
+    return;
+  }
+
+  sessionStorage.removeItem(ROUTE_KEY);
 }
 
 async function loadShippingDashboard(options = {}) {
