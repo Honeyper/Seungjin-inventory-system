@@ -4920,3 +4920,483 @@ img {
     font-size: 11px;
   }
 }
+
+/* Inventory move uses the same compact workflow shell as shipping. */
+#inventoryMoveScreen {
+  height: 100vh;
+  height: 100dvh;
+  height: 100svh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  padding: max(10px, env(safe-area-inset-top)) 12px calc(78px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 82% 0%, rgba(208, 161, 75, 0.13), transparent 23%),
+    linear-gradient(180deg, #ffffff 0%, #eef4fb 100%);
+}
+
+#inventoryMoveScreen.active {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+#inventoryMoveScreen .mobile-toolbar {
+  position: static;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  min-height: 54px;
+  margin: calc(-1 * max(10px, env(safe-area-inset-top))) -12px 8px;
+  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+  border-bottom-color: rgba(196, 210, 228, 0.9);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 10px 26px rgba(6, 31, 76, 0.06);
+}
+
+#inventoryMoveScreen .mobile-toolbar h1 {
+  color: var(--navy-dark);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+#inventoryMoveScreen .nav-icon-button {
+  width: 36px;
+  height: 36px;
+  color: var(--navy-dark);
+}
+
+#inventoryMoveScreen .nav-icon-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+#inventoryMoveScreen .scan-button {
+  min-height: 38px;
+  gap: 5px;
+  border-radius: 9px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: linear-gradient(180deg, var(--navy-dark), #061f4c);
+  box-shadow: 0 10px 20px rgba(8, 42, 98, 0.18);
+}
+
+#inventoryMoveScreen .scan-button svg {
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+}
+
+#inventoryMoveScreen .shipping-controls {
+  gap: 7px;
+  min-height: 0;
+  margin: 0 0 8px;
+}
+
+#inventoryMoveScreen .mobile-search {
+  min-height: 44px;
+  gap: 9px;
+  border-color: rgba(196, 210, 228, 0.96);
+  border-radius: 10px;
+  padding: 0 12px;
+  box-shadow: 0 8px 18px rgba(6, 31, 76, 0.05);
+}
+
+#inventoryMoveScreen .mobile-search:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(208, 161, 75, 0.16);
+}
+
+#inventoryMoveScreen .mobile-search svg {
+  width: 19px;
+  height: 19px;
+  color: var(--blue);
+}
+
+#inventoryMoveScreen .mobile-search input {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+#inventoryMoveScreen .shipping-live-clock {
+  min-height: 38px;
+  gap: 7px;
+  border-color: rgba(196, 210, 228, 0.96);
+  border-radius: 10px;
+  padding: 0 10px;
+  box-shadow: 0 8px 18px rgba(6, 31, 76, 0.045);
+}
+
+#inventoryMoveScreen .shipping-live-clock span {
+  min-height: 24px;
+  padding: 0 9px;
+  font-size: 12px;
+  background: var(--gold);
+}
+
+#inventoryMoveScreen .shipping-live-clock strong {
+  font-size: 14px;
+}
+
+#inventoryMoveScreen .shipping-live-clock time {
+  color: var(--navy-dark);
+  font-size: 15px;
+}
+
+#inventoryMoveScreen .shipping-action-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 0;
+}
+
+#inventoryMoveScreen .shipping-action-row p {
+  align-self: center;
+  color: var(--navy-dark);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+#inventoryMoveScreen .shipping-action-row strong {
+  color: var(--gold);
+  font-size: 25px;
+}
+
+#inventoryMoveScreen .control-button {
+  min-height: 38px;
+  gap: 5px;
+  border-color: rgba(196, 210, 228, 0.98);
+  border-radius: 9px;
+  padding: 0 10px;
+  color: var(--navy-dark);
+  font-size: 13px;
+  box-shadow: 0 8px 18px rgba(6, 31, 76, 0.045);
+}
+
+#inventoryMoveScreen .control-button svg {
+  width: 17px;
+  height: 17px;
+  color: var(--gold);
+}
+
+#inventoryMoveScreen .shipping-list-panel {
+  min-height: 0;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1px 2px;
+  scrollbar-width: none;
+  align-content: start;
+  align-items: start;
+}
+
+#inventoryMoveScreen .shipping-list-panel::-webkit-scrollbar {
+  display: none;
+}
+
+#inventoryMoveScreen .empty-state {
+  min-height: 100%;
+  border-radius: 14px;
+  padding: 16px 14px;
+  box-shadow: 0 18px 42px rgba(6, 31, 76, 0.09);
+}
+
+#inventoryMoveScreen .empty-state-icon {
+  width: 96px;
+  height: 78px;
+}
+
+#inventoryMoveScreen .empty-state h2 {
+  margin-top: 12px;
+  color: var(--navy-dark);
+  font-size: 22px;
+}
+
+#inventoryMoveScreen .empty-state p {
+  margin: 6px 0 14px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+#inventoryMoveScreen .shipping-item {
+  gap: 7px;
+  border-color: rgba(196, 210, 228, 0.95);
+  border-radius: 13px;
+  padding: 10px 11px 9px;
+  box-shadow: 0 12px 28px rgba(6, 31, 76, 0.075);
+  align-content: start;
+  align-self: start;
+}
+
+#inventoryMoveScreen .shipping-item-top {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+#inventoryMoveScreen .shipping-box-art {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: 1px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffaf0, #eef4fb);
+  border: 1px solid rgba(196, 210, 228, 0.85);
+}
+
+#inventoryMoveScreen .shipping-box-art img {
+  width: 37px;
+  height: 37px;
+  object-fit: contain;
+}
+
+#inventoryMoveScreen .shipping-item-copy {
+  min-width: 0;
+}
+
+#inventoryMoveScreen .shipping-client {
+  font-size: 13px;
+}
+
+#inventoryMoveScreen .shipping-product-name {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--navy-dark);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.16;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+#inventoryMoveScreen .shipping-meta-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-self: end;
+  gap: 5px;
+  min-width: 62px;
+}
+
+#inventoryMoveScreen .shipping-meta-pill {
+  max-width: 92px;
+  overflow: hidden;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #596779;
+  background: #f5f8fc;
+  border: 1px solid rgba(196, 210, 228, 0.78);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#inventoryMoveScreen .process-pill {
+  align-self: flex-end;
+  min-width: 39px;
+  min-height: 32px;
+  margin-top: 0;
+  padding: 0 9px;
+  border-radius: 9px;
+  color: var(--navy-dark);
+  background: #fff3dc;
+  font-size: 15px;
+}
+
+#inventoryMoveScreen .shipping-card-actions {
+  grid-column: 1 / -1;
+  gap: 7px;
+  margin-top: 3px;
+  grid-template-columns: 0.72fr 1fr 1fr;
+}
+
+#inventoryMoveScreen .ship-now-button,
+#inventoryMoveScreen .ship-pending-button,
+#inventoryMoveScreen .shipping-remove-button {
+  min-height: 40px;
+  border-radius: 9px;
+  font-size: 15px;
+}
+
+#inventoryMoveScreen .ship-now-button {
+  background: linear-gradient(180deg, var(--navy-dark), #061f4c);
+}
+
+#inventoryMoveScreen .ship-pending-button {
+  color: var(--navy-dark);
+  background: #fff7e8;
+  border-color: rgba(208, 161, 75, 0.45);
+}
+
+#inventoryMoveScreen .shipping-remove-button {
+  border: 1px solid rgba(196, 210, 228, 0.9);
+  color: #647083;
+  background: #f8fafc;
+  font-weight: 900;
+}
+
+#inventoryMoveScreen .item-worker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+#inventoryMoveScreen .item-worker span {
+  color: var(--gold);
+}
+
+#inventoryMoveScreen .item-metrics {
+  margin-top: 3px;
+  padding-top: 8px;
+}
+
+#inventoryMoveScreen .metric {
+  gap: 0;
+  align-content: start;
+  min-height: 62px;
+}
+
+#inventoryMoveScreen .metric span,
+#inventoryMoveScreen .metric small {
+  line-height: 1.1;
+}
+
+#inventoryMoveScreen .metric span {
+  font-size: 12px;
+}
+
+#inventoryMoveScreen .metric strong {
+  margin-top: 8px;
+  font-size: 20px;
+  line-height: 1.05;
+}
+
+.inventory-storage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.storage-card {
+  display: grid;
+  gap: 5px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border: 1px solid rgba(196, 210, 228, 0.86);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.storage-card small {
+  color: #667387;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.storage-card strong {
+  color: var(--navy-dark);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.inventory-storage-select {
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--navy-dark);
+  background: #fff7e8;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+#shippingScreen .metric-count-row,
+#inventoryMoveScreen .metric-count-row {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+#shippingScreen .metric-value-row,
+#inventoryMoveScreen .metric-value-row {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+#shippingScreen .metric-value-row strong,
+#inventoryMoveScreen .metric-value-row strong,
+#shippingScreen .metric-count-row strong,
+#inventoryMoveScreen .metric-count-row strong {
+  margin-top: 0;
+}
+
+#shippingScreen .metric-value-row small,
+#inventoryMoveScreen .metric-value-row small,
+#shippingScreen .metric-count-row small,
+#inventoryMoveScreen .metric-count-row small {
+  margin-top: 0;
+  color: #667387;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+#shippingScreen .metric-action-row,
+#inventoryMoveScreen .metric-action-row {
+  margin-top: 5px;
+}
+
+#shippingScreen .metric-quantity-button,
+#inventoryMoveScreen .metric-quantity-button {
+  min-height: 25px;
+}
+
+@media (max-height: 700px), (max-width: 340px) {
+  #inventoryMoveScreen .shipping-product-name {
+    font-size: 16px;
+    -webkit-line-clamp: 2;
+  }
+
+  #inventoryMoveScreen .shipping-item-top {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+  }
+
+  #inventoryMoveScreen .shipping-box-art {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  #inventoryMoveScreen .shipping-box-art img {
+    width: 32px;
+    height: 32px;
+  }
+
+  #inventoryMoveScreen .shipping-meta-stack {
+    min-width: 54px;
+    gap: 4px;
+  }
+
+  #inventoryMoveScreen .shipping-meta-pill {
+    max-width: 72px;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+  #inventoryMoveScreen .metric strong {
+    font-size: 18px;
+  }
+}

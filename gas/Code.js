@@ -120,6 +120,7 @@ function doPost(e) {
       uploadShippingDefectPhotos,
       saveShippingInspection,
       updateShippingStatus,
+      updateInventoryBoxMove,
       createProduct,
       updateProduct,
       deleteProduct,
@@ -2861,6 +2862,165 @@ function updateShippingStatus(payload) {
     shippingDate: status === '출고완료' ? shippingDate : '',
     shippingTime: status === '출고완료' ? shippingTime : ''
   };
+}
+
+function updateInventoryBoxMove(payload) {
+  const managementId = String(payload.managementId || '').trim();
+  const currentStorage = String(payload.currentStorage || payload.storage || payload.storageLocation || payload['보관위치'] || payload['보관 위치'] || '').trim();
+  const targetStorage = String(payload.targetStorage || payload.targetStorageLocation || payload['이동 보관위치'] || payload['이동 보관 위치'] || '').trim();
+  const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
+  const moveAllBoxes = payload.moveAllBoxes === true || String(payload.moveAllBoxes || '').toLowerCase() === 'true';
+
+  if (!managementId) {
+    throw new Error('관리 ID가 없습니다.');
+  }
+
+  if (!currentStorage) {
+    throw new Error('현재 보관 장소가 없습니다.');
+  }
+
+  if (!targetStorage) {
+    throw new Error('이동할 보관 장소를 선택해주세요.');
+  }
+
+  if (normalizeInventoryIdentityPart_(currentStorage) === normalizeInventoryIdentityPart_(targetStorage)) {
+    throw new Error('이동할 장소는 현재 보관 장소와 달라야 합니다.');
+  }
+
+  if (!selectedBoxes.length) {
+    throw new Error('이동할 박스가 없습니다.');
+  }
+
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const data = {
+    productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
+    productName: payload.productName || payload['제품명'],
+    clientName: payload.clientName || payload['업체명'] || payload['거래처명'],
+    batch: payload.batch || payload['차수'],
+    finalProcess: payload.finalProcess || payload['최종공정'] || payload['최종 공정'],
+    storage: currentStorage,
+    targetStorage,
+    status: payload.status || '보관',
+    userName: payload.userName || payload.worker || 'Admin',
+    selectedBoxes,
+    moveAllBoxes
+  };
+  const boxUpdateResult = updateInventoryBoxMoveRows_(boxSheet, managementId, data);
+  const shouldMoveStockRow = moveAllBoxes || boxUpdateResult.remainingSourceActiveRows === 0;
+  const updatedStockRows = shouldMoveStockRow
+    ? updateInventoryMoveStockRows_(stockSheet, managementId, data)
+    : 0;
+
+  SpreadsheetApp.flush();
+
+  return {
+    managementId,
+    currentStorage,
+    targetStorage,
+    updatedBoxRows: boxUpdateResult.updatedRows,
+    remainingSourceActiveRows: boxUpdateResult.remainingSourceActiveRows,
+    updatedStockRows
+  };
+}
+
+function updateInventoryBoxMoveRows_(sheet, managementId, data) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const managementIndex = findHeaderIndex_(indexes, ['관리ID', '관리 ID']);
+  const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const quantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  const selectedBoxNumbers = new Set(
+    (data.selectedBoxes || [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  );
+
+  if (managementIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  if (!selectedBoxNumbers.size) {
+    throw new Error('이동할 박스 번호가 없습니다.');
+  }
+
+  let updatedRows = 0;
+  let matchedBoxNumber = 0;
+  let remainingSourceActiveRows = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    if (!isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data)) {
+      continue;
+    }
+
+    matchedBoxNumber += 1;
+    const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(row[sequenceIndex]) : matchedBoxNumber;
+    const rowStatus = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
+    const currentQuantity = quantityIndex >= 0 ? displayQuantityToNumber_(row[quantityIndex]) : 0;
+    const isActive = currentQuantity > 0 && !/출고완료|폐기/.test(rowStatus);
+    const isSelectedBox = selectedBoxNumbers.has(sequence);
+
+    if (!isActive) {
+      continue;
+    }
+
+    if (isSelectedBox) {
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['보관 위치', '보관위치', '보관 장소'], data.targetStorage);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.status || '보관');
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['비고', '메모', '참고'], `재고 이동: ${data.storage} → ${data.targetStorage} (${data.userName || 'Admin'})`);
+      updatedRows += 1;
+      continue;
+    }
+
+    remainingSourceActiveRows += 1;
+  }
+
+  if (!updatedRows) {
+    throw new Error(`박스관리 DB에서 이동할 박스를 찾을 수 없습니다.`);
+  }
+
+  return {
+    updatedRows,
+    remainingSourceActiveRows
+  };
+}
+
+function updateInventoryMoveStockRows_(sheet, managementId, data = {}) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '상태']) || findHeaderRow_(values, ['관리ID', '상태']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const managementIndex = findHeaderIndex_(indexes, ['관리 ID', '관리ID']);
+
+  if (managementIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
+  }
+
+  let updatedRows = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리 ID', '관리ID'], managementId, data)) {
+      continue;
+    }
+
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['보관위치', '보관 위치', '보관 장소'], data.targetStorage);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태'], data.status || '보관');
+    updatedRows += 1;
+  }
+
+  return updatedRows;
 }
 
 function updateShippingStatusBoxRows_(sheet, managementId, data) {
