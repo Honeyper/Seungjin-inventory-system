@@ -1863,6 +1863,7 @@ async function handleQrValue(rawValue) {
         elements.inventoryMoveSearchInput.value = "";
       }
       renderInventoryMoveList();
+      renderScannerScannedList();
     } else {
       state.scannedShippingRows = [matched, ...state.scannedShippingRows];
       saveScannedShippingRows();
