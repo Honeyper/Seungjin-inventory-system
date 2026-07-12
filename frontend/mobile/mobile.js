@@ -759,6 +759,39 @@ function groupScannedShippingRows(rows) {
   return Array.from(groups.values());
 }
 
+function groupScannedInventoryMoveRows(rows) {
+  const groups = new Map();
+
+  rows.forEach((row) => {
+    const key = getInventoryMoveProductGroupKey(row);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        ...row,
+        productGroupKey: key,
+        scannedItems: [],
+        scannedBoxes: [],
+        scannedBoxCount: 0,
+        scannedCurrentQuantity: 0,
+        moveCurrentStorage: getInventoryMoveCurrentStorage(row),
+        targetStorage: row.targetStorage || getDefaultTargetStorage(getInventoryMoveCurrentStorage(row))
+      });
+    }
+
+    const group = groups.get(key);
+    const scannedBox = getScannedBox(row);
+    const currentQuantity = getBoxCurrentQuantity(scannedBox, row);
+
+    group.scannedItems.push(row);
+    if (scannedBox) {
+      group.scannedBoxes.push(scannedBox);
+    }
+    group.scannedBoxCount += 1;
+    group.scannedCurrentQuantity += currentQuantity;
+  });
+
+  return Array.from(groups.values());
+}
+
 function isMobileShippingCandidate(row) {
   const status = normalizeText(row.stockStatus || row.processStatus);
   const activeBoxes = Array.isArray(row.activeShippingBoxes) ? row.activeShippingBoxes : [];
@@ -799,7 +832,7 @@ function renderInventoryMoveList() {
   }
 
   const query = state.moveQuery;
-  const rows = state.scannedMoveRows.filter((row) => {
+  const matchedRows = state.scannedMoveRows.filter((row) => {
     if (!query) {
       return true;
     }
@@ -817,6 +850,7 @@ function renderInventoryMoveList() {
       row.scannedBoxNumber
     ].some((value) => String(value || "").toLowerCase().includes(query));
   });
+  const rows = groupScannedInventoryMoveRows(matchedRows);
 
   if (elements.inventoryMoveCount) {
     elements.inventoryMoveCount.textContent = String(rows.length);
@@ -844,14 +878,19 @@ function renderInventoryMoveList() {
 
 function renderInventoryMoveItem(item) {
   const key = getInventoryMoveKey(item);
-  const scannedBox = getScannedBox(item);
   const currentStorage = getInventoryMoveCurrentStorage(item);
   const targetStorage = item.targetStorage || getDefaultTargetStorage(currentStorage);
-  const boxLabel = getScannedBoxLabel(item);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
-  const totalBoxCount = getInventoryMoveAllBoxNumbers(item).length || parseNumber(item.currentBoxCount || item.boxTotalCount) || 1;
-  const quantity = getBoxCurrentQuantity(scannedBox, item);
+  const scannedBoxCount = parseNumber(item.scannedBoxCount) || getSelectedBoxNumbers(item).length || 1;
+  const totalBoxCount = getInventoryMoveAllBoxNumbers(item).length || parseNumber(item.currentBoxCount || item.boxTotalCount) || scannedBoxCount;
+  const quantity = parseNumber(item.scannedCurrentQuantity) || getSelectedBoxNumbers(item)
+    .reduce((sum, boxNumber) => {
+      const box = item.scannedBoxes?.find((candidate) => {
+        return String(candidate?.number || candidate?.sequence || "").trim() === String(boxNumber || "").trim();
+      });
+      return sum + getBoxCurrentQuantity(box, item);
+    }, 0);
 
   return `
     <article class="shipping-item inventory-move-item" data-inventory-move-item="${escapeHtml(key)}">
@@ -868,7 +907,7 @@ function renderInventoryMoveItem(item) {
         <div class="shipping-meta-stack">
           <span class="process-pill">${escapeHtml(process)}</span>
           <span class="shipping-meta-pill">${escapeHtml(batch)}</span>
-          <span class="shipping-meta-pill">${escapeHtml(boxLabel || "선택 박스")}</span>
+          <span class="shipping-meta-pill">${formatNumber(scannedBoxCount)}박스 스캔</span>
         </div>
         <div class="shipping-card-actions">
           <button class="shipping-remove-button" type="button" data-inventory-move-remove="${escapeHtml(key)}">삭제</button>
@@ -891,8 +930,11 @@ function renderInventoryMoveItem(item) {
       </div>
       <div class="item-metrics inventory-move-metrics">
         <span class="metric">
-          <span>선택 박스</span>
-          <strong>${escapeHtml(boxLabel || "1박스")}</strong>
+          <span>스캔 박스</span>
+          <span class="metric-value-row">
+            <strong>${formatNumber(scannedBoxCount)}</strong>
+            <small>Box</small>
+          </span>
         </span>
         <span class="metric">
           <span>전체 박스</span>
@@ -935,7 +977,7 @@ function handleInventoryMoveListClick(event) {
 
   const key = actionButton.dataset.inventoryMoveKey;
   const mode = actionButton.dataset.inventoryMoveAction || "single";
-  const item = state.scannedMoveRows.find((row) => getInventoryMoveKey(row) === key);
+  const item = findInventoryMoveGroupByKey(key);
   if (!item) {
     showToast("이동할 박스를 찾지 못했습니다.");
     return;
@@ -951,12 +993,11 @@ function handleInventoryMoveListChange(event) {
   }
 
   const key = select.dataset.inventoryMoveStorage;
-  const item = state.scannedMoveRows.find((row) => getInventoryMoveKey(row) === key);
-  if (!item) {
+  const changed = updateInventoryMoveGroupStorage(key, select.value);
+  if (!changed) {
     return;
   }
 
-  item.targetStorage = select.value;
   saveScannedMoveRows();
 }
 
@@ -1395,14 +1436,15 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
     return;
   }
 
-  const items = [...state.scannedMoveRows];
-  if (!items.length) {
+  const items = groupScannedInventoryMoveRows(state.scannedMoveRows);
+  const scannedBoxCount = state.scannedMoveRows.length;
+  if (!scannedBoxCount) {
     showToast("이동할 박스를 먼저 스캔해주세요.");
     return;
   }
 
   const actionLabel = mode === "all" ? "전량 이동" : "자리이동";
-  const ok = window.confirm(`스캔한 ${formatNumber(items.length)}개 항목을 ${actionLabel} 처리하시겠습니까?`);
+  const ok = window.confirm(`스캔한 ${formatNumber(scannedBoxCount)}개 박스 (${formatNumber(items.length)}개 제품)을 ${actionLabel} 처리하시겠습니까?`);
   if (!ok) {
     return;
   }
@@ -1423,7 +1465,8 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
     const { completedCount, failedItems } = await completeInventoryMoveItems(items, mode);
     if (completedCount > 0) {
       triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
-      state.scannedMoveRows = failedItems;
+      const failedKeys = new Set(failedItems.map((item) => getInventoryMoveKey(item)));
+      state.scannedMoveRows = state.scannedMoveRows.filter((row) => failedKeys.has(getInventoryMoveProductGroupKey(row)));
       saveScannedMoveRows();
       renderInventoryMoveList();
       renderScannerScannedList();
@@ -2615,6 +2658,10 @@ function getKnownBoxes(item) {
 }
 
 function getInventoryMoveKey(item) {
+  if (item?.productGroupKey) {
+    return item.productGroupKey;
+  }
+
   return [
     item?.managementId,
     item?.productId,
@@ -2622,6 +2669,37 @@ function getInventoryMoveKey(item) {
     item?.productName,
     getScannedBoxKey(item)
   ].map((value) => String(value || "").replace(/\s+/g, "_")).join("__");
+}
+
+function getInventoryMoveProductGroupKey(item) {
+  return [
+    item?.managementId,
+    item?.productId,
+    item?.clientName,
+    item?.productName,
+    item?.batch,
+    item?.finalProcess,
+    getInventoryMoveCurrentStorage(item)
+  ].map((value) => normalizeScanValue(value) || "-").join("__");
+}
+
+function findInventoryMoveGroupByKey(key) {
+  return groupScannedInventoryMoveRows(state.scannedMoveRows)
+    .find((group) => getInventoryMoveKey(group) === key);
+}
+
+function updateInventoryMoveGroupStorage(key, targetStorage) {
+  let changed = false;
+  state.scannedMoveRows.forEach((row) => {
+    if (getInventoryMoveProductGroupKey(row) !== key && getInventoryMoveKey(row) !== key) {
+      return;
+    }
+
+    row.targetStorage = targetStorage;
+    changed = true;
+  });
+
+  return changed;
 }
 
 function getInventoryMoveCurrentStorage(item) {
@@ -2661,12 +2739,13 @@ function confirmRemoveScannedMoveGroup(key) {
     return;
   }
 
-  const item = state.scannedMoveRows.find((row) => getInventoryMoveKey(row) === key);
+  const item = findInventoryMoveGroupByKey(key) || state.scannedMoveRows.find((row) => getInventoryMoveKey(row) === key);
   if (!item) {
     return;
   }
 
-  const ok = window.confirm(`${normalizeDisplay(item.productName)}\n${normalizeDisplay(getScannedBoxLabel(item) || "선택한 박스")}를 재고 수정 목록에서 삭제하시겠습니까?`);
+  const scannedBoxCount = parseNumber(item.scannedBoxCount) || getSelectedBoxNumbers(item).length || 1;
+  const ok = window.confirm(`${normalizeDisplay(item.productName)}\n스캔한 ${formatNumber(scannedBoxCount)}개 박스를 재고 수정 목록에서 삭제하시겠습니까?`);
   if (!ok) {
     return;
   }
@@ -2680,7 +2759,9 @@ function removeScannedMoveGroup(key) {
   }
 
   const previousCount = state.scannedMoveRows.length;
-  state.scannedMoveRows = state.scannedMoveRows.filter((row) => getInventoryMoveKey(row) !== key);
+  state.scannedMoveRows = state.scannedMoveRows.filter((row) => {
+    return getInventoryMoveProductGroupKey(row) !== key && getInventoryMoveKey(row) !== key;
+  });
   if (state.scannedMoveRows.length === previousCount) {
     return;
   }
