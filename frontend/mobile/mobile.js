@@ -63,8 +63,7 @@ const state = {
   scannerSheetStartY: 0,
   scannerSheetDeltaY: 0,
   scannerSheetDragging: false,
-  scannerSheetMoved: false,
-  vibrationNoticeShown: false
+  scannerSheetMoved: false
 };
 
 const elements = {
@@ -1510,7 +1509,6 @@ async function openScanner() {
   elements.scannerScreen.hidden = false;
   state.scannerLastValue = "";
   primeScanFeedback();
-  notifyUnsupportedVibrationOnce();
   setScannerSheetExpanded(false);
   updateScannerActionLabels();
   renderScannerScannedList();
@@ -2532,15 +2530,6 @@ function canUseVibration() {
 
 function primeScanFeedback() {
   triggerScanFeedback(1, { visual: false });
-}
-
-function notifyUnsupportedVibrationOnce() {
-  if (state.vibrationNoticeShown || canUseVibration()) {
-    return;
-  }
-
-  state.vibrationNoticeShown = true;
-  showToast("이 브라우저는 웹 진동을 지원하지 않아 화면 효과로 안내합니다.");
 }
 
 function triggerScanFeedback(pattern = SCAN_SUCCESS_VIBRATION, options = {}) {
