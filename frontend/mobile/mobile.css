@@ -4598,8 +4598,14 @@ img {
 }
 
 .scanner-list-panel .scanner-bottom {
+  position: static;
+  z-index: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
   min-height: 50px;
   border-radius: 12px;
+  padding-bottom: 0;
   background: var(--navy-dark);
   box-shadow: 0 12px 24px rgba(8, 42, 98, 0.18);
 }
