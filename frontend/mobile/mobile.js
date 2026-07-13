@@ -1935,7 +1935,6 @@ async function handleQrValue(rawValue) {
     }
 
     triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
-    revealScannerScannedList();
     setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
     showToast("스캔한 박스를 등록했습니다.");
   } catch (error) {
@@ -2165,17 +2164,6 @@ function renderScannerScannedList() {
       </article>
     `;
   }).join("");
-}
-
-function revealScannerScannedList() {
-  if (!elements.scannerScreen || elements.scannerScreen.hidden) {
-    return;
-  }
-
-  setScannerSheetExpanded(true);
-  window.requestAnimationFrame(() => {
-    elements.scannerScannedList?.scrollTo({ top: 0 });
-  });
 }
 
 function handleScannerListClick(event) {
