@@ -389,6 +389,9 @@ async function attemptAdminLogin(options = {}) {
 
     state.user = loginResult.user;
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(loginResult.user));
+    if (!state.scannedMoveRows.length) {
+      state.scannedMoveRows = readSavedMoveRows();
+    }
     saveLoginPreferences({ accountId, password });
     showHome();
   } catch (error) {
@@ -501,6 +504,9 @@ function showInventoryMove() {
   state.activeWorkflow = "inventoryMove";
   showScreen("inventoryMove");
   startShippingClock();
+  if (state.dashboard.length) {
+    syncScannedMoveRowsFromDashboard();
+  }
   renderInventoryMoveList();
   if (!state.dashboard.length) {
     loadShippingDashboard({ silent: true }).then(renderInventoryMoveList).catch(() => {});
@@ -581,6 +587,7 @@ async function loadShippingDashboard(options = {}) {
     const data = await requestApi("getInventoryDashboard");
     state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
     syncPendingShippingRowsFromDashboard();
+    syncScannedMoveRowsFromDashboard();
     applyShippingFilters();
     return true;
   } catch (error) {
@@ -2429,6 +2436,7 @@ async function ensureDashboardLoaded() {
   const data = await requestApi("getInventoryDashboard");
   state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
   syncPendingShippingRowsFromDashboard();
+  syncScannedMoveRowsFromDashboard();
 }
 
 function syncPendingShippingRowsFromDashboard() {
@@ -2981,7 +2989,15 @@ function saveLoginPreferences(credentials = null) {
 function readSavedScannedRows() {
   try {
     const rows = JSON.parse(sessionStorage.getItem(SCANNED_ROWS_KEY) || "[]");
-    return Array.isArray(rows) ? rows : [];
+    if (!Array.isArray(rows)) {
+      return [];
+    }
+
+    const compactRows = rows.map(compactScannedBoxRow);
+    if (compactRows.length) {
+      sessionStorage.setItem(SCANNED_ROWS_KEY, JSON.stringify(compactRows));
+    }
+    return compactRows;
   } catch (error) {
     return [];
   }
@@ -2993,7 +3009,7 @@ function saveScannedShippingRows() {
       sessionStorage.removeItem(SCANNED_ROWS_KEY);
       return;
     }
-    sessionStorage.setItem(SCANNED_ROWS_KEY, JSON.stringify(state.scannedShippingRows));
+    sessionStorage.setItem(SCANNED_ROWS_KEY, JSON.stringify(state.scannedShippingRows.map(compactScannedBoxRow)));
   } catch (error) {
     console.warn("Failed to save scanned shipping rows.", error);
   }
@@ -3002,7 +3018,15 @@ function saveScannedShippingRows() {
 function readSavedMoveRows() {
   try {
     const rows = JSON.parse(sessionStorage.getItem(MOVE_ROWS_KEY) || "[]");
-    return Array.isArray(rows) ? rows : [];
+    if (!Array.isArray(rows)) {
+      return [];
+    }
+
+    const compactRows = rows.map(compactInventoryMoveRow);
+    if (compactRows.length) {
+      sessionStorage.setItem(MOVE_ROWS_KEY, JSON.stringify(compactRows));
+    }
+    return compactRows;
   } catch (error) {
     return [];
   }
@@ -3014,10 +3038,122 @@ function saveScannedMoveRows() {
       sessionStorage.removeItem(MOVE_ROWS_KEY);
       return;
     }
-    sessionStorage.setItem(MOVE_ROWS_KEY, JSON.stringify(state.scannedMoveRows));
+    sessionStorage.setItem(MOVE_ROWS_KEY, JSON.stringify(state.scannedMoveRows.map(compactInventoryMoveRow)));
   } catch (error) {
     console.warn("Failed to save inventory move rows.", error);
   }
+}
+
+function compactInventoryMoveRow(row) {
+  const compactRow = compactScannedBoxRow(row);
+  const scannedBox = compactRow.scannedBox;
+
+  return {
+    ...compactRow,
+    moveCurrentStorage: row?.moveCurrentStorage || scannedBox.storage || row?.storage || "미지정",
+    targetStorage: row?.targetStorage || getDefaultTargetStorage(scannedBox.storage || row?.storage || "미지정")
+  };
+}
+
+function compactScannedBoxRow(row) {
+  const box = getScannedBox(row) || {};
+  const scannedBox = {
+    boxId: box.boxId || box.id || box.qrId || row?.scannedBoxId || "",
+    number: box.number || box.sequence || row?.scannedBoxNumber || "",
+    status: box.status || "",
+    rawStatus: box.rawStatus || "",
+    storage: box.storage || row?.moveCurrentStorage || row?.storage || "",
+    currentQuantity: box.currentQuantity || "",
+    quantity: box.quantity || "",
+    originalQuantity: box.originalQuantity || "",
+    totalQuantity: box.totalQuantity || "",
+    boxQuantity: box.boxQuantity || ""
+  };
+
+  return {
+    managementId: row?.managementId || "",
+    productId: row?.productId || "",
+    clientName: row?.clientName || "",
+    productName: row?.productName || "",
+    batch: row?.batch || "",
+    finalProcess: row?.finalProcess || "",
+    storage: row?.storage || scannedBox.storage || "",
+    stockStatus: row?.stockStatus || "",
+    processStatus: row?.processStatus || "",
+    currentBoxCount: row?.currentBoxCount || "",
+    boxTotalCount: row?.boxTotalCount || "",
+    totalBoxCount: row?.totalBoxCount || "",
+    currentTotalQuantity: row?.currentTotalQuantity || "",
+    registrant: row?.registrant || "",
+    inspector: row?.inspector || "",
+    scannedBox,
+    scannedBoxId: scannedBox.boxId,
+    scannedBoxNumber: scannedBox.number,
+    scannedQrValue: row?.scannedQrValue || "",
+    syncedFromPending: row?.syncedFromPending === true
+  };
+}
+
+function syncScannedMoveRowsFromDashboard() {
+  if (!state.scannedMoveRows.length || !state.dashboard.length) {
+    return;
+  }
+
+  state.scannedMoveRows = state.scannedMoveRows.map((savedRow) => {
+    const match = findSavedMoveRowInDashboard(savedRow);
+    if (!match) {
+      return compactInventoryMoveRow(savedRow);
+    }
+
+    const refreshedRow = buildInventoryMoveItem(match.row, match.box, {
+      boxId: normalizeScanValue(match.box?.boxId || match.box?.id || match.box?.qrId || savedRow.scannedBoxId),
+      managementId: normalizeScanValue(match.row.managementId),
+      productId: normalizeScanValue(match.row.productId),
+      boxNumber: String(match.box?.number || match.box?.sequence || savedRow.scannedBoxNumber || "").trim()
+    }, savedRow.scannedQrValue || "");
+    const currentStorage = getInventoryMoveCurrentStorage(refreshedRow);
+    const savedTarget = normalizeDisplay(savedRow.targetStorage || "");
+    refreshedRow.targetStorage = savedTarget !== "-" && savedTarget !== currentStorage
+      ? savedTarget
+      : getDefaultTargetStorage(currentStorage);
+    return refreshedRow;
+  });
+
+  saveScannedMoveRows();
+}
+
+function findSavedMoveRowInDashboard(savedRow) {
+  const managementId = normalizeScanValue(savedRow?.managementId);
+  const productId = normalizeScanValue(savedRow?.productId);
+  const productName = normalizeScanValue(savedRow?.productName);
+  const clientName = normalizeScanValue(savedRow?.clientName);
+  const parsed = {
+    boxId: normalizeScanValue(savedRow?.scannedBoxId || savedRow?.scannedBox?.boxId),
+    boxNumber: String(savedRow?.scannedBoxNumber || savedRow?.scannedBox?.number || "").trim()
+  };
+
+  const candidates = state.dashboard.filter((row) => {
+    if (managementId && normalizeScanValue(row?.managementId) !== managementId) {
+      return false;
+    }
+    if (productId && normalizeScanValue(row?.productId) !== productId) {
+      return false;
+    }
+    if (!managementId && !productId) {
+      return normalizeScanValue(row?.productName) === productName
+        && (!clientName || normalizeScanValue(row?.clientName) === clientName);
+    }
+    return true;
+  });
+
+  for (const row of candidates) {
+    const box = findMatchedBox(getKnownBoxes(row), parsed);
+    if (box) {
+      return { row, box };
+    }
+  }
+
+  return null;
 }
 
 function setLoginMessage(message, type = "error") {
