@@ -68,7 +68,7 @@ const state = {
   scannerSheetDragging: false,
   scannerSheetMoved: false,
   boxPickerProduct: null,
-  boxPickerQuery: ""
+  boxPickerEditingGroupKey: ""
 };
 
 const elements = {
@@ -97,15 +97,10 @@ const elements = {
   shippingFilterMenu: document.querySelector("#shippingFilterMenu"),
   shippingListPanel: document.querySelector("#shippingListPanel"),
   openScannerButton: document.querySelector("#openScannerButton"),
-  addShippingBoxesButton: document.querySelector("#addShippingBoxesButton"),
   shippingBoxPickerModal: document.querySelector("#shippingBoxPickerModal"),
   closeShippingBoxPickerButton: document.querySelector("#closeShippingBoxPickerButton"),
   cancelShippingBoxPickerButton: document.querySelector("#cancelShippingBoxPickerButton"),
-  boxPickerProductStage: document.querySelector("#boxPickerProductStage"),
   boxPickerBoxStage: document.querySelector("#boxPickerBoxStage"),
-  boxPickerProductSearch: document.querySelector("#boxPickerProductSearch"),
-  boxPickerProductList: document.querySelector("#boxPickerProductList"),
-  backToBoxPickerProductsButton: document.querySelector("#backToBoxPickerProductsButton"),
   boxPickerClientName: document.querySelector("#boxPickerClientName"),
   boxPickerProductName: document.querySelector("#boxPickerProductName"),
   boxPickerProductMeta: document.querySelector("#boxPickerProductMeta"),
@@ -185,18 +180,11 @@ function bindEvents() {
     applyShippingFilters();
   });
   elements.openScannerButton?.addEventListener("click", openScanner);
-  elements.addShippingBoxesButton?.addEventListener("click", openShippingBoxPicker);
   elements.closeShippingBoxPickerButton?.addEventListener("click", closeShippingBoxPicker);
   elements.cancelShippingBoxPickerButton?.addEventListener("click", closeShippingBoxPicker);
-  elements.backToBoxPickerProductsButton?.addEventListener("click", showBoxPickerProducts);
-  elements.boxPickerProductSearch?.addEventListener("input", (event) => {
-    state.boxPickerQuery = event.target.value.trim().toLowerCase();
-    renderBoxPickerProducts();
-  });
-  elements.boxPickerProductList?.addEventListener("click", handleBoxPickerProductClick);
   elements.boxPickerBoxList?.addEventListener("change", handleBoxPickerBoxChange);
   elements.boxPickerSelectAll?.addEventListener("change", handleBoxPickerSelectAll);
-  elements.confirmShippingBoxPickerButton?.addEventListener("click", addSelectedShippingBoxes);
+  elements.confirmShippingBoxPickerButton?.addEventListener("click", updateSelectedShippingBoxes);
   elements.openInventoryScannerButton?.addEventListener("click", openInventoryMoveScanner);
   elements.refreshInventoryMoveButton?.addEventListener("click", handleRefreshInventoryMove);
   elements.inventoryMoveSearchInput?.addEventListener("input", (event) => {
@@ -226,6 +214,15 @@ function bindEvents() {
   });
 
   elements.shippingListPanel?.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-mobile-shipping-edit]");
+    if (editButton) {
+      const item = state.filteredRows.find((row) => getShippingKey(row) === editButton.dataset.mobileShippingEdit);
+      if (item) {
+        openShippingBoxEditor(item);
+      }
+      return;
+    }
+
     const quantityButton = event.target.closest("[data-mobile-shipping-quantity]");
     if (quantityButton) {
       openShippingQuantityEditor(quantityButton.dataset.mobileShippingQuantity);
@@ -902,13 +899,11 @@ function renderShippingList(rows) {
           <h2>등록된 제품이 없습니다</h2>
           <p>출고할 제품을 등록해 주세요.</p>
           <div class="empty-shipping-actions">
-            <button class="primary-action" type="button" id="emptyBoxAddButton">박스 추가</button>
-            <button class="secondary-action" type="button" id="emptyScanButton">QR 스캔</button>
+            <button class="primary-action" type="button" id="emptyScanButton">QR 스캔</button>
           </div>
         </div>
       </div>
     `;
-    document.querySelector("#emptyBoxAddButton")?.addEventListener("click", openShippingBoxPicker);
     document.querySelector("#emptyScanButton")?.addEventListener("click", openScanner);
     return;
   }
@@ -916,25 +911,35 @@ function renderShippingList(rows) {
   elements.shippingListPanel.innerHTML = rows.map(renderShippingItem).join("");
 }
 
-async function openShippingBoxPicker() {
+async function openShippingBoxEditor(item) {
   if (!elements.shippingBoxPickerModal) {
     return;
   }
 
   state.boxPickerProduct = null;
-  state.boxPickerQuery = "";
-  elements.boxPickerProductSearch.value = "";
+  state.boxPickerEditingGroupKey = getShippingProductGroupKey(item);
   elements.shippingBoxPickerModal.hidden = false;
   document.body.classList.add("modal-open");
-  showBoxPickerProducts();
-  elements.boxPickerProductList.innerHTML = '<p class="box-picker-empty">제품 정보를 불러오는 중입니다.</p>';
+  elements.boxPickerClientName.textContent = normalizeDisplay(item.clientName || "-");
+  elements.boxPickerProductName.textContent = normalizeDisplay(item.productName || "-");
+  elements.boxPickerProductMeta.textContent = [item.finalProcess, item.batch, item.storage]
+    .map(normalizeDisplay)
+    .filter((value) => value !== "-")
+    .join(" · ") || "-";
+  elements.boxPickerBoxList.innerHTML = '<p class="box-picker-empty">박스 정보를 불러오는 중입니다.</p>';
+  elements.confirmShippingBoxPickerButton.disabled = true;
+  elements.confirmShippingBoxPickerButton.textContent = "불러오는 중";
 
   try {
     await ensureDashboardLoaded();
-    renderBoxPickerProducts();
-    window.setTimeout(() => elements.boxPickerProductSearch?.focus(), 0);
+    const product = findBoxPickerProduct(item);
+    if (!product) {
+      throw new Error("수정할 제품 정보를 찾지 못했습니다.");
+    }
+    state.boxPickerProduct = product;
+    renderBoxPickerBoxes();
   } catch (error) {
-    elements.boxPickerProductList.innerHTML = `<p class="box-picker-empty">${escapeHtml(error.message || "제품 정보를 불러오지 못했습니다.")}</p>`;
+    elements.boxPickerBoxList.innerHTML = `<p class="box-picker-empty">${escapeHtml(error.message || "박스 정보를 불러오지 못했습니다.")}</p>`;
   }
 }
 
@@ -945,88 +950,17 @@ function closeShippingBoxPicker() {
 
   elements.shippingBoxPickerModal.hidden = true;
   state.boxPickerProduct = null;
-  state.boxPickerQuery = "";
+  state.boxPickerEditingGroupKey = "";
   document.body.classList.remove("modal-open");
 }
 
-function getBoxPickerProducts() {
-  return state.dashboard
-    .filter((row) => getBoxPickerAvailableBoxes(row).length > 0)
-    .sort((left, right) => compareShippingText(left.productName, right.productName)
-      || compareShippingText(left.clientName, right.clientName));
-}
-
-function getBoxPickerAvailableBoxes(row) {
-  return getKnownBoxes(row)
-    .filter((box) => {
-      const status = normalizeText(box?.rawStatus || box?.status);
-      return getBoxCurrentQuantity(box, row) > 0 && !/출고완료|폐기/.test(status);
-    })
-    .sort((left, right) => parseNumber(left?.number || left?.sequence) - parseNumber(right?.number || right?.sequence));
-}
-
-function renderBoxPickerProducts() {
-  if (!elements.boxPickerProductList) {
-    return;
-  }
-
-  const query = state.boxPickerQuery;
-  const products = getBoxPickerProducts().filter((row) => {
-    if (!query) {
-      return true;
-    }
-
-    return [row.clientName, row.productName, row.productId, row.managementId, row.batch, row.finalProcess]
-      .some((value) => String(value || "").toLowerCase().includes(query));
-  });
-
-  elements.boxPickerProductList.innerHTML = products.length ? products.map((row) => {
-    const key = getShippingProductGroupKey(row);
-    const boxes = getBoxPickerAvailableBoxes(row);
-    const addedKeys = getAddedShippingBoxKeys(row);
-    const availableCount = boxes.filter((box) => !addedKeys.has(getBoxPickerBoxKey(box))).length;
-    return `
-      <button class="box-picker-product-button" type="button" data-box-picker-product="${escapeHtml(key)}">
-        <span>
-          <small>${escapeHtml(normalizeDisplay(row.clientName || "-"))}</small>
-          <strong>${escapeHtml(normalizeDisplay(row.productName || "-"))}</strong>
-          <em>${[row.finalProcess, row.batch, row.storage]
-            .map(normalizeDisplay)
-            .filter((value) => value !== "-")
-            .map(escapeHtml)
-            .join(" · ") || "-"}</em>
-        </span>
-        <b>${formatNumber(availableCount)}박스 추가 가능</b>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
-      </button>
-    `;
-  }).join("") : '<p class="box-picker-empty">조건에 맞는 제품이 없습니다.</p>';
-}
-
-function handleBoxPickerProductClick(event) {
-  const button = event.target.closest("[data-box-picker-product]");
-  if (!button) {
-    return;
-  }
-
-  const key = button.dataset.boxPickerProduct;
-  const product = getBoxPickerProducts().find((row) => getShippingProductGroupKey(row) === key);
-  if (!product) {
-    showToast("선택한 제품을 찾지 못했습니다.");
-    return;
-  }
-
-  state.boxPickerProduct = product;
-  renderBoxPickerBoxes();
-  elements.boxPickerProductStage.hidden = true;
-  elements.boxPickerBoxStage.hidden = false;
-}
-
-function showBoxPickerProducts() {
-  state.boxPickerProduct = null;
-  elements.boxPickerProductStage.hidden = false;
-  elements.boxPickerBoxStage.hidden = true;
-  renderBoxPickerProducts();
+function findBoxPickerProduct(item) {
+  const productKey = getShippingProductGroupKey(item);
+  return state.dashboard.find((row) => getShippingProductGroupKey(row) === productKey)
+    || state.dashboard.find((row) => {
+      return normalizeScanValue(row.managementId) === normalizeScanValue(item.managementId)
+        && normalizeScanValue(row.productId) === normalizeScanValue(item.productId);
+    });
 }
 
 function getAddedShippingBoxKeys(row) {
@@ -1065,12 +999,12 @@ function renderBoxPickerBoxes() {
     const status = normalizeText(box?.rawStatus || box?.status);
     const isCompleted = /출고완료|폐기/.test(status) || quantity <= 0;
     const isAdded = addedKeys.has(key);
-    const isDisabled = isCompleted || isAdded;
-    const statusLabel = isAdded ? "추가됨" : isCompleted ? (status.includes("폐기") ? "폐기" : "출고완료") : normalizeDisplay(box?.status || "보관");
+    const isDisabled = isCompleted;
+    const statusLabel = isAdded ? "선택됨" : isCompleted ? (status.includes("폐기") ? "폐기" : "출고완료") : normalizeDisplay(box?.status || "보관");
 
     return `
       <label class="box-picker-check-card${isDisabled ? " disabled" : ""}">
-        <input type="checkbox" data-box-picker-box="${escapeHtml(key)}" ${isAdded ? "checked" : ""} ${isDisabled ? "disabled" : ""} />
+        <input type="checkbox" data-box-picker-box="${escapeHtml(key)}" data-box-status="${escapeHtml(normalizeDisplay(box?.status || "보관"))}" ${isAdded ? "checked" : ""} ${isDisabled ? "disabled" : ""} />
         <span class="box-picker-check-copy">
           <strong>${escapeHtml(number)}번 박스</strong>
           <small>${escapeHtml(normalizeDisplay(box?.storage || row.storage || "미지정"))} · ${formatNumber(quantity)} ea</small>
@@ -1106,29 +1040,32 @@ function handleBoxPickerSelectAll() {
 function syncBoxPickerSelection() {
   const checkboxes = Array.from(elements.boxPickerBoxList?.querySelectorAll("[data-box-picker-box]") || []);
   checkboxes.forEach((input) => {
-    input.closest(".box-picker-check-card")?.classList.toggle("selected", input.checked);
+    const card = input.closest(".box-picker-check-card");
+    card?.classList.toggle("selected", input.checked);
+    if (!input.disabled) {
+      const status = card?.querySelector("b");
+      if (status) {
+        status.textContent = input.checked ? "선택됨" : input.dataset.boxStatus || "보관";
+      }
+    }
   });
   const selectable = checkboxes.filter((input) => !input.disabled);
   const selected = selectable.filter((input) => input.checked);
   elements.boxPickerSelectedCount.textContent = String(selected.length);
-  elements.confirmShippingBoxPickerButton.disabled = selected.length === 0;
-  elements.confirmShippingBoxPickerButton.textContent = selected.length ? `${selected.length}개 박스 추가` : "목록에 추가";
+  elements.confirmShippingBoxPickerButton.disabled = false;
+  elements.confirmShippingBoxPickerButton.textContent = "수정 완료";
   elements.boxPickerSelectAll.disabled = selectable.length === 0;
   elements.boxPickerSelectAll.checked = selectable.length > 0 && selected.length === selectable.length;
   elements.boxPickerSelectAll.indeterminate = selected.length > 0 && selected.length < selectable.length;
 }
 
-function addSelectedShippingBoxes() {
+function updateSelectedShippingBoxes() {
   const row = state.boxPickerProduct;
   if (!row) {
     return;
   }
 
   const selectedInputs = Array.from(elements.boxPickerBoxList.querySelectorAll("[data-box-picker-box]:checked:not(:disabled)"));
-  if (!selectedInputs.length) {
-    showToast("추가할 박스를 선택해주세요.");
-    return;
-  }
 
   const invalidQuantityInput = selectedInputs
     .map((input) => findBoxPickerQuantityInput(input.dataset.boxPickerBox))
@@ -1140,7 +1077,7 @@ function addSelectedShippingBoxes() {
   }
 
   const boxes = getKnownBoxes(row);
-  const addedRows = [];
+  const selectedRows = [];
   selectedInputs.forEach((input) => {
     const key = input.dataset.boxPickerBox;
     const box = boxes.find((candidate) => getBoxPickerBoxKey(candidate) === key);
@@ -1159,24 +1096,24 @@ function addSelectedShippingBoxes() {
       boxNumber: number
     }, `manual:${boxId || number}`);
     setScannedBoxQuantity(item, quantity);
-    addedRows.push(item);
+    selectedRows.push(item);
   });
 
-  const existingKeys = new Set(state.scannedShippingRows.map(getShippingKey));
-  const uniqueRows = addedRows.filter((item) => !existingKeys.has(getShippingKey(item)));
-  if (!uniqueRows.length) {
-    showToast("선택한 박스가 이미 목록에 추가되어 있습니다.");
-    return;
-  }
-
-  state.scannedShippingRows = [...uniqueRows, ...state.scannedShippingRows];
+  const editingKey = state.boxPickerEditingGroupKey || getShippingProductGroupKey(row);
+  const editingRows = state.scannedShippingRows.filter((item) => getShippingProductGroupKey(item) === editingKey);
+  const editingBoxKeys = new Set(editingRows.map(getShippingKey));
+  const otherRows = state.scannedShippingRows.filter((item) => getShippingProductGroupKey(item) !== editingKey);
+  state.scannedShippingRows = [...selectedRows, ...otherRows];
+  state.scannerSessionShippingKeys = state.scannerSessionShippingKeys.filter((key) => !editingBoxKeys.has(key));
   saveScannedShippingRows();
   state.query = "";
   elements.shippingSearchInput.value = "";
   applyShippingFilters();
   closeShippingBoxPicker();
   triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
-  showToast(`${uniqueRows.length}개 박스를 출고 등록 목록에 추가했습니다.`);
+  showToast(selectedRows.length
+    ? `${selectedRows.length}개 박스로 수정했습니다.`
+    : "제품을 출고 등록 목록에서 제외했습니다.");
 }
 
 function findBoxPickerQuantityInput(key) {
@@ -1443,6 +1380,7 @@ function renderShippingItem(item) {
             : isPending ? '<span class="shipping-meta-pill">출고대기</span>' : ""}
         </div>
         <div class="shipping-card-actions">
+          ${isCompleted || isPending ? "" : `<button class="shipping-edit-button" type="button" data-mobile-shipping-edit="${escapeHtml(key)}">수정</button>`}
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}">삭제</button>
           ${isCompleted
             ? '<span class="shipping-complete-status">출고완료</span>'

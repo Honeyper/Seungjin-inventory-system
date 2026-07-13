@@ -5289,14 +5289,23 @@ img {
 #shippingScreen .shipping-card-actions {
   gap: 7px;
   margin-top: 3px;
-  grid-template-columns: 0.72fr 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 #shippingScreen .ship-now-button,
 #shippingScreen .ship-pending-button,
+#shippingScreen .shipping-edit-button,
 #shippingScreen .shipping-remove-button {
   min-height: 40px;
   font-size: 15px;
+}
+
+#shippingScreen .shipping-edit-button {
+  color: var(--navy-dark);
+  border: 1px solid #c9d7ee;
+  border-radius: 9px;
+  background: #f6f9fe;
+  font-weight: 900;
 }
 
 #shippingScreen .ship-pending-button:disabled {
