@@ -6699,6 +6699,18 @@ input {
     padding: 0;
     box-shadow: none;
   }
+
+  .box-qr-label-standard .box-qr-standard-process.is-disabled {
+    color: #9aa3af !important;
+    background: #fff !important;
+    border-bottom-color: #c7cdd5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .box-qr-label-standard .box-qr-standard-process.is-disabled em {
+    color: #9aa3af !important;
+  }
 }
 
 @media (max-width: 1100px) {
