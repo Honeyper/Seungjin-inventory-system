@@ -1938,6 +1938,13 @@ async function handleQrValue(rawValue) {
       return;
     }
 
+    if (state.activeWorkflow === "shipping" && isCompletedShippingItem(matched)) {
+      triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
+      setScannerHelp("이미 출고된 박스입니다. 다른 박스를 스캔해주세요.");
+      showToast("이미 출고된 박스입니다.");
+      return;
+    }
+
     const key = state.activeWorkflow === "inventoryMove" ? getInventoryMoveKey(matched) : getShippingKey(matched);
     const scannedRows = state.activeWorkflow === "inventoryMove" ? state.scannedMoveRows : state.scannedShippingRows;
     const hasDuplicate = scannedRows.some((row) => {
@@ -2577,6 +2584,24 @@ function getScannedBox(item) {
   }
 
   return null;
+}
+
+function isCompletedShippingItem(item) {
+  const box = getScannedBox(item);
+  const status = normalizeText(box?.rawStatus || box?.status || item?.stockStatus || item?.processStatus);
+  if (status.includes("출고완료")) {
+    return true;
+  }
+
+  const scannedBoxId = normalizeScanValue(item?.scannedBoxId || box?.boxId);
+  const scannedBoxNumber = String(item?.scannedBoxNumber || box?.number || box?.sequence || "").trim();
+  const shippedBoxes = Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
+  return shippedBoxes.some((shippedBox) => {
+    const shippedBoxId = normalizeScanValue(shippedBox?.boxId || shippedBox?.id || shippedBox?.qrId);
+    const shippedBoxNumber = String(shippedBox?.number || shippedBox?.sequence || "").trim();
+    return (scannedBoxId && shippedBoxId === scannedBoxId)
+      || (scannedBoxNumber && shippedBoxNumber === scannedBoxNumber);
+  });
 }
 
 function getScannedBoxKey(item) {
