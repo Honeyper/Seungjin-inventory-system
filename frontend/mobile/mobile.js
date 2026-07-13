@@ -1,5 +1,6 @@
 const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "";
 const SESSION_KEY = "seungjinMobileSession";
+const LOGIN_PREFERENCES_KEY = "seungjinMobileLoginPreferences";
 const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
@@ -78,6 +79,9 @@ const elements = {
   accountId: document.querySelector("#mobileAccountId"),
   password: document.querySelector("#mobilePassword"),
   togglePassword: document.querySelector("#toggleMobilePassword"),
+  saveAccount: document.querySelector("#saveMobileAccount"),
+  savePassword: document.querySelector("#saveMobilePassword"),
+  autoLogin: document.querySelector("#enableMobileAutoLogin"),
   loginMessage: document.querySelector("#mobileLoginMessage"),
   adminLoginButton: document.querySelector("#adminLoginButton"),
   logoutButton: document.querySelector("#mobileLogoutButton"),
@@ -126,6 +130,7 @@ function initializeMobileApp() {
   renderShippingSortMenu();
   bindEvents();
   updateShippingClock();
+  const loginPreferences = restoreLoginPreferences();
 
   const savedSession = readSavedSession();
   if (savedSession) {
@@ -137,11 +142,19 @@ function initializeMobileApp() {
   }
 
   showScreen("login");
+  if (loginPreferences.autoLogin && loginPreferences.accountId && loginPreferences.password) {
+    window.setTimeout(() => {
+      attemptAdminLogin({ automatic: true });
+    }, 0);
+  }
 }
 
 function bindEvents() {
   elements.loginForm?.addEventListener("submit", handleAdminLogin);
   elements.togglePassword?.addEventListener("click", togglePassword);
+  elements.saveAccount?.addEventListener("change", handleLoginPreferenceChange);
+  elements.savePassword?.addEventListener("change", handleLoginPreferenceChange);
+  elements.autoLogin?.addEventListener("change", handleLoginPreferenceChange);
   elements.logoutButton?.addEventListener("click", logout);
   elements.refreshShippingButton?.addEventListener("click", handleRefreshShipping);
   elements.filterShippingButton?.addEventListener("click", (event) => {
@@ -305,8 +318,13 @@ function setScannerSheetExpanded(expanded) {
   }
 }
 
-async function handleAdminLogin(event) {
+function handleAdminLogin(event) {
   event.preventDefault();
+  attemptAdminLogin();
+}
+
+async function attemptAdminLogin(options = {}) {
+  const automatic = options.automatic === true;
 
   const accountId = elements.accountId.value.trim();
   const password = elements.password.value.trim();
@@ -323,7 +341,7 @@ async function handleAdminLogin(event) {
   }
 
   setAdminLoginLoading(true);
-  setLoginMessage("관리자 계정 확인 중입니다.", "info");
+  setLoginMessage(automatic ? "저장된 계정으로 자동 로그인 중입니다." : "관리자 계정 확인 중입니다.", "info");
 
   try {
     const result = await requestApi("login", { accountId, password }, { unwrap: false });
@@ -336,6 +354,7 @@ async function handleAdminLogin(event) {
 
     state.user = loginResult.user;
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(loginResult.user));
+    saveLoginPreferences({ accountId, password });
     showHome();
   } catch (error) {
     setLoginMessage(error.message || "로그인 서버에 연결할 수 없습니다.");
@@ -371,6 +390,28 @@ function togglePassword() {
   const shouldShow = elements.password.type === "password";
   elements.password.type = shouldShow ? "text" : "password";
   elements.togglePassword.setAttribute("aria-label", shouldShow ? "비밀번호 숨기기" : "비밀번호 보기");
+}
+
+function handleLoginPreferenceChange(event) {
+  if (event.target === elements.autoLogin && elements.autoLogin.checked) {
+    elements.saveAccount.checked = true;
+    elements.savePassword.checked = true;
+  }
+
+  if (event.target === elements.savePassword && elements.savePassword.checked) {
+    elements.saveAccount.checked = true;
+  }
+
+  if (event.target === elements.saveAccount && !elements.saveAccount.checked) {
+    elements.savePassword.checked = false;
+    elements.autoLogin.checked = false;
+  }
+
+  if (event.target === elements.savePassword && !elements.savePassword.checked) {
+    elements.autoLogin.checked = false;
+  }
+
+  saveLoginPreferences();
 }
 
 function logout() {
@@ -2577,6 +2618,56 @@ function readSavedSession() {
     return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
   } catch (error) {
     return null;
+  }
+}
+
+function readLoginPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LOGIN_PREFERENCES_KEY) || "null");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function restoreLoginPreferences() {
+  const saved = readLoginPreferences();
+  const preferences = {
+    saveAccount: saved.saveAccount === true,
+    savePassword: saved.saveAccount === true && saved.savePassword === true,
+    autoLogin: saved.saveAccount === true && saved.savePassword === true && saved.autoLogin === true,
+    accountId: saved.saveAccount === true ? String(saved.accountId || "") : "",
+    password: saved.saveAccount === true && saved.savePassword === true ? String(saved.password || "") : ""
+  };
+
+  elements.saveAccount.checked = preferences.saveAccount;
+  elements.savePassword.checked = preferences.savePassword;
+  elements.autoLogin.checked = preferences.autoLogin;
+  elements.accountId.value = preferences.accountId;
+  elements.password.value = preferences.password;
+  return preferences;
+}
+
+function saveLoginPreferences(credentials = null) {
+  const previous = readLoginPreferences();
+  const saveAccount = elements.saveAccount?.checked === true;
+  const savePassword = saveAccount && elements.savePassword?.checked === true;
+  const autoLogin = savePassword && elements.autoLogin?.checked === true;
+  const accountId = credentials?.accountId ?? previous.accountId ?? "";
+  const password = credentials?.password ?? previous.password ?? "";
+
+  const preferences = {
+    saveAccount,
+    savePassword,
+    autoLogin,
+    accountId: saveAccount ? accountId : "",
+    password: savePassword ? password : ""
+  };
+
+  try {
+    localStorage.setItem(LOGIN_PREFERENCES_KEY, JSON.stringify(preferences));
+  } catch (error) {
+    // Private browsing or device policy can block persistent storage.
   }
 }
 

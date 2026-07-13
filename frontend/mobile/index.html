@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260713-keep-pending-items" />
+    <link rel="stylesheet" href="./mobile.css?v=20260713-login-preferences" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -68,6 +68,21 @@
               </button>
             </span>
           </label>
+
+          <div class="login-preferences" aria-label="로그인 정보 저장 설정">
+            <label>
+              <input id="saveMobileAccount" type="checkbox" />
+              <span>계정 저장</span>
+            </label>
+            <label>
+              <input id="saveMobilePassword" type="checkbox" />
+              <span>비밀번호 저장</span>
+            </label>
+            <label>
+              <input id="enableMobileAutoLogin" type="checkbox" />
+              <span>자동 로그인</span>
+            </label>
+          </div>
 
           <p class="form-message" id="mobileLoginMessage" role="alert" aria-live="polite"></p>
 
@@ -344,6 +359,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260713-inventory-move-refresh"></script>
+    <script src="./mobile.js?v=20260713-login-preferences"></script>
   </body>
 </html>

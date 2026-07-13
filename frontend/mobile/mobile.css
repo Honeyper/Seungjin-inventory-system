@@ -3704,6 +3704,31 @@ img {
   border-radius: 8px;
 }
 
+#loginScreen .login-preferences {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 16px;
+}
+
+#loginScreen .login-preferences label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  color: #43536a;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#loginScreen .login-preferences input {
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  accent-color: var(--navy-dark);
+}
+
 #loginScreen .primary-action {
   background: linear-gradient(180deg, #082e6c, #061f4c);
 }
