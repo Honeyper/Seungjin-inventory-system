@@ -503,6 +503,7 @@ async function loadShippingDashboard(options = {}) {
   try {
     const data = await requestApi("getInventoryDashboard");
     state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
+    syncPendingShippingRowsFromDashboard();
     applyShippingFilters();
     return true;
   } catch (error) {
@@ -1060,7 +1061,8 @@ function renderShippingItem(item) {
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
   const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 스캔` : getScannedBoxLabel(item);
-  const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
+  const isPending = isShippingItemPending(item);
+  const metaParts = [batch, boxLabel, isPending ? "출고대기" : ""].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
 
   return `
@@ -1081,7 +1083,7 @@ function renderShippingItem(item) {
         </div>
         <div class="shipping-card-actions">
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}">삭제</button>
-          <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending">출고대기 등록</button>
+          <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="pending" ${isPending ? "disabled" : ""}>${isPending ? "출고대기 완료" : "출고대기 등록"}</button>
           <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
         </div>
       </div>
@@ -1274,7 +1276,11 @@ async function handleConfirmShipping() {
     closeConfirmModal();
     if (result.completedCount > 0) {
       const failedSet = new Set(result.failedItems);
-      state.scannedShippingRows = state.scannedShippingRows.filter((row) => !targetItems.includes(row) || failedSet.has(row));
+      if (action === "pending") {
+        markShippingItemsPending(targetItems, result.failedItems);
+      } else {
+        state.scannedShippingRows = state.scannedShippingRows.filter((row) => !targetItems.includes(row) || failedSet.has(row));
+      }
       saveScannedShippingRows();
       applyShippingFilters();
       showToast(result.failedItems.length ? `${result.completedCount}개 박스 ${actionLabel} 완료, ${result.failedItems.length}건 실패` : `${result.completedCount}개 박스 ${actionLabel} 완료`);
@@ -1319,7 +1325,11 @@ async function handleCompleteScannedShipping(action = "complete") {
 
     if (completedCount > 0) {
       triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
-      state.scannedShippingRows = failedItems;
+      if (isPendingAction) {
+        markShippingItemsPending(items, failedItems);
+      } else {
+        state.scannedShippingRows = failedItems;
+      }
       saveScannedShippingRows();
       applyShippingFilters();
       showToast(failedItems.length ? `${completedCount}개 박스 ${actionLabel} 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 ${actionLabel} 완료`);
@@ -1386,6 +1396,32 @@ async function completeShippingItems(items, action = "complete") {
     summary.failedItems.push(...result.failedItems);
     return summary;
   }, { completedCount: 0, failedItems: [] });
+}
+
+function markShippingItemsPending(items, failedItems = []) {
+  const failedSet = new Set(failedItems);
+
+  items.forEach((item) => {
+    if (failedSet.has(item)) {
+      return;
+    }
+
+    const box = getScannedBox(item);
+    if (box) {
+      box.status = "출고대기";
+      box.rawStatus = "출고대기";
+    }
+    item.stockStatus = "출고대기";
+    item.processStatus = "출고대기";
+  });
+}
+
+function isShippingItemPending(item) {
+  const items = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+  return items.length > 0 && items.every((row) => {
+    const box = getScannedBox(row);
+    return normalizeText(box?.rawStatus || box?.status || row?.stockStatus).includes("출고대기");
+  });
 }
 
 async function mapWithConcurrency(items, concurrency, callback) {
@@ -1619,6 +1655,8 @@ function updateScannerActionLabels() {
     <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
     출고대기 등록
   `;
+  elements.scannerPendingButton.disabled = state.scannedShippingRows.length > 0
+    && state.scannedShippingRows.every((item) => isShippingItemPending(item));
   elements.scannerDoneButton.innerHTML = `
     <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
     출고
@@ -1954,6 +1992,52 @@ async function ensureDashboardLoaded() {
   }
   const data = await requestApi("getInventoryDashboard");
   state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
+  syncPendingShippingRowsFromDashboard();
+}
+
+function syncPendingShippingRowsFromDashboard() {
+  const pendingRows = state.dashboard.flatMap((row) => {
+    const boxes = Array.isArray(row.activeShippingBoxes) ? row.activeShippingBoxes : [];
+    return boxes
+      .filter((box) => normalizeText(box?.rawStatus || box?.status).includes("출고대기"))
+      .map((box) => ({
+        ...buildScannedBoxItem(row, box, {
+          boxId: normalizeScanValue(box?.boxId),
+          managementId: normalizeScanValue(row.managementId),
+          productId: normalizeScanValue(row.productId),
+          boxNumber: String(box?.number || box?.sequence || "").trim()
+        }, box?.boxId || ""),
+        syncedFromPending: true
+      }));
+  });
+  const pendingByKey = new Map(pendingRows.map((row) => [getShippingKey(row), row]));
+  const mergedRows = [];
+  const mergedKeys = new Set();
+
+  state.scannedShippingRows.forEach((row) => {
+    const key = getShippingKey(row);
+    const pendingRow = pendingByKey.get(key);
+    if (row.syncedFromPending && !pendingRow) {
+      return;
+    }
+
+    if (pendingRow) {
+      Object.assign(row, pendingRow);
+    }
+    mergedRows.push(row);
+    mergedKeys.add(key);
+  });
+
+  pendingRows.forEach((row) => {
+    const key = getShippingKey(row);
+    if (!mergedKeys.has(key)) {
+      mergedRows.push(row);
+      mergedKeys.add(key);
+    }
+  });
+
+  state.scannedShippingRows = mergedRows;
+  saveScannedShippingRows();
 }
 
 function findShippingByQrValue(rawValue) {

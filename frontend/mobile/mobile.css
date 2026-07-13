@@ -4821,6 +4821,14 @@ img {
   font-size: 15px;
 }
 
+#shippingScreen .ship-pending-button:disabled {
+  color: #7d8a9d;
+  border-color: #d5dde8;
+  background: #edf1f6;
+  box-shadow: none;
+  opacity: 1;
+}
+
 #shippingScreen .item-worker {
   display: flex;
   align-items: center;
