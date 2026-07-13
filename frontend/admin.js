@@ -581,6 +581,11 @@ shippingTable?.addEventListener("click", (event) => {
     return;
   }
 
+  if (action === "cancelShip") {
+    cancelCompletedShipping(row, button);
+    return;
+  }
+
   if (action === "cancelQueue") {
     cancelShippingWaiting(row);
     return;
@@ -1746,7 +1751,7 @@ async function saveShippingInspection() {
   }
 }
 
-function renderShippingHoldActions(photoUrl = "", photoCount = 0) {
+function renderShippingHoldActions(photoUrl = "", photoCount = 0, allowCancelShipping = false) {
   const photoButton = photoUrl
     ? `<button class="shipping-row-button" type="button" data-shipping-action="photo" data-photo-url="${escapeAttribute(photoUrl)}" data-photo-count="${Number(photoCount) || 0}">사진</button>`
     : "";
@@ -1756,6 +1761,7 @@ function renderShippingHoldActions(photoUrl = "", photoCount = 0) {
       <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">재검수</button>
       <button class="shipping-row-button" type="button" data-shipping-action="holdGuide" data-photo-url="${escapeAttribute(photoUrl)}" data-photo-count="${Number(photoCount) || 0}">보류 상세</button>
       ${photoButton}
+      ${allowCancelShipping ? '<button class="shipping-row-button secondary" type="button" data-shipping-action="cancelShip">출고 취소</button>' : ""}
     </div>
   `;
 }
@@ -2013,6 +2019,53 @@ async function cancelShippingWaiting(row) {
     showToast("출고 대기를 취소했습니다.");
   } catch (error) {
     showToast(error.message || "출고 대기 취소 중 문제가 발생했습니다.");
+  }
+}
+
+async function cancelCompletedShipping(row, button) {
+  if (!row || button?.disabled) {
+    return;
+  }
+
+  const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes")
+    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료")
+    .map((box) => ({
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+
+  if (!shippedBoxes.length) {
+    showToast("출고 취소할 박스를 찾을 수 없습니다.");
+    return;
+  }
+
+  const totalQuantity = shippedBoxes.reduce((sum, box) => sum + box.quantity, 0);
+  const confirmed = window.confirm(
+    `출고완료 ${formatNumber(shippedBoxes.length)}개 박스(${formatNumber(totalQuantity)}ea)를 취소하고 보관 상태로 되돌릴까요?`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  const previousText = button?.textContent || "출고 취소";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "취소 중";
+  }
+
+  try {
+    await updateShippingStatus(row, "보관", {
+      selectedBoxes: shippedBoxes.map((box) => box.number),
+      allowCancelCompleted: true
+    });
+    showToast("출고를 취소하고 해당 박스를 보관 상태로 변경했습니다.");
+  } catch (error) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+    showToast(error.message || "출고 취소 중 문제가 발생했습니다.");
   }
 }
 
@@ -2621,26 +2674,40 @@ function renderShippingRowAction(item) {
   const hasRemainingBoxes = activeBoxes.some((box) => normalizeInventoryStockStatus(box.status) === "보관");
   const isPartialShipping = status === "일부 출고" || (activeBoxes.length > 0 && shippedBoxes.length > 0);
   const registerActionLabel = isPartialShipping && hasRemainingBoxes ? "추가 출고" : "출고 건 수정";
+  const cancelShippingButton = shippedBoxes.length
+    ? '<button class="shipping-row-button secondary" type="button" data-shipping-action="cancelShip">출고 취소</button>'
+    : "";
 
   if (counts["출고대기"]) {
     return `
       <div class="shipping-action-group">
         <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">수정</button>
         <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고</button>
+        ${cancelShippingButton}
       </div>
     `;
   }
 
   if (isPartialShipping && hasRemainingBoxes) {
-    return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">추가 출고</button>';
+    return `
+      <div class="shipping-action-group">
+        <button class="shipping-row-button" type="button" data-shipping-action="inspect">추가 출고</button>
+        ${cancelShippingButton}
+      </div>
+    `;
   }
 
   if (status === "출고완료") {
-    return '<button class="shipping-action-complete" type="button" data-shipping-action="detail">상세</button>';
+    return `
+      <div class="shipping-action-group">
+        <button class="shipping-action-complete" type="button" data-shipping-action="detail">상세</button>
+        ${cancelShippingButton}
+      </div>
+    `;
   }
 
   if (counts["보류"]) {
-    return renderShippingHoldActions(item.defectPhotoFolderUrl || "", Number(item.defectPhotoCount) || 0);
+    return renderShippingHoldActions(item.defectPhotoFolderUrl || "", Number(item.defectPhotoCount) || 0, shippedBoxes.length > 0);
   }
 
   if (counts["검수완료"] || isShippingInspected(item)) {

@@ -2935,6 +2935,7 @@ function updateShippingStatus(payload) {
     shippingTime,
     shipper,
     selectedBoxes,
+    allowCancelCompleted: payload.allowCancelCompleted === true || String(payload.allowCancelCompleted || '').toLowerCase() === 'true',
     forceCompleteShipping: payload.forceCompleteShipping === true || String(payload.forceCompleteShipping || '').toLowerCase() === 'true',
     autoShippingInspection,
     inspectionDate,
@@ -3182,6 +3183,10 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     const isAlreadyShipped = /출고완료/.test(rowStatus);
     const isSelectedBox = selectedBoxNumbers.has(sequence);
     const forceCompleteShipping = data.forceCompleteShipping === true;
+    const canCancelCompleted = data.status === '보관'
+      && data.allowCancelCompleted === true
+      && isSelectedBox
+      && isAlreadyShipped;
     const canCompleteShipping = data.status === '출고완료'
       && isSelectedBox
       && (
@@ -3191,7 +3196,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       );
     const shouldUpdate = data.status === '출고완료'
       ? canCompleteShipping
-      : isSelectedBox && !isAlreadyShipped;
+      : isSelectedBox && (!isAlreadyShipped || canCancelCompleted);
     const currentQuantity = currentQuantityIndex >= 0 ? displayQuantityToNumber_(row[currentQuantityIndex]) : 0;
 
     if (shouldUpdate) {
