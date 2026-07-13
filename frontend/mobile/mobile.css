@@ -4068,6 +4068,27 @@ img {
   white-space: nowrap;
 }
 
+#shippingScreen .shipping-complete-pill {
+  color: #0b6b43;
+  background: #e8f7ef;
+  border-color: #a9dfc2;
+}
+
+#shippingScreen .shipping-complete-status {
+  display: inline-flex;
+  grid-column: span 2;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid #a9dfc2;
+  border-radius: 7px;
+  color: #0b6b43;
+  background: #e8f7ef;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 #shippingScreen .shipping-remove-button {
   min-height: 42px;
   padding: 0 8px;

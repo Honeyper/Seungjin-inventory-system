@@ -1063,7 +1063,8 @@ function renderShippingItem(item) {
   const batch = normalizeDisplay(item.batch || "-");
   const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 스캔` : getScannedBoxLabel(item);
   const isPending = isShippingItemPending(item);
-  const metaParts = [batch, boxLabel, isPending ? "출고대기" : ""].filter((value) => value && value !== "-");
+  const isCompleted = isShippingItemCompleted(item);
+  const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
 
   return `
@@ -1081,11 +1082,18 @@ function renderShippingItem(item) {
         <div class="shipping-meta-stack">
           <span class="process-pill ${processClass}">${escapeHtml(process)}</span>
           ${metaParts.map((part) => `<span class="shipping-meta-pill">${escapeHtml(part)}</span>`).join("")}
+          ${isCompleted
+            ? '<span class="shipping-meta-pill shipping-complete-pill">출고완료</span>'
+            : isPending ? '<span class="shipping-meta-pill">출고대기</span>' : ""}
         </div>
         <div class="shipping-card-actions">
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}">삭제</button>
-          <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}">${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
-          <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
+          ${isCompleted
+            ? '<span class="shipping-complete-status">출고완료</span>'
+            : `
+              <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}">${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
+              <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
+            `}
         </div>
       </div>
       <p class="item-worker"><span>작업자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
@@ -1113,9 +1121,11 @@ function renderShippingItem(item) {
             <strong class="blue">${formatNumber(currentQuantity)}</strong>
             <small>ea</small>
           </span>
-          <span class="metric-action-row">
-            <button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>
-          </span>
+          ${isCompleted ? "" : `
+            <span class="metric-action-row">
+              <button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>
+            </span>
+          `}
         </span>
       </div>
     </article>
@@ -1282,6 +1292,8 @@ async function handleConfirmShipping() {
       const failedSet = new Set(result.failedItems);
       if (action === "pending") {
         markShippingItemsPending(targetItems, result.failedItems);
+      } else if (action === "complete") {
+        markShippingItemsCompleted(targetItems, result.failedItems);
       } else {
         state.scannedShippingRows = state.scannedShippingRows.filter((row) => !targetItems.includes(row) || failedSet.has(row));
       }
@@ -1332,12 +1344,7 @@ async function handleCompleteScannedShipping(action = "complete") {
       if (isPendingAction) {
         markShippingItemsPending(items, failedItems);
       } else {
-        const targetKeys = new Set(items.map(getShippingKey));
-        const failedKeys = new Set(failedItems.map(getShippingKey));
-        state.scannedShippingRows = state.scannedShippingRows.filter((item) => {
-          const key = getShippingKey(item);
-          return !targetKeys.has(key) || failedKeys.has(key);
-        });
+        markShippingItemsCompleted(items, failedItems);
       }
       state.scannerSessionShippingKeys = failedItems.map(getShippingKey);
       saveScannedShippingRows();
@@ -1413,6 +1420,30 @@ function markShippingItemsPending(items, failedItems = []) {
     item.stockStatus = "출고대기";
     item.processStatus = "출고대기";
   });
+}
+
+function markShippingItemsCompleted(items, failedItems = []) {
+  const failedSet = new Set(failedItems);
+
+  items.forEach((item) => {
+    if (failedSet.has(item)) {
+      return;
+    }
+
+    const box = getScannedBox(item);
+    if (box) {
+      box.status = "출고완료";
+      box.rawStatus = "출고완료";
+    }
+    item.stockStatus = "출고완료";
+    item.processStatus = "출고완료";
+    item.syncedFromPending = false;
+  });
+}
+
+function isShippingItemCompleted(item) {
+  const items = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+  return items.length > 0 && items.every(isCompletedShippingItem);
 }
 
 function isShippingItemPending(item) {
