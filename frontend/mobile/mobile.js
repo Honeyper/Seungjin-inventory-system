@@ -11,6 +11,7 @@ const SHIPPING_CLOCK_INTERVAL_MS = 10000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
 const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
+const SHIPPING_ACTION_CONCURRENCY = 3;
 const SHIPPING_BOX_ICON_SRC = "../assets/mobile-shipping-box-icon-2d.png?v=20260712-shipping-box-icon";
 const INVENTORY_STORAGE_OPTIONS = [
   "미지정",
@@ -1280,7 +1281,7 @@ async function handleConfirmShipping() {
     } else {
       showToast(action === "pending" ? "출고대기로 등록된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
     }
-    await loadShippingDashboard();
+    void loadShippingDashboard({ silent: true });
   } catch (error) {
     showToast(error.message || (action === "pending" ? "출고대기 등록 중 문제가 발생했습니다." : "출고 처리 중 문제가 발생했습니다."));
   } finally {
@@ -1325,7 +1326,7 @@ async function handleCompleteScannedShipping(action = "complete") {
       if (!failedItems.length) {
         closeScanner();
       }
-      await loadShippingDashboard({ silent: true });
+      void loadShippingDashboard({ silent: true });
     } else {
       showToast(isPendingAction ? "출고대기로 등록된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
     }
@@ -1365,33 +1366,51 @@ function handleScannerDoneAction() {
 }
 
 async function completeShippingItems(items, action = "complete") {
-  let completedCount = 0;
-  const failedItems = [];
-
-  for (const item of items) {
-    const selectedBoxes = getSelectedBoxNumbers(item);
+  const groups = groupScannedShippingRows(items);
+  const results = await mapWithConcurrency(groups, SHIPPING_ACTION_CONCURRENCY, async (group) => {
+    const selectedBoxes = getSelectedBoxNumbers(group);
     if (!selectedBoxes.length) {
-      failedItems.push(item);
-      continue;
+      return { completedCount: 0, failedItems: group.scannedItems };
     }
 
     try {
-      await completeShippingItem(item, selectedBoxes, action);
-      completedCount += selectedBoxes.length;
+      await completeShippingItem(group, selectedBoxes, action);
+      return { completedCount: selectedBoxes.length, failedItems: [] };
     } catch (error) {
-      failedItems.push(item);
+      return { completedCount: 0, failedItems: group.scannedItems };
+    }
+  });
+
+  return results.reduce((summary, result) => {
+    summary.completedCount += result.completedCount;
+    summary.failedItems.push(...result.failedItems);
+    return summary;
+  }, { completedCount: 0, failedItems: [] });
+}
+
+async function mapWithConcurrency(items, concurrency, callback) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+
+  async function runWorker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await callback(items[index], index);
     }
   }
 
-  return { completedCount, failedItems };
+  await Promise.all(Array.from({ length: workerCount }, runWorker));
+  return results;
 }
 
 async function completeShippingItem(item, selectedBoxes, action = "complete") {
   const now = new Date();
-  const scannedBox = getScannedBox(item);
-  const inspectionQuantity = parseNumber(scannedBox?.currentQuantity || scannedBox?.quantity || item.currentTotalQuantity);
   const isPendingAction = action === "pending";
   const boxQuantities = getSelectedBoxQuantities(item, selectedBoxes);
+  const inspectionQuantity = Object.values(boxQuantities)
+    .reduce((sum, quantity) => sum + parseNumber(quantity), 0);
 
   const payload = {
     managementId: item.managementId,
@@ -2531,6 +2550,12 @@ function getSelectedBoxNumbers(item) {
 }
 
 function getSelectedBoxQuantities(item, selectedBoxes = []) {
+  if (Array.isArray(item?.scannedItems)) {
+    return item.scannedItems.reduce((quantities, row) => {
+      return Object.assign(quantities, getSelectedBoxQuantities(row, selectedBoxes));
+    }, {});
+  }
+
   const quantities = {};
   const selectedSet = new Set(selectedBoxes.map((boxNumber) => String(boxNumber).trim()).filter(Boolean));
   const scannedBox = getScannedBox(item);
