@@ -6422,7 +6422,7 @@ input {
   height: 6.5mm;
   border: 0.75pt solid #050505;
   border-radius: 1.15mm;
-  font-size: 5.8pt;
+  font-size: 6.8pt;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -6439,7 +6439,7 @@ input {
 
 .box-qr-standard-process {
   display: grid;
-  grid-template-columns: 13.3mm 9mm minmax(0, 1fr) 7.8mm;
+  grid-template-columns: 13.3mm 9mm minmax(0, 1fr) 9mm;
   align-items: stretch;
   min-width: 0;
   border-bottom: 0.6pt solid #050505;
@@ -6496,7 +6496,7 @@ input {
 
 .box-qr-standard-quantity b,
 .box-qr-standard-date b {
-  font-size: 5.4pt;
+  font-size: 6.4pt;
   font-weight: 900;
   line-height: 1;
 }
@@ -6523,7 +6523,7 @@ input {
 
 .box-qr-standard-admin {
   display: grid;
-  grid-template-columns: 25.2mm minmax(0, 1fr) 7.8mm;
+  grid-template-columns: 25.2mm minmax(0, 1fr) 9mm;
   align-items: stretch;
   min-width: 0;
   background: #fff;
