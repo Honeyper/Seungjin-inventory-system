@@ -16,6 +16,8 @@ const APP_ENVIRONMENTS = {
 };
 
 const CONFIG = buildRuntimeConfig_();
+const API_READ_CACHE_TTL_SECONDS = 45;
+const API_READ_CACHE_CHUNK_SIZE = 15000;
 
 function buildRuntimeConfig_() {
   const env = getAppEnvironment_();
@@ -113,9 +115,9 @@ function doPost(e) {
       normalizeStockAttachmentLinks,
       login,
       setupSheets,
-      getProducts,
+      getProducts: getProductsCached_,
       getTodayInbounds,
-      getInventoryDashboard,
+      getInventoryDashboard: getInventoryDashboardCached_,
       getInboundBoxQrs,
       uploadShippingDefectPhotos,
       saveShippingInspection,
@@ -138,9 +140,14 @@ function doPost(e) {
       });
     }
 
+    const data = routes[action](payload);
+    if (isApiMutationAction_(action)) {
+      clearApiReadCaches_();
+    }
+
     return jsonResponse({
       ok: true,
-      data: routes[action](payload)
+      data
     });
   } catch (error) {
     return jsonResponse({
@@ -149,6 +156,104 @@ function doPost(e) {
       message: error.message
     });
   }
+}
+
+function getProductsCached_() {
+  return getCachedApiData_('products', getProducts);
+}
+
+function getInventoryDashboardCached_() {
+  return getCachedApiData_('inventory-dashboard', getInventoryDashboard);
+}
+
+function getCachedApiData_(key, loader) {
+  const cached = readChunkedApiCache_(key);
+  if (cached !== null) {
+    return cached;
+  }
+
+  const data = loader();
+  writeChunkedApiCache_(key, data);
+  return data;
+}
+
+function getApiCacheKey_(key) {
+  return `sj-${CONFIG.ENV}-${key}`;
+}
+
+function readChunkedApiCache_(key) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const prefix = getApiCacheKey_(key);
+    const chunkCount = Number(cache.get(`${prefix}-count`) || 0);
+    if (!chunkCount) {
+      return null;
+    }
+
+    const keys = Array.from({ length: chunkCount }, (_, index) => `${prefix}-${index}`);
+    const chunks = cache.getAll(keys);
+    if (keys.some((chunkKey) => typeof chunks[chunkKey] !== 'string')) {
+      return null;
+    }
+    return JSON.parse(keys.map((chunkKey) => chunks[chunkKey]).join(''));
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeChunkedApiCache_(key, data) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const prefix = getApiCacheKey_(key);
+    clearChunkedApiCache_(key);
+    const serialized = JSON.stringify(data);
+    const chunks = [];
+    for (let offset = 0; offset < serialized.length; offset += API_READ_CACHE_CHUNK_SIZE) {
+      chunks.push(serialized.slice(offset, offset + API_READ_CACHE_CHUNK_SIZE));
+    }
+    const entries = {};
+    chunks.forEach((chunk, index) => {
+      entries[`${prefix}-${index}`] = chunk;
+    });
+    entries[`${prefix}-count`] = String(chunks.length);
+    cache.putAll(entries, API_READ_CACHE_TTL_SECONDS);
+  } catch (error) {
+    // Cache failures must not block normal API responses.
+  }
+}
+
+function clearChunkedApiCache_(key) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const prefix = getApiCacheKey_(key);
+    const chunkCount = Number(cache.get(`${prefix}-count`) || 0);
+    const keys = Array.from({ length: chunkCount }, (_, index) => `${prefix}-${index}`);
+    keys.push(`${prefix}-count`);
+    cache.removeAll(keys);
+  } catch (error) {
+    // Cache cleanup is best effort.
+  }
+}
+
+function clearApiReadCaches_() {
+  clearChunkedApiCache_('products');
+  clearChunkedApiCache_('inventory-dashboard');
+}
+
+function isApiMutationAction_(action) {
+  return [
+    'createProduct',
+    'updateProduct',
+    'deleteProduct',
+    'createInbound',
+    'updateInbound',
+    'deleteInbound',
+    'getInboundBoxQrs',
+    'saveShippingInspection',
+    'updateShippingStatus',
+    'updateInventoryBoxMove',
+    'formatProductRows'
+  ].includes(action);
 }
 
 function healthCheck() {
@@ -755,7 +860,6 @@ function getInventoryDashboard() {
       defectPhotoCount: boxSummary.defectPhotoCount || 0,
       shippingInspectionDate: boxSummary.shippingInspectionDate || '',
       shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
-      allShippingBoxes: boxSummary.allShippingBoxes || [],
       activeShippingBoxes: boxSummary.activeShippingBoxes || [],
       shippedShippingBoxes: boxSummary.shippedShippingBoxes || [],
       note: getObjectCell_(stockRow, ['비고']),
@@ -1640,19 +1744,20 @@ function appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber) {
   const targetStartRow = Math.max(sheet.getLastRow() + 1, templateRowNumber);
   const columnCount = rows[0].length;
   const templateRange = sheet.getRange(templateRowNumber, startColumn, 1, columnCount);
+  const targetRange = sheet.getRange(targetStartRow, startColumn, rows.length, columnCount);
+  const targetEndRow = targetStartRow + rows.length - 1;
 
-  rows.forEach((row, index) => {
-    const targetRowNumber = targetStartRow + index;
-    const targetRange = sheet.getRange(targetRowNumber, startColumn, 1, columnCount);
-
-    if (targetRowNumber !== templateRowNumber) {
-      templateRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
-      templateRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
-    }
-    sheet.setRowHeight(targetRowNumber, sheet.getRowHeight(templateRowNumber));
-  });
-
-  sheet.getRange(targetStartRow, startColumn, rows.length, columnCount).setValues(rows);
+  templateRange.copyFormatToRange(
+    sheet.getSheetId(),
+    startColumn,
+    startColumn + columnCount - 1,
+    targetStartRow,
+    targetEndRow
+  );
+  const templateValidations = templateRange.getDataValidations()[0];
+  targetRange.setDataValidations(rows.map(() => templateValidations.slice()));
+  sheet.setRowHeights(targetStartRow, rows.length, sheet.getRowHeight(templateRowNumber));
+  targetRange.setValues(rows);
   return targetStartRow;
 }
 
@@ -2002,6 +2107,7 @@ function retireInboundBoxRow_(sheet, rowNumber, row, indexes) {
     [['상태', '재고 상태'], '폐기'],
     [['비고'], '재고 수정으로 제외']
   ];
+  const updatedRow = row.slice();
   let updated = 0;
 
   changes.forEach(([headers, value]) => {
@@ -2011,10 +2117,13 @@ function retireInboundBoxRow_(sheet, rowNumber, row, indexes) {
       return;
     }
 
-    sheet.getRange(rowNumber, index + 1).setValue(value);
+    updatedRow[index] = value;
     updated += 1;
   });
 
+  if (updated) {
+    sheet.getRange(rowNumber, 1, 1, updatedRow.length).setValues([updatedRow]);
+  }
   return updated ? 1 : 0;
 }
 
@@ -2046,6 +2155,7 @@ function updateInboundBoxRowCells_(sheet, rowNumber, row, indexes, record) {
     );
   }
 
+  const updatedRow = row.slice();
   let updated = 0;
 
   changes.forEach(([headers, value]) => {
@@ -2060,10 +2170,13 @@ function updateInboundBoxRowCells_(sheet, rowNumber, row, indexes, record) {
       return;
     }
 
-    sheet.getRange(rowNumber, index + 1).setValue(value);
+    updatedRow[index] = value;
     updated += 1;
   });
 
+  if (updated) {
+    sheet.getRange(rowNumber, 1, 1, updatedRow.length).setValues([updatedRow]);
+  }
   return updated ? 1 : 0;
 }
 
@@ -2740,24 +2853,26 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
   let wroteInspectionMetric = false;
 
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
-    if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리ID', '관리 ID'], managementId, data)) {
+    const row = values[rowIndex].slice(0, headerInfo.headers.length);
+    if (!isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data)) {
       continue;
     }
 
     matchedBoxNumber += 1;
-    const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(values[rowIndex][sequenceIndex]) : matchedBoxNumber;
+    const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(row[sequenceIndex]) : matchedBoxNumber;
     if (selectedBoxNumbers.size && !selectedBoxNumbers.has(sequence)) {
-      const currentStatus = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
+      const currentStatus = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
       if (['출고대기', '보류'].includes(currentStatus)) {
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], '-');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수시간', '검수시간'], '-');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수자', '검수자'], '-');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], '-');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], '-');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], '-');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], '-');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], '-');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], '보관');
+        setRowValue_(row, indexes, ['출고 검수일', '검수일'], '-');
+        setRowValue_(row, indexes, ['출고 검수시간', '검수시간'], '-');
+        setRowValue_(row, indexes, ['출고 검수자', '검수자'], '-');
+        setRowValue_(row, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], '-');
+        setRowValue_(row, indexes, ['불량 수량', '불량수량'], '-');
+        setRowValue_(row, indexes, ['불량 사유', '불량사유', '불량내역'], '-');
+        setRowValue_(row, indexes, ['불량률'], '-');
+        setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], '-');
+        setRowValue_(row, indexes, ['상태', '재고 상태'], '보관');
+        sheet.getRange(rowIndex + 1, 1, 1, headerInfo.headers.length).setValues([row]);
         updatedRows += 1;
       }
       continue;
@@ -2765,26 +2880,27 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
 
     const changedQuantity = selectedBoxQuantityMap[sequence];
     if (currentQuantityIndex >= 0 && Number.isFinite(changedQuantity) && changedQuantity > 0) {
-      sheet.getRange(rowIndex + 1, currentQuantityIndex + 1).setValue(formatEa_(changedQuantity));
+      row[currentQuantityIndex] = formatEa_(changedQuantity);
     }
 
     const currentQuantity = Number.isFinite(changedQuantity) && changedQuantity > 0
       ? formatEa_(changedQuantity)
-      : currentQuantityIndex >= 0 ? dash_(values[rowIndex][currentQuantityIndex]) : '-';
+      : currentQuantityIndex >= 0 ? dash_(row[currentQuantityIndex]) : '-';
     const inspectionQuantity = !wroteInspectionMetric ? (data.inspectionQuantity || currentQuantity) : '';
     const defectQuantity = !wroteInspectionMetric ? data.defectQuantity : '';
     const defectRate = !wroteInspectionMetric ? data.defectRate : '';
 
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], data.inspectionDate);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수시간', '검수시간'], data.inspectionTime);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수자', '검수자'], data.inspector);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], inspectionQuantity);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], defectQuantity);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], defectRate);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.status);
-    setSheetCellByHeader_(sheet, rowIndex, indexes, ['비고'], data.note);
+    setRowValue_(row, indexes, ['출고 검수일', '검수일'], data.inspectionDate);
+    setRowValue_(row, indexes, ['출고 검수시간', '검수시간'], data.inspectionTime);
+    setRowValue_(row, indexes, ['출고 검수자', '검수자'], data.inspector);
+    setRowValue_(row, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], inspectionQuantity);
+    setRowValue_(row, indexes, ['불량 수량', '불량수량'], defectQuantity);
+    setRowValue_(row, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason);
+    setRowValue_(row, indexes, ['불량률'], defectRate);
+    setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
+    setRowValue_(row, indexes, ['상태', '재고 상태'], data.status);
+    setRowValue_(row, indexes, ['비고'], data.note);
+    sheet.getRange(rowIndex + 1, 1, 1, headerInfo.headers.length).setValues([row]);
     updatedRows += 1;
     wroteInspectionMetric = true;
   }
@@ -3062,14 +3178,15 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
   let matchedBoxNumber = 0;
 
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
-    if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리ID', '관리 ID'], managementId, data)) {
+    const row = values[rowIndex].slice(0, headerInfo.headers.length);
+    if (!isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data)) {
       continue;
     }
 
     matchedBoxNumber += 1;
-    const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(values[rowIndex][sequenceIndex]) : matchedBoxNumber;
-    const rawRowStatus = statusIndex >= 0 ? String(values[rowIndex][statusIndex] || '').trim() : '';
-    let rowStatus = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
+    const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(row[sequenceIndex]) : matchedBoxNumber;
+    const rawRowStatus = statusIndex >= 0 ? String(row[statusIndex] || '').trim() : '';
+    let rowStatus = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
     const isAlreadyShipped = /출고완료/.test(rowStatus);
     const isSelectedBox = selectedBoxNumbers.has(sequence);
     const forceCompleteShipping = data.forceCompleteShipping === true;
@@ -3078,46 +3195,47 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       && (
         forceCompleteShipping
           ? !isAlreadyShipped && !/폐기/.test(rowStatus)
-          : isShippingCompletionReadyBoxRow_(values[rowIndex], indexes, rawRowStatus)
+          : isShippingCompletionReadyBoxRow_(row, indexes, rawRowStatus)
       );
     const shouldUpdate = data.status === '출고완료'
       ? canCompleteShipping
       : isSelectedBox && !isAlreadyShipped;
-    const currentQuantity = currentQuantityIndex >= 0 ? displayQuantityToNumber_(values[rowIndex][currentQuantityIndex]) : 0;
+    const currentQuantity = currentQuantityIndex >= 0 ? displayQuantityToNumber_(row[currentQuantityIndex]) : 0;
 
     if (shouldUpdate) {
       rowStatus = data.status;
-      setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.status);
+      setRowValue_(row, indexes, ['상태', '재고 상태'], data.status);
 
       if (data.status === '출고완료') {
-        sheet.getRange(rowIndex + 1, shippingTypeIndex + 1).setValue(data.shippingType);
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], data.shippingDate);
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], data.shippingTime);
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], data.shipper);
+        row[shippingTypeIndex] = data.shippingType;
+        setRowValue_(row, indexes, ['출고일'], data.shippingDate);
+        setRowValue_(row, indexes, ['출고시간'], data.shippingTime);
+        setRowValue_(row, indexes, ['출고자'], data.shipper);
 
         if (data.autoShippingInspection === true) {
           const payloadInspectionQuantity = displayQuantityToNumber_(data.inspectionQuantity);
           const inspectionQuantity = payloadInspectionQuantity > 0
             ? formatEa_(payloadInspectionQuantity)
             : currentQuantity > 0 ? formatEa_(currentQuantity) : '-';
-          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], data.inspectionDate);
-          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수시간', '검수시간'], data.inspectionTime);
-          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수자', '검수자'], data.inspector);
-          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], inspectionQuantity);
-          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], formatEa_(displayQuantityToNumber_(data.defectQuantity)));
-          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason || '양호');
-          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], data.defectRate || '0%');
-          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
+          setRowValue_(row, indexes, ['출고 검수일', '검수일'], data.inspectionDate);
+          setRowValue_(row, indexes, ['출고 검수시간', '검수시간'], data.inspectionTime);
+          setRowValue_(row, indexes, ['출고 검수자', '검수자'], data.inspector);
+          setRowValue_(row, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], inspectionQuantity);
+          setRowValue_(row, indexes, ['불량 수량', '불량수량'], formatEa_(displayQuantityToNumber_(data.defectQuantity)));
+          setRowValue_(row, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason || '양호');
+          setRowValue_(row, indexes, ['불량률'], data.defectRate || '0%');
+          setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
         }
       } else if (data.status === '검수완료') {
         if (shippingTypeIndex >= 0) {
-          sheet.getRange(rowIndex + 1, shippingTypeIndex + 1).setValue('');
+          row[shippingTypeIndex] = '';
         }
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], '');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], '');
-        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], '');
+        setRowValue_(row, indexes, ['출고일'], '');
+        setRowValue_(row, indexes, ['출고시간'], '');
+        setRowValue_(row, indexes, ['출고자'], '');
       }
 
+      sheet.getRange(rowIndex + 1, 1, 1, headerInfo.headers.length).setValues([row]);
       updatedRows += 1;
     }
 
@@ -3600,25 +3718,25 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const boxInfo = {
       number: sequence || summary.boxes.length + 1,
       boxId: getObjectCell_(row, ['박스ID', '박스 ID']),
-      productId,
-      productName,
       quantity: currentQuantity || originalQuantity || shippingInspectionQuantity,
       status,
-      rawStatus,
-      storage,
-      inspectionDate: shippingInspectionDate,
-      inspectionTime: shippingInspectionTime,
-      inspectionQuantity: shippingInspectionQuantity,
-      defectQuantity: shippingDefectQuantity,
-      defectRate: shippingDefectRate,
-      defectReason: shippingDefectReason,
-      defectPhotoFolderUrl,
-      shippingDate: getObjectCell_(row, ['출고일']),
-      shippingTime: getObjectCell_(row, ['출고시간']),
-      shippingType,
-      transferCompany,
-      shipper: getObjectCell_(row, ['출고자'])
+      storage
     };
+    if (rawStatus && rawStatus !== status) boxInfo.rawStatus = rawStatus;
+    if (shippingInspectionDate) boxInfo.inspectionDate = shippingInspectionDate;
+    if (shippingInspectionTime && shippingInspectionTime !== '-') boxInfo.inspectionTime = shippingInspectionTime;
+    if (shippingInspectionQuantity > 0) boxInfo.inspectionQuantity = shippingInspectionQuantity;
+    if (shippingDefectQuantity > 0) boxInfo.defectQuantity = shippingDefectQuantity;
+    if (shippingDefectRateText && shippingDefectRateText !== '-') boxInfo.defectRate = shippingDefectRate;
+    if (shippingDefectReason && shippingDefectReason !== '-') boxInfo.defectReason = shippingDefectReason;
+    if (defectPhotoFolderUrl && defectPhotoFolderUrl !== '-') boxInfo.defectPhotoFolderUrl = defectPhotoFolderUrl;
+    if (shippingDate) boxInfo.shippingDate = getObjectCell_(row, ['출고일']);
+    const shippingTime = getObjectCell_(row, ['출고시간']);
+    if (shippingTime && shippingTime !== '-') boxInfo.shippingTime = shippingTime;
+    if (shippingType && shippingType !== '-') boxInfo.shippingType = shippingType;
+    if (transferCompany) boxInfo.transferCompany = transferCompany;
+    const shipper = getObjectCell_(row, ['출고자']);
+    if (shipper && shipper !== '-') boxInfo.shipper = shipper;
     const hasShippingInspection = Boolean(
       (shippingInspectionDate && shippingInspectionDate !== '-')
       || shippingInspectionQuantity > 0

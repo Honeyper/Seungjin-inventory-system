@@ -1731,7 +1731,7 @@ async function saveShippingInspection() {
     }
 
     closeShippingInspectionModal();
-    await loadInventoryDashboard(false);
+    void refreshAdminDataInBackground({ inventory: true });
   } catch (error) {
     if (shippingInspectionMessage) {
       shippingInspectionMessage.textContent = error.message || "출고 검수 저장 중 문제가 발생했습니다.";
@@ -1859,7 +1859,8 @@ async function queueShippingThenComplete(row) {
 
   try {
     await updateShippingStatus(row, SHIPPING_READY_STATUS_LABEL, {
-      selectedBoxes: waitingTargetBoxes.map((box) => box.number)
+      selectedBoxes: waitingTargetBoxes.map((box) => box.number),
+      deferRefresh: true
     });
     const targetNumbers = new Set(waitingTargetBoxes.map((box) => Number(box.number)));
     const activeBoxes = getShippingRowBoxes(row, "activeShippingBoxes").map((box) => (
@@ -2221,6 +2222,7 @@ async function updateShippingStatus(row, status, extraPayload = {}) {
     throw new Error("관리 ID를 찾을 수 없습니다.");
   }
 
+  const { deferRefresh = false, ...apiPayload } = extraPayload;
   const result = await requestApi("updateShippingStatus", {
     managementId,
     productId: row?.dataset?.productId || "",
@@ -2231,13 +2233,15 @@ async function updateShippingStatus(row, status, extraPayload = {}) {
     storageLocation: row?.children?.[6]?.textContent.trim() || "",
     storage: row?.children?.[6]?.textContent.trim() || "",
     status,
-    ...extraPayload
+    ...apiPayload
   });
 
   if (status === "출고완료") {
     clearShippingBoxDraft(getShippingDraftKeyFromRow(row));
   }
-  await loadInventoryDashboard(false);
+  if (!deferRefresh) {
+    void refreshAdminDataInBackground({ inventory: true });
+  }
   return result;
 }
 
@@ -2311,7 +2315,10 @@ function renderShippingTable(message = "") {
         data-shipping-date="${escapeAttribute(toDateInputValue(item.shippingDate))}"
         data-defect-photo-folder-url="${escapeAttribute(item.defectPhotoFolderUrl || "")}"
         data-defect-photo-count="${Number(item.defectPhotoCount) || 0}"
-        data-all-shipping-boxes="${escapeAttribute(JSON.stringify(item.allShippingBoxes || []))}"
+        data-all-shipping-boxes="${escapeAttribute(JSON.stringify(item.allShippingBoxes || [
+          ...(item.activeShippingBoxes || []),
+          ...(item.shippedShippingBoxes || [])
+        ]))}"
         data-active-shipping-boxes="${escapeAttribute(JSON.stringify(item.activeShippingBoxes || []))}"
         data-shipped-shipping-boxes="${escapeAttribute(JSON.stringify(item.shippedShippingBoxes || []))}"
         data-defect-reason="${escapeAttribute(item.shippingDefectReason || "")}">
@@ -3155,13 +3162,13 @@ async function saveInbound() {
     payload.defectFiles = await getInboundDefectFilePayloads();
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
-    await loadProducts();
-    await loadTodayInbounds();
-    if (state.inventoryLoaded) {
-      await loadInventoryDashboard(false);
-    }
     updateInboundSummary();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
+    void refreshAdminDataInBackground({
+      products: true,
+      inbounds: true,
+      inventory: state.inventoryLoaded
+    });
   } catch (error) {
     showToast(error.message || "입고 등록 저장에 실패했습니다.");
   } finally {
@@ -3869,11 +3876,9 @@ async function saveExistingStock() {
   try {
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
-    await loadProducts();
-    await loadTodayInbounds();
-    await loadInventoryDashboard(false);
     closeExistingStockModal();
     showToast(`기존 재고가 저장되었습니다.${managementId}`);
+    void refreshAdminDataInBackground({ products: true, inbounds: true, inventory: true });
   } catch (error) {
     existingStockFormMessage.textContent = error.message || "기존 재고 저장에 실패했습니다.";
     showToast(error.message || "기존 재고 저장에 실패했습니다.");
@@ -4034,9 +4039,12 @@ async function refreshTodayInbounds() {
   }
 }
 
-async function loadInventoryDashboard(showLoadingToast = true) {
-  renderInventoryLoading();
-  renderShippingLoading();
+async function loadInventoryDashboard(showLoadingToast = true, options = {}) {
+  const preserveExisting = options.preserveExisting === true;
+  if (!preserveExisting) {
+    renderInventoryLoading();
+    renderShippingLoading();
+  }
 
   try {
     const result = await requestApi("getInventoryDashboard");
@@ -4056,6 +4064,9 @@ async function loadInventoryDashboard(showLoadingToast = true) {
       showToast("재고 정보를 불러왔습니다.");
     }
   } catch (error) {
+    if (preserveExisting) {
+      return false;
+    }
     state.inventoryRows = [];
     state.filteredInventoryRows = [];
     state.inventoryLocationBoxStats = [];
@@ -4067,6 +4078,20 @@ async function loadInventoryDashboard(showLoadingToast = true) {
     renderShippingTable("재고 정보를 불러오지 못했습니다.");
     showToast(error.message || "재고 정보를 불러오지 못했습니다.");
   }
+}
+
+function refreshAdminDataInBackground(options = {}) {
+  const tasks = [];
+  if (options.products) {
+    tasks.push(loadProducts());
+  }
+  if (options.inbounds) {
+    tasks.push(loadTodayInbounds());
+  }
+  if (options.inventory) {
+    tasks.push(loadInventoryDashboard(false, { preserveExisting: true }));
+  }
+  return Promise.allSettled(tasks);
 }
 
 function renderInventoryLoading() {
@@ -6388,23 +6413,9 @@ async function saveInboundEdit() {
     }
 
     await requestApi("updateInbound", payload);
-    await loadTodayInbounds();
-    if (state.inventoryLoaded) {
-      await loadInventoryDashboard(false);
-    }
-    state.activeDetailInboundId = payload.managementId;
-    state.activeDetailInboundProductId = payload.productId || state.activeDetailInboundProductId || "";
-    setInboundDetailMode("view");
-
-    const detailInbound = getInboundByManagementId(payload.managementId, state.activeDetailInboundProductId);
-    if (detailInbound) {
-      state.activeDetailInboundRecord = detailInbound;
-      renderInboundDetail(detailInbound);
-    } else {
-      closeInboundDetailModal();
-    }
-
+    closeInboundDetailModal();
     showToast("입고 내역이 수정되었습니다.");
+    void refreshAdminDataInBackground({ inbounds: true, inventory: state.inventoryLoaded });
   } catch (error) {
     showToast(error.message || "입고 내역 수정에 실패했습니다.");
   } finally {
@@ -6756,10 +6767,10 @@ async function saveProduct() {
     const productId = result?.productId ? ` (${result.productId})` : "";
 
     setFormMessage(isEdit ? "제품이 수정되었습니다." : "제품이 저장되었습니다.", "success");
-    await loadProducts();
     setProductSaving(false);
     closeProductModal();
     showToast(isEdit ? `제품 정보가 수정되었습니다.${productId}` : `신규 제품이 등록되었습니다.${productId}`);
+    void refreshAdminDataInBackground({ products: true });
   } catch (error) {
     setFormMessage(error.message || "제품 저장에 실패했습니다.");
   } finally {
