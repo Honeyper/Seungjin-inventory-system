@@ -1410,14 +1410,7 @@ function getShippingCompletionTargetBoxes(row) {
 
 function isShippingCompletionReadyBox(box) {
   const rawStatus = String(box?.rawStatus || box?.status || "").replace(/\s+/g, "");
-  const hasShippingReadyStatus = rawStatus.includes("출고대기");
-  const hasShippingInspection = Boolean(
-    toDateInputValue(box?.inspectionDate || "")
-    || String(box?.inspectionTime || "").trim()
-    || parseShippingSettlementNumber(box?.inspectionQuantity || "") > 0
-  );
-
-  return hasShippingReadyStatus && hasShippingInspection;
+  return rawStatus.includes("출고대기");
 }
 
 function syncShippingCompletionBoxState() {
@@ -2202,7 +2195,8 @@ async function saveShippingCompletion() {
       shippingDate,
       shippingTime,
       selectedBoxes: selectedBoxes.map((box) => box.number),
-      shipper: shippingCompletionShipper?.value || session?.name || "Admin"
+      shipper: shippingCompletionShipper?.value || session?.name || "Admin",
+      forceCompleteShipping: true
     });
     clearShippingBoxDraft(getShippingDraftKeyFromRow(row));
     closeShippingCompletionModal();
