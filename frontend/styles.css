@@ -6362,7 +6362,7 @@ input {
 
 .box-qr-standard-overview-copy {
   display: grid;
-  grid-template-rows: 8.2mm minmax(0, 1fr);
+  grid-template-rows: 6.5mm minmax(0, 1fr);
   min-width: 0;
   padding: 1mm 1.2mm 1.1mm;
 }
@@ -6523,7 +6523,7 @@ input {
 
 .box-qr-standard-admin {
   display: grid;
-  grid-template-columns: 25.2mm minmax(0, 1fr) 9mm;
+  grid-template-columns: 22.3mm minmax(0, 1fr) 9mm;
   align-items: stretch;
   min-width: 0;
   background: #fff;
