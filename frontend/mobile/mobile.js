@@ -45,6 +45,7 @@ const state = {
   dashboard: [],
   filteredRows: [],
   scannedShippingRows: [],
+  scannerSessionShippingKeys: [],
   scannedMoveRows: [],
   query: "",
   moveQuery: "",
@@ -1184,7 +1185,7 @@ function openScannedShippingConfirmModal(action = "complete") {
     return;
   }
 
-  const items = [...state.scannedShippingRows];
+  const items = getScannerSessionShippingRows();
   const isPendingAction = action === "pending";
   if (!items.length) {
     showToast(isPendingAction ? "출고대기로 등록할 박스를 먼저 스캔해주세요." : "출고 처리할 박스를 먼저 스캔해주세요.");
@@ -1304,7 +1305,7 @@ async function handleCompleteScannedShipping(action = "complete") {
 
   const isPendingAction = action === "pending";
   const actionLabel = isPendingAction ? "출고대기 등록" : "출고";
-  const items = [...state.scannedShippingRows];
+  const items = getScannerSessionShippingRows();
   if (!items.length) {
     showToast(isPendingAction ? "출고대기로 등록할 박스를 먼저 스캔해주세요." : "출고 처리할 박스를 먼저 스캔해주세요.");
     return;
@@ -1328,8 +1329,14 @@ async function handleCompleteScannedShipping(action = "complete") {
       if (isPendingAction) {
         markShippingItemsPending(items, failedItems);
       } else {
-        state.scannedShippingRows = failedItems;
+        const targetKeys = new Set(items.map(getShippingKey));
+        const failedKeys = new Set(failedItems.map(getShippingKey));
+        state.scannedShippingRows = state.scannedShippingRows.filter((item) => {
+          const key = getShippingKey(item);
+          return !targetKeys.has(key) || failedKeys.has(key);
+        });
       }
+      state.scannerSessionShippingKeys = failedItems.map(getShippingKey);
       saveScannedShippingRows();
       applyShippingFilters();
       showToast(failedItems.length ? `${completedCount}개 박스 ${actionLabel} 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 ${actionLabel} 완료`);
@@ -1342,18 +1349,7 @@ async function handleCompleteScannedShipping(action = "complete") {
     }
   } finally {
     state.isCompletingShipping = false;
-    if (elements.scannerPendingButton) {
-      elements.scannerPendingButton.disabled = false;
-      elements.scannerPendingButton.innerHTML = `
-        <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
-        출고대기 등록
-      `;
-    }
-    elements.scannerDoneButton.disabled = false;
-    elements.scannerDoneButton.innerHTML = `
-      <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
-      출고
-    `;
+    updateScannerActionLabels();
   }
 }
 
@@ -1602,6 +1598,7 @@ async function openScanner() {
     state.activeWorkflow = "inventoryMove";
   } else {
     state.activeWorkflow = "shipping";
+    state.scannerSessionShippingKeys = [];
   }
 
   elements.scannerScreen.hidden = false;
@@ -1655,8 +1652,9 @@ function updateScannerActionLabels() {
     <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
     출고대기 등록
   `;
-  elements.scannerPendingButton.disabled = state.scannedShippingRows.length > 0
-    && state.scannedShippingRows.every((item) => isShippingItemPending(item));
+  const scannerRows = getScannerSessionShippingRows();
+  elements.scannerPendingButton.disabled = scannerRows.length > 0
+    && scannerRows.every((item) => isShippingItemPending(item));
   elements.scannerDoneButton.innerHTML = `
     <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
     출고
@@ -1946,12 +1944,9 @@ async function handleQrValue(rawValue) {
     }
 
     const key = state.activeWorkflow === "inventoryMove" ? getInventoryMoveKey(matched) : getShippingKey(matched);
-    const scannedRows = state.activeWorkflow === "inventoryMove" ? state.scannedMoveRows : state.scannedShippingRows;
-    const hasDuplicate = scannedRows.some((row) => {
-      return state.activeWorkflow === "inventoryMove"
-        ? getInventoryMoveKey(row) === key
-        : getShippingKey(row) === key;
-    });
+    const hasDuplicate = state.activeWorkflow === "inventoryMove"
+      ? state.scannedMoveRows.some((row) => getInventoryMoveKey(row) === key)
+      : state.scannerSessionShippingKeys.includes(key);
 
     if (hasDuplicate) {
       triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
@@ -1970,13 +1965,18 @@ async function handleQrValue(rawValue) {
       renderInventoryMoveList();
       renderScannerScannedList();
     } else {
-      state.scannedShippingRows = [matched, ...state.scannedShippingRows];
+      const existingRow = state.scannedShippingRows.find((row) => getShippingKey(row) === key);
+      if (!existingRow) {
+        state.scannedShippingRows = [matched, ...state.scannedShippingRows];
+      }
+      state.scannerSessionShippingKeys = [key, ...state.scannerSessionShippingKeys];
       saveScannedShippingRows();
       state.query = "";
       if (elements.shippingSearchInput) {
         elements.shippingSearchInput.value = "";
       }
       applyShippingFilters();
+      updateScannerActionLabels();
     }
 
     triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
@@ -2212,7 +2212,7 @@ function parseQrValue(rawValue) {
 
 function renderScannerScannedList() {
   const isInventoryMove = state.activeWorkflow === "inventoryMove";
-  const rows = isInventoryMove ? state.scannedMoveRows : state.scannedShippingRows;
+  const rows = isInventoryMove ? state.scannedMoveRows : getScannerSessionShippingRows();
 
   if (elements.scannerScannedCount) {
     elements.scannerScannedCount.textContent = String(rows.length);
@@ -2282,11 +2282,19 @@ function handleScannerListClick(event) {
 }
 
 function openScannerQuantityEditor(index) {
-  if (!Number.isInteger(index) || index < 0 || index >= state.scannedShippingRows.length) {
+  const rows = getScannerSessionShippingRows();
+  if (!Number.isInteger(index) || index < 0 || index >= rows.length) {
     return;
   }
 
-  editScannedBoxQuantity(state.scannedShippingRows[index]);
+  editScannedBoxQuantity(rows[index]);
+}
+
+function getScannerSessionShippingRows() {
+  const rowsByKey = new Map(state.scannedShippingRows.map((row) => [getShippingKey(row), row]));
+  return state.scannerSessionShippingKeys
+    .map((key) => rowsByKey.get(key))
+    .filter(Boolean);
 }
 
 function openShippingQuantityEditor(key) {
@@ -2384,13 +2392,17 @@ function setScannedBoxQuantity(item, quantity) {
 }
 
 function removeScannedShippingRow(index) {
-  if (!Number.isInteger(index) || index < 0 || index >= state.scannedShippingRows.length) {
+  const rows = getScannerSessionShippingRows();
+  if (!Number.isInteger(index) || index < 0 || index >= rows.length) {
     return;
   }
 
-  state.scannedShippingRows.splice(index, 1);
+  const key = getShippingKey(rows[index]);
+  state.scannedShippingRows = state.scannedShippingRows.filter((row) => getShippingKey(row) !== key);
+  state.scannerSessionShippingKeys = state.scannerSessionShippingKeys.filter((sessionKey) => sessionKey !== key);
   saveScannedShippingRows();
   applyShippingFilters();
+  updateScannerActionLabels();
   triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
   showToast("스캔 목록에서 삭제했습니다.");
 }
