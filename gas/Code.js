@@ -17,7 +17,7 @@ const APP_ENVIRONMENTS = {
 
 const CONFIG = buildRuntimeConfig_();
 const API_READ_CACHE_TTL_SECONDS = 45;
-const API_READ_CACHE_CHUNK_SIZE = 15000;
+const API_READ_CACHE_MAX_LENGTH = 95000;
 
 function buildRuntimeConfig_() {
   const env = getAppEnvironment_();
@@ -184,18 +184,13 @@ function getApiCacheKey_(key) {
 function readChunkedApiCache_(key) {
   try {
     const cache = CacheService.getScriptCache();
-    const prefix = getApiCacheKey_(key);
-    const chunkCount = Number(cache.get(`${prefix}-count`) || 0);
-    if (!chunkCount) {
+    const cached = cache.get(getApiCacheKey_(key));
+    if (!cached) {
       return null;
     }
-
-    const keys = Array.from({ length: chunkCount }, (_, index) => `${prefix}-${index}`);
-    const chunks = cache.getAll(keys);
-    if (keys.some((chunkKey) => typeof chunks[chunkKey] !== 'string')) {
-      return null;
-    }
-    return JSON.parse(keys.map((chunkKey) => chunks[chunkKey]).join(''));
+    const compressed = Utilities.base64Decode(cached);
+    const serialized = Utilities.ungzip(Utilities.newBlob(compressed)).getDataAsString('UTF-8');
+    return JSON.parse(serialized);
   } catch (error) {
     return null;
   }
@@ -204,19 +199,13 @@ function readChunkedApiCache_(key) {
 function writeChunkedApiCache_(key, data) {
   try {
     const cache = CacheService.getScriptCache();
-    const prefix = getApiCacheKey_(key);
-    clearChunkedApiCache_(key);
     const serialized = JSON.stringify(data);
-    const chunks = [];
-    for (let offset = 0; offset < serialized.length; offset += API_READ_CACHE_CHUNK_SIZE) {
-      chunks.push(serialized.slice(offset, offset + API_READ_CACHE_CHUNK_SIZE));
+    const compressed = Utilities.gzip(Utilities.newBlob(serialized, 'application/json')).getBytes();
+    const encoded = Utilities.base64Encode(compressed);
+    if (encoded.length > API_READ_CACHE_MAX_LENGTH) {
+      return;
     }
-    const entries = {};
-    chunks.forEach((chunk, index) => {
-      entries[`${prefix}-${index}`] = chunk;
-    });
-    entries[`${prefix}-count`] = String(chunks.length);
-    cache.putAll(entries, API_READ_CACHE_TTL_SECONDS);
+    cache.put(getApiCacheKey_(key), encoded, API_READ_CACHE_TTL_SECONDS);
   } catch (error) {
     // Cache failures must not block normal API responses.
   }
@@ -224,12 +213,7 @@ function writeChunkedApiCache_(key, data) {
 
 function clearChunkedApiCache_(key) {
   try {
-    const cache = CacheService.getScriptCache();
-    const prefix = getApiCacheKey_(key);
-    const chunkCount = Number(cache.get(`${prefix}-count`) || 0);
-    const keys = Array.from({ length: chunkCount }, (_, index) => `${prefix}-${index}`);
-    keys.push(`${prefix}-count`);
-    cache.removeAll(keys);
+    CacheService.getScriptCache().remove(getApiCacheKey_(key));
   } catch (error) {
     // Cache cleanup is best effort.
   }
