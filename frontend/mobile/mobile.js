@@ -66,7 +66,9 @@ const state = {
   scannerSheetStartY: 0,
   scannerSheetDeltaY: 0,
   scannerSheetDragging: false,
-  scannerSheetMoved: false
+  scannerSheetMoved: false,
+  boxPickerProduct: null,
+  boxPickerQuery: ""
 };
 
 const elements = {
@@ -95,6 +97,22 @@ const elements = {
   shippingFilterMenu: document.querySelector("#shippingFilterMenu"),
   shippingListPanel: document.querySelector("#shippingListPanel"),
   openScannerButton: document.querySelector("#openScannerButton"),
+  addShippingBoxesButton: document.querySelector("#addShippingBoxesButton"),
+  shippingBoxPickerModal: document.querySelector("#shippingBoxPickerModal"),
+  closeShippingBoxPickerButton: document.querySelector("#closeShippingBoxPickerButton"),
+  cancelShippingBoxPickerButton: document.querySelector("#cancelShippingBoxPickerButton"),
+  boxPickerProductStage: document.querySelector("#boxPickerProductStage"),
+  boxPickerBoxStage: document.querySelector("#boxPickerBoxStage"),
+  boxPickerProductSearch: document.querySelector("#boxPickerProductSearch"),
+  boxPickerProductList: document.querySelector("#boxPickerProductList"),
+  backToBoxPickerProductsButton: document.querySelector("#backToBoxPickerProductsButton"),
+  boxPickerClientName: document.querySelector("#boxPickerClientName"),
+  boxPickerProductName: document.querySelector("#boxPickerProductName"),
+  boxPickerProductMeta: document.querySelector("#boxPickerProductMeta"),
+  boxPickerSelectAll: document.querySelector("#boxPickerSelectAll"),
+  boxPickerBoxList: document.querySelector("#boxPickerBoxList"),
+  boxPickerSelectedCount: document.querySelector("#boxPickerSelectedCount"),
+  confirmShippingBoxPickerButton: document.querySelector("#confirmShippingBoxPickerButton"),
   inventoryMoveSearchInput: document.querySelector("#inventoryMoveSearchInput"),
   inventoryMoveLiveDate: document.querySelector("#inventoryMoveLiveDate"),
   inventoryMoveLiveTime: document.querySelector("#inventoryMoveLiveTime"),
@@ -167,6 +185,18 @@ function bindEvents() {
     applyShippingFilters();
   });
   elements.openScannerButton?.addEventListener("click", openScanner);
+  elements.addShippingBoxesButton?.addEventListener("click", openShippingBoxPicker);
+  elements.closeShippingBoxPickerButton?.addEventListener("click", closeShippingBoxPicker);
+  elements.cancelShippingBoxPickerButton?.addEventListener("click", closeShippingBoxPicker);
+  elements.backToBoxPickerProductsButton?.addEventListener("click", showBoxPickerProducts);
+  elements.boxPickerProductSearch?.addEventListener("input", (event) => {
+    state.boxPickerQuery = event.target.value.trim().toLowerCase();
+    renderBoxPickerProducts();
+  });
+  elements.boxPickerProductList?.addEventListener("click", handleBoxPickerProductClick);
+  elements.boxPickerBoxList?.addEventListener("change", handleBoxPickerBoxChange);
+  elements.boxPickerSelectAll?.addEventListener("change", handleBoxPickerSelectAll);
+  elements.confirmShippingBoxPickerButton?.addEventListener("click", addSelectedShippingBoxes);
   elements.openInventoryScannerButton?.addEventListener("click", openInventoryMoveScanner);
   elements.refreshInventoryMoveButton?.addEventListener("click", handleRefreshInventoryMove);
   elements.inventoryMoveSearchInput?.addEventListener("input", (event) => {
@@ -227,6 +257,11 @@ function bindEvents() {
   elements.confirmModal?.addEventListener("click", (event) => {
     if (event.target === elements.confirmModal) {
       closeConfirmModal();
+    }
+  });
+  elements.shippingBoxPickerModal?.addEventListener("click", (event) => {
+    if (event.target === elements.shippingBoxPickerModal) {
+      closeShippingBoxPicker();
     }
   });
 }
@@ -859,15 +894,287 @@ function renderShippingList(rows) {
           </span>
           <h2>등록된 제품이 없습니다</h2>
           <p>출고할 제품을 등록해 주세요.</p>
-          <button class="primary-action" type="button" id="emptyScanButton">제품 등록하기</button>
+          <div class="empty-shipping-actions">
+            <button class="primary-action" type="button" id="emptyBoxAddButton">박스 추가</button>
+            <button class="secondary-action" type="button" id="emptyScanButton">QR 스캔</button>
+          </div>
         </div>
       </div>
     `;
+    document.querySelector("#emptyBoxAddButton")?.addEventListener("click", openShippingBoxPicker);
     document.querySelector("#emptyScanButton")?.addEventListener("click", openScanner);
     return;
   }
 
   elements.shippingListPanel.innerHTML = rows.map(renderShippingItem).join("");
+}
+
+async function openShippingBoxPicker() {
+  if (!elements.shippingBoxPickerModal) {
+    return;
+  }
+
+  state.boxPickerProduct = null;
+  state.boxPickerQuery = "";
+  elements.boxPickerProductSearch.value = "";
+  elements.shippingBoxPickerModal.hidden = false;
+  document.body.classList.add("modal-open");
+  showBoxPickerProducts();
+  elements.boxPickerProductList.innerHTML = '<p class="box-picker-empty">제품 정보를 불러오는 중입니다.</p>';
+
+  try {
+    await ensureDashboardLoaded();
+    renderBoxPickerProducts();
+    window.setTimeout(() => elements.boxPickerProductSearch?.focus(), 0);
+  } catch (error) {
+    elements.boxPickerProductList.innerHTML = `<p class="box-picker-empty">${escapeHtml(error.message || "제품 정보를 불러오지 못했습니다.")}</p>`;
+  }
+}
+
+function closeShippingBoxPicker() {
+  if (!elements.shippingBoxPickerModal) {
+    return;
+  }
+
+  elements.shippingBoxPickerModal.hidden = true;
+  state.boxPickerProduct = null;
+  state.boxPickerQuery = "";
+  document.body.classList.remove("modal-open");
+}
+
+function getBoxPickerProducts() {
+  return state.dashboard
+    .filter((row) => getBoxPickerAvailableBoxes(row).length > 0)
+    .sort((left, right) => compareShippingText(left.productName, right.productName)
+      || compareShippingText(left.clientName, right.clientName));
+}
+
+function getBoxPickerAvailableBoxes(row) {
+  return getKnownBoxes(row)
+    .filter((box) => {
+      const status = normalizeText(box?.rawStatus || box?.status);
+      return getBoxCurrentQuantity(box, row) > 0 && !/출고완료|폐기/.test(status);
+    })
+    .sort((left, right) => parseNumber(left?.number || left?.sequence) - parseNumber(right?.number || right?.sequence));
+}
+
+function renderBoxPickerProducts() {
+  if (!elements.boxPickerProductList) {
+    return;
+  }
+
+  const query = state.boxPickerQuery;
+  const products = getBoxPickerProducts().filter((row) => {
+    if (!query) {
+      return true;
+    }
+
+    return [row.clientName, row.productName, row.productId, row.managementId, row.batch, row.finalProcess]
+      .some((value) => String(value || "").toLowerCase().includes(query));
+  });
+
+  elements.boxPickerProductList.innerHTML = products.length ? products.map((row) => {
+    const key = getShippingProductGroupKey(row);
+    const boxes = getBoxPickerAvailableBoxes(row);
+    const addedKeys = getAddedShippingBoxKeys(row);
+    const availableCount = boxes.filter((box) => !addedKeys.has(getBoxPickerBoxKey(box))).length;
+    return `
+      <button class="box-picker-product-button" type="button" data-box-picker-product="${escapeHtml(key)}">
+        <span>
+          <small>${escapeHtml(normalizeDisplay(row.clientName || "-"))}</small>
+          <strong>${escapeHtml(normalizeDisplay(row.productName || "-"))}</strong>
+          <em>${[row.finalProcess, row.batch, row.storage]
+            .map(normalizeDisplay)
+            .filter((value) => value !== "-")
+            .map(escapeHtml)
+            .join(" · ") || "-"}</em>
+        </span>
+        <b>${formatNumber(availableCount)}박스 추가 가능</b>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+      </button>
+    `;
+  }).join("") : '<p class="box-picker-empty">조건에 맞는 제품이 없습니다.</p>';
+}
+
+function handleBoxPickerProductClick(event) {
+  const button = event.target.closest("[data-box-picker-product]");
+  if (!button) {
+    return;
+  }
+
+  const key = button.dataset.boxPickerProduct;
+  const product = getBoxPickerProducts().find((row) => getShippingProductGroupKey(row) === key);
+  if (!product) {
+    showToast("선택한 제품을 찾지 못했습니다.");
+    return;
+  }
+
+  state.boxPickerProduct = product;
+  renderBoxPickerBoxes();
+  elements.boxPickerProductStage.hidden = true;
+  elements.boxPickerBoxStage.hidden = false;
+}
+
+function showBoxPickerProducts() {
+  state.boxPickerProduct = null;
+  elements.boxPickerProductStage.hidden = false;
+  elements.boxPickerBoxStage.hidden = true;
+  renderBoxPickerProducts();
+}
+
+function getAddedShippingBoxKeys(row) {
+  const productKey = getShippingProductGroupKey(row);
+  return new Set(state.scannedShippingRows
+    .filter((item) => getShippingProductGroupKey(item) === productKey)
+    .map(getScannedBoxKey)
+    .filter(Boolean));
+}
+
+function getBoxPickerBoxKey(box) {
+  return normalizeScanValue(box?.boxId || box?.id || box?.qrId || box?.number || box?.sequence || "");
+}
+
+function renderBoxPickerBoxes() {
+  const row = state.boxPickerProduct;
+  if (!row || !elements.boxPickerBoxList) {
+    return;
+  }
+
+  const boxes = getKnownBoxes(row)
+    .sort((left, right) => parseNumber(left?.number || left?.sequence) - parseNumber(right?.number || right?.sequence));
+  const addedKeys = getAddedShippingBoxKeys(row);
+
+  elements.boxPickerClientName.textContent = normalizeDisplay(row.clientName || "-");
+  elements.boxPickerProductName.textContent = normalizeDisplay(row.productName || "-");
+  elements.boxPickerProductMeta.textContent = [row.finalProcess, row.batch, row.storage]
+    .map(normalizeDisplay)
+    .filter((value) => value !== "-")
+    .join(" · ") || "-";
+
+  elements.boxPickerBoxList.innerHTML = boxes.length ? boxes.map((box) => {
+    const key = getBoxPickerBoxKey(box);
+    const number = normalizeDisplay(box?.number || box?.sequence || "-");
+    const quantity = getBoxCurrentQuantity(box, row);
+    const status = normalizeText(box?.rawStatus || box?.status);
+    const isCompleted = /출고완료|폐기/.test(status) || quantity <= 0;
+    const isAdded = addedKeys.has(key);
+    const isDisabled = isCompleted || isAdded;
+    const statusLabel = isAdded ? "추가됨" : isCompleted ? (status.includes("폐기") ? "폐기" : "출고완료") : normalizeDisplay(box?.status || "보관");
+
+    return `
+      <label class="box-picker-check-card${isDisabled ? " disabled" : ""}">
+        <input type="checkbox" data-box-picker-box="${escapeHtml(key)}" ${isAdded ? "checked" : ""} ${isDisabled ? "disabled" : ""} />
+        <span class="box-picker-check-copy">
+          <strong>${escapeHtml(number)}번 박스</strong>
+          <small>${escapeHtml(normalizeDisplay(box?.storage || row.storage || "미지정"))} · ${formatNumber(quantity)} ea</small>
+          <span class="box-picker-quantity-field">
+            <input type="number" min="1" step="1" inputmode="numeric" value="${quantity}" data-box-picker-quantity="${escapeHtml(key)}" aria-label="${escapeHtml(number)}번 박스 수량" ${isDisabled ? "disabled" : ""} />
+            <em>ea</em>
+          </span>
+        </span>
+        <b>${escapeHtml(statusLabel)}</b>
+      </label>
+    `;
+  }).join("") : '<p class="box-picker-empty">등록된 박스가 없습니다.</p>';
+
+  syncBoxPickerSelection();
+}
+
+function handleBoxPickerBoxChange(event) {
+  if (!event.target.matches("[data-box-picker-box], [data-box-picker-quantity]")) {
+    return;
+  }
+  syncBoxPickerSelection();
+}
+
+function handleBoxPickerSelectAll() {
+  const checked = elements.boxPickerSelectAll.checked;
+  elements.boxPickerBoxList.querySelectorAll("[data-box-picker-box]:not(:disabled)")
+    .forEach((input) => {
+      input.checked = checked;
+    });
+  syncBoxPickerSelection();
+}
+
+function syncBoxPickerSelection() {
+  const checkboxes = Array.from(elements.boxPickerBoxList?.querySelectorAll("[data-box-picker-box]") || []);
+  checkboxes.forEach((input) => {
+    input.closest(".box-picker-check-card")?.classList.toggle("selected", input.checked);
+  });
+  const selectable = checkboxes.filter((input) => !input.disabled);
+  const selected = selectable.filter((input) => input.checked);
+  elements.boxPickerSelectedCount.textContent = String(selected.length);
+  elements.confirmShippingBoxPickerButton.disabled = selected.length === 0;
+  elements.confirmShippingBoxPickerButton.textContent = selected.length ? `${selected.length}개 박스 추가` : "목록에 추가";
+  elements.boxPickerSelectAll.disabled = selectable.length === 0;
+  elements.boxPickerSelectAll.checked = selectable.length > 0 && selected.length === selectable.length;
+  elements.boxPickerSelectAll.indeterminate = selected.length > 0 && selected.length < selectable.length;
+}
+
+function addSelectedShippingBoxes() {
+  const row = state.boxPickerProduct;
+  if (!row) {
+    return;
+  }
+
+  const selectedInputs = Array.from(elements.boxPickerBoxList.querySelectorAll("[data-box-picker-box]:checked:not(:disabled)"));
+  if (!selectedInputs.length) {
+    showToast("추가할 박스를 선택해주세요.");
+    return;
+  }
+
+  const invalidQuantityInput = selectedInputs
+    .map((input) => findBoxPickerQuantityInput(input.dataset.boxPickerBox))
+    .find((input) => !input || parseNumber(input.value) < 1);
+  if (invalidQuantityInput) {
+    showToast("선택한 박스의 수량을 1개 이상 입력해주세요.");
+    invalidQuantityInput?.focus();
+    return;
+  }
+
+  const boxes = getKnownBoxes(row);
+  const addedRows = [];
+  selectedInputs.forEach((input) => {
+    const key = input.dataset.boxPickerBox;
+    const box = boxes.find((candidate) => getBoxPickerBoxKey(candidate) === key);
+    if (!box) {
+      return;
+    }
+
+    const number = String(box?.number || box?.sequence || "").trim();
+    const boxId = normalizeScanValue(box?.boxId || box?.id || box?.qrId);
+    const quantityInput = findBoxPickerQuantityInput(key);
+    const quantity = parseNumber(quantityInput.value);
+    const item = buildScannedBoxItem(row, { ...box }, {
+      boxId,
+      managementId: normalizeScanValue(row.managementId),
+      productId: normalizeScanValue(row.productId),
+      boxNumber: number
+    }, `manual:${boxId || number}`);
+    setScannedBoxQuantity(item, quantity);
+    addedRows.push(item);
+  });
+
+  const existingKeys = new Set(state.scannedShippingRows.map(getShippingKey));
+  const uniqueRows = addedRows.filter((item) => !existingKeys.has(getShippingKey(item)));
+  if (!uniqueRows.length) {
+    showToast("선택한 박스가 이미 목록에 추가되어 있습니다.");
+    return;
+  }
+
+  state.scannedShippingRows = [...uniqueRows, ...state.scannedShippingRows];
+  saveScannedShippingRows();
+  state.query = "";
+  elements.shippingSearchInput.value = "";
+  applyShippingFilters();
+  closeShippingBoxPicker();
+  triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
+  showToast(`${uniqueRows.length}개 박스를 출고 등록 목록에 추가했습니다.`);
+}
+
+function findBoxPickerQuantityInput(key) {
+  return Array.from(elements.boxPickerBoxList?.querySelectorAll("[data-box-picker-quantity]") || [])
+    .find((input) => input.dataset.boxPickerQuantity === key) || null;
 }
 
 function renderInventoryMoveList() {
@@ -1103,7 +1410,7 @@ function renderShippingItem(item) {
       : parseNumber(item.currentTotalQuantity);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
-  const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 스캔` : getScannedBoxLabel(item);
+  const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 등록` : getScannedBoxLabel(item);
   const isPending = isShippingItemPending(item);
   const isCompleted = isShippingItemCompleted(item);
   const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
@@ -1141,7 +1448,7 @@ function renderShippingItem(item) {
       <p class="item-worker"><span>작업자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
       <div class="item-metrics">
         <span class="metric">
-          <span>스캔 박스</span>
+          <span>등록 박스</span>
           <span class="metric-count-row">
             <span class="metric-value-row">
               <strong>${formatNumber(boxCount)}</strong>
