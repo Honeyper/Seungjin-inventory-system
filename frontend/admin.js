@@ -45,6 +45,7 @@ if (!session || session.role !== "admin") {
 const state = {
   products: [],
   productsLoadPromise: null,
+  inventoryLoadPromise: null,
   filteredProducts: [],
   todayInbounds: [],
   inventoryRows: [],
@@ -2483,11 +2484,15 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
 function syncShippingFilterState() {
   state.shippingFilters = {
     query: shippingSearchInput?.value.trim().toLowerCase() || "",
-    client: shippingClientFilter?.value || "",
-    storage: shippingStorageFilter?.value || "",
-    inspection: shippingInspectionFilter?.value || "",
-    status: shippingStatusFilter?.value || ""
+    client: normalizeShippingFilterValue(shippingClientFilter?.value),
+    storage: normalizeShippingFilterValue(shippingStorageFilter?.value),
+    inspection: normalizeShippingFilterValue(shippingInspectionFilter?.value),
+    status: normalizeShippingFilterValue(shippingStatusFilter?.value)
   };
+}
+
+function normalizeShippingFilterValue(value) {
+  return value === "전체" ? "" : (value || "");
 }
 
 function resetShippingFilters() {
@@ -4106,7 +4111,19 @@ async function refreshTodayInbounds() {
   }
 }
 
-async function loadInventoryDashboard(showLoadingToast = true, options = {}) {
+function loadInventoryDashboard(showLoadingToast = true, options = {}) {
+  if (state.inventoryLoadPromise) {
+    return state.inventoryLoadPromise;
+  }
+
+  const request = loadInventoryDashboardRequest(showLoadingToast, options);
+  state.inventoryLoadPromise = request.finally(() => {
+    state.inventoryLoadPromise = null;
+  });
+  return state.inventoryLoadPromise;
+}
+
+async function loadInventoryDashboardRequest(showLoadingToast = true, options = {}) {
   const preserveExisting = options.preserveExisting === true;
   if (!preserveExisting) {
     renderInventoryLoading();
@@ -4156,7 +4173,12 @@ function refreshAdminDataInBackground(options = {}) {
     tasks.push(loadTodayInbounds());
   }
   if (options.inventory) {
-    tasks.push(loadInventoryDashboard(false, { preserveExisting: true }));
+    const pendingInventoryLoad = state.inventoryLoadPromise;
+    tasks.push(
+      Promise.resolve(pendingInventoryLoad)
+        .catch(() => false)
+        .then(() => loadInventoryDashboard(false, { preserveExisting: true }))
+    );
   }
   return Promise.allSettled(tasks);
 }
