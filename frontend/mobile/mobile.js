@@ -1026,15 +1026,16 @@ async function handleInventoryMoveCardAction(item, mode = "single") {
   }
 
   try {
-    await completeInventoryMoveItem(item, selectedBoxes, mode);
+    const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
+    applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mode, result);
     if (mode === "all") {
       removeMovedInventoryGroup(item);
     } else {
       removeScannedMoveGroup(getInventoryMoveKey(item));
     }
-    await loadShippingDashboard({ silent: true });
     renderInventoryMoveList();
     showToast(`${actionLabel}이 완료되었습니다.`);
+    void loadShippingDashboard({ silent: true });
   } catch (error) {
     showToast(error.message || `${actionLabel} 중 문제가 발생했습니다.`);
   }
@@ -1560,8 +1561,7 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
       if (!failedItems.length) {
         closeScanner();
       }
-      await loadShippingDashboard({ silent: true });
-      renderInventoryMoveList();
+      void loadShippingDashboard({ silent: true });
     } else {
       showToast("이동 처리할 박스가 없습니다.");
     }
@@ -1588,7 +1588,14 @@ async function completeInventoryMoveItems(items, mode = "single") {
         failedItems.push(item);
         continue;
       }
-      await completeInventoryMoveItem(item, selectedBoxes, mode);
+      const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
+      applyInventoryMoveResultLocally(
+        item,
+        selectedBoxes,
+        normalizeDisplay(item.targetStorage || getDefaultTargetStorage(getInventoryMoveCurrentStorage(item))),
+        mode,
+        result
+      );
       completedCount += selectedBoxes.length;
     } catch (error) {
       failedItems.push(item);
@@ -1620,6 +1627,39 @@ async function completeInventoryMoveItem(item, selectedBoxes, mode = "single") {
     userName: state.user?.name || "Admin",
     selectedBoxes,
     moveAllBoxes: mode === "all"
+  });
+}
+
+function applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mode, result = {}) {
+  const managementId = normalizeScanValue(item?.managementId);
+  const productId = normalizeScanValue(item?.productId);
+  const selectedBoxNumbers = new Set(
+    selectedBoxes.map((value) => String(value || "").trim()).filter(Boolean)
+  );
+  const hasRemainingCount = result?.remainingSourceActiveRows !== undefined && result?.remainingSourceActiveRows !== null;
+  const movedAllSourceBoxes = mode === "all"
+    || (hasRemainingCount && parseNumber(result.remainingSourceActiveRows) === 0);
+
+  state.dashboard.forEach((row) => {
+    if (normalizeScanValue(row?.managementId) !== managementId) {
+      return;
+    }
+    if (productId && normalizeScanValue(row?.productId) !== productId) {
+      return;
+    }
+
+    getKnownBoxes(row).forEach((box) => {
+      const boxNumber = String(box?.number || box?.sequence || "").trim();
+      if (selectedBoxNumbers.has(boxNumber)) {
+        box.storage = targetStorage;
+        box.storageLocation = targetStorage;
+      }
+    });
+
+    if (movedAllSourceBoxes) {
+      row.storage = targetStorage;
+      row.storageLocation = targetStorage;
+    }
   });
 }
 
@@ -1672,6 +1712,7 @@ function updateScannerActionLabels() {
   }
 
   if (state.activeWorkflow === "inventoryMove") {
+    const hasScannedMoveRows = state.scannedMoveRows.length > 0;
     elements.scannerPendingButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M8 7h12"></path><path d="M8 12h12"></path><path d="M8 17h12"></path><path d="M4 7h.01"></path><path d="M4 12h.01"></path><path d="M4 17h.01"></path></svg>
       자리이동
@@ -1680,6 +1721,8 @@ function updateScannerActionLabels() {
       <svg viewBox="0 0 24 24"><path d="M4 12h14"></path><path d="m13 5 7 7-7 7"></path></svg>
       전량 이동
     `;
+    elements.scannerPendingButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
+    elements.scannerDoneButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     return;
   }
 
@@ -1688,12 +1731,14 @@ function updateScannerActionLabels() {
     출고대기 등록
   `;
   const scannerRows = getScannerSessionShippingRows();
-  elements.scannerPendingButton.disabled = scannerRows.length > 0
-    && scannerRows.every((item) => isShippingItemPending(item));
+  elements.scannerPendingButton.disabled = state.isCompletingShipping
+    || !scannerRows.length
+    || scannerRows.every((item) => isShippingItemPending(item));
   elements.scannerDoneButton.innerHTML = `
     <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
     출고
   `;
+  elements.scannerDoneButton.disabled = state.isCompletingShipping || !scannerRows.length;
 }
 
 async function getScannerStream() {
@@ -1999,6 +2044,7 @@ async function handleQrValue(rawValue) {
       }
       renderInventoryMoveList();
       renderScannerScannedList();
+      updateScannerActionLabels();
     } else {
       const existingRow = state.scannedShippingRows.find((row) => getShippingKey(row) === key);
       if (!existingRow) {
@@ -2911,6 +2957,7 @@ function removeScannedMoveRow(index) {
   saveScannedMoveRows();
   renderInventoryMoveList();
   renderScannerScannedList();
+  updateScannerActionLabels();
   triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
   showToast("스캔 목록에서 삭제했습니다.");
 }
@@ -2950,6 +2997,7 @@ function removeScannedMoveGroup(key) {
   saveScannedMoveRows();
   renderInventoryMoveList();
   renderScannerScannedList();
+  updateScannerActionLabels();
   triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
   showToast("재고 수정 목록에서 삭제했습니다.");
 }

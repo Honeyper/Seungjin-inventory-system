@@ -1171,7 +1171,7 @@ function findShippingInspectionTrayQuantity(productId = "", clientName = "", pro
     return Boolean(productKey && candidateKey && (candidateKey.includes(productKey) || productKey.includes(candidateKey)));
   });
 
-  return extractQuantityNumber(matchedProduct?.trayQuantity || fallback || "");
+  return parseShippingSettlementNumber(matchedProduct?.trayQuantity || fallback || "");
 }
 
 function getSelectedShippingInspectionBoxes() {
@@ -2977,7 +2977,6 @@ function getShippingSettlementBoxItems() {
       const status = rawStatus === "검수완료" ? "출고대기" : rawStatus;
       const date = getShippingSettlementBoxDate(box, item);
       const quantity = getShippingSettlementBoxQuantity(box);
-      const trayQuantity = getShippingInspectionTrayQuantityFromItem(item);
       const boxInspectionQuantity = parseShippingSettlementNumber(box.inspectionQuantity || "");
 
       return {
@@ -2987,7 +2986,7 @@ function getShippingSettlementBoxItems() {
         boxes: 1,
         quantity,
         inspectionQuantity: ["출고대기", "보류", "출고완료"].includes(status)
-          ? boxInspectionQuantity || trayQuantity
+          ? boxInspectionQuantity
           : 0,
         inspectionKey: getShippingSettlementInspectionKey(item, box, status, date),
         defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
@@ -3102,14 +3101,14 @@ function updateShippingSettlementSummary() {
       const inspectionKey = item.inspectionKey || `${item.managementId || ""}|${item.date || ""}|${item.status || ""}`;
       if (!countedInspectionKeys.has(inspectionKey)) {
         countedInspectionKeys.add(inspectionKey);
-        inspectedQuantity += item.inspectionQuantity;
+        inspectedQuantity += parseShippingSettlementNumber(item.inspectionQuantity);
       }
     }
     if (item.defectQuantity > 0) {
       const defectKey = item.inspectionKey || `${item.managementId || ""}|${item.date || ""}|${item.status || ""}`;
       if (!countedDefectKeys.has(defectKey)) {
         countedDefectKeys.add(defectKey);
-        defectQuantity += item.defectQuantity;
+        defectQuantity += parseShippingSettlementNumber(item.defectQuantity);
       }
     }
 
@@ -3117,7 +3116,7 @@ function updateShippingSettlementSummary() {
       const defectRateKey = item.inspectionKey || `${item.managementId || ""}|${item.date || ""}|${item.status || ""}`;
       if (!countedDefectRateKeys.has(defectRateKey)) {
         countedDefectRateKeys.add(defectRateKey);
-        defectRateTotal += item.defectRate;
+        defectRateTotal += parseShippingSettlementNumber(item.defectRate);
         defectRateCount += 1;
       }
     }
