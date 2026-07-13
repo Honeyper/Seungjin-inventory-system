@@ -6439,7 +6439,7 @@ input {
 
 .box-qr-standard-process {
   display: grid;
-  grid-template-columns: 13.3mm 9mm minmax(0, 1fr) 9mm;
+  grid-template-columns: 9mm 10.2mm minmax(0, 1fr) 15mm;
   align-items: stretch;
   min-width: 0;
   border-bottom: 0.6pt solid #050505;
@@ -6453,9 +6453,9 @@ input {
 .box-qr-standard-process-check,
 .box-qr-standard-admin-check {
   display: grid;
-  grid-template-columns: 1fr 4.1mm;
+  grid-template-columns: 1fr;
   align-items: center;
-  gap: 0.7mm;
+  gap: 0;
   padding: 0 1.2mm;
 }
 
@@ -6489,6 +6489,8 @@ input {
 
 .box-qr-standard-quantity span,
 .box-qr-standard-date span {
+  flex: 1 1 0;
+  min-width: 0;
   font-size: 4.8pt;
   font-weight: 700;
   line-height: 1;
@@ -6523,14 +6525,13 @@ input {
 
 .box-qr-standard-admin {
   display: grid;
-  grid-template-columns: 22.3mm minmax(0, 1fr) 9mm;
+  grid-template-columns: 19.2mm minmax(0, 1fr) 15mm;
   align-items: stretch;
   min-width: 0;
   background: #fff;
 }
 
 .box-qr-standard-admin-check {
-  grid-template-columns: 1fr 4.2mm;
   padding: 0 1.6mm;
 }
 

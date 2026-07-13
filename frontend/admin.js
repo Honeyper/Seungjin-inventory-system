@@ -5739,9 +5739,8 @@ function renderInboundQrSheet(inbound, boxes) {
         <div class="box-qr-standard-admin" aria-label="관리자 마감란">
           <div class="box-qr-standard-admin-check">
             <strong>관리자 마감</strong>
-            <i aria-hidden="true"></i>
           </div>
-          <div class="box-qr-standard-date"><span>___</span><b>월</b><span>___</span><b>일</b></div>
+          <div class="box-qr-standard-date"><span aria-hidden="true"></span><b>월</b><span aria-hidden="true"></span><b>일</b></div>
           <em>(인)</em>
         </div>
       </article>
@@ -5829,10 +5828,9 @@ function renderQrProcessDateCheck(label, finalProcess = "") {
     <div class="box-qr-standard-process${isDisabled ? " is-disabled" : ""}"${isDisabled ? ' aria-disabled="true"' : ""}>
       <div class="box-qr-standard-process-check">
         <strong>${escapeHtml(label)}</strong>
-        <i aria-hidden="true"></i>
       </div>
-      <div class="box-qr-standard-quantity"><span>_____</span><b>ea</b></div>
-      <div class="box-qr-standard-date"><span>___</span><b>월</b><span>___</span><b>일</b></div>
+      <div class="box-qr-standard-quantity"><span aria-hidden="true"></span><b>ea</b></div>
+      <div class="box-qr-standard-date"><span aria-hidden="true"></span><b>월</b><span aria-hidden="true"></span><b>일</b></div>
       <em>(인)</em>
     </div>
   `;
