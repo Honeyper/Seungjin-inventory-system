@@ -6700,6 +6700,13 @@ input {
     box-shadow: none;
   }
 
+  .box-qr-label-standard .box-qr-title {
+    color: #9aa3af !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   .box-qr-label-standard .box-qr-standard-process.is-disabled {
     color: #9aa3af !important;
     background: #fff !important;
