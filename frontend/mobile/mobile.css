@@ -5309,6 +5309,16 @@ img {
   font-weight: 900;
 }
 
+#shippingScreen .shipping-add-button {
+  min-height: 40px;
+  border: 1px solid rgba(208, 161, 75, 0.58);
+  border-radius: 9px;
+  color: var(--navy-dark);
+  background: #fff7e8;
+  font-size: 15px;
+  font-weight: 900;
+}
+
 #shippingScreen .ship-pending-button:disabled {
   color: #7d8a9d;
   border-color: #d5dde8;

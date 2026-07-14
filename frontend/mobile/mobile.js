@@ -68,7 +68,8 @@ const state = {
   scannerSheetDragging: false,
   scannerSheetMoved: false,
   boxPickerProduct: null,
-  boxPickerEditingGroupKey: ""
+  boxPickerEditingGroupKey: "",
+  boxPickerMode: "edit"
 };
 
 const elements = {
@@ -98,12 +99,15 @@ const elements = {
   shippingListPanel: document.querySelector("#shippingListPanel"),
   openScannerButton: document.querySelector("#openScannerButton"),
   shippingBoxPickerModal: document.querySelector("#shippingBoxPickerModal"),
+  shippingBoxPickerTitle: document.querySelector("#shippingBoxPickerTitle"),
   closeShippingBoxPickerButton: document.querySelector("#closeShippingBoxPickerButton"),
   cancelShippingBoxPickerButton: document.querySelector("#cancelShippingBoxPickerButton"),
   boxPickerBoxStage: document.querySelector("#boxPickerBoxStage"),
   boxPickerClientName: document.querySelector("#boxPickerClientName"),
   boxPickerProductName: document.querySelector("#boxPickerProductName"),
   boxPickerProductMeta: document.querySelector("#boxPickerProductMeta"),
+  boxPickerSectionTitle: document.querySelector("#boxPickerSectionTitle"),
+  boxPickerSectionDescription: document.querySelector("#boxPickerSectionDescription"),
   boxPickerSelectAll: document.querySelector("#boxPickerSelectAll"),
   boxPickerBoxList: document.querySelector("#boxPickerBoxList"),
   boxPickerSelectedCount: document.querySelector("#boxPickerSelectedCount"),
@@ -214,6 +218,15 @@ function bindEvents() {
   });
 
   elements.shippingListPanel?.addEventListener("click", (event) => {
+    const addButton = event.target.closest("[data-mobile-shipping-add]");
+    if (addButton) {
+      const item = state.filteredRows.find((row) => getShippingKey(row) === addButton.dataset.mobileShippingAdd);
+      if (item) {
+        openShippingBoxAdder(item);
+      }
+      return;
+    }
+
     const editButton = event.target.closest("[data-mobile-shipping-edit]");
     if (editButton) {
       const item = state.filteredRows.find((row) => getShippingKey(row) === editButton.dataset.mobileShippingEdit);
@@ -912,14 +925,29 @@ function renderShippingList(rows) {
 }
 
 async function openShippingBoxEditor(item) {
+  return openShippingBoxPicker(item, "edit");
+}
+
+async function openShippingBoxAdder(item) {
+  return openShippingBoxPicker(item, "add");
+}
+
+async function openShippingBoxPicker(item, mode = "edit") {
   if (!elements.shippingBoxPickerModal) {
     return;
   }
 
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = getShippingProductGroupKey(item);
+  state.boxPickerMode = mode;
   elements.shippingBoxPickerModal.hidden = false;
   document.body.classList.add("modal-open");
+  const isAddMode = mode === "add";
+  elements.shippingBoxPickerTitle.textContent = isAddMode ? "박스 추가" : "박스 수정";
+  elements.boxPickerSectionTitle.textContent = isAddMode ? "추가할 박스 선택" : "이번 출고 박스";
+  elements.boxPickerSectionDescription.textContent = isAddMode
+    ? "보관 중인 박스를 선택해 출고 등록 목록에 추가해주세요."
+    : "출고할 박스를 선택하거나 선택 해제해주세요.";
   elements.boxPickerClientName.textContent = normalizeDisplay(item.clientName || "-");
   elements.boxPickerProductName.textContent = normalizeDisplay(item.productName || "-");
   elements.boxPickerProductMeta.textContent = [item.finalProcess, item.batch, item.storage]
@@ -951,6 +979,7 @@ function closeShippingBoxPicker() {
   elements.shippingBoxPickerModal.hidden = true;
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = "";
+  state.boxPickerMode = "edit";
   document.body.classList.remove("modal-open");
 }
 
@@ -984,6 +1013,7 @@ function renderBoxPickerBoxes() {
   const boxes = getKnownBoxes(row)
     .sort((left, right) => parseNumber(left?.number || left?.sequence) - parseNumber(right?.number || right?.sequence));
   const addedKeys = getAddedShippingBoxKeys(row);
+  const isAddMode = state.boxPickerMode === "add";
 
   elements.boxPickerClientName.textContent = normalizeDisplay(row.clientName || "-");
   elements.boxPickerProductName.textContent = normalizeDisplay(row.productName || "-");
@@ -999,8 +1029,10 @@ function renderBoxPickerBoxes() {
     const status = normalizeText(box?.rawStatus || box?.status);
     const isCompleted = /출고완료|폐기/.test(status) || quantity <= 0;
     const isAdded = addedKeys.has(key);
-    const isDisabled = isCompleted;
-    const statusLabel = isAdded ? "선택됨" : isCompleted ? (status.includes("폐기") ? "폐기" : "출고완료") : normalizeDisplay(box?.status || "보관");
+    const isDisabled = isCompleted || (isAddMode && isAdded);
+    const statusLabel = isAdded
+      ? (isAddMode ? "등록됨" : "선택됨")
+      : isCompleted ? (status.includes("폐기") ? "폐기" : "출고완료") : normalizeDisplay(box?.status || "보관");
 
     return `
       <label class="box-picker-check-card${isDisabled ? " disabled" : ""}">
@@ -1053,7 +1085,7 @@ function syncBoxPickerSelection() {
   const selected = selectable.filter((input) => input.checked);
   elements.boxPickerSelectedCount.textContent = String(selected.length);
   elements.confirmShippingBoxPickerButton.disabled = false;
-  elements.confirmShippingBoxPickerButton.textContent = "수정 완료";
+  elements.confirmShippingBoxPickerButton.textContent = state.boxPickerMode === "add" ? "선택 박스 추가" : "수정 완료";
   elements.boxPickerSelectAll.disabled = selectable.length === 0;
   elements.boxPickerSelectAll.checked = selectable.length > 0 && selected.length === selectable.length;
   elements.boxPickerSelectAll.indeterminate = selected.length > 0 && selected.length < selectable.length;
@@ -1066,6 +1098,12 @@ function updateSelectedShippingBoxes() {
   }
 
   const selectedInputs = Array.from(elements.boxPickerBoxList.querySelectorAll("[data-box-picker-box]:checked:not(:disabled)"));
+  const isAddMode = state.boxPickerMode === "add";
+
+  if (isAddMode && !selectedInputs.length) {
+    showToast("추가할 박스를 선택해주세요.");
+    return;
+  }
 
   const invalidQuantityInput = selectedInputs
     .map((input) => findBoxPickerQuantityInput(input.dataset.boxPickerBox))
@@ -1099,21 +1137,27 @@ function updateSelectedShippingBoxes() {
     selectedRows.push(item);
   });
 
-  const editingKey = state.boxPickerEditingGroupKey || getShippingProductGroupKey(row);
-  const editingRows = state.scannedShippingRows.filter((item) => getShippingProductGroupKey(item) === editingKey);
-  const editingBoxKeys = new Set(editingRows.map(getShippingKey));
-  const otherRows = state.scannedShippingRows.filter((item) => getShippingProductGroupKey(item) !== editingKey);
-  state.scannedShippingRows = [...selectedRows, ...otherRows];
-  state.scannerSessionShippingKeys = state.scannerSessionShippingKeys.filter((key) => !editingBoxKeys.has(key));
+  if (isAddMode) {
+    const existingBoxKeys = new Set(state.scannedShippingRows.map(getScannedBoxKey).filter(Boolean));
+    const rowsToAdd = selectedRows.filter((item) => !existingBoxKeys.has(getScannedBoxKey(item)));
+    state.scannedShippingRows = [...state.scannedShippingRows, ...rowsToAdd];
+  } else {
+    const editingKey = state.boxPickerEditingGroupKey || getShippingProductGroupKey(row);
+    const editingRows = state.scannedShippingRows.filter((item) => getShippingProductGroupKey(item) === editingKey);
+    const editingBoxKeys = new Set(editingRows.map(getShippingKey));
+    const otherRows = state.scannedShippingRows.filter((item) => getShippingProductGroupKey(item) !== editingKey);
+    state.scannedShippingRows = [...selectedRows, ...otherRows];
+    state.scannerSessionShippingKeys = state.scannerSessionShippingKeys.filter((key) => !editingBoxKeys.has(key));
+  }
   saveScannedShippingRows();
   state.query = "";
   elements.shippingSearchInput.value = "";
   applyShippingFilters();
   closeShippingBoxPicker();
   triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
-  showToast(selectedRows.length
-    ? `${selectedRows.length}개 박스로 수정했습니다.`
-    : "제품을 출고 등록 목록에서 제외했습니다.");
+  showToast(isAddMode
+    ? (selectedRows.length ? `${selectedRows.length}개 박스를 출고 등록 목록에 추가했습니다.` : "추가할 박스를 선택해주세요.")
+    : (selectedRows.length ? `${selectedRows.length}개 박스로 수정했습니다.` : "제품을 출고 등록 목록에서 제외했습니다."));
 }
 
 function findBoxPickerQuantityInput(key) {
@@ -1380,7 +1424,7 @@ function renderShippingItem(item) {
             : isPending ? '<span class="shipping-meta-pill">출고대기</span>' : ""}
         </div>
         <div class="shipping-card-actions">
-          ${isCompleted || isPending ? "" : `<button class="shipping-edit-button" type="button" data-mobile-shipping-edit="${escapeHtml(key)}">수정</button>`}
+          ${isCompleted ? "" : `<button class="shipping-add-button" type="button" data-mobile-shipping-add="${escapeHtml(key)}">박스 추가</button>`}
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}">삭제</button>
           ${isCompleted
             ? '<span class="shipping-complete-status">출고완료</span>'

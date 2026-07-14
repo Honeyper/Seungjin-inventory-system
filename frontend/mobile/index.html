@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260714-home-card-weight" />
+    <link rel="stylesheet" href="./mobile.css?v=20260714-manual-box-add" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -320,7 +320,7 @@
               <span>출고 등록</span>
               <h2 id="shippingBoxPickerTitle">박스 수정</h2>
             </div>
-            <button id="closeShippingBoxPickerButton" type="button" aria-label="박스 수정 닫기">
+            <button id="closeShippingBoxPickerButton" type="button" aria-label="박스 선택 닫기">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"></path></svg>
             </button>
           </header>
@@ -335,8 +335,8 @@
             </div>
             <div class="box-picker-section-header">
               <div>
-                <h3>이번 출고 박스</h3>
-                <p>출고할 박스를 선택하거나 선택 해제해주세요.</p>
+                <h3 id="boxPickerSectionTitle">이번 출고 박스</h3>
+                <p id="boxPickerSectionDescription">출고할 박스를 선택하거나 선택 해제해주세요.</p>
               </div>
               <label>
                 <input id="boxPickerSelectAll" type="checkbox" />
@@ -399,6 +399,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260713-product-box-edit"></script>
+    <script src="./mobile.js?v=20260714-manual-box-add"></script>
   </body>
 </html>
