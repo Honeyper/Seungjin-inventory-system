@@ -5284,7 +5284,15 @@ img {
 
 #shippingScreen .shipping-remove-button {
   min-height: 40px;
+  border-color: #f0b8b8;
+  color: #b42318;
+  background: #fff1f1;
   font-size: 14px;
+}
+
+#shippingScreen .shipping-remove-button:active {
+  color: #8c1711;
+  background: #fee4e2;
 }
 
 #shippingScreen .shipping-card-actions {
@@ -5317,6 +5325,22 @@ img {
   background: #fff7e8;
   font-size: 15px;
   font-weight: 900;
+}
+
+#shippingScreen .shipping-cancel-button {
+  border: 1px solid #f0b8b8;
+  color: #b42318;
+  background: #fff1f1;
+  box-shadow: none;
+}
+
+#shippingScreen .shipping-card-actions button:disabled {
+  border-color: #dce3ed;
+  color: #9aa7b8;
+  background: #f3f6fa;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 #shippingScreen .ship-pending-button:disabled {
