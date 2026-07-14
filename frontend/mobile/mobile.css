@@ -3476,6 +3476,7 @@ img {
 
 #homeScreen .menu-copy strong {
   font-size: 21px;
+  font-weight: 700;
   line-height: 1.08;
   word-break: keep-all;
 }
