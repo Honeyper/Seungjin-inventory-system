@@ -3591,7 +3591,8 @@ function makeClientCode_(clientName) {
     '보경': 'BK',
     'CPI': 'CPI',
     '더승진(2공장)': 'SJ2',
-    'SJ패키지': 'SJP'
+    'SJ패키지': 'SJP',
+    '명신코스텍': 'MSK'
   };
 
   if (knownCodes[name]) {
