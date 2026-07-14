@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260714-qr-ea-center" />
+    <link rel="stylesheet" href="./styles.css?v=20260714-box-shipping-cancel" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1517,6 +1517,60 @@
       </section>
     </div>
 
+    <div class="modal-backdrop" id="shippingCancelModal" hidden>
+      <section class="product-modal shipping-completion-modal shipping-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="shippingCancelTitle">
+        <header class="modal-header">
+          <div>
+            <h2 id="shippingCancelTitle">박스별 출고 취소</h2>
+            <p>출고를 취소할 박스만 선택하면 해당 박스가 보관 상태로 돌아갑니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeShippingCancelModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <form class="product-form shipping-completion-form shipping-cancel-form" id="shippingCancelForm">
+          <section class="shipping-completion-summary" aria-label="출고 취소 대상 정보">
+            <div>
+              <span>관리 ID</span>
+              <strong id="shippingCancelRecordId">-</strong>
+            </div>
+            <div>
+              <span>거래처명</span>
+              <strong id="shippingCancelClient">-</strong>
+            </div>
+            <div class="shipping-cancel-product-summary">
+              <span>제품명</span>
+              <strong id="shippingCancelProduct">-</strong>
+            </div>
+          </section>
+
+          <section class="form-section shipping-completion-box-section" aria-labelledby="shippingCancelBoxTitle">
+            <div class="shipping-box-section-header">
+              <div>
+                <h3 id="shippingCancelBoxTitle">출고완료 박스</h3>
+                <p>선택한 박스만 출고 취소됩니다.</p>
+              </div>
+              <label class="shipping-box-select-all">
+                <input id="shippingCancelSelectAllBoxes" type="checkbox" />
+                <span>전체 선택</span>
+              </label>
+            </div>
+            <div class="shipping-box-check-list shipping-cancel-box-list" id="shippingCancelBoxList"></div>
+            <p class="shipping-box-summary" id="shippingCancelBoxSummary">출고 취소할 박스를 선택해주세요.</p>
+            <p class="form-message" id="shippingCancelMessage"></p>
+          </section>
+
+          <div class="modal-actions">
+            <button class="secondary-modal-action" type="button" id="cancelShippingCancelModal">닫기</button>
+            <button class="primary-modal-action shipping-cancel-confirm-action" type="submit" id="confirmShippingCancelButton" disabled>선택 박스 출고 취소</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <div class="modal-backdrop" id="shippingWaitingConfirmModal" hidden>
       <section class="product-modal shipping-waiting-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="shippingWaitingConfirmTitle">
         <header class="modal-header shipping-waiting-confirm-header">
@@ -2002,6 +2056,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260714-myungshin-costech"></script>
+    <script src="./admin.js?v=20260714-box-shipping-cancel"></script>
   </body>
 </html>

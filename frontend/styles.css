@@ -3142,6 +3142,21 @@ input {
   white-space: nowrap;
 }
 
+.shipping-cancel-product-summary {
+  grid-column: 1 / -1;
+}
+
+.shipping-cancel-box-list {
+  max-height: 21rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.shipping-cancel-confirm-action {
+  background: linear-gradient(180deg, #d92d20, #b42318);
+  box-shadow: 0 0.65rem 1.2rem rgba(180, 35, 24, 0.18);
+}
+
 .shipping-completion-info {
   margin: 0 1.45rem;
   padding: 1rem 1.05rem 1.1rem;

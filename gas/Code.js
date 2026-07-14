@@ -2952,11 +2952,13 @@ function updateShippingStatus(payload) {
     : status;
   if (status === '보관') {
     const remainingCounts = boxUpdateResult.remainingStatusCounts || {};
-    finalStatus = remainingCounts['출고대기'] || remainingCounts['출고대기(검수완료)'] || remainingCounts['검수완료']
-      ? '출고대기'
-      : remainingCounts['보류']
-        ? '보류'
-        : '보관';
+    finalStatus = boxUpdateResult.remainingShippedRows > 0 && boxUpdateResult.remainingActiveRows > 0
+      ? '일부 출고'
+      : remainingCounts['출고대기'] || remainingCounts['출고대기(검수완료)'] || remainingCounts['검수완료']
+        ? '출고대기'
+        : remainingCounts['보류']
+          ? '보류'
+          : '보관';
   }
   const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, finalStatus, payload);
   SpreadsheetApp.flush();
@@ -3167,6 +3169,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
 
   let updatedRows = 0;
   let remainingActiveRows = 0;
+  let remainingShippedRows = 0;
   const remainingStatusCounts = {};
   let matchedBoxNumber = 0;
 
@@ -3251,6 +3254,9 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       const normalizedStatus = rowStatus || '보관';
       remainingStatusCounts[normalizedStatus] = (remainingStatusCounts[normalizedStatus] || 0) + 1;
     }
+    if (/출고완료/.test(rowStatus)) {
+      remainingShippedRows += 1;
+    }
   }
 
   if (!updatedRows) {
@@ -3260,6 +3266,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
   return {
     updatedRows,
     remainingActiveRows,
+    remainingShippedRows,
     remainingStatusCounts
   };
 }

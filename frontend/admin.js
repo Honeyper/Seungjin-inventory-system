@@ -103,10 +103,12 @@ const state = {
   activeInboundMenuButton: null,
   activeShippingInspectionRow: null,
   activeShippingCompletionRow: null,
+  activeShippingCancelRow: null,
   activeShippingWaitingRow: null,
   isSavingShippingWaiting: false,
   isSavingShippingInspection: false,
   isSavingShippingCompletion: false,
+  isSavingShippingCancel: false,
   inboundProductPickerQuery: "",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
@@ -303,6 +305,16 @@ const shippingCompletionBoxList = document.querySelector("#shippingCompletionBox
 const shippingCompletionBoxSummary = document.querySelector("#shippingCompletionBoxSummary");
 const shippingCompletionDefectPhotos = document.querySelector("#shippingCompletionDefectPhotos");
 const shippingCompletionShippedBoxes = document.querySelector("#shippingCompletionShippedBoxes");
+const shippingCancelModal = document.querySelector("#shippingCancelModal");
+const shippingCancelForm = document.querySelector("#shippingCancelForm");
+const shippingCancelRecordId = document.querySelector("#shippingCancelRecordId");
+const shippingCancelProduct = document.querySelector("#shippingCancelProduct");
+const shippingCancelClient = document.querySelector("#shippingCancelClient");
+const shippingCancelBoxList = document.querySelector("#shippingCancelBoxList");
+const shippingCancelBoxSummary = document.querySelector("#shippingCancelBoxSummary");
+const shippingCancelSelectAllBoxes = document.querySelector("#shippingCancelSelectAllBoxes");
+const shippingCancelMessage = document.querySelector("#shippingCancelMessage");
+const confirmShippingCancelButton = document.querySelector("#confirmShippingCancelButton");
 const shippingWaitingConfirmModal = document.querySelector("#shippingWaitingConfirmModal");
 const shippingWaitingConfirmRecordId = document.querySelector("#shippingWaitingConfirmRecordId");
 const shippingWaitingConfirmProduct = document.querySelector("#shippingWaitingConfirmProduct");
@@ -458,6 +470,8 @@ document.querySelector("#closeShippingInspectionModal")?.addEventListener("click
 document.querySelector("#cancelShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
 document.querySelector("#closeShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
 document.querySelector("#cancelShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
+document.querySelector("#closeShippingCancelModal")?.addEventListener("click", closeShippingCancelModal);
+document.querySelector("#cancelShippingCancelModal")?.addEventListener("click", closeShippingCancelModal);
 document.querySelector("#closeShippingWaitingConfirmModal")?.addEventListener("click", closeShippingWaitingConfirmModal);
 document.querySelector("#cancelShippingWaitingConfirmModal")?.addEventListener("click", closeShippingWaitingConfirmModal);
 confirmShippingWaitingButton?.addEventListener("click", confirmShippingWaiting);
@@ -485,6 +499,17 @@ shippingCompletionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingCompletion();
 });
+shippingCancelForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  confirmShippingCancellation();
+});
+shippingCancelSelectAllBoxes?.addEventListener("change", () => {
+  shippingCancelBoxList?.querySelectorAll('input[name="shippingCancelBox"]').forEach((input) => {
+    input.checked = Boolean(shippingCancelSelectAllBoxes.checked);
+  });
+  syncShippingCancelBoxState();
+});
+shippingCancelBoxList?.addEventListener("change", syncShippingCancelBoxState);
 shippingSettlementStartDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("start");
   updateShippingSummaryCards(getShippingSettlementItems());
@@ -838,6 +863,11 @@ document.addEventListener("keydown", (event) => {
 
   if (shippingCompletionModal && !shippingCompletionModal.hidden) {
     closeShippingCompletionModal();
+    return;
+  }
+
+  if (shippingCancelModal && !shippingCancelModal.hidden) {
+    closeShippingCancelModal();
     return;
   }
 
@@ -2024,8 +2054,8 @@ async function cancelShippingWaiting(row) {
   }
 }
 
-async function cancelCompletedShipping(row, button) {
-  if (!row || button?.disabled) {
+function cancelCompletedShipping(row, button) {
+  if (!row || button?.disabled || !shippingCancelModal) {
     return;
   }
 
@@ -2042,30 +2072,121 @@ async function cancelCompletedShipping(row, button) {
     return;
   }
 
-  const totalQuantity = shippedBoxes.reduce((sum, box) => sum + box.quantity, 0);
-  const confirmed = window.confirm(
-    `출고완료 ${formatNumber(shippedBoxes.length)}개 박스(${formatNumber(totalQuantity)}ea)를 취소하고 보관 상태로 되돌릴까요?`
-  );
-  if (!confirmed) {
+  state.activeShippingCancelRow = row;
+  state.isSavingShippingCancel = false;
+
+  if (shippingCancelRecordId) {
+    shippingCancelRecordId.textContent = row.children[1]?.textContent.trim() || "-";
+  }
+  if (shippingCancelClient) {
+    shippingCancelClient.textContent = row.children[2]?.textContent.trim() || "-";
+  }
+  if (shippingCancelProduct) {
+    shippingCancelProduct.textContent = row.children[3]?.textContent.trim() || "-";
+  }
+  if (shippingCancelBoxList) {
+    shippingCancelBoxList.innerHTML = shippedBoxes.map((box) => {
+      const shippingDate = toDateInputValue(box.shippingDate) || "날짜 미등록";
+      const shippingTime = box.shippingTime ? ` ${escapeHtml(box.shippingTime)}` : "";
+      return `
+        <label class="shipping-box-check-card">
+          <input type="checkbox" name="shippingCancelBox" value="${box.number}" data-quantity="${box.quantity}" />
+          <span>
+            <strong>${box.number}번 박스</strong>
+            <small>${formatNumber(box.quantity)} ea · ${escapeHtml(shippingDate)}${shippingTime}</small>
+          </span>
+        </label>
+      `;
+    }).join("");
+  }
+  if (shippingCancelSelectAllBoxes) {
+    shippingCancelSelectAllBoxes.checked = false;
+    shippingCancelSelectAllBoxes.indeterminate = false;
+  }
+  if (shippingCancelMessage) {
+    shippingCancelMessage.textContent = "";
+  }
+  if (confirmShippingCancelButton) {
+    confirmShippingCancelButton.disabled = true;
+    confirmShippingCancelButton.textContent = "선택 박스 출고 취소";
+  }
+
+  syncShippingCancelBoxState();
+  shippingCancelModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeShippingCancelModal() {
+  if (!shippingCancelModal) {
     return;
   }
 
-  const previousText = button?.textContent || "출고 취소";
-  if (button) {
-    button.disabled = true;
-    button.textContent = "취소 중";
+  shippingCancelModal.hidden = true;
+  state.activeShippingCancelRow = null;
+  state.isSavingShippingCancel = false;
+  if (shippingCancelBoxList) {
+    shippingCancelBoxList.innerHTML = "";
+  }
+  document.body.classList.remove("modal-open");
+}
+
+function getSelectedShippingCancelBoxes() {
+  return Array.from(shippingCancelBoxList?.querySelectorAll('input[name="shippingCancelBox"]:checked') || [])
+    .map((input) => ({
+      number: Number(input.value),
+      quantity: parseShippingSettlementNumber(input.dataset.quantity || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+}
+
+function syncShippingCancelBoxState() {
+  const inputs = Array.from(shippingCancelBoxList?.querySelectorAll('input[name="shippingCancelBox"]') || []);
+  const selectedBoxes = getSelectedShippingCancelBoxes();
+  const totalQuantity = selectedBoxes.reduce((sum, box) => sum + box.quantity, 0);
+
+  if (shippingCancelSelectAllBoxes) {
+    shippingCancelSelectAllBoxes.checked = inputs.length > 0 && selectedBoxes.length === inputs.length;
+    shippingCancelSelectAllBoxes.indeterminate = selectedBoxes.length > 0 && selectedBoxes.length < inputs.length;
+  }
+  if (shippingCancelBoxSummary) {
+    shippingCancelBoxSummary.textContent = selectedBoxes.length
+      ? `${formatNumber(selectedBoxes.length)}개 박스 선택 · ${formatNumber(totalQuantity)} ea 취소`
+      : "출고 취소할 박스를 선택해주세요.";
+  }
+  if (confirmShippingCancelButton) {
+    confirmShippingCancelButton.disabled = state.isSavingShippingCancel || !selectedBoxes.length;
+  }
+}
+
+async function confirmShippingCancellation() {
+  const row = state.activeShippingCancelRow;
+  const selectedBoxes = getSelectedShippingCancelBoxes();
+
+  if (!row || state.isSavingShippingCancel || !selectedBoxes.length) {
+    return;
+  }
+
+  state.isSavingShippingCancel = true;
+  if (confirmShippingCancelButton) {
+    confirmShippingCancelButton.disabled = true;
+    confirmShippingCancelButton.textContent = "취소 처리 중";
   }
 
   try {
     await updateShippingStatus(row, "보관", {
-      selectedBoxes: shippedBoxes.map((box) => box.number),
+      selectedBoxes: selectedBoxes.map((box) => box.number),
       allowCancelCompleted: true
     });
-    showToast("출고를 취소하고 해당 박스를 보관 상태로 변경했습니다.");
+    closeShippingCancelModal();
+    showToast(`${formatNumber(selectedBoxes.length)}개 박스의 출고를 취소하고 보관 상태로 변경했습니다.`);
   } catch (error) {
-    if (button) {
-      button.disabled = false;
-      button.textContent = previousText;
+    state.isSavingShippingCancel = false;
+    if (confirmShippingCancelButton) {
+      confirmShippingCancelButton.textContent = "선택 박스 출고 취소";
+    }
+    syncShippingCancelBoxState();
+    if (shippingCancelMessage) {
+      shippingCancelMessage.textContent = error.message || "출고 취소 중 문제가 발생했습니다.";
     }
     showToast(error.message || "출고 취소 중 문제가 발생했습니다.");
   }
