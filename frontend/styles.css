@@ -6498,11 +6498,19 @@ input {
   line-height: 1;
 }
 
+.box-qr-standard-quantity span {
+  display: none;
+}
+
 .box-qr-standard-quantity b,
 .box-qr-standard-date b {
   font-size: 6.4pt;
   font-weight: 900;
   line-height: 1;
+}
+
+.box-qr-standard-quantity b {
+  color: #a5a5a5;
 }
 
 .box-qr-standard-process em,
@@ -6522,6 +6530,10 @@ input {
 }
 
 .box-qr-standard-process.is-disabled em {
+  color: #fff;
+}
+
+.box-qr-standard-process.is-disabled .box-qr-standard-quantity b {
   color: #fff;
 }
 
