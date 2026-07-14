@@ -4,9 +4,17 @@ const LOGIN_PREFERENCES_KEY = "seungjinMobileLoginPreferences";
 const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
-const BARCODE_DETECT_INTERVAL_MS = 260;
-const JSQR_DETECT_INTERVAL_MS = 260;
-const JSQR_MAX_EDGE = 1120;
+const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
+const SCANNER_DEVICE_MEMORY_GB = Number(navigator.deviceMemory) || 8;
+const IS_LOW_POWER_SCANNER = SCANNER_DEVICE_CORES <= 4 || SCANNER_DEVICE_MEMORY_GB <= 3;
+const BARCODE_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
+const JSQR_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
+const JSQR_FAST_MAX_EDGE = IS_LOW_POWER_SCANNER ? 720 : 840;
+const JSQR_DETAIL_MAX_EDGE = IS_LOW_POWER_SCANNER ? 960 : 1120;
+const JSQR_DETAIL_SCAN_INTERVAL = IS_LOW_POWER_SCANNER ? 4 : 3;
+const JSQR_NATIVE_FALLBACK_INTERVAL = 2;
+const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
+const SLOW_NATIVE_DETECT_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
 const SHIPPING_CLOCK_INTERVAL_MS = 10000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
@@ -2115,10 +2123,9 @@ async function getScannerStream() {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
       facingMode: { ideal: "environment" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      frameRate: { ideal: 30, max: 30 },
-      resizeMode: { ideal: "none" }
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      frameRate: { ideal: 24, max: 30 }
     },
     audio: false
   });
@@ -2281,6 +2288,9 @@ function startJsQrDetection(detector = null) {
 
   setScannerHelp("QR이 화면에 보이면 자동 인식합니다. 박스 안에 딱 맞추지 않아도 됩니다.");
   let isDetectingFrame = false;
+  let nativeMissCount = 0;
+  let slowNativeDetectCount = 0;
+  let jsQrScanCount = 0;
   state.scannerTimer = window.setInterval(async () => {
     if (isDetectingFrame) {
       return;
@@ -2303,9 +2313,22 @@ function startJsQrDetection(detector = null) {
 
     try {
       if (detector) {
+        const nativeDetectStartedAt = performance.now();
         const codes = await detector.detect(video);
+        const nativeDetectElapsed = performance.now() - nativeDetectStartedAt;
         if (codes.length) {
           handleQrValue(codes[0].rawValue);
+          isDetectingFrame = false;
+          return;
+        }
+
+        nativeMissCount += 1;
+        slowNativeDetectCount = nativeDetectElapsed >= SLOW_NATIVE_DETECT_MS
+          ? slowNativeDetectCount + 1
+          : Math.max(0, slowNativeDetectCount - 1);
+        if (slowNativeDetectCount >= SLOW_NATIVE_DETECT_LIMIT) {
+          detector = null;
+        } else if (nativeMissCount % JSQR_NATIVE_FALLBACK_INTERVAL !== 0) {
           isDetectingFrame = false;
           return;
         }
@@ -2314,7 +2337,10 @@ function startJsQrDetection(detector = null) {
       detector = null;
     }
 
-    const scale = Math.min(1, JSQR_MAX_EDGE / Math.max(sourceWidth, sourceHeight));
+    jsQrScanCount += 1;
+    const isDetailScan = jsQrScanCount % JSQR_DETAIL_SCAN_INTERVAL === 0;
+    const maxEdge = isDetailScan ? JSQR_DETAIL_MAX_EDGE : JSQR_FAST_MAX_EDGE;
+    const scale = Math.min(1, maxEdge / Math.max(sourceWidth, sourceHeight));
     const width = Math.max(1, Math.floor(sourceWidth * scale));
     const height = Math.max(1, Math.floor(sourceHeight * scale));
 
@@ -2324,11 +2350,14 @@ function startJsQrDetection(detector = null) {
     if (state.scannerCanvas.height !== height) {
       state.scannerCanvas.height = height;
     }
+    context.imageSmoothingEnabled = false;
     context.drawImage(video, 0, 0, width, height);
 
     try {
       const imageData = context.getImageData(0, 0, width, height);
-      const qr = window.jsQR(imageData.data, width, height, { inversionAttempts: "attemptBoth" });
+      const qr = window.jsQR(imageData.data, width, height, {
+        inversionAttempts: isDetailScan ? "attemptBoth" : "dontInvert"
+      });
       if (qr?.data) {
         handleQrValue(qr.data);
       }
