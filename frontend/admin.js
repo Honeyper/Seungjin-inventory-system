@@ -2952,6 +2952,18 @@ function getCompletedShippingStatusLabel(item) {
   return labels.length === 1 ? labels[0] : "혼합 출고";
 }
 
+function getCompletedShippingStatusClass(label) {
+  const classMap = {
+    "출고 완료": "complete",
+    "반출": "takeout",
+    "이관": "transfer",
+    "외주": "outsourcing",
+    "혼합 출고": "mixed"
+  };
+
+  return classMap[label] || "complete";
+}
+
 function renderShippingStatusBadge(item) {
   const status = getEffectiveShippingStatus(item);
   const counts = getShippingBoxStatusCounts(item);
@@ -2977,7 +2989,8 @@ function renderShippingStatusBadge(item) {
   }
 
   if (status === "출고완료") {
-    return `<span class="shipping-badge complete">${escapeHtml(getCompletedShippingStatusLabel(item))}</span>`;
+    const completedLabel = getCompletedShippingStatusLabel(item);
+    return `<span class="shipping-badge ${getCompletedShippingStatusClass(completedLabel)}">${escapeHtml(completedLabel)}</span>`;
   }
 
   if (status === "보류") {

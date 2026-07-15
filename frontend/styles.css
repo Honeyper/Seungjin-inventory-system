@@ -2784,6 +2784,26 @@ input {
   background: #dff7e9;
 }
 
+.shipping-badge.takeout {
+  color: #b42318;
+  background: #fee4e2;
+}
+
+.shipping-badge.transfer {
+  color: #175cd3;
+  background: #eaf3ff;
+}
+
+.shipping-badge.outsourcing {
+  color: #6941c6;
+  background: #f2efff;
+}
+
+.shipping-badge.mixed {
+  color: #344054;
+  background: #eaecf0;
+}
+
 .shipping-badge.partial {
   color: #9a5f00;
   background: #fff3dc;
