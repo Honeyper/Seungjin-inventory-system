@@ -833,8 +833,8 @@ img {
 
 .shipping-action-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 10px;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 7px;
   align-items: center;
   padding: 6px 0 0;
 }
@@ -864,6 +864,65 @@ img {
   font-size: 15px;
   font-weight: 900;
   background: #fff;
+}
+
+.shipping-action-row .control-button {
+  gap: 5px;
+  padding-inline: 9px;
+  font-size: 13px;
+}
+
+.shipping-completed-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 0 9px;
+  color: #52627a;
+  font-size: 12px;
+  font-weight: 800;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.shipping-toggle-track {
+  position: relative;
+  display: inline-flex;
+  width: 30px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: #cbd5e1;
+  transition: background 0.18s ease;
+}
+
+.shipping-toggle-track span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(6, 31, 76, 0.24);
+  transition: transform 0.18s ease;
+}
+
+.shipping-completed-toggle.active {
+  border-color: #0b4e9b;
+  color: var(--navy-dark);
+  background: #eef5ff;
+}
+
+.shipping-completed-toggle.active .shipping-toggle-track {
+  background: #0b5ec7;
+}
+
+.shipping-completed-toggle.active .shipping-toggle-track span {
+  transform: translateX(12px);
 }
 
 .control-button svg {
@@ -3979,6 +4038,15 @@ img {
   box-shadow: 0 8px 18px rgba(6, 31, 76, 0.045);
 }
 
+#shippingScreen .shipping-completed-toggle {
+  min-height: 38px;
+  border-color: rgba(196, 210, 228, 0.98);
+  border-radius: 9px;
+  padding: 0 8px;
+  font-size: 11px;
+  box-shadow: 0 8px 18px rgba(6, 31, 76, 0.045);
+}
+
 #shippingScreen .control-button svg {
   width: 17px;
   height: 17px;
@@ -4410,6 +4478,20 @@ img {
   #shippingScreen .control-button {
     padding: 0 7px;
     font-size: 11px;
+  }
+
+  #shippingScreen .shipping-completed-toggle {
+    gap: 4px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  #shippingScreen .shipping-toggle-track {
+    width: 27px;
+  }
+
+  #shippingScreen .shipping-completed-toggle.active .shipping-toggle-track span {
+    transform: translateX(9px);
   }
 
   .box-picker-box-list {

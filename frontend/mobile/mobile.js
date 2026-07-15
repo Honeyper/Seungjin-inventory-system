@@ -59,6 +59,7 @@ const state = {
   query: "",
   moveQuery: "",
   shippingSortMode: "scannedBoxes",
+  showCompletedShippingBoxes: false,
   activeWorkflow: "shipping",
   selectedShippingItem: null,
   selectedShippingAction: "complete",
@@ -102,6 +103,7 @@ const elements = {
   shippingLiveTime: document.querySelector("#shippingLiveTime"),
   mobileShippingCount: document.querySelector("#mobileShippingCount"),
   refreshShippingButton: document.querySelector("#refreshShippingButton"),
+  showCompletedShippingToggle: document.querySelector("#showCompletedShippingToggle"),
   filterShippingButton: document.querySelector("#filterShippingButton"),
   shippingFilterMenu: document.querySelector("#shippingFilterMenu"),
   shippingListPanel: document.querySelector("#shippingListPanel"),
@@ -182,6 +184,7 @@ function bindEvents() {
   elements.autoLogin?.addEventListener("change", handleLoginPreferenceChange);
   elements.logoutButton?.addEventListener("click", logout);
   elements.refreshShippingButton?.addEventListener("click", handleRefreshShipping);
+  elements.showCompletedShippingToggle?.addEventListener("click", toggleCompletedShippingBoxes);
   elements.filterShippingButton?.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleShippingSortMenu();
@@ -622,6 +625,10 @@ function applyShippingFilters() {
   const query = state.query;
   const rows = groupScannedShippingRows(state.scannedShippingRows
     .filter((row) => {
+      if (!state.showCompletedShippingBoxes && isCompletedShippingItem(row)) {
+        return false;
+      }
+
       if (!query) {
         return true;
       }
@@ -646,6 +653,24 @@ function applyShippingFilters() {
   state.filteredRows = sortedRows;
   renderShippingList(sortedRows);
   renderScannerScannedList();
+}
+
+function toggleCompletedShippingBoxes() {
+  state.showCompletedShippingBoxes = !state.showCompletedShippingBoxes;
+  renderCompletedShippingToggle();
+  applyShippingFilters();
+}
+
+function renderCompletedShippingToggle() {
+  if (!elements.showCompletedShippingToggle) {
+    return;
+  }
+
+  const isActive = state.showCompletedShippingBoxes;
+  elements.showCompletedShippingToggle.setAttribute("aria-pressed", String(isActive));
+  elements.showCompletedShippingToggle.setAttribute("aria-label", isActive ? "출고완료 박스 숨기기" : "출고완료 박스 보기");
+  elements.showCompletedShippingToggle.title = isActive ? "출고완료 박스 숨기기" : "출고완료 박스 보기";
+  elements.showCompletedShippingToggle.classList.toggle("active", isActive);
 }
 
 async function handleRefreshShipping() {
@@ -911,21 +936,26 @@ function renderShippingList(rows) {
   elements.mobileShippingCount.textContent = String(rows.length);
 
   if (!rows.length) {
+    const hasHiddenCompletedBoxes = !state.showCompletedShippingBoxes
+      && state.scannedShippingRows.some(isCompletedShippingItem);
     elements.shippingListPanel.innerHTML = `
       <div class="empty-state">
         <div>
           <span class="empty-state-icon" aria-hidden="true">
             <img src="${SHIPPING_BOX_ICON_SRC}" alt="" />
           </span>
-          <h2>등록된 제품이 없습니다</h2>
-          <p>출고할 제품을 등록해 주세요.</p>
+          <h2>${hasHiddenCompletedBoxes ? "출고할 박스가 없습니다" : "등록된 제품이 없습니다"}</h2>
+          <p>${hasHiddenCompletedBoxes ? "출고완료 박스는 현재 숨겨져 있습니다." : "출고할 제품을 등록해 주세요."}</p>
           <div class="empty-shipping-actions">
-            <button class="primary-action" type="button" id="emptyScanButton">QR 스캔</button>
+            ${hasHiddenCompletedBoxes
+              ? '<button class="primary-action" type="button" id="emptyShowCompletedButton">완료 박스 보기</button>'
+              : '<button class="primary-action" type="button" id="emptyScanButton">QR 스캔</button>'}
           </div>
         </div>
       </div>
     `;
     document.querySelector("#emptyScanButton")?.addEventListener("click", openScanner);
+    document.querySelector("#emptyShowCompletedButton")?.addEventListener("click", toggleCompletedShippingBoxes);
     return;
   }
 
