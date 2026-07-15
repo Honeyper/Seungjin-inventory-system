@@ -6073,8 +6073,6 @@ function renderInboundQrSheet(inbound, boxes) {
   const total = boxes.length;
   const processText = getInboundQrProcessText(inbound);
   const productName = inbound.productName || boxes[0]?.productName || "-";
-  const packagingDate = inbound.inboundDate || boxes[0]?.inboundDate || "-";
-
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
     const qrData = box.qrData || box.boxId || "";
@@ -6086,44 +6084,47 @@ function renderInboundQrSheet(inbound, boxes) {
         total,
         qrData,
         processText,
-        productName,
-        packagingDate
+        productName
       });
     }
 
-    const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
-
-    return `
-      <article class="box-qr-label box-qr-label-standard">
-        <div class="box-qr-title">승진 관리 시스템</div>
-        <div class="box-qr-standard-overview">
-          <div class="box-qr-standard-overview-copy">
-            <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
-            <div class="box-qr-standard-product">
-              <span>제품명</span>
-              <strong>${escapeHtml(productName)}</strong>
-            </div>
-          </div>
-          <div class="box-qr-standard-media">
-            <strong class="box-qr-standard-count">${escapeHtml(boxLabel)}</strong>
-            <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
-          </div>
-        </div>
-        <div class="box-qr-standard-checks" aria-label="공정별 수량, 포장일 및 서명">
-          ${renderQrProcessDateCheck("1도", processText)}
-          ${renderQrProcessDateCheck("2도", processText)}
-          ${renderQrProcessDateCheck("3도", processText)}
-        </div>
-        <div class="box-qr-standard-admin" aria-label="관리자 마감란">
-          <div class="box-qr-standard-admin-check">
-            <strong>관리자 마감</strong>
-          </div>
-          <div class="box-qr-standard-date"><span aria-hidden="true"></span><b>월</b><span aria-hidden="true"></span><b>일</b></div>
-          <em>(인)</em>
-        </div>
-      </article>
-    `;
+    return renderInboundQrStandardLabel({ box, sequence, total, qrData, processText, productName });
   }).join("");
+}
+
+function renderInboundQrStandardLabel({ box, sequence, total, qrData, processText, productName }, variantClass = "") {
+  const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
+
+  return `
+    <article class="box-qr-label box-qr-label-standard${variantClass ? ` ${variantClass}` : ""}">
+      <div class="box-qr-title">승진 관리 시스템</div>
+      <div class="box-qr-standard-overview">
+        <div class="box-qr-standard-overview-copy">
+          <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
+          <div class="box-qr-standard-product">
+            <span>제품명</span>
+            <strong>${escapeHtml(productName)}</strong>
+          </div>
+        </div>
+        <div class="box-qr-standard-media">
+          <strong class="box-qr-standard-count">${escapeHtml(boxLabel)}</strong>
+          <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
+        </div>
+      </div>
+      <div class="box-qr-standard-checks" aria-label="공정별 수량, 포장일 및 서명">
+        ${renderQrProcessDateCheck("1도", processText)}
+        ${renderQrProcessDateCheck("2도", processText)}
+        ${renderQrProcessDateCheck("3도", processText)}
+      </div>
+      <div class="box-qr-standard-admin" aria-label="관리자 마감란">
+        <div class="box-qr-standard-admin-check">
+          <strong>관리자 마감</strong>
+        </div>
+        <div class="box-qr-standard-date"><span aria-hidden="true"></span><b>월</b><span aria-hidden="true"></span><b>일</b></div>
+        <em>(인)</em>
+      </div>
+    </article>
+  `;
 }
 
 function updateInboundQrLayoutButtons() {
@@ -6134,49 +6135,8 @@ function updateInboundQrLayoutButtons() {
   });
 }
 
-function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, productName, packagingDate }) {
-  return `
-    <article class="box-qr-label box-qr-label-work">
-      <div class="box-qr-title">승진 관리 시스템</div>
-      <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
-      <div class="box-qr-main">
-        <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
-        <div class="box-qr-checks" aria-label="공정 체크">
-          ${renderQrProcessCheck("1도", processText)}
-          ${renderQrProcessCheck("2도", processText)}
-          ${renderQrProcessCheck("3도", processText)}
-        </div>
-      </div>
-      <dl class="box-qr-meta">
-        <div>
-          <dt>제품명</dt>
-          <dd>${escapeHtml(productName)}</dd>
-        </div>
-        <div>
-          <dt>박스 정보</dt>
-          <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
-        </div>
-        <div>
-          <dt>포장 날짜</dt>
-          <dd>${escapeHtml(packagingDate)}</dd>
-        </div>
-      </dl>
-      <div class="box-qr-work-fields" aria-label="작업자 기입란">
-        <div class="box-qr-work-field">
-          <span>포장수량</span>
-          <i aria-hidden="true"></i>
-        </div>
-        <div class="box-qr-work-field">
-          <span>작업자 서명</span>
-          <i aria-hidden="true"></i>
-        </div>
-        <div class="box-qr-work-field">
-          <span>관리자 서명</span>
-          <i aria-hidden="true"></i>
-        </div>
-      </div>
-    </article>
-  `;
+function renderInboundQrWorkLabel(labelData) {
+  return renderInboundQrStandardLabel(labelData, "box-qr-label-layout-two");
 }
 
 function getQrProcessStep(value) {
