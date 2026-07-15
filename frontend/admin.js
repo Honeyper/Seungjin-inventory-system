@@ -6360,6 +6360,8 @@ function renderProductDetail(product) {
         ${detailItem("거래처명", product.clientName)}
         ${detailItem("제품명", product.productName)}
         ${detailItem("색상", renderColor(product.color), true)}
+        ${detailItem("박가루 제거 유무", normalizeBinaryOption(product.dustRemovalStatus))}
+        ${detailItem("화염처리 유무", normalizeBinaryOption(product.flameTreatmentStatus))}
         ${detailItem("사용 여부", renderUsageStatus(product.useStatus), true, "full-span")}
       </div>
     </section>
@@ -7092,6 +7094,8 @@ function openProductModal(mode = "create", product = null) {
     productNameInput.value = normalizeEditableValue(product.productName);
     productColor.value = parseProductColorValue(product.color).label;
     updateProductColorPreview();
+    productForm.querySelector(`input[name="productDustRemoval"][value="${normalizeBinaryOption(product.dustRemovalStatus)}"]`)?.click();
+    productForm.querySelector(`input[name="productFlameTreatment"][value="${normalizeBinaryOption(product.flameTreatmentStatus)}"]`)?.click();
     productForm.querySelector(`input[name="productUsage"][value="${normalizeUsageStatus(product.useStatus)}"]`)?.click();
     productOrderQuantity.value = extractQuantityNumber(product.orderQuantity);
     productDueDate.value = toDateInputValue(product.dueDate);
@@ -7250,6 +7254,8 @@ function getProductFormPayload() {
   const orderQuantity = productOrderQuantity.value.trim();
   const boxQuantity = productBoxQuantity.value.trim();
   const trayQuantity = productTrayQuantity.value.trim();
+  const dustRemoval = productForm.querySelector('input[name="productDustRemoval"]:checked')?.value || "무";
+  const flameTreatment = productForm.querySelector('input[name="productFlameTreatment"]:checked')?.value || "무";
   const usage = productForm.querySelector('input[name="productUsage"]:checked')?.value || "사용중";
 
   return {
@@ -7257,6 +7263,8 @@ function getProductFormPayload() {
     "업체명": normalizeClientName(productClientName.value),
     "제품명": productNameInput.value.trim(),
     "색상": productColor.value.trim(),
+    "박가루제거 유무": dustRemoval,
+    "화염처리 유무": flameTreatment,
     "사용 여부": usage,
     "발주량": orderQuantity ? `${Number(orderQuantity).toLocaleString("ko-KR")} ea` : "",
     "납기일": productDueDate.value.trim(),
@@ -7369,6 +7377,10 @@ function normalizeClientName(value) {
 function normalizeUsageStatus(value) {
   const normalized = String(value ?? "").trim();
   return normalized && normalized !== "-" ? normalized : "사용중";
+}
+
+function normalizeBinaryOption(value) {
+  return String(value ?? "").trim() === "유" ? "유" : "무";
 }
 
 function parseProductColorValue(color) {

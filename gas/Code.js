@@ -470,6 +470,8 @@ function setupSheets() {
       '제품명',
       '기본 차수',
       '최종공정',
+      '박가루제거 유무',
+      '화염처리 유무',
       '박스당 수량',
       '사용 여부',
       '비고',
@@ -708,6 +710,8 @@ function getProducts() {
         clientName: normalizeClientName_(pickCell_(row, indexes, ['업체명', '거래처명'])),
         productName: pickCell_(row, indexes, ['제품명']),
         color: pickCell_(row, indexes, ['색상']),
+        dustRemovalStatus: pickCell_(row, indexes, ['박가루제거 유무', '박가루 제거 유무']) || '무',
+        flameTreatmentStatus: pickCell_(row, indexes, ['화염처리 유무', '화염 처리 유무']) || '무',
         useStatus: pickCell_(row, indexes, ['사용 여부', '사용여부']),
         finalProcess: pickCell_(row, indexes, ['최종공정', '최종 공정']),
         orderQuantity: pickCell_(row, indexes, ['발주량', '주문량']),
@@ -990,6 +994,8 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['업체명', '거래처명'], clientName);
   setRowValue_(row, indexes, ['제품명'], payload['제품명']);
   setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
+  setRowValue_(row, indexes, ['박가루제거 유무', '박가루 제거 유무'], payload['박가루제거 유무'] || payload['박가루 제거 유무'] || '무');
+  setRowValue_(row, indexes, ['화염처리 유무', '화염 처리 유무'], payload['화염처리 유무'] || payload['화염 처리 유무'] || '무');
   setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
   setRowValue_(row, indexes, ['최종공정', '최종 공정'], payload['최종공정'] || payload['최종 공정'] || '');
   setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
@@ -1242,6 +1248,8 @@ function updateProduct(payload) {
       setRowValue_(row, indexes, ['업체명', '거래처명'], normalizeClientName_(payload['업체명']));
       setRowValue_(row, indexes, ['제품명'], payload['제품명']);
       setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
+      setRowValue_(row, indexes, ['박가루제거 유무', '박가루 제거 유무'], payload['박가루제거 유무'] || payload['박가루 제거 유무'] || '무');
+      setRowValue_(row, indexes, ['화염처리 유무', '화염 처리 유무'], payload['화염처리 유무'] || payload['화염 처리 유무'] || '무');
       setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
       setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
       setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');

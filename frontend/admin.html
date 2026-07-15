@@ -1763,7 +1763,31 @@
                 </span>
               </label>
 
-              <fieldset class="form-field usage-field">
+              <fieldset class="form-field usage-field full-span">
+                <legend>박가루 제거 유무</legend>
+                <label>
+                  <input type="radio" name="productDustRemoval" value="유" />
+                  <span>유</span>
+                </label>
+                <label>
+                  <input type="radio" name="productDustRemoval" value="무" checked />
+                  <span>무</span>
+                </label>
+              </fieldset>
+
+              <fieldset class="form-field usage-field full-span">
+                <legend>화염처리 유무</legend>
+                <label>
+                  <input type="radio" name="productFlameTreatment" value="유" />
+                  <span>유</span>
+                </label>
+                <label>
+                  <input type="radio" name="productFlameTreatment" value="무" checked />
+                  <span>무</span>
+                </label>
+              </fieldset>
+
+              <fieldset class="form-field usage-field full-span">
                 <legend>사용 여부 <b>*</b></legend>
                 <label>
                   <input type="radio" name="productUsage" value="사용중" checked />
@@ -2090,6 +2114,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260715-shipping-cancel-box-id"></script>
+    <script src="./admin.js?v=20260715-product-treatment-options"></script>
   </body>
 </html>
