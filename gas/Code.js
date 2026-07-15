@@ -2627,7 +2627,13 @@ function saveShippingInspection(payload) {
   const hasGoodReason = defectReasons.includes('양호');
   const anomalyStatus = hasGoodReason ? '정상' : '이상';
   const holdRequested = payload.holdRequested === true || String(payload.holdRequested || '').toLowerCase() === 'true';
-  const stockStatus = holdRequested ? '보류' : '출고대기(검수완료)';
+  const discardRequested = payload.discardRequested === true || String(payload.discardRequested || '').toLowerCase() === 'true';
+
+  if (holdRequested && discardRequested) {
+    throw new Error('출고 보류와 박스 폐기는 동시에 선택할 수 없습니다.');
+  }
+
+  const stockStatus = discardRequested ? '폐기' : holdRequested ? '보류' : '출고대기(검수완료)';
   const inspectionQuantity = toNumber_(payload.inspectionQuantity);
   const defectQuantity = toNumber_(payload.defectQuantity);
 
@@ -2674,7 +2680,17 @@ function saveShippingInspection(payload) {
   });
   const resolvedStockStatus = boxUpdateResult.remainingShippedRows > 0
     ? boxUpdateResult.remainingActiveRows > 0 ? '일부 출고' : '출고완료'
-    : clearShippingWaiting ? '보관' : stockStatus;
+    : clearShippingWaiting
+      ? '보관'
+      : discardRequested
+        ? boxUpdateResult.remainingActiveRows > 0
+          ? boxUpdateResult.remainingStatusCounts['출고대기'] || boxUpdateResult.remainingStatusCounts['출고대기(검수완료)'] || boxUpdateResult.remainingStatusCounts['검수완료']
+            ? '출고대기'
+            : boxUpdateResult.remainingStatusCounts['보류']
+              ? '보류'
+              : '보관'
+          : '폐기'
+        : stockStatus;
   const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, resolvedStockStatus, payload);
 
   return {
@@ -2833,7 +2849,7 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
       .filter((value) => Number.isFinite(value) && value > 0)
   );
   const selectedBoxQuantityMap = buildBoxQuantityMap_(data.boxQuantities || data.selectedBoxQuantities);
-  const requiresSelectedBoxes = ['출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status);
+  const requiresSelectedBoxes = ['출고대기', '출고대기(검수완료)', '검수완료', '출고완료', '폐기'].includes(data.status);
   const clearShippingWaiting = data.clearShippingWaiting === true;
 
   if (managementIndex < 0) {
@@ -2876,8 +2892,12 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     }
 
     const changedQuantity = selectedBoxQuantityMap[sequence];
-    if (currentQuantityIndex >= 0 && Number.isFinite(changedQuantity) && changedQuantity >= 0) {
-      row[currentQuantityIndex] = formatEa_(changedQuantity);
+    if (currentQuantityIndex >= 0) {
+      if (data.status === '폐기') {
+        row[currentQuantityIndex] = formatEa_(0);
+      } else if (Number.isFinite(changedQuantity) && changedQuantity >= 0) {
+        row[currentQuantityIndex] = formatEa_(changedQuantity);
+      }
     }
 
     const currentQuantity = Number.isFinite(changedQuantity) && changedQuantity >= 0
@@ -2911,7 +2931,8 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
   return {
     updatedRows,
     remainingActiveRows: statusSummary.remainingActiveRows,
-    remainingShippedRows: statusSummary.remainingShippedRows
+    remainingShippedRows: statusSummary.remainingShippedRows,
+    remainingStatusCounts: statusSummary.remainingStatusCounts
   };
 }
 
@@ -2922,7 +2943,7 @@ function summarizeShippingInspectionBoxRows_(sheet, managementId, data, sourceVa
     || findHeaderRow_(values, ['관리 ID', '제품명']);
 
   if (!headerInfo) {
-    return { remainingActiveRows: 0, remainingShippedRows: 0 };
+    return { remainingActiveRows: 0, remainingShippedRows: 0, remainingStatusCounts: {} };
   }
 
   const indexes = indexHeaders_(headerInfo.headers);
@@ -2930,6 +2951,7 @@ function summarizeShippingInspectionBoxRows_(sheet, managementId, data, sourceVa
   const quantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
   let remainingActiveRows = 0;
   let remainingShippedRows = 0;
+  const remainingStatusCounts = {};
 
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex];
@@ -2943,10 +2965,11 @@ function summarizeShippingInspectionBoxRows_(sheet, managementId, data, sourceVa
       remainingShippedRows += 1;
     } else if (!/폐기/.test(status) && (quantity > 0 || ['출고대기', '검수완료', '보류'].includes(status))) {
       remainingActiveRows += 1;
+      remainingStatusCounts[status] = (remainingStatusCounts[status] || 0) + 1;
     }
   }
 
-  return { remainingActiveRows, remainingShippedRows };
+  return { remainingActiveRows, remainingShippedRows, remainingStatusCounts };
 }
 
 function updateShippingStatus(payload) {

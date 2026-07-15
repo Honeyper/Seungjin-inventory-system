@@ -3821,6 +3821,24 @@ input {
   font-weight: 800;
 }
 
+.shipping-discard-option {
+  border-color: #edc8c5;
+  background: #fff5f4;
+}
+
+.shipping-discard-option input {
+  border-color: #c34b42;
+}
+
+.shipping-discard-option input:checked {
+  border-color: #a72d25;
+  background: #c83f35;
+}
+
+.shipping-discard-option strong {
+  color: #a72d25;
+}
+
 .shipping-photo-panel {
   display: grid;
   grid-template-columns: minmax(13rem, 0.78fr) minmax(18rem, 1.45fr);

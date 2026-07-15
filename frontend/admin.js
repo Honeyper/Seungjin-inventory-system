@@ -293,6 +293,7 @@ const shippingInspectionPhotoButton = document.querySelector("#shippingInspectio
 const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
 const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
 const shippingInspectionHoldStatus = document.querySelector("#shippingInspectionHoldStatus");
+const shippingInspectionDiscardStatus = document.querySelector("#shippingInspectionDiscardStatus");
 const shippingCompletionModal = document.querySelector("#shippingCompletionModal");
 const shippingCompletionForm = document.querySelector("#shippingCompletionForm");
 const shippingCompletionRecordId = document.querySelector("#shippingCompletionRecordId");
@@ -501,6 +502,16 @@ reinspectFromHoldGuideButton?.addEventListener("click", () => {
 shippingInspectionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingInspection();
+});
+shippingInspectionHoldStatus?.addEventListener("change", () => {
+  if (shippingInspectionHoldStatus.checked && shippingInspectionDiscardStatus) {
+    shippingInspectionDiscardStatus.checked = false;
+  }
+});
+shippingInspectionDiscardStatus?.addEventListener("change", () => {
+  if (shippingInspectionDiscardStatus.checked && shippingInspectionHoldStatus) {
+    shippingInspectionHoldStatus.checked = false;
+  }
 });
 shippingCompletionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -1020,6 +1031,9 @@ async function openShippingInspectionModal(row) {
   setShippingInspectionDefectReasons(row.dataset.defectReason || "양호");
   if (shippingInspectionHoldStatus) {
     shippingInspectionHoldStatus.checked = row.children[12]?.textContent.trim() === "출고 보류";
+  }
+  if (shippingInspectionDiscardStatus) {
+    shippingInspectionDiscardStatus.checked = false;
   }
 
   if (shippingInspectorName) {
@@ -1605,10 +1619,11 @@ async function saveShippingInspection() {
     shippingInspectionForm?.querySelectorAll('input[name="shippingDefectReason"]:checked') || []
   ).map((input) => input.value);
   const selectedBoxes = getSelectedShippingInspectionBoxes();
+  const discardRequested = Boolean(shippingInspectionDiscardStatus?.checked);
   const registeredBoxes = getShippingRowBoxes(row, "activeShippingBoxes").filter((box) => (
     ["출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status))
   ));
-  const clearShippingWaiting = selectedBoxes.length === 0 && registeredBoxes.length > 0;
+  const clearShippingWaiting = !discardRequested && selectedBoxes.length === 0 && registeredBoxes.length > 0;
 
   if (!row) {
     return;
@@ -1734,6 +1749,7 @@ async function saveShippingInspection() {
       defectReasons: selectedReasons,
       memo,
       holdRequested,
+      discardRequested,
       clearShippingWaiting,
       defectPhotoFolderUrl,
       defectPhotoCount
@@ -1751,7 +1767,7 @@ async function saveShippingInspection() {
     row.dataset.defectPhotoCount = String(saveResult?.defectPhotoCount || defectPhotoCount || 0);
     row.dataset.shippingInspectionDate = toDateInputValue(inspectionDate);
     const draftKey = getShippingDraftKeyFromRow(row);
-    if (clearShippingWaiting) {
+    if (clearShippingWaiting || discardRequested) {
       clearShippingBoxDraft(draftKey);
     } else {
       saveShippingBoxDraft(
@@ -1798,7 +1814,7 @@ async function saveShippingInspection() {
     }
 
     const updatedItem = buildShippingDetailItemFromRow(row, {
-      stockStatus: saveResult?.stockStatus || (clearShippingWaiting ? "보관" : holdRequested ? "보류" : "출고대기"),
+      stockStatus: saveResult?.stockStatus || (clearShippingWaiting ? "보관" : discardRequested ? "폐기" : holdRequested ? "보류" : "출고대기"),
       shippingInspectionCount: clearShippingWaiting ? 0 : selectedBoxes.length,
       shippingInspectionQuantity: clearShippingWaiting ? 0 : inspectionQuantity,
       shippingDefectQuantity: clearShippingWaiting ? 0 : defectQuantity,
@@ -1827,6 +1843,8 @@ async function saveShippingInspection() {
     closeShippingInspectionModal();
     if (clearShippingWaiting) {
       showToast("출고대기 박스를 보관 상태로 변경했습니다.");
+    } else if (discardRequested) {
+      showToast(`${selectedBoxes.length}개 박스를 폐기 처리했습니다.`);
     }
     void refreshAdminDataInBackground({ inventory: true });
   } catch (error) {
