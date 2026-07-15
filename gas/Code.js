@@ -2776,7 +2776,7 @@ function isMatchingInventoryRow_(row, indexes, managementIdNames, managementId, 
   const rowBatch = normalizeInventoryIdentityPart_(pickCell_(row, indexes, ['차수']));
   const rowFinalProcess = normalizeInventoryIdentityPart_(pickCell_(row, indexes, ['최종공정', '최종 공정']));
 
-  if (storage && rowStorage && rowStorage !== storage) {
+  if (data.ignoreStorage !== true && storage && rowStorage && rowStorage !== storage) {
     return false;
   }
 
@@ -2945,7 +2945,8 @@ function updateShippingStatus(payload) {
     defectQuantity: payload.defectQuantity,
     defectRate: payload.defectRate || '0%',
     defectReason: payload.defectReason || '양호',
-    defectPhotoFolderUrl: payload.defectPhotoFolderUrl || '-'
+    defectPhotoFolderUrl: payload.defectPhotoFolderUrl || '-',
+    ignoreStorage: true
   });
   let finalStatus = status === '출고완료' && boxUpdateResult.remainingActiveRows > 0
     ? '일부 출고'
@@ -2960,7 +2961,10 @@ function updateShippingStatus(payload) {
           ? '보류'
           : '보관';
   }
-  const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, finalStatus, payload);
+  const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, finalStatus, {
+    ...payload,
+    ignoreStorage: true
+  });
   SpreadsheetApp.flush();
 
   return {
@@ -3760,10 +3764,13 @@ function buildInventoryBoxSummaryMap_(boxRows) {
 
     summary.allShippingBoxes.push(boxInfo);
 
+    if (!/폐기/.test(status)) {
+      summary.storageCounts[storage] = (summary.storageCounts[storage] || 0) + 1;
+    }
+
     if (isActiveBox) {
       summary.boxCount += 1;
       summary.currentQuantity += currentQuantity;
-      summary.storageCounts[storage] = (summary.storageCounts[storage] || 0) + 1;
       summary.statusCounts[status] = (summary.statusCounts[status] || 0) + 1;
       summary.activeShippingBoxes.push(boxInfo);
 
