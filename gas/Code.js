@@ -2998,6 +2998,7 @@ function updateShippingStatus(payload) {
   const inspectionTime = dash_(payload.inspectionTime || shippingTime);
   const inspector = dash_(payload.inspector || shipper);
   const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
+  const selectedBoxIds = Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : [];
   const boxUpdateResult = updateShippingStatusBoxRows_(boxSheet, managementId, {
     productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
     productName: payload.productName || payload['제품명'],
@@ -3011,6 +3012,7 @@ function updateShippingStatus(payload) {
     shippingTime,
     shipper,
     selectedBoxes,
+    selectedBoxIds,
     allowCancelCompleted: payload.allowCancelCompleted === true || String(payload.allowCancelCompleted || '').toLowerCase() === 'true',
     forceCompleteShipping: payload.forceCompleteShipping === true || String(payload.forceCompleteShipping || '').toLowerCase() === 'true',
     autoShippingInspection,
@@ -3227,11 +3229,17 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
   const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
   const currentQuantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
   const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+  const boxIdIndex = findHeaderIndex_(indexes, ['박스ID', '박스 ID']);
   const shippingTypeIndex = findShippingTypeHeaderIndex_(indexes);
   const selectedBoxNumbers = new Set(
     (data.selectedBoxes || [])
       .map((value) => Number(value))
       .filter((value) => Number.isFinite(value) && value > 0)
+  );
+  const selectedBoxIds = new Set(
+    (data.selectedBoxIds || [])
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
   );
   const requiresSelectedBoxes = ['보관', '출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status);
 
@@ -3239,7 +3247,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
   }
 
-  if (requiresSelectedBoxes && !selectedBoxNumbers.size) {
+  if (requiresSelectedBoxes && !selectedBoxNumbers.size && !selectedBoxIds.size) {
     throw new Error('처리할 박스가 없습니다. 박스관리 DB의 박스별 상태를 확인해주세요.');
   }
 
@@ -3255,7 +3263,14 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
 
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex].slice(0, headerInfo.headers.length);
-    if (!isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data)) {
+    const rowBoxId = boxIdIndex >= 0 ? String(row[boxIdIndex] || '').trim() : '';
+    const isDirectBoxIdMatch = Boolean(rowBoxId && selectedBoxIds.has(rowBoxId));
+    const rowManagementId = String(pickCell_(row, indexes, ['관리ID', '관리 ID']) || '').trim();
+    const isSameManagementId = rowManagementId === managementId;
+    const isIdentityMatch = isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data);
+    const canUseBoxIdScope = selectedBoxIds.size > 0 && (isSameManagementId || isDirectBoxIdMatch);
+
+    if (!isIdentityMatch && !canUseBoxIdScope) {
       continue;
     }
 
@@ -3264,7 +3279,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     const rawRowStatus = statusIndex >= 0 ? String(row[statusIndex] || '').trim() : '';
     let rowStatus = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
     const isAlreadyShipped = /출고완료/.test(rowStatus);
-    const isSelectedBox = selectedBoxNumbers.has(sequence);
+    const isSelectedBox = isDirectBoxIdMatch || selectedBoxNumbers.has(sequence);
     const forceCompleteShipping = data.forceCompleteShipping === true;
     const canCancelCompleted = data.status === '보관'
       && data.allowCancelCompleted === true

@@ -2141,6 +2141,7 @@ function cancelCompletedShipping(row, button) {
     .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료")
     .map((box) => ({
       number: Number(box.number),
+      boxId: String(box.boxId || "").trim(),
       quantity: parseShippingSettlementNumber(box.quantity || "")
     }))
     .filter((box) => Number.isFinite(box.number) && box.number > 0);
@@ -2168,7 +2169,7 @@ function cancelCompletedShipping(row, button) {
       const shippingTime = box.shippingTime ? ` ${escapeHtml(box.shippingTime)}` : "";
       return `
         <label class="shipping-box-check-card">
-          <input type="checkbox" name="shippingCancelBox" value="${box.number}" data-quantity="${box.quantity}" />
+          <input type="checkbox" name="shippingCancelBox" value="${box.number}" data-box-id="${escapeAttribute(box.boxId)}" data-quantity="${box.quantity}" />
           <span>
             <strong>${box.number}번 박스</strong>
             <small>${formatNumber(box.quantity)} ea · ${escapeHtml(shippingDate)}${shippingTime}</small>
@@ -2212,6 +2213,7 @@ function getSelectedShippingCancelBoxes() {
   return Array.from(shippingCancelBoxList?.querySelectorAll('input[name="shippingCancelBox"]:checked') || [])
     .map((input) => ({
       number: Number(input.value),
+      boxId: String(input.dataset.boxId || "").trim(),
       quantity: parseShippingSettlementNumber(input.dataset.quantity || "")
     }))
     .filter((box) => Number.isFinite(box.number) && box.number > 0);
@@ -2253,6 +2255,7 @@ async function confirmShippingCancellation() {
   try {
     await updateShippingStatus(row, "보관", {
       selectedBoxes: selectedBoxes.map((box) => box.number),
+      selectedBoxIds: selectedBoxes.map((box) => box.boxId).filter(Boolean),
       allowCancelCompleted: true
     });
     closeShippingCancelModal();
