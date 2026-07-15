@@ -4183,6 +4183,11 @@ function getProductProcessTreatments(product) {
   return treatments;
 }
 
+function formatAdditionalProcess(product) {
+  const treatments = getProductProcessTreatments(product);
+  return treatments.length ? treatments.join(", ") : "-";
+}
+
 function getBaseProcessValue(value) {
   return String(value || "").split("|")[0].trim();
 }
@@ -5754,6 +5759,8 @@ function renderProducts() {
         <td>${escapeHtml(product.clientName)}</td>
         <td><strong>${escapeHtml(product.productCode)}</strong></td>
         <td>${escapeHtml(product.productName)}</td>
+        <td>${escapeHtml(getBaseProcessValue(product.finalProcess) || "-")}</td>
+        <td>${escapeHtml(formatAdditionalProcess(product))}</td>
         <td>${renderColor(product.color)}</td>
         <td>${escapeHtml(product.boxQuantity)}</td>
         <td>${escapeHtml(product.trayQuantity)}</td>
