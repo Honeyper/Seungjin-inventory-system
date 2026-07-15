@@ -4486,7 +4486,7 @@ function renderInventoryLoading() {
 
   inventoryTableBody.innerHTML = `
     <tr>
-      <td colspan="13" class="empty-cell">재고 정보를 불러오는 중입니다.</td>
+      <td colspan="14" class="empty-cell">재고 정보를 불러오는 중입니다.</td>
     </tr>
   `;
 }
@@ -5251,6 +5251,7 @@ function renderInventoryAggregateRow(rows) {
     <tr class="inventory-total-row">
       <td><span class="inventory-total-label">합계</span></td>
       <td><span class="inventory-total-muted">-</span></td>
+      <td><span class="inventory-total-muted">-</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.totalRows)}건</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.clientCount)}곳</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.productCount)}품목</span></td>
@@ -5281,7 +5282,7 @@ function renderInventoryTable(message = "") {
   if (message || !rows.length) {
     inventoryTableBody.innerHTML = `
       <tr>
-        <td colspan="13" class="empty-cell">${escapeHtml(message || "재고 목록이 없습니다.")}</td>
+        <td colspan="14" class="empty-cell">${escapeHtml(message || "재고 목록이 없습니다.")}</td>
       </tr>
     `;
   } else {
@@ -5291,6 +5292,7 @@ function renderInventoryTable(message = "") {
       <tr>
         <td>${renderQrActionButton(item, "inventory")}</td>
         <td>${escapeHtml(item.inboundDate)}</td>
+        <td>${escapeHtml(toDateInputValue(item.shippingDate) || "-")}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
         <td>${escapeHtml(item.clientName)}</td>
         <td>${escapeHtml(item.productName)}</td>
