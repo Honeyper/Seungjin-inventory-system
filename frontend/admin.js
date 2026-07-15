@@ -262,6 +262,13 @@ const shippingStorageFilter = shippingFilterSelects[1] || null;
 const shippingInspectionFilter = shippingFilterSelects[2] || null;
 const shippingStatusFilter = shippingFilterSelects[3] || null;
 const shippingFilterResetButton = shippingFilterPanel?.querySelector(".shipping-filter-actions .secondary-action") || null;
+const shippingSearchSummary = document.querySelector("#shippingSearchSummary");
+const shippingSearchSummaryTitle = document.querySelector("#shippingSearchSummaryTitle");
+const shippingSearchSummaryCaption = document.querySelector("#shippingSearchSummaryCaption");
+const shippingSearchOrderQuantity = document.querySelector("#shippingSearchOrderQuantity");
+const shippingSearchShippedQuantity = document.querySelector("#shippingSearchShippedQuantity");
+const shippingSearchShippingRate = document.querySelector("#shippingSearchShippingRate");
+const shippingSearchProgressBar = document.querySelector("#shippingSearchProgressBar");
 const shippingInspectionModal = document.querySelector("#shippingInspectionModal");
 const shippingInspectionForm = document.querySelector("#shippingInspectionForm");
 const shippingInspectionMessage = document.querySelector("#shippingInspectionMessage");
@@ -2431,6 +2438,7 @@ function renderShippingLoading() {
   }
 
   updateShippingSummaryCards([]);
+  renderShippingSearchSummary([]);
   updateShippingSettlementSummary();
 
   if (shippingCountLabel) {
@@ -2447,6 +2455,7 @@ function renderShippingTable(message = "") {
   const sourceRows = getShippingSourceRows();
   renderShippingFilterOptions(sourceRows);
   const rows = getShippingRows(sourceRows);
+  renderShippingSearchSummary(sourceRows);
 
   if (message || !rows.length) {
     shippingTableBody.innerHTML = `
@@ -2522,6 +2531,89 @@ function renderShippingTable(message = "") {
     shippingCountLabel.textContent = `전체 ${rows.length.toLocaleString("ko-KR")}건`;
   }
   renderShippingPagination(pageCount);
+}
+
+function renderShippingSearchSummary(sourceRows = getShippingSourceRows()) {
+  if (!shippingSearchSummary) {
+    return;
+  }
+
+  const query = String(state.shippingFilters.query || "").trim().toLowerCase();
+  const clientFilter = state.shippingFilters.client || "";
+  const matchingRows = query ? sourceRows.filter((item) => {
+    if (clientFilter && item.clientName !== clientFilter) {
+      return false;
+    }
+    return String(item.productName || "").toLowerCase().includes(query);
+  }) : [];
+
+  if (!query || !matchingRows.length) {
+    shippingSearchSummary.hidden = true;
+    return;
+  }
+
+  const productKeys = new Set(matchingRows.map(getShippingProductKey));
+  const matchedProducts = state.products.filter((product) => productKeys.has(getShippingProductKey(product)));
+  const orderQuantity = matchedProducts.reduce(
+    (total, product) => total + getQuantityNumberFromText(product.orderQuantity),
+    0
+  );
+  const shippedBoxKeys = new Set();
+  const shippedQuantity = sourceRows.reduce((total, item) => {
+    if (!productKeys.has(getShippingProductKey(item))) {
+      return total;
+    }
+
+    return total + (Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : []).reduce((boxTotal, box, index) => {
+      const boxKey = String(box.boxId || `${item.managementId || getShippingProductKey(item)}:${box.number || index + 1}`);
+      if (shippedBoxKeys.has(boxKey)) {
+        return boxTotal;
+      }
+      shippedBoxKeys.add(boxKey);
+      return boxTotal + parseShippingSettlementNumber(box.quantity);
+    }, 0);
+  }, 0);
+  const rate = orderQuantity > 0 ? (shippedQuantity / orderQuantity) * 100 : 0;
+  const progressWidth = Math.max(0, Math.min(rate, 100));
+  const matchedProductNames = [...new Set(matchingRows.map((item) => String(item.productName || "").trim()).filter(Boolean))];
+
+  shippingSearchSummary.hidden = false;
+  if (shippingSearchSummaryTitle) {
+    shippingSearchSummaryTitle.textContent = matchedProductNames.length === 1
+      ? matchedProductNames[0]
+      : `${matchedProductNames.length.toLocaleString("ko-KR")}개 제품 검색 합계`;
+  }
+  if (shippingSearchSummaryCaption) {
+    shippingSearchSummaryCaption.textContent = orderQuantity > 0
+      ? `발주량 대비 ${formatShippingSettlementPercent(rate)}% 출고되었습니다.`
+      : "등록된 발주량이 없어 출고율을 계산할 수 없습니다.";
+  }
+  if (shippingSearchOrderQuantity) {
+    shippingSearchOrderQuantity.textContent = orderQuantity > 0
+      ? formatShippingSettlementNumber(orderQuantity)
+      : "-";
+  }
+  if (shippingSearchShippedQuantity) {
+    shippingSearchShippedQuantity.textContent = formatShippingSettlementNumber(shippedQuantity);
+  }
+  if (shippingSearchShippingRate) {
+    shippingSearchShippingRate.textContent = orderQuantity > 0
+      ? formatShippingSettlementPercent(rate)
+      : "-";
+  }
+  if (shippingSearchProgressBar) {
+    shippingSearchProgressBar.style.width = `${progressWidth}%`;
+  }
+}
+
+function getShippingProductKey(item = {}) {
+  const productId = String(item.productId || item.productCode || "").trim().toLowerCase();
+  if (productId) {
+    return `id:${productId}`;
+  }
+  const clientName = String(item.clientName || "").replace(/\s+/g, "").trim().toLowerCase();
+  const productName = String(item.productName || "").replace(/\s+/g, "").trim().toLowerCase();
+  return `name:${clientName}|${productName}`;
 }
 
 function renderShippingFilterOptions(rows = []) {
@@ -4173,12 +4265,18 @@ async function loadProducts() {
     renderClientFilterOptions();
     renderInboundProductPicker();
     applyFilters();
+    if (state.inventoryLoaded && state.shippingFilters.query) {
+      renderShippingSearchSummary();
+    }
   } catch (error) {
     state.products = [];
     renderClientOptions();
     renderClientFilterOptions();
     renderInboundProductPicker();
     applyFilters();
+    if (state.inventoryLoaded && state.shippingFilters.query) {
+      renderShippingSearchSummary();
+    }
     setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
   }
 }

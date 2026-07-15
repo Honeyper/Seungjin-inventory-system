@@ -2297,6 +2297,112 @@ input {
   margin-top: 0.9rem;
 }
 
+.shipping-search-summary {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1.2fr) minmax(24rem, 1.8fr);
+  gap: 0.9rem 1.4rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.85rem 1.05rem 0.95rem;
+  border-bottom: 1px solid #dfe7f1;
+  background: linear-gradient(90deg, #f8fbff 0%, #ffffff 58%, #f9fbfe 100%);
+}
+
+.shipping-search-summary[hidden] {
+  display: none;
+}
+
+.shipping-search-summary-heading {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.shipping-search-summary-heading > div {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.shipping-search-summary-heading span,
+.shipping-search-summary-metrics span {
+  color: #68778c;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.shipping-search-summary-heading strong {
+  overflow: hidden;
+  color: var(--navy-dark);
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shipping-search-summary-heading p {
+  margin: 0;
+  color: #68778c;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.shipping-search-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+}
+
+.shipping-search-summary-metrics > div {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+  padding: 0.08rem 1rem;
+  border-left: 1px solid #dfe7f1;
+}
+
+.shipping-search-summary-metrics strong {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  color: var(--navy-dark);
+  white-space: nowrap;
+}
+
+.shipping-search-summary-metrics b {
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.shipping-search-summary-metrics em {
+  color: #65758b;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.shipping-search-summary-metrics .shipping-search-summary-rate b {
+  color: var(--gold);
+}
+
+.shipping-search-progress {
+  position: relative;
+  overflow: hidden;
+  grid-column: 1 / -1;
+  height: 0.38rem;
+  border-radius: 999px;
+  background: #e5ebf4;
+}
+
+.shipping-search-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold), #0c5fd8);
+  transition: width 0.24s ease;
+}
+
 .shipping-filter-page-size {
   justify-self: auto;
 }
@@ -6814,6 +6920,14 @@ input {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .shipping-search-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .shipping-search-progress {
+    grid-column: 1;
+  }
+
   .inbound-summary-card {
     position: static;
   }
@@ -6868,6 +6982,16 @@ input {
   .shipping-settlement-grid,
   .shipping-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .shipping-search-summary-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .shipping-search-summary-metrics > div {
+    padding: 0.45rem 0;
+    border-top: 1px solid #e4eaf2;
+    border-left: 0;
   }
 
   .shipping-box-section-header {

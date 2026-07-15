@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260714-box-shipping-cancel" />
+    <link rel="stylesheet" href="./styles.css?v=20260715-shipping-search-summary" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1075,6 +1075,32 @@
                 </label>
               </div>
             </div>
+            <section class="shipping-search-summary" id="shippingSearchSummary" aria-live="polite" hidden>
+              <div class="shipping-search-summary-heading">
+                <div>
+                  <span>검색 제품 출고 현황</span>
+                  <strong id="shippingSearchSummaryTitle">-</strong>
+                </div>
+                <p id="shippingSearchSummaryCaption">제품명을 검색하면 발주량 대비 출고 현황을 확인할 수 있습니다.</p>
+              </div>
+              <div class="shipping-search-summary-metrics">
+                <div>
+                  <span>발주량</span>
+                  <strong><b id="shippingSearchOrderQuantity">0</b><em>ea</em></strong>
+                </div>
+                <div>
+                  <span>출고량</span>
+                  <strong><b id="shippingSearchShippedQuantity">0</b><em>ea</em></strong>
+                </div>
+                <div class="shipping-search-summary-rate">
+                  <span>발주량 대비 출고량</span>
+                  <strong><b id="shippingSearchShippingRate">0</b><em>%</em></strong>
+                </div>
+              </div>
+              <div class="shipping-search-progress" aria-hidden="true">
+                <span id="shippingSearchProgressBar"></span>
+              </div>
+            </section>
             <div class="table-scroll">
               <table class="product-table shipping-table">
                 <thead>
@@ -2056,6 +2082,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260714-box-shipping-cancel"></script>
+    <script src="./admin.js?v=20260715-shipping-search-summary"></script>
   </body>
 </html>
