@@ -2866,6 +2866,23 @@ input {
   display: none;
 }
 
+.shipping-action-trigger.icon-only {
+  width: 2.35rem;
+  min-width: 2.35rem;
+  padding: 0;
+}
+
+.shipping-action-trigger.icon-only svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
+}
+
+.shipping-partial-actions {
+  flex-wrap: nowrap;
+  max-width: none;
+}
+
 .shipping-action-menu[open] .shipping-action-trigger {
   background: linear-gradient(180deg, #0b3b86, #062863);
 }

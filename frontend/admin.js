@@ -591,6 +591,17 @@ shippingCompletionBoxList?.addEventListener("change", () => {
   syncShippingCompletionBoxState();
 });
 shippingTable?.addEventListener("click", (event) => {
+  const menuTrigger = event.target.closest(".shipping-action-trigger");
+  if (menuTrigger) {
+    const currentMenu = menuTrigger.closest(".shipping-action-menu");
+    shippingTable.querySelectorAll(".shipping-action-menu[open]").forEach((menu) => {
+      if (menu !== currentMenu) {
+        menu.removeAttribute("open");
+      }
+    });
+    return;
+  }
+
   const button = event.target.closest("[data-shipping-action]");
   if (!button) {
     return;
@@ -2896,6 +2907,29 @@ function renderShippingRowAction(item) {
   const cancelShippingButton = shippedBoxes.length
     ? '<button class="shipping-row-button secondary" type="button" data-shipping-action="cancelShip">출고 취소</button>'
     : "";
+
+  if (isPartialShipping) {
+    const additionalShippingAction = counts["출고대기"] ? "ship" : "inspect";
+    return `
+      <div class="shipping-action-group shipping-partial-actions">
+        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">수정</button>
+        <details class="shipping-action-menu">
+          <summary class="shipping-action-trigger icon-only" title="일부 출고 관리" aria-label="일부 출고 관리 메뉴">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="5" cy="12" r="1.8"></circle>
+              <circle cx="12" cy="12" r="1.8"></circle>
+              <circle cx="19" cy="12" r="1.8"></circle>
+            </svg>
+          </summary>
+          <div class="shipping-action-popover">
+            <button class="shipping-action-menu-item" type="button" data-shipping-action="detail">상세</button>
+            <button class="shipping-action-menu-item primary" type="button" data-shipping-action="${additionalShippingAction}">추가 출고</button>
+            <button class="shipping-action-menu-item danger" type="button" data-shipping-action="cancelShip">출고 취소</button>
+          </div>
+        </details>
+      </div>
+    `;
+  }
 
   if (counts["출고대기"]) {
     return `
