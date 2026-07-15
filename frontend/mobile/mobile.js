@@ -45,7 +45,7 @@ const SHIPPING_SORT_OPTIONS = [
   { key: "productName", label: "이름순" },
   { key: "clientName", label: "거래처명순" },
   { key: "boxQuantity", label: "박스당 수량 많은 순" },
-  { key: "scannedBoxes", label: "스캔박스순" },
+  { key: "scannedBoxes", label: "최근 스캔순" },
   { key: "quantity", label: "수량 많은 순" }
 ];
 
@@ -782,7 +782,7 @@ function sortShippingRows(rows) {
       return getShippingAvailableQuantity(b) - getShippingAvailableQuantity(a) || compareShippingText(a.productName, b.productName);
     }
 
-    return getShippingBoxCount(b) - getShippingBoxCount(a) || compareShippingText(a.productName, b.productName);
+    return parseNumber(a.scanOrder) - parseNumber(b.scanOrder);
   });
 
   return sortedRows;
@@ -897,7 +897,7 @@ function groupScannedShippingRows(rows) {
 function groupScannedShippingRowsForDisplay(rows) {
   const groups = new Map();
 
-  rows.forEach((row) => {
+  rows.forEach((row, index) => {
     const key = getShippingDisplayCardKey(row);
     if (!groups.has(key)) {
       groups.set(key, {
@@ -908,7 +908,8 @@ function groupScannedShippingRowsForDisplay(rows) {
         scannedBoxCount: 0,
         scannedTotalQuantity: 0,
         scannedCurrentQuantity: 0,
-        managementCount: 0
+        managementCount: 0,
+        scanOrder: index
       });
     }
 
