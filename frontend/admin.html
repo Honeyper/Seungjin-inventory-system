@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260715-zero-quantity-shipping" />
+    <link rel="stylesheet" href="./styles.css?v=20260715-shipping-filter-row" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1058,22 +1058,22 @@
                     <option>출고 완료</option>
                   </select>
                 </label>
-              </div>
-              <div class="shipping-filter-actions">
-                <button class="secondary-action" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M19 12a7 7 0 1 1-2.05-4.95" />
-                    <path d="M19 5v5h-5" />
-                  </svg>
-                  초기화
-                </button>
-                <label class="page-size shipping-filter-page-size">
-                  <select id="shippingPageSizeSelect">
-                    <option value="10">10개씩 보기</option>
-                    <option value="20">20개씩 보기</option>
-                    <option value="30">30개씩 보기</option>
-                  </select>
-                </label>
+                <div class="shipping-filter-actions">
+                  <button class="secondary-action" type="button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+                      <path d="M19 5v5h-5" />
+                    </svg>
+                    초기화
+                  </button>
+                  <label class="page-size shipping-filter-page-size">
+                    <select id="shippingPageSizeSelect">
+                      <option value="10">10개씩 보기</option>
+                      <option value="20">20개씩 보기</option>
+                      <option value="30">30개씩 보기</option>
+                    </select>
+                  </label>
+                </div>
               </div>
             </div>
             <section class="shipping-search-summary" id="shippingSearchSummary" aria-live="polite" hidden>
@@ -2083,6 +2083,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260715-inventory-shipping-date"></script>
+    <script src="./admin.js?v=20260715-shipping-filter-row"></script>
   </body>
 </html>

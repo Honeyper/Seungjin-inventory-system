@@ -2228,6 +2228,7 @@ input {
 }
 
 .shipping-list-filter .shipping-filter-grid {
+  grid-template-columns: minmax(13rem, 1.2fr) repeat(4, minmax(9rem, 1fr)) auto;
   margin-top: 0;
 }
 
@@ -2294,7 +2295,8 @@ input {
   justify-content: flex-end;
   align-items: center;
   gap: 0.6rem;
-  margin-top: 0.9rem;
+  margin-top: 0;
+  white-space: nowrap;
 }
 
 .shipping-search-summary {
@@ -6937,6 +6939,14 @@ input {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .shipping-list-filter .shipping-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shipping-list-filter .shipping-filter-actions {
+    grid-column: 1 / -1;
+  }
+
   .shipping-search-summary {
     grid-template-columns: 1fr;
   }
@@ -6998,6 +7008,10 @@ input {
   .shipping-filter-grid,
   .shipping-settlement-grid,
   .shipping-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shipping-list-filter .shipping-filter-grid {
     grid-template-columns: 1fr;
   }
 
