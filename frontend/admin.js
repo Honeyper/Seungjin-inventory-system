@@ -2918,6 +2918,40 @@ function renderShippingAnomalyText(item) {
   return status === "보류" ? "이상" : "정상";
 }
 
+function normalizeCompletedShippingTypeLabel(value) {
+  const shippingType = String(value || "").trim();
+
+  if (!shippingType || shippingType === "-" || /^정상\s*출고$/.test(shippingType)) {
+    return "출고 완료";
+  }
+
+  if (/^반출/.test(shippingType)) {
+    return "반출";
+  }
+
+  if (/^이관/.test(shippingType)) {
+    return "이관";
+  }
+
+  if (/^외주/.test(shippingType)) {
+    return "외주";
+  }
+
+  return shippingType;
+}
+
+function getCompletedShippingStatusLabel(item) {
+  const labels = [...new Set((Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : [])
+    .map((box) => normalizeCompletedShippingTypeLabel(box.shippingType))
+    .filter(Boolean))];
+
+  if (!labels.length) {
+    return "출고 완료";
+  }
+
+  return labels.length === 1 ? labels[0] : "혼합 출고";
+}
+
 function renderShippingStatusBadge(item) {
   const status = getEffectiveShippingStatus(item);
   const counts = getShippingBoxStatusCounts(item);
@@ -2943,7 +2977,7 @@ function renderShippingStatusBadge(item) {
   }
 
   if (status === "출고완료") {
-    return '<span class="shipping-badge complete">출고 완료</span>';
+    return `<span class="shipping-badge complete">${escapeHtml(getCompletedShippingStatusLabel(item))}</span>`;
   }
 
   if (status === "보류") {
@@ -3013,9 +3047,20 @@ function renderShippingRowAction(item) {
 
   if (status === "출고완료") {
     return `
-      <div class="shipping-action-group">
+      <div class="shipping-action-group shipping-partial-actions">
         <button class="shipping-action-complete" type="button" data-shipping-action="detail">상세</button>
-        ${cancelShippingButton}
+        <details class="shipping-action-menu">
+          <summary class="shipping-action-trigger icon-only" title="출고 완료 관리" aria-label="출고 완료 관리 메뉴">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="5" cy="12" r="1.8"></circle>
+              <circle cx="12" cy="12" r="1.8"></circle>
+              <circle cx="19" cy="12" r="1.8"></circle>
+            </svg>
+          </summary>
+          <div class="shipping-action-popover">
+            <button class="shipping-action-menu-item danger" type="button" data-shipping-action="cancelShip">출고 취소</button>
+          </div>
+        </details>
       </div>
     `;
   }
