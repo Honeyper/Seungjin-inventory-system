@@ -730,12 +730,13 @@ function getProducts() {
   };
 }
 
-function getProductFinalProcess_(productId, productName) {
+function getProductProcessInfo_(productId, productName) {
   const targetProductId = String(productId || '').trim();
   const targetProductName = String(productName || '').trim();
+  const emptyInfo = { finalProcess: '', dustRemovalStatus: '무', flameTreatmentStatus: '무' };
 
   if (!targetProductId && !targetProductName) {
-    return '';
+    return emptyInfo;
   }
 
   const sheet = getProductSheet_();
@@ -743,28 +744,49 @@ function getProductFinalProcess_(productId, productName) {
   const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
 
   if (!headerInfo) {
-    return '';
+    return emptyInfo;
   }
 
   const indexes = indexHeaders_(headerInfo.headers);
-  let nameMatchedProcess = '';
+  let nameMatchedInfo = null;
 
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex];
     const rowProductId = String(pickCell_(row, indexes, ['제품 ID', '제품ID']) || '').trim();
     const rowProductName = String(pickCell_(row, indexes, ['제품명']) || '').trim();
-    const finalProcess = String(pickCell_(row, indexes, ['최종공정', '최종 공정']) || '').trim();
+    const processInfo = {
+      finalProcess: String(pickCell_(row, indexes, ['최종공정', '최종 공정']) || '').trim(),
+      dustRemovalStatus: String(pickCell_(row, indexes, ['박가루제거 유무', '박가루 제거 유무']) || '무').trim(),
+      flameTreatmentStatus: String(pickCell_(row, indexes, ['화염처리 유무', '화염 처리 유무']) || '무').trim()
+    };
 
     if (targetProductId && rowProductId === targetProductId) {
-      return finalProcess;
+      return processInfo;
     }
 
-    if (!nameMatchedProcess && targetProductName && rowProductName === targetProductName) {
-      nameMatchedProcess = finalProcess;
+    if (!nameMatchedInfo && targetProductName && rowProductName === targetProductName) {
+      nameMatchedInfo = processInfo;
     }
   }
 
-  return nameMatchedProcess;
+  return nameMatchedInfo || emptyInfo;
+}
+
+function formatProductProcess_(process, productInfo) {
+  const baseProcess = String(process || productInfo.finalProcess || '')
+    .split('|')[0]
+    .trim();
+  const labels = [baseProcess];
+
+  if (String(productInfo.flameTreatmentStatus || '').trim() === '유') {
+    labels.push('화염처리');
+  }
+
+  if (String(productInfo.dustRemovalStatus || '').trim() === '유') {
+    labels.push('박가루제거');
+  }
+
+  return labels.filter(Boolean).join(' | ');
 }
 
 function getProductDueDateMap_() {
@@ -1443,8 +1465,11 @@ function createInbound(payload) {
   payload.productId = String(payload.productId || payload.productCode || payload['제품ID'] || payload['제품 ID'] || '').trim();
   payload.productName = String(payload.productName || payload['제품명'] || '').trim();
   payload.clientName = String(payload.clientName || payload['업체명'] || payload['거래처명'] || '').trim();
-  payload.process = getProductFinalProcess_(payload.productId, payload.productName)
-    || String(payload.process || payload['최종공정'] || payload['최종 공정'] || '').trim();
+  const productProcessInfo = getProductProcessInfo_(payload.productId, payload.productName);
+  payload.process = formatProductProcess_(
+    String(payload.process || payload['최종공정'] || payload['최종 공정'] || '').trim(),
+    productProcessInfo
+  );
   payload.storage = String(payload.storage || payload.storageLocation || payload['보관위치'] || payload['보관 위치'] || '').trim();
 
   const category = normalizeInboundCategory_(payload);
@@ -1582,8 +1607,11 @@ function updateInbound(payload) {
   const inboundDate = String(payload.inboundDate || payload['입고일'] || '').trim();
   const inboundTime = String(payload.inboundTime || payload['입고 시간'] || payload['입고시간'] || '').trim();
   const inboundType = String(payload.inboundType || payload['입고 유형'] || payload['입고유형'] || '').trim();
-  const process = getProductFinalProcess_(payloadProductId, payload.productName || payload['제품명'])
-    || String(payload.process || payload['최종공정'] || '').trim();
+  const productProcessInfo = getProductProcessInfo_(payloadProductId, payload.productName || payload['제품명']);
+  const process = formatProductProcess_(
+    String(payload.process || payload['최종공정'] || '').trim(),
+    productProcessInfo
+  );
   const storage = String(payload.storage || payload['보관위치'] || '').trim();
   const stockStatus = String(payload.stockStatus || payload.status || payload['상태'] || payload['재고 상태'] || '보관').trim();
   const defectReason = String(payload.defectReason || payload['불량 사유'] || payload['불량사유'] || '').trim();

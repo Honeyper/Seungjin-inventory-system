@@ -177,6 +177,7 @@ const inboundType = document.querySelector("#inboundType");
 const inboundDueDate = document.querySelector("#inboundDueDate");
 const inboundClient = document.querySelector("#inboundClient");
 const editInboundClientButton = document.querySelector("#editInboundClientButton");
+const editInboundProcessButton = document.querySelector("#editInboundProcessButton");
 const inboundBoxQty = document.querySelector("#inboundBoxQty");
 const editInboundBoxQtyButton = document.querySelector("#editInboundBoxQtyButton");
 const inboundTrayQty = document.querySelector("#inboundTrayQty");
@@ -702,6 +703,9 @@ inboundDefectFiles?.addEventListener("change", () => {
 
 editInboundClientButton.addEventListener("click", () => {
   setInboundClientEditable(inboundClient.disabled);
+});
+editInboundProcessButton.addEventListener("click", () => {
+  setInboundProcessEditable(inboundProcess.disabled);
 });
 editInboundBoxQtyButton.addEventListener("click", () => {
   setInboundLockedFieldEditable(inboundBoxQty, editInboundBoxQtyButton, inboundBoxQty.disabled);
@@ -4079,6 +4083,10 @@ function setInboundClientEditable(isEditable) {
   setInboundLockedFieldEditable(inboundClient, editInboundClientButton, isEditable);
 }
 
+function setInboundProcessEditable(isEditable) {
+  setInboundLockedFieldEditable(inboundProcess, editInboundProcessButton, isEditable);
+}
+
 function setInboundLockedFieldEditable(input, button, isEditable) {
   input.disabled = !isEditable;
   const actionLabel = isEditable ? "잠금" : "수정";
@@ -4089,7 +4097,7 @@ function setInboundLockedFieldEditable(input, button, isEditable) {
 
   if (isEditable) {
     input.focus();
-    input.select();
+    input.select?.();
   }
 }
 
@@ -4161,12 +4169,53 @@ function renderInboundProductPicker() {
   });
 }
 
+function getProductProcessTreatments(product) {
+  const treatments = [];
+
+  if (normalizeBinaryOption(product?.flameTreatmentStatus) === "유") {
+    treatments.push("화염처리");
+  }
+
+  if (normalizeBinaryOption(product?.dustRemovalStatus) === "유") {
+    treatments.push("박가루제거");
+  }
+
+  return treatments;
+}
+
+function getBaseProcessValue(value) {
+  return String(value || "").split("|")[0].trim();
+}
+
+function formatProductProcessLabel(product, process) {
+  return [getBaseProcessValue(process), ...getProductProcessTreatments(product)]
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function renderProductProcessOptionList(product, currentProcess) {
+  const currentBaseProcess = getBaseProcessValue(currentProcess || product?.finalProcess);
+  const processOptions = ["", "1도", "2도", "3도", "코팅"];
+
+  return processOptions.map((process) => {
+    const value = process ? formatProductProcessLabel(product, process) : "";
+    const selected = process === currentBaseProcess ? " selected" : "";
+    const disabled = process ? "" : " disabled";
+    return `<option value="${escapeAttribute(value)}"${selected}${disabled}>${escapeHtml(value || "선택하세요.")}</option>`;
+  }).join("");
+}
+
+function renderInboundProcessOptions(product, currentProcess) {
+  inboundProcess.innerHTML = renderProductProcessOptionList(product, currentProcess);
+}
+
 function selectInboundProduct(product) {
   inboundProductName.value = normalizeDisplayValue(product.productName);
   inboundProductId.value = normalizeDisplayValue(product.productCode);
   inboundClient.value = normalizeDisplayValue(product.clientName);
-  setSelectValue(inboundProcess, product.finalProcess);
+  renderInboundProcessOptions(product, product.finalProcess);
   setInboundClientEditable(false);
+  setInboundProcessEditable(false);
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);
   const trayQuantity = extractQuantityNumber(product.trayQuantity);
@@ -6569,7 +6618,8 @@ function parseAttachmentUrls(value) {
 
 function renderInboundEditForm(inbound) {
   state.inboundEditDefectReasons = parseDefectReasonList(inbound.defectReason);
-  const inboundFinalProcess = getProductByCode(inbound.productId)?.finalProcess || inbound.process;
+  const inboundProduct = getProductByCode(inbound.productId);
+  const inboundFinalProcess = inbound.process || inboundProduct?.finalProcess;
 
   inboundDetailContent.innerHTML = `
     <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditReadonlyTitle">
@@ -6610,9 +6660,14 @@ function renderInboundEditForm(inbound) {
         </label>
         <label class="form-field">
           <span>최종공정 <b>*</b></span>
-          <select id="inboundEditProcess" disabled>
-            ${renderOptionList(["", "1도", "2도", "3도", "코팅"], normalizeEditableValue(inboundFinalProcess), "선택하세요.")}
-          </select>
+          <span class="editable-lock-input">
+            <select id="inboundEditProcess" disabled>
+              ${renderProductProcessOptionList(inboundProduct, inboundFinalProcess)}
+            </select>
+            <button type="button" aria-label="최종공정 수정" title="수정" aria-pressed="false" data-edit-lock-target="inboundEditProcess">
+              ${renderEditLockIcons()}
+            </button>
+          </span>
         </label>
         <label class="form-field">
           <span>보관위치 <b>*</b></span>

@@ -5470,7 +5470,8 @@ input {
   margin: 0 !important;
 }
 
-.editable-lock-input input {
+.editable-lock-input input,
+.editable-lock-input select {
   padding-right: 3.2rem !important;
 }
 
