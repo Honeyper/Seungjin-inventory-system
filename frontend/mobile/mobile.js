@@ -1737,13 +1737,14 @@ async function completeShippingItems(items, action = "complete") {
   const groups = groupScannedShippingRows(items);
   const results = await mapWithConcurrency(groups, SHIPPING_ACTION_CONCURRENCY, async (group) => {
     const selectedBoxes = getSelectedBoxNumbers(group);
-    if (!selectedBoxes.length) {
+    const selectedBoxIds = getSelectedBoxIds(group, selectedBoxes);
+    if (!selectedBoxes.length && !selectedBoxIds.length) {
       return { completedCount: 0, failedItems: group.scannedItems };
     }
 
     try {
-      await completeShippingItem(group, selectedBoxes, action);
-      return { completedCount: selectedBoxes.length, failedItems: [] };
+      await completeShippingItem(group, selectedBoxes, action, selectedBoxIds);
+      return { completedCount: Math.max(selectedBoxes.length, selectedBoxIds.length), failedItems: [] };
     } catch (error) {
       return { completedCount: 0, failedItems: group.scannedItems };
     }
@@ -1841,7 +1842,7 @@ async function mapWithConcurrency(items, concurrency, callback) {
   return results;
 }
 
-async function completeShippingItem(item, selectedBoxes, action = "complete") {
+async function completeShippingItem(item, selectedBoxes, action = "complete", selectedBoxIds = getSelectedBoxIds(item, selectedBoxes)) {
   const now = new Date();
   const isPendingAction = action === "pending";
   const isCancelPendingAction = action === "cancelPending";
@@ -1867,6 +1868,7 @@ async function completeShippingItem(item, selectedBoxes, action = "complete") {
     shippingTime: toTimeKey(now),
     shipper: state.user?.name || "Admin",
     selectedBoxes,
+    selectedBoxIds,
     boxQuantities
   };
 
@@ -3310,6 +3312,50 @@ function getSelectedBoxNumbers(item) {
     .filter((box) => !normalizeText(box.status).includes("출고완료"))
     .map((box) => String(box.number || box.sequence || "").trim())
     .filter(Boolean);
+}
+
+function getSelectedBoxIds(item, selectedBoxes = []) {
+  if (Array.isArray(item?.scannedItems)) {
+    const seen = new Set();
+    return item.scannedItems
+      .flatMap((row) => getSelectedBoxIds(row, selectedBoxes))
+      .filter((boxId) => {
+        if (!boxId || seen.has(boxId)) {
+          return false;
+        }
+        seen.add(boxId);
+        return true;
+      });
+  }
+
+  const selectedSet = new Set(selectedBoxes.map((boxNumber) => String(boxNumber).trim()).filter(Boolean));
+  const scannedBox = getScannedBox(item);
+  const candidates = [
+    scannedBox,
+    ...getKnownBoxes(item)
+  ].filter(Boolean);
+  const seen = new Set();
+
+  return candidates.reduce((boxIds, box) => {
+    const number = String(box.number || box.sequence || item?.scannedBoxNumber || "").trim();
+    if (selectedSet.size && (!number || !selectedSet.has(number))) {
+      return boxIds;
+    }
+
+    const boxId = normalizeScanValue(
+      box?.boxId ||
+      box?.id ||
+      box?.qrId ||
+      (box === scannedBox ? item?.scannedBoxId : "")
+    );
+    if (!boxId || seen.has(boxId)) {
+      return boxIds;
+    }
+
+    seen.add(boxId);
+    boxIds.push(boxId);
+    return boxIds;
+  }, []);
 }
 
 function getSelectedBoxQuantities(item, selectedBoxes = []) {

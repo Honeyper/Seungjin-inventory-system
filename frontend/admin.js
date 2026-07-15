@@ -1476,6 +1476,7 @@ function getShippingCompletionTargetBoxes(row) {
     .filter((box) => isShippingCompletionReadyBox(box))
     .map((box) => ({
       number: Number(box.number),
+      boxId: String(box.boxId || "").trim(),
       quantity: parseShippingSettlementNumber(box.quantity || ""),
       defectPhotoFolderUrl: box.defectPhotoFolderUrl || ""
     }))
@@ -1981,6 +1982,7 @@ async function queueShippingThenComplete(row) {
   try {
     await updateShippingStatus(row, SHIPPING_READY_STATUS_LABEL, {
       selectedBoxes: waitingTargetBoxes.map((box) => box.number),
+      selectedBoxIds: waitingTargetBoxes.map((box) => box.boxId).filter(Boolean),
       deferRefresh: true
     });
     const targetNumbers = new Set(waitingTargetBoxes.map((box) => Number(box.number)));
@@ -2001,6 +2003,7 @@ function getShippingWaitingTargetBoxes(row) {
     .filter((box) => ["검수완료", "출고대기"].includes(normalizeInventoryStockStatus(box.status)))
     .map((box) => ({
       number: Number(box.number),
+      boxId: String(box.boxId || "").trim(),
       quantity: parseShippingSettlementNumber(box.quantity || "")
     }))
     .filter((box) => Number.isFinite(box.number) && box.number > 0);
@@ -2081,7 +2084,7 @@ async function confirmShippingWaiting() {
     return;
   }
 
-  const waitingTargetBoxes = getShippingWaitingTargetBoxes(row).map((box) => box.number);
+  const waitingTargetBoxes = getShippingWaitingTargetBoxes(row);
 
   if (!waitingTargetBoxes.length) {
     if (shippingWaitingConfirmMessage) {
@@ -2097,7 +2100,10 @@ async function confirmShippingWaiting() {
   }
 
   try {
-    await updateShippingStatus(row, SHIPPING_READY_STATUS_LABEL, { selectedBoxes: waitingTargetBoxes });
+    await updateShippingStatus(row, SHIPPING_READY_STATUS_LABEL, {
+      selectedBoxes: waitingTargetBoxes.map((box) => box.number),
+      selectedBoxIds: waitingTargetBoxes.map((box) => box.boxId).filter(Boolean)
+    });
     closeShippingWaitingConfirmModal();
     showToast("출고 대기 상태로 등록했습니다.");
   } catch (error) {
@@ -2125,12 +2131,18 @@ async function cancelShippingWaiting(row) {
   try {
     const waitingBoxes = getShippingRowBoxes(row, "activeShippingBoxes")
       .filter((box) => normalizeInventoryStockStatus(box.status) === "출고대기")
-      .map((box) => box.number);
+      .map((box) => ({
+        number: box.number,
+        boxId: String(box.boxId || "").trim()
+      }));
     if (!waitingBoxes.length) {
       showToast("출고대기 등록된 박스가 없습니다.");
       return;
     }
-    await updateShippingStatus(row, "검수완료", { selectedBoxes: waitingBoxes });
+    await updateShippingStatus(row, "검수완료", {
+      selectedBoxes: waitingBoxes.map((box) => box.number),
+      selectedBoxIds: waitingBoxes.map((box) => box.boxId).filter(Boolean)
+    });
     showToast("출고 대기를 취소했습니다.");
   } catch (error) {
     showToast(error.message || "출고 대기 취소 중 문제가 발생했습니다.");
@@ -2458,6 +2470,7 @@ async function saveShippingCompletion() {
       shippingDate,
       shippingTime,
       selectedBoxes: selectedBoxes.map((box) => box.number),
+      selectedBoxIds: selectedBoxes.map((box) => box.boxId).filter(Boolean),
       shipper: shippingCompletionShipper?.value || session?.name || "Admin",
       forceCompleteShipping: true
     });
