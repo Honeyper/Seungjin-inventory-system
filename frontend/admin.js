@@ -4582,7 +4582,11 @@ async function loadInventoryDashboardRequest(showLoadingToast = true, options = 
     state.inventoryRows = normalizeInventoryRows(Array.isArray(result.rows) ? result.rows : []);
     state.inventoryLocationBoxStats = Array.isArray(result.locationBoxStats) ? result.locationBoxStats : [];
     state.inventoryLocationQuantityStats = Array.isArray(result.locationQuantityStats) ? result.locationQuantityStats : [];
-    renderInventorySummary(result.summary || {}, buildInventoryAttentionSummary(state.inventoryRows, result.attention || {}));
+    const inventorySummary = {
+      ...(result.summary || {}),
+      totalItems: buildInventoryAggregateStats(state.inventoryRows).productCount
+    };
+    renderInventorySummary(inventorySummary, buildInventoryAttentionSummary(state.inventoryRows, result.attention || {}));
     renderInventoryFilterOptions(buildInventoryFilterOptions(state.inventoryRows, result.filters || {}));
     renderInventoryBars(inventoryLocationBoxBars, state.inventoryLocationBoxStats, "box");
     renderInventoryBars(inventoryLocationQuantityBars, state.inventoryLocationQuantityStats, "ea");
@@ -5344,6 +5348,10 @@ function countInventoryDistinct(rows, selector) {
     .filter((value) => value && value !== "-")).size;
 }
 
+function getInventoryProductKey(item) {
+  return String(item?.productId || item?.productName || "").trim();
+}
+
 function buildInventoryAggregateStats(rows) {
   const sourceRows = Array.isArray(rows) ? rows : [];
 
@@ -5352,7 +5360,7 @@ function buildInventoryAggregateStats(rows) {
     totalBoxes: sourceRows.reduce((sum, item) => sum + parseShippingSettlementNumber(item.currentBoxCount), 0),
     totalQuantity: sourceRows.reduce((sum, item) => sum + parseShippingSettlementNumber(item.currentTotalQuantity), 0),
     clientCount: countInventoryDistinct(sourceRows, (item) => item.clientName),
-    productCount: countInventoryDistinct(sourceRows, (item) => item.productName),
+    productCount: countInventoryDistinct(sourceRows, getInventoryProductKey),
     batchCount: countInventoryDistinct(sourceRows, (item) => item.batch),
     processCount: countInventoryDistinct(sourceRows, (item) => item.finalProcess),
     storageCount: countInventoryDistinct(sourceRows, (item) => item.storage),

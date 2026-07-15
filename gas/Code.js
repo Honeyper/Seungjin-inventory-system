@@ -931,7 +931,9 @@ function getInventoryDashboard() {
   });
   const locationBoxStats = buildInventoryLocationStats_(boxSummaryMap, 'box');
   const locationQuantityStats = buildInventoryLocationStats_(boxSummaryMap, 'quantity');
-  const uniqueProductIds = new Set(activeRows.map((row) => row.productId).filter(Boolean));
+  const uniqueProductIds = new Set(visibleRows
+    .map((row) => String(row.productId || row.productName || '').trim())
+    .filter(Boolean));
   const totalBoxes = activeRows.reduce((sum, row) => sum + displayQuantityToNumber_(row.currentBoxCount), 0);
   const totalQuantity = activeRows.reduce((sum, row) => sum + displayQuantityToNumber_(row.currentTotalQuantity), 0);
   const dueSoonCount = activeRows.filter((row) => Number.isFinite(row.dueDays) && row.dueDays <= 3).length;
@@ -943,7 +945,7 @@ function getInventoryDashboard() {
 
   return {
     summary: {
-      totalItems: uniqueProductIds.size || activeRows.length,
+      totalItems: uniqueProductIds.size || visibleRows.length,
       totalBoxes,
       totalQuantity,
       dueSoonCount
