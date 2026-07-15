@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260715-qr-layout-two-copy" />
+    <link rel="stylesheet" href="./styles.css?v=20260715-product-final-process" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -190,7 +190,7 @@
                   </label>
                   <label class="form-field">
                     <span>최종공정 <b>*</b></span>
-                    <select id="inboundProcess">
+                    <select id="inboundProcess" disabled>
                       <option value="" selected disabled>선택하세요.</option>
                       <option>1도</option>
                       <option>2도</option>
@@ -1763,6 +1763,17 @@
                 </span>
               </label>
 
+              <label class="form-field">
+                <span>최종공정 <b>*</b></span>
+                <select id="productFinalProcess" required>
+                  <option value="">선택하세요.</option>
+                  <option>1도</option>
+                  <option>2도</option>
+                  <option>3도</option>
+                  <option>코팅</option>
+                </select>
+              </label>
+
               <fieldset class="form-field usage-field full-span">
                 <legend>박가루 제거 유무</legend>
                 <label>
@@ -1955,7 +1966,7 @@
 
               <label class="form-field">
                 <span>최종공정 <b>*</b></span>
-                <select id="existingStockProcess" required>
+                <select id="existingStockProcess" required disabled>
                   <option value="" selected disabled>선택하세요.</option>
                   <option>1도</option>
                   <option>2도</option>
@@ -2114,6 +2125,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260715-qr-layout-two-copy"></script>
+    <script src="./admin.js?v=20260715-product-final-process"></script>
   </body>
 </html>

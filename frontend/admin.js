@@ -144,6 +144,7 @@ const productClientName = document.querySelector("#productClientName");
 const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
 const productColorPreview = document.querySelector("#productColorPreview");
+const productFinalProcess = document.querySelector("#productFinalProcess");
 const productOrderQuantity = document.querySelector("#productOrderQuantity");
 const productDueDate = document.querySelector("#productDueDate");
 const productBoxQuantity = document.querySelector("#productBoxQuantity");
@@ -4164,6 +4165,7 @@ function selectInboundProduct(product) {
   inboundProductName.value = normalizeDisplayValue(product.productName);
   inboundProductId.value = normalizeDisplayValue(product.productCode);
   inboundClient.value = normalizeDisplayValue(product.clientName);
+  setSelectValue(inboundProcess, product.finalProcess);
   setInboundClientEditable(false);
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);
@@ -4203,6 +4205,7 @@ function resetExistingStockForm() {
   existingStockProductName.value = "";
   existingStockClientName.value = "";
   existingStockProductId.value = "";
+  existingStockProcess.value = "";
   existingStockRegistrant.value = session?.name || "Admin";
   existingStockDate.value = getLocalDateInputValue();
   existingStockRemainQuantity.value = "0";
@@ -4214,6 +4217,7 @@ function selectExistingStockProduct(product) {
   existingStockProductName.value = normalizeDisplayValue(product.productName);
   existingStockProductId.value = normalizeDisplayValue(product.productCode);
   existingStockClientName.value = normalizeDisplayValue(product.clientName);
+  setSelectValue(existingStockProcess, product.finalProcess);
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);
 
@@ -6320,6 +6324,7 @@ function renderProductDetail(product) {
         ${detailItem("거래처명", product.clientName)}
         ${detailItem("제품명", product.productName)}
         ${detailItem("색상", renderColor(product.color), true)}
+        ${detailItem("최종공정", product.finalProcess)}
         ${detailItem("박가루 제거 유무", normalizeBinaryOption(product.dustRemovalStatus))}
         ${detailItem("화염처리 유무", normalizeBinaryOption(product.flameTreatmentStatus))}
         ${detailItem("사용 여부", renderUsageStatus(product.useStatus), true, "full-span")}
@@ -6564,6 +6569,7 @@ function parseAttachmentUrls(value) {
 
 function renderInboundEditForm(inbound) {
   state.inboundEditDefectReasons = parseDefectReasonList(inbound.defectReason);
+  const inboundFinalProcess = getProductByCode(inbound.productId)?.finalProcess || inbound.process;
 
   inboundDetailContent.innerHTML = `
     <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditReadonlyTitle">
@@ -6604,8 +6610,8 @@ function renderInboundEditForm(inbound) {
         </label>
         <label class="form-field">
           <span>최종공정 <b>*</b></span>
-          <select id="inboundEditProcess">
-            ${renderOptionList(["", "1도", "2도", "3도", "코팅"], normalizeEditableValue(inbound.process), "선택하세요.")}
+          <select id="inboundEditProcess" disabled>
+            ${renderOptionList(["", "1도", "2도", "3도", "코팅"], normalizeEditableValue(inboundFinalProcess), "선택하세요.")}
           </select>
         </label>
         <label class="form-field">
@@ -7054,6 +7060,7 @@ function openProductModal(mode = "create", product = null) {
     productNameInput.value = normalizeEditableValue(product.productName);
     productColor.value = parseProductColorValue(product.color).label;
     updateProductColorPreview();
+    setSelectValue(productFinalProcess, product.finalProcess);
     productForm.querySelector(`input[name="productDustRemoval"][value="${normalizeBinaryOption(product.dustRemovalStatus)}"]`)?.click();
     productForm.querySelector(`input[name="productFlameTreatment"][value="${normalizeBinaryOption(product.flameTreatmentStatus)}"]`)?.click();
     productForm.querySelector(`input[name="productUsage"][value="${normalizeUsageStatus(product.useStatus)}"]`)?.click();
@@ -7223,6 +7230,7 @@ function getProductFormPayload() {
     "업체명": normalizeClientName(productClientName.value),
     "제품명": productNameInput.value.trim(),
     "색상": productColor.value.trim(),
+    "최종공정": productFinalProcess.value.trim(),
     "박가루제거 유무": dustRemoval,
     "화염처리 유무": flameTreatment,
     "사용 여부": usage,
@@ -7238,6 +7246,7 @@ function validateProductPayload(payload) {
   const requiredFields = [
     ["업체명", "거래처명을 선택해주세요."],
     ["제품명", "제품명을 입력해주세요."],
+    ["최종공정", "최종공정을 선택해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
     ["트레이 수량", "트레이 수량을 입력해주세요."]

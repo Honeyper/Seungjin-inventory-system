@@ -730,6 +730,43 @@ function getProducts() {
   };
 }
 
+function getProductFinalProcess_(productId, productName) {
+  const targetProductId = String(productId || '').trim();
+  const targetProductName = String(productName || '').trim();
+
+  if (!targetProductId && !targetProductName) {
+    return '';
+  }
+
+  const sheet = getProductSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    return '';
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  let nameMatchedProcess = '';
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    const rowProductId = String(pickCell_(row, indexes, ['제품 ID', '제품ID']) || '').trim();
+    const rowProductName = String(pickCell_(row, indexes, ['제품명']) || '').trim();
+    const finalProcess = String(pickCell_(row, indexes, ['최종공정', '최종 공정']) || '').trim();
+
+    if (targetProductId && rowProductId === targetProductId) {
+      return finalProcess;
+    }
+
+    if (!nameMatchedProcess && targetProductName && rowProductName === targetProductName) {
+      nameMatchedProcess = finalProcess;
+    }
+  }
+
+  return nameMatchedProcess;
+}
+
 function getProductDueDateMap_() {
   const sheet = getProductSheet_();
   const values = sheet.getDataRange().getDisplayValues();
@@ -964,7 +1001,7 @@ function syncStockStatusesFromBoxSummary_(sheet, boxSummaryMap) {
 }
 
 function createProduct(payload) {
-  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '최종공정', '박스당 수량', '트레이 수량'];
   required.forEach((field) => {
     if (!payload[field]) {
       throw new Error(`${field} 값이 필요합니다.`);
@@ -1209,7 +1246,7 @@ function getInboundBoxQrs(payload) {
 
 function updateProduct(payload) {
   const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
-  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '최종공정', '박스당 수량', '트레이 수량'];
 
   if (!productId) {
     throw new Error('수정할 제품 ID가 필요합니다.');
@@ -1248,6 +1285,7 @@ function updateProduct(payload) {
       setRowValue_(row, indexes, ['업체명', '거래처명'], normalizeClientName_(payload['업체명']));
       setRowValue_(row, indexes, ['제품명'], payload['제품명']);
       setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
+      setRowValue_(row, indexes, ['최종공정', '최종 공정'], payload['최종공정'] || payload['최종 공정'] || '');
       setRowValue_(row, indexes, ['박가루제거 유무', '박가루 제거 유무'], payload['박가루제거 유무'] || payload['박가루 제거 유무'] || '무');
       setRowValue_(row, indexes, ['화염처리 유무', '화염 처리 유무'], payload['화염처리 유무'] || payload['화염 처리 유무'] || '무');
       setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
@@ -1405,7 +1443,8 @@ function createInbound(payload) {
   payload.productId = String(payload.productId || payload.productCode || payload['제품ID'] || payload['제품 ID'] || '').trim();
   payload.productName = String(payload.productName || payload['제품명'] || '').trim();
   payload.clientName = String(payload.clientName || payload['업체명'] || payload['거래처명'] || '').trim();
-  payload.process = String(payload.process || payload['최종공정'] || payload['최종 공정'] || '').trim();
+  payload.process = getProductFinalProcess_(payload.productId, payload.productName)
+    || String(payload.process || payload['최종공정'] || payload['최종 공정'] || '').trim();
   payload.storage = String(payload.storage || payload.storageLocation || payload['보관위치'] || payload['보관 위치'] || '').trim();
 
   const category = normalizeInboundCategory_(payload);
@@ -1543,7 +1582,8 @@ function updateInbound(payload) {
   const inboundDate = String(payload.inboundDate || payload['입고일'] || '').trim();
   const inboundTime = String(payload.inboundTime || payload['입고 시간'] || payload['입고시간'] || '').trim();
   const inboundType = String(payload.inboundType || payload['입고 유형'] || payload['입고유형'] || '').trim();
-  const process = String(payload.process || payload['최종공정'] || '').trim();
+  const process = getProductFinalProcess_(payloadProductId, payload.productName || payload['제품명'])
+    || String(payload.process || payload['최종공정'] || '').trim();
   const storage = String(payload.storage || payload['보관위치'] || '').trim();
   const stockStatus = String(payload.stockStatus || payload.status || payload['상태'] || payload['재고 상태'] || '보관').trim();
   const defectReason = String(payload.defectReason || payload['불량 사유'] || payload['불량사유'] || '').trim();
