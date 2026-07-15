@@ -857,9 +857,10 @@ function getInventoryDashboard() {
   }).filter((row) => row.managementId);
 
   const visibleRows = rows.filter((row) => {
-    const status = String(row.stockStatus || '');
+    const status = normalizeStockStatusText_(row.stockStatus);
     const quantity = displayQuantityToNumber_(row.currentTotalQuantity);
-    return !status.includes('폐기') && (quantity > 0 || status.includes('출고완료'));
+    return !status.includes('폐기')
+      && (quantity > 0 || ['출고대기', '보류', '일부 출고', '출고완료'].includes(status));
   });
   const activeRows = visibleRows.filter((row) => {
     const status = String(row.stockStatus || '');
@@ -2420,7 +2421,7 @@ function buildBoxQuantityMap_(value) {
       const number = Number(item?.number ?? item?.boxNumber ?? item?.sequence);
       const quantity = displayQuantityToNumber_(item?.quantity ?? item?.currentQuantity ?? item?.value);
 
-      if (Number.isFinite(number) && number > 0 && Number.isFinite(quantity) && quantity > 0) {
+      if (Number.isFinite(number) && number > 0 && Number.isFinite(quantity) && quantity >= 0) {
         map[number] = quantity;
       }
       return map;
@@ -2432,7 +2433,7 @@ function buildBoxQuantityMap_(value) {
       const number = Number(key);
       const quantity = displayQuantityToNumber_(value[key]);
 
-      if (Number.isFinite(number) && number > 0 && Number.isFinite(quantity) && quantity > 0) {
+      if (Number.isFinite(number) && number > 0 && Number.isFinite(quantity) && quantity >= 0) {
         map[number] = quantity;
       }
       return map;
@@ -2627,8 +2628,12 @@ function saveShippingInspection(payload) {
   const anomalyStatus = hasGoodReason ? '정상' : '이상';
   const holdRequested = payload.holdRequested === true || String(payload.holdRequested || '').toLowerCase() === 'true';
   const stockStatus = holdRequested ? '보류' : '출고대기(검수완료)';
-  const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
+  const inspectionQuantity = toNumber_(payload.inspectionQuantity);
   const defectQuantity = toNumber_(payload.defectQuantity);
+
+  if (inspectionQuantity < 0) {
+    throw new Error('검수 수량은 0 이상의 숫자로 입력해주세요.');
+  }
 
   if (defectQuantity < 0) {
     throw new Error('불량 갯수는 0 이상의 숫자로 입력해주세요.');
@@ -2643,7 +2648,9 @@ function saveShippingInspection(payload) {
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
   ensureBoxDbShippingInspectionHeaders_(boxSheet);
-  const updatedBoxRows = updateShippingInspectionBoxRows_(boxSheet, managementId, {
+  const clearShippingWaiting = payload.clearShippingWaiting === true
+    || String(payload.clearShippingWaiting || '').toLowerCase() === 'true';
+  const boxUpdateResult = updateShippingInspectionBoxRows_(boxSheet, managementId, {
     productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
     productName: payload.productName || payload['제품명'],
     clientName: payload.clientName || payload['업체명'] || payload['거래처명'],
@@ -2660,18 +2667,22 @@ function saveShippingInspection(payload) {
     defectPhotoFolderUrl,
     defectPhotoCount: toNumber_(payload.defectPhotoCount),
     status: stockStatus,
+    clearShippingWaiting,
     selectedBoxes: Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [],
     boxQuantities: payload.boxQuantities || payload.selectedBoxQuantities || {},
     note: memo || '-'
   });
-  const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, stockStatus, payload);
+  const resolvedStockStatus = boxUpdateResult.remainingShippedRows > 0
+    ? boxUpdateResult.remainingActiveRows > 0 ? '일부 출고' : '출고완료'
+    : clearShippingWaiting ? '보관' : stockStatus;
+  const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, resolvedStockStatus, payload);
 
   return {
     managementId,
     inspectionStatus: '검수 완료',
     anomalyStatus,
-    stockStatus,
-    updatedBoxRows,
+    stockStatus: resolvedStockStatus,
+    updatedBoxRows: boxUpdateResult.updatedRows,
     updatedStockRows,
     defectPhotoFolderUrl,
     defectPhotoCount: toNumber_(payload.defectPhotoCount),
@@ -2823,12 +2834,13 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
   );
   const selectedBoxQuantityMap = buildBoxQuantityMap_(data.boxQuantities || data.selectedBoxQuantities);
   const requiresSelectedBoxes = ['출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status);
+  const clearShippingWaiting = data.clearShippingWaiting === true;
 
   if (managementIndex < 0) {
     throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
   }
 
-  if (requiresSelectedBoxes && !selectedBoxNumbers.size) {
+  if (requiresSelectedBoxes && !selectedBoxNumbers.size && !clearShippingWaiting) {
     throw new Error('처리할 박스가 없습니다. 박스관리 DB의 박스별 상태를 확인해주세요.');
   }
 
@@ -2844,8 +2856,8 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
 
     matchedBoxNumber += 1;
     const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(row[sequenceIndex]) : matchedBoxNumber;
-    if (selectedBoxNumbers.size && !selectedBoxNumbers.has(sequence)) {
-      const currentStatus = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
+    const currentStatus = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
+    if (clearShippingWaiting || (selectedBoxNumbers.size && !selectedBoxNumbers.has(sequence))) {
       if (['출고대기', '보류'].includes(currentStatus)) {
         setRowValue_(row, indexes, ['출고 검수일', '검수일'], '-');
         setRowValue_(row, indexes, ['출고 검수시간', '검수시간'], '-');
@@ -2857,17 +2869,18 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
         setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], '-');
         setRowValue_(row, indexes, ['상태', '재고 상태'], '보관');
         sheet.getRange(rowIndex + 1, 1, 1, headerInfo.headers.length).setValues([row]);
+        values[rowIndex] = row;
         updatedRows += 1;
       }
       continue;
     }
 
     const changedQuantity = selectedBoxQuantityMap[sequence];
-    if (currentQuantityIndex >= 0 && Number.isFinite(changedQuantity) && changedQuantity > 0) {
+    if (currentQuantityIndex >= 0 && Number.isFinite(changedQuantity) && changedQuantity >= 0) {
       row[currentQuantityIndex] = formatEa_(changedQuantity);
     }
 
-    const currentQuantity = Number.isFinite(changedQuantity) && changedQuantity > 0
+    const currentQuantity = Number.isFinite(changedQuantity) && changedQuantity >= 0
       ? formatEa_(changedQuantity)
       : currentQuantityIndex >= 0 ? dash_(row[currentQuantityIndex]) : '-';
     const inspectionQuantity = !wroteInspectionMetric ? (data.inspectionQuantity || currentQuantity) : '';
@@ -2885,6 +2898,7 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     setRowValue_(row, indexes, ['상태', '재고 상태'], data.status);
     setRowValue_(row, indexes, ['비고'], data.note);
     sheet.getRange(rowIndex + 1, 1, 1, headerInfo.headers.length).setValues([row]);
+    values[rowIndex] = row;
     updatedRows += 1;
     wroteInspectionMetric = true;
   }
@@ -2893,7 +2907,46 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     throw new Error(`박스관리 DB에서 관리 ID ${managementId}를 찾을 수 없습니다.`);
   }
 
-  return updatedRows;
+  const statusSummary = summarizeShippingInspectionBoxRows_(sheet, managementId, data, values, headerInfo);
+  return {
+    updatedRows,
+    remainingActiveRows: statusSummary.remainingActiveRows,
+    remainingShippedRows: statusSummary.remainingShippedRows
+  };
+}
+
+function summarizeShippingInspectionBoxRows_(sheet, managementId, data, sourceValues, sourceHeaderInfo) {
+  const values = sourceValues || sheet.getDataRange().getDisplayValues();
+  const headerInfo = sourceHeaderInfo
+    || findHeaderRow_(values, ['관리ID', '제품명'])
+    || findHeaderRow_(values, ['관리 ID', '제품명']);
+
+  if (!headerInfo) {
+    return { remainingActiveRows: 0, remainingShippedRows: 0 };
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const quantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  let remainingActiveRows = 0;
+  let remainingShippedRows = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    if (!isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data)) {
+      continue;
+    }
+
+    const status = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
+    const quantity = quantityIndex >= 0 ? displayQuantityToNumber_(row[quantityIndex]) : 0;
+    if (/출고완료/.test(status)) {
+      remainingShippedRows += 1;
+    } else if (!/폐기/.test(status) && (quantity > 0 || ['출고대기', '검수완료', '보류'].includes(status))) {
+      remainingActiveRows += 1;
+    }
+  }
+
+  return { remainingActiveRows, remainingShippedRows };
 }
 
 function updateShippingStatus(payload) {
@@ -3253,7 +3306,8 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       updatedRows += 1;
     }
 
-    if (currentQuantity > 0 && !/출고완료|폐기/.test(rowStatus)) {
+    if (!/출고완료|폐기/.test(rowStatus)
+      && (currentQuantity > 0 || ['출고대기', '검수완료', '보류'].includes(rowStatus))) {
       remainingActiveRows += 1;
       const normalizedStatus = rowStatus || '보관';
       remainingStatusCounts[normalizedStatus] = (remainingStatusCounts[normalizedStatus] || 0) + 1;
@@ -3686,9 +3740,11 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const productName = getObjectCell_(row, ['제품명']);
     const rawStatus = getObjectCell_(row, ['상태', '재고 상태']);
     const status = normalizeStockStatusText_(rawStatus);
-    const currentQuantity = displayQuantityToNumber_(getObjectCell_(row, ['현재 수량', '현재수량']));
+    const currentQuantityCell = getObjectCell_(row, ['현재 수량', '현재수량']);
+    const currentQuantity = displayQuantityToNumber_(currentQuantityCell);
     const originalQuantity = displayQuantityToNumber_(getObjectCell_(row, ['박스당 수량', '박스당수량', '입고 수량', '입고수량']));
-    const isActiveBox = currentQuantity > 0 && !/출고완료|폐기/.test(status);
+    const hasShippingWorkflowStatus = ['출고대기', '검수완료', '보류'].includes(status);
+    const isActiveBox = (currentQuantity > 0 || hasShippingWorkflowStatus) && !/출고완료|폐기/.test(status);
     const storage = getObjectCell_(row, ['보관 위치', '보관위치', '보관 장소']) || '미지정';
     const summaryKey = getInventoryIdentityKey_(managementId, productId, productName, storage);
     const qrState = getObjectCell_(row, ['QR 생성 여부', 'QR 출력 여부']);
@@ -3737,7 +3793,9 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const boxInfo = {
       number: sequence || summary.boxes.length + 1,
       boxId: getObjectCell_(row, ['박스ID', '박스 ID']),
-      quantity: currentQuantity || originalQuantity || shippingInspectionQuantity,
+      quantity: currentQuantityCell && currentQuantityCell !== '-'
+        ? currentQuantity
+        : originalQuantity || shippingInspectionQuantity,
       status,
       storage
     };

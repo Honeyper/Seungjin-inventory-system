@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260715-partial-shipping-menu" />
+    <link rel="stylesheet" href="./styles.css?v=20260715-zero-quantity-shipping" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1362,7 +1362,7 @@
               <label class="form-field">
                 <span>검수 수량 (트레이 수량) <b>*</b></span>
                 <span class="unit-input editable-lock-input editable-unit-input">
-                  <input id="shippingInspectionQuantity" type="number" min="1" step="1" inputmode="numeric" disabled />
+                  <input id="shippingInspectionQuantity" type="number" min="0" step="1" inputmode="numeric" disabled />
                   <i>ea</i>
                   <button id="editShippingInspectionQuantityButton" type="button" aria-label="검수 수량 수정" title="수정" aria-pressed="false">
                     <svg class="edit-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -2082,6 +2082,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260715-partial-shipping-menu"></script>
+    <script src="./admin.js?v=20260715-zero-quantity-shipping"></script>
   </body>
 </html>
