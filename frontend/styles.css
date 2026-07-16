@@ -6673,14 +6673,14 @@ input {
 
 .box-qr-standard-process {
   display: grid;
-  grid-template-columns: 9mm 13mm minmax(0, 1fr) 18mm;
+  grid-template-columns: 9mm 15mm minmax(0, 1fr) 18mm;
   align-items: stretch;
   min-width: 0;
   border-bottom: 0.6pt solid #050505;
 }
 
 .box-qr-standard-process.is-additional-process {
-  grid-template-columns: 22mm minmax(0, 1fr) 18mm;
+  grid-template-columns: 24mm minmax(0, 1fr) 18mm;
 }
 
 .box-qr-standard-process > * + *,
@@ -6795,7 +6795,7 @@ input {
 
 .box-qr-standard-admin {
   display: grid;
-  grid-template-columns: 22mm minmax(0, 1fr) 18mm;
+  grid-template-columns: 24mm minmax(0, 1fr) 18mm;
   align-items: stretch;
   min-width: 0;
   background: #fff;
