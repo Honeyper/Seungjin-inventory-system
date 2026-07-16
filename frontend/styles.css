@@ -6632,6 +6632,12 @@ input {
   height: 14.5mm;
 }
 
+.box-qr-label-standard:not(.box-qr-label-layout-two) .box-qr-image {
+  display: block;
+  align-self: start;
+  margin-top: 0.25mm;
+}
+
 .box-qr-standard-checks {
   display: contents;
 }
