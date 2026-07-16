@@ -5310,6 +5310,78 @@ img {
   align-items: start;
 }
 
+#shippingScreen .shipping-product-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+#shippingScreen .shipping-product-group + .shipping-product-group {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #d8e2f0;
+}
+
+#shippingScreen .shipping-product-group-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 1px 3px 3px 10px;
+  border-left: 3px solid var(--gold);
+}
+
+#shippingScreen .shipping-product-group-copy {
+  min-width: 0;
+}
+
+#shippingScreen .shipping-product-group-copy span {
+  display: block;
+  overflow: hidden;
+  color: #687890;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#shippingScreen .shipping-product-group-copy h2 {
+  margin: 2px 0 0;
+  color: var(--navy-dark);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+#shippingScreen .shipping-product-group-summary {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 1px;
+  text-align: right;
+}
+
+#shippingScreen .shipping-product-group-summary span {
+  color: #77869a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+#shippingScreen .shipping-product-group-summary strong {
+  color: var(--gold-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+#shippingScreen .shipping-product-group-items {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
 #shippingScreen .shipping-item-top {
   grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 8px;
@@ -5345,8 +5417,16 @@ img {
   -webkit-line-clamp: 3;
 }
 
-#shippingScreen .shipping-title small {
-  display: none;
+#shippingScreen .shipping-title small.shipping-management-id {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: #75849a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #shippingScreen .process-pill {

@@ -77,8 +77,6 @@ const state = {
   scannerSheetDragging: false,
   scannerSheetMoved: false,
   boxPickerProduct: null,
-  boxPickerProducts: [],
-  boxPickerEntries: [],
   boxPickerEditingGroupKey: "",
   boxPickerMode: "edit"
 };
@@ -625,7 +623,7 @@ async function loadShippingDashboard(options = {}) {
 
 function applyShippingFilters() {
   const query = state.query;
-  const rows = groupScannedShippingRowsForDisplay(state.scannedShippingRows
+  const rows = groupScannedShippingRows(state.scannedShippingRows
     .filter((row) => {
       if (!state.showCompletedShippingBoxes && isCompletedShippingItem(row)) {
         return false;
@@ -808,10 +806,6 @@ function getShippingBoxCount(item) {
 function getShippingTotalBoxCount(item, fallbackCount = 0) {
   const fallback = parseNumber(fallbackCount);
 
-  if (parseNumber(item?.managementTotalBoxCount)) {
-    return Math.max(fallback, parseNumber(item.managementTotalBoxCount));
-  }
-
   if (Array.isArray(item?.scannedItems)) {
     const totalCounts = item.scannedItems.map((row) => getShippingTotalBoxCount(row, 1));
     return Math.max(fallback, ...totalCounts);
@@ -863,7 +857,7 @@ function getShippingBoxUnitQuantity(item) {
 function groupScannedShippingRows(rows) {
   const groups = new Map();
 
-  rows.forEach((row) => {
+  rows.forEach((row, index) => {
     const key = getShippingProductGroupKey(row);
     if (!groups.has(key)) {
       groups.set(key, {
@@ -873,7 +867,8 @@ function groupScannedShippingRows(rows) {
         scannedBoxes: [],
         scannedBoxCount: 0,
         scannedTotalQuantity: 0,
-        scannedCurrentQuantity: 0
+        scannedCurrentQuantity: 0,
+        scanOrder: index
       });
     }
 
@@ -894,42 +889,23 @@ function groupScannedShippingRows(rows) {
   return Array.from(groups.values());
 }
 
-function groupScannedShippingRowsForDisplay(rows) {
+function groupShippingRowsByProductFamily(rows) {
   const groups = new Map();
 
-  rows.forEach((row, index) => {
-    const key = getShippingDisplayCardKey(row);
+  rows.forEach((row) => {
+    const key = getShippingDisplayGroupKey(row);
     if (!groups.has(key)) {
       groups.set(key, {
-        ...row,
-        productGroupKey: key,
-        scannedItems: [],
-        scannedBoxes: [],
-        scannedBoxCount: 0,
-        scannedTotalQuantity: 0,
-        scannedCurrentQuantity: 0,
-        managementCount: 0,
-        scanOrder: index
+        key,
+        clientName: row.clientName,
+        productName: row.productName,
+        productId: row.productId,
+        finalProcess: row.finalProcess,
+        items: []
       });
     }
 
-    const group = groups.get(key);
-    const scannedBox = getScannedBox(row);
-    group.scannedItems.push(row);
-    if (scannedBox) {
-      group.scannedBoxes.push(scannedBox);
-    }
-    group.scannedBoxCount += 1;
-    group.scannedTotalQuantity += getBoxTotalQuantity(scannedBox, row);
-    group.scannedCurrentQuantity += getBoxCurrentQuantity(scannedBox, row);
-  });
-
-  groups.forEach((group) => {
-    const transactionGroups = groupScannedShippingRows(group.scannedItems);
-    group.managementCount = transactionGroups.length;
-    group.managementTotalBoxCount = transactionGroups.reduce((sum, transactionGroup) => {
-      return sum + getShippingTotalBoxCount(transactionGroup, transactionGroup.scannedBoxCount);
-    }, 0);
+    groups.get(key).items.push(row);
   });
 
   return Array.from(groups.values());
@@ -1006,7 +982,31 @@ function renderShippingList(rows) {
     return;
   }
 
-  elements.shippingListPanel.innerHTML = rows.map(renderShippingItem).join("");
+  const productGroups = groupShippingRowsByProductFamily(rows);
+  elements.shippingListPanel.innerHTML = productGroups.map(renderShippingProductGroup).join("");
+}
+
+function renderShippingProductGroup(group) {
+  const boxCount = group.items.reduce((sum, item) => sum + getShippingBoxCount(item), 0);
+  const process = normalizeDisplay(group.finalProcess || "-");
+
+  return `
+    <section class="shipping-product-group" data-shipping-product-group="${escapeHtml(group.key)}">
+      <header class="shipping-product-group-header">
+        <div class="shipping-product-group-copy">
+          <span>${escapeHtml(normalizeDisplay(group.clientName || "-"))}</span>
+          <h2>${escapeHtml(normalizeDisplay(group.productName || "-"))}</h2>
+        </div>
+        <div class="shipping-product-group-summary">
+          <span>${escapeHtml(process)}</span>
+          <strong>${formatNumber(group.items.length)}건 · ${formatNumber(boxCount)}박스</strong>
+        </div>
+      </header>
+      <div class="shipping-product-group-items">
+        ${group.items.map(renderShippingItem).join("")}
+      </div>
+    </section>
+  `;
 }
 
 async function openShippingBoxEditor(item) {
@@ -1023,9 +1023,7 @@ async function openShippingBoxPicker(item, mode = "edit") {
   }
 
   state.boxPickerProduct = null;
-  state.boxPickerProducts = [];
-  state.boxPickerEntries = [];
-  state.boxPickerEditingGroupKey = getShippingDisplayGroupKey(item);
+  state.boxPickerEditingGroupKey = getShippingProductGroupKey(item);
   state.boxPickerMode = mode;
   elements.shippingBoxPickerModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -1047,12 +1045,11 @@ async function openShippingBoxPicker(item, mode = "edit") {
 
   try {
     await ensureDashboardLoaded();
-    const products = findBoxPickerProducts(item);
-    if (!products.length) {
+    const product = findBoxPickerProduct(item);
+    if (!product) {
       throw new Error("수정할 제품 정보를 찾지 못했습니다.");
     }
-    state.boxPickerProducts = products;
-    state.boxPickerProduct = products[0];
+    state.boxPickerProduct = product;
     renderBoxPickerBoxes();
   } catch (error) {
     elements.boxPickerBoxList.innerHTML = `<p class="box-picker-empty">${escapeHtml(error.message || "박스 정보를 불러오지 못했습니다.")}</p>`;
@@ -1066,31 +1063,24 @@ function closeShippingBoxPicker() {
 
   elements.shippingBoxPickerModal.hidden = true;
   state.boxPickerProduct = null;
-  state.boxPickerProducts = [];
-  state.boxPickerEntries = [];
   state.boxPickerEditingGroupKey = "";
   state.boxPickerMode = "edit";
   document.body.classList.remove("modal-open");
 }
 
-function findBoxPickerProducts(item) {
-  const displayKey = getShippingDisplayGroupKey(item);
-  const matchedProducts = state.dashboard.filter((row) => getShippingDisplayGroupKey(row) === displayKey);
-  if (matchedProducts.length) {
-    return matchedProducts;
-  }
-
-  const fallback = state.dashboard.find((row) => {
+function findBoxPickerProduct(item) {
+  const productKey = getShippingProductGroupKey(item);
+  return state.dashboard.find((row) => getShippingProductGroupKey(row) === productKey)
+    || state.dashboard.find((row) => {
       return normalizeScanValue(row.managementId) === normalizeScanValue(item.managementId)
         && normalizeScanValue(row.productId) === normalizeScanValue(item.productId);
     });
-  return fallback ? [fallback] : [];
 }
 
 function getAddedShippingBoxKeys(row) {
-  const productKey = getShippingDisplayGroupKey(row);
+  const productKey = getShippingProductGroupKey(row);
   return new Set(state.scannedShippingRows
-    .filter((item) => getShippingDisplayGroupKey(item) === productKey)
+    .filter((item) => getShippingProductGroupKey(item) === productKey)
     .map(getShippingCompositeBoxKey)
     .filter(Boolean));
 }
@@ -1112,17 +1102,8 @@ function renderBoxPickerBoxes() {
     return;
   }
 
-  const products = state.boxPickerProducts.length ? state.boxPickerProducts : [row];
-  const entries = products.flatMap((source) => getKnownBoxes(source).map((box) => ({
-    source,
-    box,
-    key: getBoxPickerBoxKey(box, source)
-  }))).filter((entry) => entry.key)
-    .sort((left, right) => {
-      const managementOrder = normalizeDisplay(left.source?.managementId).localeCompare(normalizeDisplay(right.source?.managementId), "ko");
-      return managementOrder || parseNumber(left.box?.number || left.box?.sequence) - parseNumber(right.box?.number || right.box?.sequence);
-    });
-  state.boxPickerEntries = entries;
+  const boxes = getKnownBoxes(row)
+    .sort((left, right) => parseNumber(left?.number || left?.sequence) - parseNumber(right?.number || right?.sequence));
   const addedKeys = getAddedShippingBoxKeys(row);
   const isAddMode = state.boxPickerMode === "add";
 
@@ -1133,9 +1114,10 @@ function renderBoxPickerBoxes() {
     .filter((value) => value !== "-")
     .join(" · ") || "-";
 
-  elements.boxPickerBoxList.innerHTML = entries.length ? entries.map(({ source, box, key }) => {
+  elements.boxPickerBoxList.innerHTML = boxes.length ? boxes.map((box) => {
+    const key = getBoxPickerBoxKey(box, row);
     const number = normalizeDisplay(box?.number || box?.sequence || "-");
-    const quantity = getBoxCurrentQuantity(box, source);
+    const quantity = getBoxCurrentQuantity(box, row);
     const status = normalizeText(box?.rawStatus || box?.status);
     const isCompleted = /출고완료|폐기/.test(status) || quantity <= 0;
     const isAdded = addedKeys.has(key);
@@ -1149,7 +1131,7 @@ function renderBoxPickerBoxes() {
         <input type="checkbox" data-box-picker-box="${escapeHtml(key)}" data-box-status="${escapeHtml(normalizeDisplay(box?.status || "보관"))}" ${isAdded ? "checked" : ""} ${isDisabled ? "disabled" : ""} />
         <span class="box-picker-check-copy">
           <strong>${escapeHtml(number)}번 박스</strong>
-          <small>${escapeHtml(normalizeDisplay(box?.storage || source.storage || "미지정"))} · ${formatNumber(quantity)} ea</small>
+          <small>${escapeHtml(normalizeDisplay(box?.storage || row.storage || "미지정"))} · ${formatNumber(quantity)} ea</small>
           <span class="box-picker-quantity-field">
             <input type="number" min="1" step="1" inputmode="numeric" value="${quantity}" data-box-picker-quantity="${escapeHtml(key)}" aria-label="${escapeHtml(number)}번 박스 수량" ${isDisabled ? "disabled" : ""} />
             <em>ea</em>
@@ -1224,23 +1206,23 @@ function updateSelectedShippingBoxes() {
     return;
   }
 
+  const boxes = getKnownBoxes(row);
   const selectedRows = [];
   selectedInputs.forEach((input) => {
     const key = input.dataset.boxPickerBox;
-    const entry = state.boxPickerEntries.find((candidate) => candidate.key === key);
-    if (!entry) {
+    const box = boxes.find((candidate) => getBoxPickerBoxKey(candidate, row) === key);
+    if (!box) {
       return;
     }
 
-    const { source, box } = entry;
     const number = String(box?.number || box?.sequence || "").trim();
     const boxId = normalizeScanValue(box?.boxId || box?.id || box?.qrId);
     const quantityInput = findBoxPickerQuantityInput(key);
     const quantity = parseNumber(quantityInput.value);
-    const item = buildScannedBoxItem(source, { ...box }, {
+    const item = buildScannedBoxItem(row, { ...box }, {
       boxId,
-      managementId: normalizeScanValue(source.managementId),
-      productId: normalizeScanValue(source.productId),
+      managementId: normalizeScanValue(row.managementId),
+      productId: normalizeScanValue(row.productId),
       boxNumber: number
     }, `manual:${boxId || number}`);
     setScannedBoxQuantity(item, quantity);
@@ -1252,10 +1234,10 @@ function updateSelectedShippingBoxes() {
     const rowsToAdd = selectedRows.filter((item) => !existingBoxKeys.has(getShippingCompositeBoxKey(item)));
     state.scannedShippingRows = [...state.scannedShippingRows, ...rowsToAdd];
   } else {
-    const editingKey = state.boxPickerEditingGroupKey || getShippingDisplayGroupKey(row);
-    const editingRows = state.scannedShippingRows.filter((item) => getShippingDisplayGroupKey(item) === editingKey);
+    const editingKey = state.boxPickerEditingGroupKey || getShippingProductGroupKey(row);
+    const editingRows = state.scannedShippingRows.filter((item) => getShippingProductGroupKey(item) === editingKey);
     const editingBoxKeys = new Set(editingRows.map(getShippingKey));
-    const otherRows = state.scannedShippingRows.filter((item) => getShippingDisplayGroupKey(item) !== editingKey);
+    const otherRows = state.scannedShippingRows.filter((item) => getShippingProductGroupKey(item) !== editingKey);
     state.scannedShippingRows = [...selectedRows, ...otherRows];
     state.scannerSessionShippingKeys = state.scannerSessionShippingKeys.filter((key) => !editingBoxKeys.has(key));
   }
@@ -1509,10 +1491,9 @@ function renderShippingItem(item) {
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
   const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 등록` : getScannedBoxLabel(item);
-  const groupLabel = parseNumber(item.managementCount) > 1 ? `${formatNumber(item.managementCount)}건 묶음` : batch;
   const isPending = isShippingItemPending(item);
   const isCompleted = isShippingItemCompleted(item);
-  const metaParts = [groupLabel, boxLabel].filter((value) => value && value !== "-");
+  const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
 
   return `
@@ -1525,6 +1506,7 @@ function renderShippingItem(item) {
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
+            <small class="shipping-management-id">${escapeHtml(normalizeDisplay(item.managementId || item.productId || "-"))}</small>
           </div>
         </div>
         <div class="shipping-meta-stack">
@@ -2934,7 +2916,7 @@ function getShippingQuantityItems(key) {
     return [visibleItem];
   }
 
-  return state.scannedShippingRows.filter((row) => getShippingDisplayCardKey(row) === key);
+  return state.scannedShippingRows.filter((row) => getShippingProductGroupKey(row) === key);
 }
 
 function editScannedBoxQuantity(item) {
@@ -3005,7 +2987,7 @@ function confirmRemoveScannedShippingGroup(key) {
     return;
   }
 
-  const items = state.scannedShippingRows.filter((row) => getShippingDisplayCardKey(row) === key);
+  const items = state.scannedShippingRows.filter((row) => getShippingProductGroupKey(row) === key);
   if (!items.length) {
     return;
   }
@@ -3025,7 +3007,7 @@ function removeScannedShippingGroup(key) {
   }
 
   const previousCount = state.scannedShippingRows.length;
-  state.scannedShippingRows = state.scannedShippingRows.filter((row) => getShippingDisplayCardKey(row) !== key);
+  state.scannedShippingRows = state.scannedShippingRows.filter((row) => getShippingProductGroupKey(row) !== key);
   if (state.scannedShippingRows.length === previousCount) {
     return;
   }
@@ -3364,11 +3346,6 @@ function getShippingDisplayGroupKey(item) {
     item?.productName,
     item?.finalProcess
   ].map((value) => normalizeScanValue(value) || "-").join("__");
-}
-
-function getShippingDisplayCardKey(item) {
-  const lifecycle = isCompletedShippingItem(item) ? "completed" : "active";
-  return `${getShippingDisplayGroupKey(item)}__${lifecycle}`;
 }
 
 function getScannedBox(item) {
