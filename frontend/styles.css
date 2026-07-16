@@ -6305,11 +6305,11 @@ input {
 
 .qr-sheet {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 62.5mm;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 58mm;
   align-content: start;
-  width: 210mm;
-  min-height: 297mm;
+  width: 204mm;
+  min-height: 291mm;
   margin: 0 auto;
   padding: 0;
   background: #fff;
@@ -6319,6 +6319,8 @@ input {
 .qr-sheet-work {
   grid-template-columns: repeat(4, 1fr);
   grid-auto-rows: 62.5mm;
+  width: 210mm;
+  min-height: 297mm;
 }
 
 .qr-loading {
@@ -6511,8 +6513,9 @@ input {
 
 .box-qr-label-standard {
   display: grid;
-  grid-template-rows: 7.6mm 25mm repeat(3, 7.2mm) 8.3mm;
+  grid-template-rows: 7.1mm 22.5mm repeat(3, 6.7mm) 8.3mm;
   gap: 0;
+  height: 58mm;
   padding: 0;
   overflow: hidden;
   border: 0.75pt solid #050505;
@@ -6521,6 +6524,11 @@ input {
   background: #fff;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+.qr-sheet-work .box-qr-label-standard {
+  grid-template-rows: 7.6mm 25mm repeat(3, 7.2mm) 8.3mm;
+  height: 62.5mm;
 }
 
 .box-qr-label-standard .box-qr-title {
@@ -6887,11 +6895,16 @@ input {
   }
 
   .qr-sheet {
-    width: 210mm;
+    width: 204mm;
     min-height: 0;
     margin: 0;
     padding: 0;
     box-shadow: none;
+  }
+
+  .qr-sheet.qr-sheet-work {
+    width: 210mm;
+    margin: 0;
   }
 
   .box-qr-label-standard .box-qr-title {
