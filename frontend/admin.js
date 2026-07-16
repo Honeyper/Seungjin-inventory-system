@@ -6132,6 +6132,8 @@ function closeInboundQrModal() {
   state.activeQrInboundId = "";
   state.activeQrInboundProductId = "";
   state.activeQrBoxes = [];
+  document.documentElement.classList.remove("qr-print-work-layout");
+  document.body.classList.remove("qr-print-work-layout");
 
   if (productModal.hidden && productDetailModal.hidden && inboundDetailModal.hidden && inboundProductPickerModal.hidden) {
     document.body.classList.remove("modal-open");
@@ -6145,6 +6147,8 @@ function renderInboundQrSheet(inbound, boxes) {
 
   const isWorkLayout = state.inboundQrLayout === "work";
   inboundQrSheet.classList.toggle("qr-sheet-work", isWorkLayout);
+  document.documentElement.classList.toggle("qr-print-work-layout", isWorkLayout);
+  document.body.classList.toggle("qr-print-work-layout", isWorkLayout);
 
   if (!boxes.length) {
     inboundQrSheet.innerHTML = '<p class="qr-loading">출력할 박스 QR이 없습니다.</p>';
@@ -6178,13 +6182,14 @@ function renderInboundQrStandardLabel({ box, sequence, total, qrData, processTex
 
   return `
     <article class="box-qr-label box-qr-label-standard${variantClass ? ` ${variantClass}` : ""}">
-      <div class="box-qr-title">승진 관리 시스템</div>
+      ${variantClass ? '<div class="box-qr-title">승진 관리 시스템</div>' : ""}
       <div class="box-qr-standard-overview">
         <div class="box-qr-standard-overview-copy">
           <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
           <div class="box-qr-standard-product">
             <span>제품명</span>
             <strong>${escapeHtml(productName)}</strong>
+            ${variantClass ? "" : "<small>승진 관리 시스템</small>"}
           </div>
         </div>
         <div class="box-qr-standard-media">

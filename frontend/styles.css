@@ -6306,7 +6306,7 @@ input {
 .qr-sheet {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: 58mm;
+  grid-auto-rows: 58.2mm;
   align-content: start;
   width: 204mm;
   min-height: 291mm;
@@ -6513,9 +6513,9 @@ input {
 
 .box-qr-label-standard {
   display: grid;
-  grid-template-rows: 7.1mm 22.5mm repeat(3, 6.7mm) 8.3mm;
+  grid-template-rows: 27.3mm repeat(3, 7.4mm) 8.7mm;
   gap: 0;
-  height: 58mm;
+  height: 58.2mm;
   padding: 0;
   overflow: hidden;
   border: 0.75pt solid #050505;
@@ -6591,6 +6591,18 @@ input {
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+.box-qr-standard-product small {
+  color: #8f98a5;
+  font-size: 5.7pt;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.box-qr-label-standard:not(.box-qr-label-layout-two) .box-qr-standard-product {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding-bottom: 0.7mm;
 }
 
 .box-qr-standard-media {
@@ -6836,11 +6848,16 @@ input {
 
   html,
   body {
-    width: 210mm;
+    width: 204mm;
     min-height: 0;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff;
+  }
+
+  html.qr-print-work-layout,
+  body.qr-print-work-layout {
+    width: 210mm;
   }
 
   body > :not(#inboundQrModal) {
@@ -6859,7 +6876,7 @@ input {
   #inboundQrModal {
     position: static !important;
     display: block;
-    width: 210mm;
+    width: 100%;
     min-height: 0;
     height: auto;
     margin: 0 !important;
@@ -6869,7 +6886,7 @@ input {
 
   .qr-modal {
     display: block;
-    width: 210mm;
+    width: 100%;
     min-height: 0;
     height: auto;
     margin: 0 !important;
@@ -6888,7 +6905,7 @@ input {
   .qr-print-area {
     display: block;
     overflow: visible;
-    width: 210mm;
+    width: 100%;
     margin: 0;
     padding: 0;
     background: #fff;
