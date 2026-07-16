@@ -2139,7 +2139,7 @@ async function cancelShippingWaiting(row) {
       showToast("출고대기 등록된 박스가 없습니다.");
       return;
     }
-    await updateShippingStatus(row, "검수완료", {
+    await updateShippingStatus(row, "보관", {
       selectedBoxes: waitingBoxes.map((box) => box.number),
       selectedBoxIds: waitingBoxes.map((box) => box.boxId).filter(Boolean)
     });

@@ -3364,7 +3364,11 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     const rawRowStatus = statusIndex >= 0 ? String(row[statusIndex] || '').trim() : '';
     let rowStatus = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
     const isAlreadyShipped = /출고완료/.test(rowStatus);
-    const isSelectedBox = isDirectBoxIdMatch || selectedBoxNumbers.has(sequence);
+    // A box ID identifies the exact row. Sequence numbers are only a fallback
+    // for legacy rows that do not send box IDs.
+    const isSelectedBox = selectedBoxIds.size > 0
+      ? isDirectBoxIdMatch
+      : selectedBoxNumbers.has(sequence);
     const forceCompleteShipping = data.forceCompleteShipping === true;
     const canCancelCompleted = data.status === '보관'
       && data.allowCancelCompleted === true
