@@ -3297,12 +3297,8 @@ function getShippingSettlementItems() {
 }
 
 function getShippingSettlementFallbackDate(item) {
-  const status = getEffectiveShippingStatus(item);
-
-  if (["출고대기", "보류", "일부 출고", "출고완료"].includes(status) || isShippingInspected(item)) {
-    return getLocalDateInputValue();
-  }
-
+  // 기간 결산은 실제 출고일 또는 검수일이 기록된 건만 포함한다.
+  // 날짜가 없는 과거 상태를 오늘로 간주하면 현재 결산에 섞이게 된다.
   return "";
 }
 
@@ -3311,11 +3307,6 @@ function getShippingSettlementBoxDate(box, item = null) {
 
   if (boxDate) {
     return boxDate;
-  }
-
-  const status = normalizeInventoryStockStatus(box?.status);
-  if (["출고대기", "보류", "출고완료"].includes(status)) {
-    return item ? getShippingSettlementFallbackDate(item) : getLocalDateInputValue();
   }
 
   return "";
