@@ -1260,10 +1260,17 @@ function getInboundBoxQrs(payload) {
 
   boxes.sort((left, right) => Number(left.sequence) - Number(right.sequence));
 
+  const firstBox = boxes[0];
+  const productProcessInfo = getProductProcessInfo_(
+    firstBox.productId || productIdFilter,
+    firstBox.productName
+  );
+
   return {
     managementId,
     generatedAt,
     boxCount: boxes.length,
+    productProcessInfo,
     boxes
   };
 }

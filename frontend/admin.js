@@ -6074,7 +6074,7 @@ async function openInboundQrModal(managementId, productId = "") {
   updateInboundQrLayoutButtons();
   state.isLoadingInboundQrs = true;
   closeInboundRowActionMenu();
-  const processText = getInboundQrProcessText(inbound);
+  const processText = getInboundQrProcessData(inbound).summary;
   inboundQrTitle.textContent = `${inbound.productName || "입고"} 박스 QR`;
   inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · QR 데이터를 준비 중입니다.`;
   inboundQrSheet.innerHTML = '<p class="qr-loading">박스 QR 데이터를 불러오는 중입니다.</p>';
@@ -6084,10 +6084,12 @@ async function openInboundQrModal(managementId, productId = "") {
   try {
     const result = await requestApi("getInboundBoxQrs", { managementId, productId: state.activeQrInboundProductId });
     const boxes = Array.isArray(result.boxes) ? result.boxes : [];
+    const productProcessInfo = result.productProcessInfo || null;
+    const loadedProcessText = getInboundQrProcessData(inbound, boxes, productProcessInfo).summary;
     state.activeQrBoxes = boxes;
-    inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
+    inboundQrSubtitle.textContent = `${managementId} · ${loadedProcessText} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
     markInboundQrGenerated(managementId, state.activeQrInboundProductId, boxes.length);
-    renderInboundQrSheet(inbound, boxes);
+    renderInboundQrSheet(inbound, boxes, productProcessInfo);
   } catch (error) {
     inboundQrSheet.innerHTML = `<p class="qr-loading qr-error">${escapeHtml(error.message || "QR 데이터를 불러오지 못했습니다.")}</p>`;
     showToast(error.message || "QR 데이터를 불러오지 못했습니다.");
@@ -6122,6 +6124,64 @@ function getInboundQrProcessText(inbound) {
   return inbound?.process || inbound?.finalProcess || inbound?.processStatus || "-";
 }
 
+function findInboundQrProduct(inbound, boxes = []) {
+  const firstBox = Array.isArray(boxes) ? boxes[0] : null;
+  const productId = String(inbound?.productId || firstBox?.productId || "").trim();
+
+  if (productId) {
+    const productById = state.products.find((product) => String(product.productCode || "").trim() === productId);
+    if (productById) {
+      return productById;
+    }
+  }
+
+  const normalizeKey = (value) => String(value || "").replace(/\s+/g, "").trim().toLowerCase();
+  const productNameKey = normalizeKey(inbound?.productName || firstBox?.productName);
+  const clientNameKey = normalizeKey(inbound?.clientName || firstBox?.clientName);
+
+  if (!productNameKey) {
+    return null;
+  }
+
+  return state.products.find((product) => (
+    normalizeKey(product.productName) === productNameKey
+    && (!clientNameKey || normalizeKey(product.clientName) === clientNameKey)
+  )) || state.products.find((product) => normalizeKey(product.productName) === productNameKey) || null;
+}
+
+function getInboundQrProcessData(inbound, boxes = [], productProcessInfo = null) {
+  const rawProcess = getInboundQrProcessText(inbound);
+  const baseProcess = getBaseProcessValue(rawProcess || productProcessInfo?.finalProcess) || "-";
+  const product = findInboundQrProduct(inbound, boxes);
+  let additionalProcesses = [];
+
+  if (productProcessInfo) {
+    additionalProcesses = getProductProcessTreatments(productProcessInfo);
+  } else if (product) {
+    additionalProcesses = getProductProcessTreatments(product);
+  } else {
+    const normalizedProcess = String(rawProcess || "").replace(/\s+/g, "");
+    if (normalizedProcess.includes("박가루제거")) {
+      additionalProcesses.push("박가루제거");
+    }
+    if (normalizedProcess.includes("화염처리")) {
+      additionalProcesses.push("화염처리");
+    }
+  }
+
+  const processOrder = ["박가루제거", "화염처리"];
+  additionalProcesses = [...new Set(additionalProcesses)]
+    .sort((left, right) => processOrder.indexOf(left) - processOrder.indexOf(right));
+
+  return {
+    baseProcess,
+    additionalProcesses,
+    summary: additionalProcesses.length
+      ? `${baseProcess} + ${additionalProcesses.join("/")}`
+      : baseProcess
+  };
+}
+
 function closeInboundQrModal() {
   if (!inboundQrModal) {
     return;
@@ -6140,7 +6200,7 @@ function closeInboundQrModal() {
   }
 }
 
-function renderInboundQrSheet(inbound, boxes) {
+function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
   if (!inboundQrSheet) {
     return;
   }
@@ -6156,7 +6216,7 @@ function renderInboundQrSheet(inbound, boxes) {
   }
 
   const total = boxes.length;
-  const processText = getInboundQrProcessText(inbound);
+  const { baseProcess, additionalProcesses } = getInboundQrProcessData(inbound, boxes, productProcessInfo);
   const productName = inbound.productName || boxes[0]?.productName || "-";
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
@@ -6168,28 +6228,48 @@ function renderInboundQrSheet(inbound, boxes) {
         sequence,
         total,
         qrData,
-        processText,
+        processText: baseProcess,
+        additionalProcesses,
         productName
       });
     }
 
-    return renderInboundQrStandardLabel({ box, sequence, total, qrData, processText, productName });
+    return renderInboundQrStandardLabel({
+      box,
+      sequence,
+      total,
+      qrData,
+      processText: baseProcess,
+      additionalProcesses,
+      productName
+    });
   }).join("");
 }
 
-function renderInboundQrStandardLabel({ box, sequence, total, qrData, processText, productName }, variantClass = "") {
+function renderInboundQrStandardLabel({
+  box,
+  sequence,
+  total,
+  qrData,
+  processText,
+  additionalProcesses = [],
+  productName
+}, variantClass = "") {
   const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
+  const hasAdditionalProcess = additionalProcesses.length > 0;
 
   return `
     <article class="box-qr-label box-qr-label-standard${variantClass ? ` ${variantClass}` : ""}">
-      ${variantClass ? '<div class="box-qr-title">승진 관리 시스템</div>' : ""}
       <div class="box-qr-standard-overview">
         <div class="box-qr-standard-overview-copy">
-          <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
+          <div class="box-qr-process${hasAdditionalProcess ? " has-additional-process" : ""}">
+            <strong>최종공정 ${escapeHtml(processText)}</strong>
+            ${hasAdditionalProcess ? `<small>+ ${escapeHtml(additionalProcesses.join(" / + "))}</small>` : ""}
+          </div>
           <div class="box-qr-standard-product">
             <span>제품명</span>
             <strong>${escapeHtml(productName)}</strong>
-            ${variantClass ? "" : "<small>승진 관리 시스템</small>"}
+            <small>승진 관리 시스템</small>
           </div>
         </div>
         <div class="box-qr-standard-media">
@@ -6200,7 +6280,9 @@ function renderInboundQrStandardLabel({ box, sequence, total, qrData, processTex
       <div class="box-qr-standard-checks" aria-label="공정별 수량, 포장일 및 서명">
         ${renderQrProcessDateCheck("1도", processText)}
         ${renderQrProcessDateCheck("2도", processText)}
-        ${renderQrProcessDateCheck("3도", processText)}
+        ${hasAdditionalProcess
+          ? renderQrProcessDateCheck("", processText, { additionalProcesses })
+          : renderQrProcessDateCheck("3도", processText)}
       </div>
       <div class="box-qr-standard-admin" aria-label="관리자 마감란">
         <div class="box-qr-standard-admin-check">
@@ -6246,14 +6328,22 @@ function renderQrProcessCheck(label, finalProcess = "") {
   `;
 }
 
-function renderQrProcessDateCheck(label, finalProcess = "") {
-  const isDisabled = isQrProcessDisabled(label, finalProcess);
+function renderQrProcessDateCheck(label, finalProcess = "", options = {}) {
+  const additionalProcesses = Array.isArray(options.additionalProcesses)
+    ? options.additionalProcesses.filter(Boolean)
+    : [];
+  const isAdditionalProcess = additionalProcesses.length > 0;
+  const isDisabled = !isAdditionalProcess && isQrProcessDisabled(label, finalProcess);
+  const processLabel = isAdditionalProcess
+    ? additionalProcesses.map((process) => `<span>${escapeHtml(process)}</span>`).join("")
+    : escapeHtml(label);
+
   return `
-    <div class="box-qr-standard-process${isDisabled ? " is-disabled" : ""}"${isDisabled ? ' aria-disabled="true"' : ""}>
+    <div class="box-qr-standard-process${isAdditionalProcess ? " is-additional-process" : ""}${isDisabled ? " is-disabled" : ""}"${isDisabled ? ' aria-disabled="true"' : ""}>
       <div class="box-qr-standard-process-check">
-        <strong>${escapeHtml(label)}</strong>
+        <strong${isAdditionalProcess ? ' class="box-qr-additional-process-label"' : ""}>${processLabel}</strong>
       </div>
-      <div class="box-qr-standard-quantity"><span aria-hidden="true"></span><b>ea</b></div>
+      ${isAdditionalProcess ? "" : '<div class="box-qr-standard-quantity"><span aria-hidden="true"></span><b>ea</b></div>'}
       <div class="box-qr-standard-date"><span aria-hidden="true"></span><b>월</b><span aria-hidden="true"></span><b>일</b></div>
       <em>(인)</em>
     </div>

@@ -6240,11 +6240,17 @@ input {
   border-bottom: 1px solid #dbe5f0;
 }
 
+.qr-modal-header > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .qr-modal-header h2 {
   margin: 0;
   color: var(--navy-dark);
   font-size: 1.2rem;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .qr-modal-header p {
@@ -6256,12 +6262,16 @@ input {
 
 .qr-modal-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.5rem;
+  min-width: max-content;
+  white-space: nowrap;
 }
 
 .qr-layout-toggle {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.25rem;
   height: 2.15rem;
@@ -6272,6 +6282,8 @@ input {
 }
 
 .qr-layout-toggle button {
+  flex: 0 0 auto;
+  min-width: 5.85rem;
   height: 1.72rem;
   padding: 0 0.62rem;
   color: #53647a;
@@ -6281,6 +6293,8 @@ input {
   border-radius: 0.32rem;
   background: transparent;
   cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .qr-layout-toggle button.active {
@@ -6527,8 +6541,12 @@ input {
 }
 
 .qr-sheet-work .box-qr-label-standard {
-  grid-template-rows: 7.6mm 25mm repeat(3, 7.2mm) 8.3mm;
+  grid-template-rows: 29mm repeat(3, 7.8mm) 10.1mm;
   height: 62.5mm;
+}
+
+.box-qr-label-standard > .box-qr-title {
+  display: none;
 }
 
 .box-qr-label-standard .box-qr-title {
@@ -6551,7 +6569,7 @@ input {
   display: grid;
   grid-template-rows: 6.5mm minmax(0, 1fr);
   min-width: 0;
-  padding: 1mm 1.2mm 1.1mm;
+  padding: 0.4mm 1.2mm 1.1mm;
 }
 
 .box-qr-label-standard .box-qr-process {
@@ -6560,21 +6578,37 @@ input {
   border: 0.75pt solid #050505;
   border-radius: 1.15mm;
   color: #050505;
-  font-size: 8.4pt;
+  font-size: 9.4pt;
   line-height: 1;
+}
+
+.box-qr-label-standard .box-qr-process strong {
+  font: inherit;
+}
+
+.box-qr-label-standard .box-qr-process.has-additional-process {
+  flex-direction: row;
+  gap: 0.8mm;
+}
+
+.box-qr-label-standard .box-qr-process.has-additional-process small {
+  font-size: 5.8pt;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .box-qr-standard-product {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   place-items: center;
   min-width: 0;
-  padding: 1mm 0.6mm 0;
+  padding: 0.65mm 0.6mm 0.7mm;
   text-align: center;
 }
 
 .box-qr-standard-product span {
-  font-size: 6.7pt;
+  font-size: 7.7pt;
   font-weight: 900;
   line-height: 1;
 }
@@ -6584,7 +6618,7 @@ input {
   max-width: 100%;
   overflow: hidden;
   color: #050505;
-  font-size: 7.6pt;
+  font-size: 8.6pt;
   font-weight: 700;
   line-height: 1.22;
   word-break: keep-all;
@@ -6595,14 +6629,9 @@ input {
 
 .box-qr-standard-product small {
   color: #8f98a5;
-  font-size: 5.7pt;
+  font-size: 6.7pt;
   font-weight: 700;
   line-height: 1;
-}
-
-.box-qr-label-standard:not(.box-qr-label-layout-two) .box-qr-standard-product {
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  padding-bottom: 0.7mm;
 }
 
 .box-qr-standard-media {
@@ -6610,7 +6639,7 @@ input {
   grid-template-rows: 7.8mm minmax(0, 1fr);
   place-items: center;
   min-width: 0;
-  padding: 1mm 1mm 1.1mm;
+  padding: 0.4mm 1mm 1.1mm;
 }
 
 .box-qr-standard-count {
@@ -6621,7 +6650,7 @@ input {
   height: 6.5mm;
   border: 0.75pt solid #050505;
   border-radius: 1.15mm;
-  font-size: 6.8pt;
+  font-size: 7.8pt;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -6650,6 +6679,10 @@ input {
   border-bottom: 0.6pt solid #050505;
 }
 
+.box-qr-standard-process.is-additional-process {
+  grid-template-columns: 19.2mm minmax(0, 1fr) 15mm;
+}
+
 .box-qr-standard-process > * + *,
 .box-qr-standard-admin > * + * {
   border-left: 0.55pt solid currentColor;
@@ -6668,10 +6701,28 @@ input {
 
 .box-qr-standard-process-check strong,
 .box-qr-standard-admin-check strong {
-  font-size: 7.5pt;
+  font-size: 8.5pt;
   font-weight: 900;
   line-height: 1;
   white-space: nowrap;
+}
+
+.box-qr-additional-process-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 6.8pt !important;
+  line-height: 1.02 !important;
+  white-space: normal !important;
+}
+
+.box-qr-additional-process-label > span {
+  display: block;
+}
+
+.box-qr-additional-process-label > span + span::before {
+  content: "/ ";
 }
 
 .box-qr-standard-process-check i,
@@ -6698,7 +6749,7 @@ input {
 .box-qr-standard-date span {
   flex: 1 1 0;
   min-width: 0;
-  font-size: 4.8pt;
+  font-size: 5.8pt;
   font-weight: 700;
   line-height: 1;
 }
@@ -6709,7 +6760,7 @@ input {
 
 .box-qr-standard-quantity b,
 .box-qr-standard-date b {
-  font-size: 6.4pt;
+  font-size: 7.4pt;
   font-weight: 900;
   line-height: 1;
 }
@@ -6723,7 +6774,7 @@ input {
   display: grid;
   place-items: center;
   color: #a5a5a5;
-  font-size: 5.8pt;
+  font-size: 6.8pt;
   font-style: normal;
   font-weight: 700;
   line-height: 1;
@@ -6755,7 +6806,7 @@ input {
 }
 
 .box-qr-standard-admin-check strong {
-  font-size: 6.8pt;
+  font-size: 7.8pt;
 }
 
 .box-qr-standard-admin .box-qr-standard-date {
