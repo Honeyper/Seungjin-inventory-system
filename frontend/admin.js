@@ -1163,6 +1163,8 @@ function renderShippingInspectionBoxList(row) {
   shippedBoxes.forEach((box) => {
     boxMap.set(Number(box.number), box);
   });
+  const isPartialShipping = normalizeInventoryStockStatus(row.dataset.shippingStatus) === "일부 출고"
+    || shippedBoxes.length > 0;
   const boxes = [...boxMap.values()]
     .sort((left, right) => left.number - right.number);
   const hasRegisteredBoxes = boxes.some((box) => {
@@ -1175,7 +1177,11 @@ function renderShippingInspectionBoxList(row) {
     const quantityText = `${quantity.toLocaleString("ko-KR")} ea`;
     const boxStatus = normalizeInventoryStockStatus(box.status);
     const isDisabled = box.shipped || boxStatus === "출고완료";
-    const isChecked = !isDisabled && (hasRegisteredBoxes ? ["출고대기", "보류"].includes(boxStatus) : true);
+    const isChecked = !isDisabled && (isPartialShipping
+      ? boxStatus === "출고대기"
+      : hasRegisteredBoxes
+        ? ["출고대기", "보류"].includes(boxStatus)
+        : true);
     const statusText = boxStatus === "출고완료"
       ? "출고 완료"
       : boxStatus === "출고대기"
@@ -1206,7 +1212,11 @@ function renderShippingInspectionBoxList(row) {
   if (shippingInspectionSelectAllBoxes) {
     const selectedBoxes = selectableBoxes.filter((box) => {
       const boxStatus = normalizeInventoryStockStatus(box.status);
-      return hasRegisteredBoxes ? ["출고대기", "보류"].includes(boxStatus) : true;
+      return isPartialShipping
+        ? boxStatus === "출고대기"
+        : hasRegisteredBoxes
+          ? ["출고대기", "보류"].includes(boxStatus)
+          : true;
     });
     shippingInspectionSelectAllBoxes.checked = selectableBoxes.length > 0 && selectedBoxes.length === selectableBoxes.length;
     shippingInspectionSelectAllBoxes.indeterminate = selectedBoxes.length > 0 && selectedBoxes.length < selectableBoxes.length;
@@ -2633,6 +2643,7 @@ function renderShippingTable(message = "") {
         data-inbound-date="${escapeAttribute(toDateInputValue(item.inboundDate))}"
         data-shipping-inspection-date="${escapeAttribute(toDateInputValue(item.shippingInspectionDate))}"
         data-shipping-date="${escapeAttribute(toDateInputValue(item.shippingDate))}"
+        data-shipping-status="${escapeAttribute(getEffectiveShippingStatus(item))}"
         data-defect-photo-folder-url="${escapeAttribute(item.defectPhotoFolderUrl || "")}"
         data-defect-photo-count="${Number(item.defectPhotoCount) || 0}"
         data-all-shipping-boxes="${escapeAttribute(JSON.stringify(item.allShippingBoxes || [
