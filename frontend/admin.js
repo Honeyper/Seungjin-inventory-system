@@ -612,6 +612,11 @@ shippingTable?.addEventListener("click", (event) => {
         menu.removeAttribute("open");
       }
     });
+    window.requestAnimationFrame(() => {
+      if (currentMenu?.open) {
+        positionShippingActionPopover(currentMenu, menuTrigger);
+      }
+    });
     return;
   }
 
@@ -666,6 +671,47 @@ shippingTable?.addEventListener("click", (event) => {
     showShippingHoldGuide(row, button);
   }
 });
+
+document.addEventListener("scroll", closeShippingActionMenus, true);
+window.addEventListener("resize", closeShippingActionMenus);
+
+function closeShippingActionMenus() {
+  shippingTable?.querySelectorAll(".shipping-action-menu[open]").forEach((menu) => {
+    menu.removeAttribute("open");
+  });
+}
+
+function positionShippingActionPopover(menu, trigger) {
+  const popover = menu?.querySelector(".shipping-action-popover");
+  if (!popover || !trigger) {
+    return;
+  }
+
+  const viewportGap = 8;
+  const triggerGap = 8;
+  const triggerRect = trigger.getBoundingClientRect();
+  const popoverWidth = popover.offsetWidth;
+  const popoverHeight = popover.offsetHeight;
+  const left = Math.min(
+    window.innerWidth - popoverWidth - viewportGap,
+    Math.max(viewportGap, triggerRect.right - popoverWidth)
+  );
+  const availableBelow = window.innerHeight - triggerRect.bottom - viewportGap;
+  const opensUp = availableBelow < popoverHeight + triggerGap
+    && triggerRect.top >= popoverHeight + triggerGap + viewportGap;
+  const top = opensUp
+    ? triggerRect.top - popoverHeight - triggerGap
+    : Math.min(window.innerHeight - popoverHeight - viewportGap, triggerRect.bottom + triggerGap);
+  const arrowLeft = Math.min(
+    popoverWidth - 16,
+    Math.max(16, triggerRect.left + (triggerRect.width / 2) - left)
+  );
+
+  popover.classList.toggle("opens-up", opensUp);
+  popover.style.left = `${Math.round(left)}px`;
+  popover.style.top = `${Math.round(Math.max(viewportGap, top))}px`;
+  popover.style.setProperty("--shipping-action-arrow-left", `${Math.round(arrowLeft)}px`);
+}
 
 openExistingStockModalButton?.addEventListener("click", openExistingStockModal);
 document.querySelector("#closeExistingStockModal")?.addEventListener("click", closeExistingStockModal);

@@ -2910,9 +2910,10 @@ input {
 }
 
 .shipping-action-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.55rem);
+  position: fixed;
+  right: auto;
+  top: 0;
+  left: 0;
   z-index: 80;
   display: grid;
   gap: 0.2rem;
@@ -2928,13 +2929,20 @@ input {
   content: "";
   position: absolute;
   top: -0.36rem;
-  right: 2rem;
+  right: auto;
+  left: calc(var(--shipping-action-arrow-left, 2rem) - 0.36rem);
   width: 0.72rem;
   height: 0.72rem;
   background: #fff;
   border-top: 1px solid #e2e9f3;
   border-left: 1px solid #e2e9f3;
   transform: rotate(45deg);
+}
+
+.shipping-action-popover.opens-up::before {
+  top: auto;
+  bottom: -0.36rem;
+  transform: rotate(225deg);
 }
 
 .shipping-action-menu-item {
