@@ -4107,11 +4107,11 @@ img {
 }
 
 #shippingScreen .manual-shipping-open-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.85;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
