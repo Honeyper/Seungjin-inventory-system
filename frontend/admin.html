@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260720-inbound-product-create" />
+    <link rel="stylesheet" href="./styles.css?v=20260720-inbound-time-now" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -133,10 +133,19 @@
                     <span>입고일 <b>*</b></span>
                     <input id="inboundDate" type="date" />
                   </label>
-                  <label class="form-field">
-                    <span>입고 시간 <b>*</b></span>
+                  <div class="form-field inbound-time-field">
+                    <div class="inbound-time-label">
+                      <label for="inboundTime">입고 시간 <b>*</b></label>
+                      <button class="inbound-time-now-button" type="button" id="setCurrentInboundTimeButton" title="현재 시간으로 설정">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <circle cx="12" cy="12" r="8" />
+                          <path d="M12 8v4l3 2" />
+                        </svg>
+                        <span>현재 시간</span>
+                      </button>
+                    </div>
                     <input id="inboundTime" type="time" />
-                  </label>
+                  </div>
                   <label class="form-field">
                     <span>입고 유형 <b>*</b></span>
                     <select id="inboundType">
@@ -2153,6 +2162,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260720-inbound-product-create"></script>
+    <script src="./admin.js?v=20260720-inbound-time-now"></script>
   </body>
 </html>

@@ -5577,6 +5577,58 @@ body.shipping-box-drag-selecting * {
   padding-left: 0.75rem;
 }
 
+.inbound-time-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-height: 1.25rem;
+  margin-bottom: 0.28rem;
+}
+
+.inbound-time-label label {
+  min-width: 0;
+}
+
+.inbound-time-label b {
+  color: #d62626;
+}
+
+.inbound-time-now-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  min-height: 1.45rem;
+  padding: 0 0.48rem;
+  color: var(--navy-dark);
+  font-size: 0.68rem;
+  font-weight: 900;
+  border: 1px solid #ccd9ea;
+  border-radius: 999px;
+  background: #f5f8fc;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.inbound-time-now-button:hover,
+.inbound-time-now-button:focus-visible {
+  color: #fff;
+  border-color: var(--navy-dark);
+  background: var(--navy-dark);
+  outline: none;
+}
+
+.inbound-time-now-button svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .quantity-grid .full-span {
   grid-column: 1 / -1;
 }
