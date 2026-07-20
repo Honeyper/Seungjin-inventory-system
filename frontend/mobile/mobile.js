@@ -4,8 +4,12 @@ const PERSISTENT_SESSION_KEY = "seungjinMobilePersistentSession";
 const LOGIN_PREFERENCES_KEY = "seungjinMobileLoginPreferences";
 const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
+const PERSISTENT_SCANNED_ROWS_KEY = "seungjinMobilePersistentScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
 const SCANNER_MODE_KEY = "seungjinMobileScannerMode";
+const DASHBOARD_CACHE_KEY = `seungjinMobileDashboardCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const DASHBOARD_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const DASHBOARD_BACKGROUND_REFRESH_MS = 45 * 1000;
 const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
 const SCANNER_DEVICE_MEMORY_GB = Number(navigator.deviceMemory) || 8;
 const IS_ANDROID_SCANNER = /Android/i.test(navigator.userAgent);
@@ -59,6 +63,8 @@ const SHIPPING_SORT_OPTIONS = [
 const state = {
   user: null,
   dashboard: [],
+  dashboardLoadedAt: 0,
+  dashboardLoadPromise: null,
   filteredRows: [],
   scannedShippingRows: [],
   scannerSessionShippingKeys: [],
@@ -192,6 +198,7 @@ function initializeMobileApp() {
     state.user = savedSession;
     state.scannedShippingRows = readSavedScannedRows();
     state.scannedMoveRows = readSavedMoveRows();
+    restoreCachedDashboard();
     restoreSavedRoute();
     return;
   }
@@ -451,9 +458,13 @@ async function attemptAdminLogin() {
     state.user = loginResult.user;
     saveLoginPreferences({ accountId, password });
     saveSession(loginResult.user);
+    if (!state.scannedShippingRows.length) {
+      state.scannedShippingRows = readSavedScannedRows();
+    }
     if (!state.scannedMoveRows.length) {
       state.scannedMoveRows = readSavedMoveRows();
     }
+    restoreCachedDashboard();
     showHome();
   } catch (error) {
     setLoginMessage(error.message || "로그인 서버에 연결할 수 없습니다.");
@@ -524,8 +535,11 @@ function logout() {
   sessionStorage.removeItem(ROUTE_KEY);
   sessionStorage.removeItem(SCANNED_ROWS_KEY);
   sessionStorage.removeItem(MOVE_ROWS_KEY);
+  clearPersistentMobileData();
   state.user = null;
   state.dashboard = [];
+  state.dashboardLoadedAt = 0;
+  state.dashboardLoadPromise = null;
   state.filteredRows = [];
   state.scannedShippingRows = [];
   state.scannedMoveRows = [];
@@ -558,6 +572,7 @@ function navigate(route) {
 function showHome() {
   elements.mobileUserName.textContent = state.user?.name || "관리자";
   showScreen("home");
+  void refreshDashboardInBackground();
 }
 
 function showShipping() {
@@ -565,9 +580,7 @@ function showShipping() {
   showScreen("shipping");
   startShippingClock();
   applyShippingFilters();
-  if (!state.dashboard.length) {
-    loadShippingDashboard({ silent: true });
-  }
+  void refreshDashboardInBackground();
 }
 
 function showInventoryMove() {
@@ -578,9 +591,7 @@ function showInventoryMove() {
     syncScannedMoveRowsFromDashboard();
   }
   renderInventoryMoveList();
-  if (!state.dashboard.length) {
-    loadShippingDashboard({ silent: true }).then(renderInventoryMoveList).catch(() => {});
-  }
+  void refreshDashboardInBackground();
 }
 
 function showScreen(name) {
@@ -657,24 +668,74 @@ function saveCurrentRoute(name) {
 }
 
 async function loadShippingDashboard(options = {}) {
+  if (state.dashboardLoadPromise) {
+    return state.dashboardLoadPromise;
+  }
+
   if (!options.silent && !state.scannedShippingRows.length) {
     renderShippingLoading();
   }
 
-  try {
-    const data = await requestApi("getInventoryDashboard");
-    state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
-    syncPendingShippingRowsFromDashboard();
-    syncScannedMoveRowsFromDashboard();
-    applyShippingFilters();
-    return true;
-  } catch (error) {
-    if (options.silent) {
-      showToast(error.message || "출고 목록을 불러오지 못했습니다.");
+  const loadPromise = (async () => {
+    try {
+      const data = await requestApi("getInventoryDashboard");
+      state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
+      state.dashboardLoadedAt = Date.now();
+      syncPendingShippingRowsFromDashboard();
+      syncScannedMoveRowsFromDashboard();
+      applyShippingFilters();
+      saveDashboardCache();
+      return true;
+    } catch (error) {
+      if (options.silent) {
+        if (!options.suppressToast) {
+          showToast(error.message || "출고 목록을 불러오지 못했습니다.");
+        }
+        return false;
+      }
+      renderShippingError(error.message || "출고 목록을 불러오지 못했습니다.");
       return false;
     }
-    renderShippingError(error.message || "출고 목록을 불러오지 못했습니다.");
-    return false;
+  })();
+
+  state.dashboardLoadPromise = loadPromise;
+  try {
+    return await loadPromise;
+  } finally {
+    if (state.dashboardLoadPromise === loadPromise) {
+      state.dashboardLoadPromise = null;
+    }
+  }
+}
+
+async function refreshDashboardInBackground() {
+  const cacheAge = Date.now() - state.dashboardLoadedAt;
+  if (state.dashboard.length && cacheAge >= 0 && cacheAge < DASHBOARD_BACKGROUND_REFRESH_MS) {
+    return true;
+  }
+
+  const shippingActive = elements.shippingScreen?.classList.contains("active");
+  const inventoryMoveActive = elements.inventoryMoveScreen?.classList.contains("active");
+  if (shippingActive) {
+    elements.refreshShippingButton?.classList.add("is-loading");
+  }
+  if (inventoryMoveActive) {
+    elements.refreshInventoryMoveButton?.classList.add("is-loading");
+  }
+
+  try {
+    const refreshed = await loadShippingDashboard({ silent: true, suppressToast: true });
+    if (inventoryMoveActive) {
+      renderInventoryMoveList();
+    }
+    return refreshed;
+  } finally {
+    if (shippingActive) {
+      elements.refreshShippingButton?.classList.remove("is-loading");
+    }
+    if (inventoryMoveActive) {
+      elements.refreshInventoryMoveButton?.classList.remove("is-loading");
+    }
   }
 }
 
@@ -3134,10 +3195,10 @@ async function ensureDashboardLoaded() {
   if (state.dashboard.length) {
     return;
   }
-  const data = await requestApi("getInventoryDashboard");
-  state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
-  syncPendingShippingRowsFromDashboard();
-  syncScannedMoveRowsFromDashboard();
+  const loaded = await loadShippingDashboard({ silent: true, suppressToast: true });
+  if (!loaded) {
+    throw new Error("재고 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
 }
 
 function syncPendingShippingRowsFromDashboard() {
@@ -3761,14 +3822,72 @@ function saveLoginPreferences(credentials = null) {
   }
 }
 
+function getMobileCacheUserKey() {
+  return String(state.user?.accountId || state.user?.name || "").trim();
+}
+
+function restoreCachedDashboard() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(DASHBOARD_CACHE_KEY) || "null");
+    const currentUserKey = getMobileCacheUserKey();
+    const savedAt = Number(cached?.savedAt) || 0;
+    const isExpired = !savedAt || Date.now() - savedAt > DASHBOARD_CACHE_MAX_AGE_MS;
+    const isDifferentUser = cached?.userKey && currentUserKey && cached.userKey !== currentUserKey;
+    if (!Array.isArray(cached?.rows) || isExpired || isDifferentUser) {
+      if (cached) {
+        localStorage.removeItem(DASHBOARD_CACHE_KEY);
+      }
+      return false;
+    }
+
+    state.dashboard = cached.rows;
+    state.dashboardLoadedAt = savedAt;
+    syncPendingShippingRowsFromDashboard();
+    syncScannedMoveRowsFromDashboard();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function saveDashboardCache() {
+  try {
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({
+      userKey: getMobileCacheUserKey(),
+      savedAt: state.dashboardLoadedAt || Date.now(),
+      rows: state.dashboard
+    }));
+  } catch (error) {
+    // Storage limits or private browsing must not block the live dashboard.
+  }
+}
+
+function clearPersistentMobileData() {
+  try {
+    localStorage.removeItem(DASHBOARD_CACHE_KEY);
+    localStorage.removeItem(PERSISTENT_SCANNED_ROWS_KEY);
+  } catch (error) {
+    // Private browsing or device policy can block persistent storage.
+  }
+}
+
 function readSavedScannedRows() {
   try {
     const rows = JSON.parse(sessionStorage.getItem(SCANNED_ROWS_KEY) || "[]");
-    if (!Array.isArray(rows)) {
+    if (Array.isArray(rows) && rows.length) {
+      const compactRows = rows.map(compactScannedBoxRow);
+      sessionStorage.setItem(SCANNED_ROWS_KEY, JSON.stringify(compactRows));
+      return compactRows;
+    }
+
+    const persistent = JSON.parse(localStorage.getItem(PERSISTENT_SCANNED_ROWS_KEY) || "null");
+    const currentUserKey = getMobileCacheUserKey();
+    if (!Array.isArray(persistent?.rows)
+      || (persistent.userKey && currentUserKey && persistent.userKey !== currentUserKey)) {
       return [];
     }
 
-    const compactRows = rows.map(compactScannedBoxRow);
+    const compactRows = persistent.rows.map(compactScannedBoxRow);
     if (compactRows.length) {
       sessionStorage.setItem(SCANNED_ROWS_KEY, JSON.stringify(compactRows));
     }
@@ -3782,9 +3901,15 @@ function saveScannedShippingRows() {
   try {
     if (!state.scannedShippingRows.length) {
       sessionStorage.removeItem(SCANNED_ROWS_KEY);
+      localStorage.removeItem(PERSISTENT_SCANNED_ROWS_KEY);
       return;
     }
-    sessionStorage.setItem(SCANNED_ROWS_KEY, JSON.stringify(state.scannedShippingRows.map(compactScannedBoxRow)));
+    const compactRows = state.scannedShippingRows.map(compactScannedBoxRow);
+    sessionStorage.setItem(SCANNED_ROWS_KEY, JSON.stringify(compactRows));
+    localStorage.setItem(PERSISTENT_SCANNED_ROWS_KEY, JSON.stringify({
+      userKey: getMobileCacheUserKey(),
+      rows: compactRows
+    }));
   } catch (error) {
     console.warn("Failed to save scanned shipping rows.", error);
   }
