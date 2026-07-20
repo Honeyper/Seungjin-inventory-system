@@ -5993,10 +5993,6 @@ img {
   font-size: 12px;
 }
 
-#shippingScreen .metric:nth-child(2) > .metric-value-row {
-  margin-top: 12px;
-}
-
 @media (max-height: 700px), (max-width: 340px) {
   #shippingScreen .shipping-product-name {
     font-size: 16px;
@@ -6518,6 +6514,41 @@ img {
 #shippingScreen .metric-quantity-button,
 #inventoryMoveScreen .metric-quantity-button {
   min-height: 25px;
+}
+
+#shippingScreen .item-metrics .metric {
+  grid-template-rows: 18px 29px 32px;
+  min-height: 79px;
+}
+
+#shippingScreen .metric > .metric-label {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 18px;
+}
+
+#shippingScreen .metric > .metric-value-row {
+  align-items: center;
+  min-height: 29px;
+  margin-top: 0;
+}
+
+#shippingScreen .metric-support-row,
+#shippingScreen .metric-action-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 32px;
+  margin-top: 0;
+  padding-top: 7px;
+}
+
+#shippingScreen .metric-support-row {
+  color: #667387;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 @media (max-height: 700px), (max-width: 340px) {

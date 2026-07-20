@@ -1770,33 +1770,30 @@ function renderShippingItem(item) {
       </div>
       <div class="item-metrics">
         <span class="metric">
-          <span>등록 박스</span>
-          <span class="metric-count-row">
-            <span class="metric-value-row">
-              <strong>${formatNumber(boxCount)}</strong>
-              <small>Box</small>
-            </span>
-            <small>총 ${formatNumber(totalBoxCount)}박스</small>
+          <span class="metric-label">등록 박스</span>
+          <span class="metric-value-row">
+            <strong>${formatNumber(boxCount)}</strong>
+            <small>Box</small>
           </span>
+          <span class="metric-support-row">총 ${formatNumber(totalBoxCount)}박스</span>
         </span>
         <span class="metric">
-          <span>출고 가능 수량</span>
+          <span class="metric-label">출고 가능 수량</span>
           <span class="metric-value-row">
             <strong>${formatNumber(totalQuantity)}</strong>
             <small>ea</small>
           </span>
+          <span class="metric-support-row" aria-hidden="true"></span>
         </span>
         <span class="metric">
-          <span>현재 수량</span>
+          <span class="metric-label">현재 수량</span>
           <span class="metric-value-row">
             <strong class="blue">${formatNumber(currentQuantity)}</strong>
             <small>ea</small>
           </span>
-          ${isCompleted ? "" : `
-            <span class="metric-action-row">
-              <button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>
-            </span>
-          `}
+          <span class="metric-action-row">
+            ${isCompleted ? "" : `<button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>`}
+          </span>
         </span>
       </div>
       <details class="shipping-product-details">
