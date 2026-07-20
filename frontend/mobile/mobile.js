@@ -1565,7 +1565,7 @@ function renderInventoryMoveItem(item) {
           <button class="ship-now-button" type="button" data-inventory-move-action="all" data-inventory-move-key="${escapeHtml(key)}">전량 이동</button>
         </div>
       </div>
-      <p class="item-worker"><span>작업자</span>${escapeHtml(normalizeDisplay(state.user?.name || item.registrant || item.inspector || "-"))}</p>
+      <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(state.user?.name || item.registrant || item.inspector || "-"))}</p>
       <div class="inventory-storage-grid">
         <span class="storage-card">
           <small>현재 보관 장소</small>
@@ -1747,7 +1747,7 @@ function renderShippingItem(item) {
             `}
         </div>
       </div>
-      <p class="item-worker"><span>작업자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
+      <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
       <div class="item-metrics">
         <span class="metric">
           <span>등록 박스</span>
