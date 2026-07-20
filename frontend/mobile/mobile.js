@@ -5,6 +5,7 @@ const LOGIN_PREFERENCES_KEY = "seungjinMobileLoginPreferences";
 const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
+const SCANNER_MODE_KEY = "seungjinMobileScannerMode";
 const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
 const SCANNER_DEVICE_MEMORY_GB = Number(navigator.deviceMemory) || 8;
 const IS_ANDROID_SCANNER = /Android/i.test(navigator.userAgent);
@@ -20,6 +21,7 @@ const JSQR_NATIVE_FALLBACK_INTERVAL = 1;
 const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
+const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 320;
 const SHIPPING_CLOCK_INTERVAL_MS = 10000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
@@ -73,6 +75,11 @@ const state = {
   scannerTimer: null,
   scannerCanvas: null,
   scannerCanvasContext: null,
+  scannerInputMode: "camera",
+  hardwareScannerBuffer: "",
+  hardwareScannerLastInputAt: 0,
+  hardwareScannerSubmitTimer: null,
+  hardwareScannerStatusTimer: null,
   scannerLastValue: "",
   isProcessingScan: false,
   clockTimer: null,
@@ -148,7 +155,12 @@ const elements = {
   cancelConfirmButton: document.querySelector("#cancelConfirmButton"),
   acceptConfirmButton: document.querySelector("#acceptConfirmButton"),
   scannerScreen: document.querySelector("#scannerScreen"),
+  scannerCamera: document.querySelector("#scannerCamera"),
+  scannerTitle: document.querySelector("#scannerTitle"),
+  scannerTip: document.querySelector("#scannerTip"),
   scannerVideo: document.querySelector("#scannerVideo"),
+  hardwareScannerPanel: document.querySelector("#hardwareScannerPanel"),
+  hardwareScannerStatus: document.querySelector("#hardwareScannerStatus"),
   scannerHelpText: document.querySelector("#scannerHelpText"),
   scannerListPanel: document.querySelector("#scannerListPanel"),
   scannerSheetHandle: document.querySelector("#scannerSheetHandle"),
@@ -157,7 +169,7 @@ const elements = {
   closeScannerButton: document.querySelector("#closeScannerButton"),
   toggleFlashButton: document.querySelector("#toggleFlashButton"),
   albumQrButton: document.querySelector("#albumQrButton"),
-  manualQrButton: document.querySelector("#manualQrButton"),
+  scannerModeToggleButton: document.querySelector("#scannerModeToggleButton"),
   scannerPendingButton: document.querySelector("#scannerPendingButton"),
   scannerDoneButton: document.querySelector("#scannerDoneButton"),
   toast: document.querySelector("#mobileToast")
@@ -224,7 +236,7 @@ function bindEvents() {
   elements.albumQrButton?.addEventListener("click", () => {
     showToast("앨범 QR 선택은 다음 단계에서 연결합니다.");
   });
-  elements.manualQrButton?.addEventListener("click", handleManualQrInput);
+  elements.scannerModeToggleButton?.addEventListener("click", toggleScannerInputMode);
   elements.scannerScannedList?.addEventListener("click", handleScannerListClick);
   elements.scannerPendingButton?.addEventListener("click", handleScannerPendingAction);
   elements.scannerDoneButton?.addEventListener("click", handleScannerDoneAction);
@@ -234,6 +246,8 @@ function bindEvents() {
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
   bindScannerSheetEvents();
+  document.addEventListener("keydown", handleHardwareScannerKeydown);
+  document.addEventListener("paste", handleHardwareScannerPaste);
   document.addEventListener("visibilitychange", handlePageVisibilityChange);
   document.addEventListener("click", closeShippingSortMenu);
   window.addEventListener("pagehide", releaseScannerStream);
@@ -2359,27 +2373,93 @@ async function openScanner() {
   setScannerSheetExpanded(false);
   updateScannerActionLabels();
   renderScannerScannedList();
-  setScannerHelp(state.activeWorkflow === "inventoryMove"
-    ? "이동할 박스 QR을 스캔하세요. 선택 박스만 자리이동하거나 같은 보관장소의 전량 박스를 이동할 수 있습니다."
-    : "QR 코드가 인식되지 않으면 수동 입력을 사용해주세요.");
+  await setScannerInputMode(readSavedScannerMode(), { save: false });
+}
 
+function readSavedScannerMode() {
+  try {
+    return localStorage.getItem(SCANNER_MODE_KEY) === "hardware" ? "hardware" : "camera";
+  } catch (error) {
+    return "camera";
+  }
+}
+
+async function toggleScannerInputMode() {
+  const nextMode = state.scannerInputMode === "camera" ? "hardware" : "camera";
+  await setScannerInputMode(nextMode);
+}
+
+async function setScannerInputMode(mode, options = {}) {
+  const nextMode = mode === "hardware" ? "hardware" : "camera";
+  state.scannerInputMode = nextMode;
+  resetHardwareScannerBuffer();
+  elements.scannerScreen?.classList.toggle("scanner-mode-hardware", nextMode === "hardware");
+  elements.hardwareScannerPanel?.setAttribute("aria-hidden", String(nextMode !== "hardware"));
+  if (elements.scannerTitle) {
+    elements.scannerTitle.textContent = nextMode === "hardware" ? "외부 스캐너" : "QR 스캔";
+  }
+  if (elements.scannerTip) {
+    elements.scannerTip.textContent = nextMode === "hardware"
+      ? "스캐너로 제품 QR을 읽어주세요."
+      : "제품 박스의 QR 코드를 카메라에 비춰주세요.";
+  }
+
+  if (elements.scannerModeToggleButton) {
+    const isHardwareMode = nextMode === "hardware";
+    elements.scannerModeToggleButton.classList.toggle("active", isHardwareMode);
+    elements.scannerModeToggleButton.setAttribute("aria-pressed", String(isHardwareMode));
+    elements.scannerModeToggleButton.setAttribute("aria-label", isHardwareMode
+      ? "현재 외부 스캐너 모드. 카메라 모드로 전환"
+      : "현재 카메라 모드. 외부 스캐너 모드로 전환");
+    elements.scannerModeToggleButton.querySelectorAll("[data-scanner-mode]").forEach((option) => {
+      option.classList.toggle("active", option.dataset.scannerMode === nextMode);
+    });
+  }
+
+  if (options.save !== false) {
+    try {
+      localStorage.setItem(SCANNER_MODE_KEY, nextMode);
+    } catch (error) {
+      // Private browsing or device policy can block persistent storage.
+    }
+  }
+
+  if (nextMode === "hardware") {
+    stopScannerCamera();
+    setHardwareScannerStatus("스캐너 입력을 기다리고 있습니다.");
+    setScannerHelp(state.activeWorkflow === "inventoryMove"
+      ? "외부 스캐너로 이동할 박스 QR을 읽어주세요."
+      : "외부 스캐너로 제품 박스 QR을 읽으면 자동으로 등록됩니다.");
+    return;
+  }
+
+  setScannerHelp(state.activeWorkflow === "inventoryMove"
+    ? "이동할 박스 QR을 카메라에 비춰주세요."
+    : "QR이 화면에 보이면 카메라가 자동으로 인식합니다.");
+  await startScannerCamera();
+}
+
+async function startScannerCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
-    setScannerHelp("이 브라우저에서는 카메라를 열 수 없습니다. 수동 입력으로 진행해주세요.");
-    showToast("카메라 기능을 사용할 수 없어 수동 입력을 사용해주세요.");
-    window.setTimeout(handleManualQrInput, 200);
+    showToast("카메라를 사용할 수 없어 외부 스캐너 모드로 전환합니다.");
+    await setScannerInputMode("hardware");
     return;
   }
 
   try {
     const stream = await getScannerStream();
+    if (state.scannerInputMode !== "camera" || elements.scannerScreen?.hidden) {
+      stopScannerCamera();
+      return;
+    }
     if (elements.scannerVideo.srcObject !== stream) {
       elements.scannerVideo.srcObject = stream;
     }
     await elements.scannerVideo.play();
     startBarcodeDetection();
   } catch (error) {
-    setScannerHelp("카메라 권한이 차단되었습니다. 권한을 허용하거나 수동 입력을 사용해주세요.");
-    showToast("카메라 권한을 허용하거나 수동 입력을 사용해주세요.");
+    showToast("카메라를 열지 못해 외부 스캐너 모드로 전환합니다.");
+    await setScannerInputMode("hardware");
   }
 }
 
@@ -2509,14 +2589,10 @@ function closeScanner() {
   releaseScannerStream();
 }
 
-function releaseScannerStream() {
+function stopScannerCamera() {
   if (state.scannerTimer) {
     clearInterval(state.scannerTimer);
     state.scannerTimer = null;
-  }
-
-  if (elements.scannerScreen) {
-    elements.scannerScreen.hidden = true;
   }
 
   if (elements.scannerVideo) {
@@ -2527,6 +2603,20 @@ function releaseScannerStream() {
   if (state.scannerStream) {
     state.scannerStream.getTracks().forEach((track) => track.stop());
     state.scannerStream = null;
+  }
+}
+
+function releaseScannerStream() {
+  stopScannerCamera();
+  resetHardwareScannerBuffer();
+
+  if (state.hardwareScannerStatusTimer) {
+    clearTimeout(state.hardwareScannerStatusTimer);
+    state.hardwareScannerStatusTimer = null;
+  }
+
+  if (elements.scannerScreen) {
+    elements.scannerScreen.hidden = true;
   }
 }
 
@@ -2543,8 +2633,8 @@ function startBarcodeDetection() {
   }
 
   if (!detector) {
-    setScannerHelp("QR 인식 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하거나 수동 입력을 사용해주세요.");
-    showToast("QR 인식 모듈 로딩에 실패했습니다.");
+    setScannerHelp("QR 인식 모듈을 불러오지 못했습니다. 스캐너 모드로 전환해 진행해주세요.");
+    showToast("QR 인식 모듈 로딩에 실패했습니다. 스캐너 모드를 사용해주세요.");
     return;
   }
   state.scannerTimer = setInterval(async () => {
@@ -2560,8 +2650,8 @@ function startBarcodeDetection() {
     } catch (error) {
       clearInterval(state.scannerTimer);
       state.scannerTimer = null;
-      setScannerHelp("QR 자동 인식이 중단되었습니다. 수동 입력으로 진행해주세요.");
-      showToast("QR 자동 인식이 중단되었습니다.");
+      setScannerHelp("QR 자동 인식이 중단되었습니다. 스캐너 모드로 전환해주세요.");
+      showToast("카메라 QR 인식이 중단되었습니다.");
     }
   }, BARCODE_DETECT_INTERVAL_MS);
 }
@@ -2580,7 +2670,7 @@ function createBarcodeDetector() {
 
 function startJsQrDetection(detector = null) {
   if (typeof window.jsQR !== "function") {
-    setScannerHelp("QR 인식 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하거나 수동 입력을 사용해주세요.");
+    setScannerHelp("QR 인식 모듈을 불러오지 못했습니다. 스캐너 모드로 전환해 진행해주세요.");
     showToast("QR 인식 모듈 로딩에 실패했습니다.");
     return;
   }
@@ -2671,8 +2761,8 @@ function startJsQrDetection(detector = null) {
     } catch (error) {
       clearInterval(state.scannerTimer);
       state.scannerTimer = null;
-      setScannerHelp("QR 인식 중 문제가 발생했습니다. 수동 입력으로 진행해주세요.");
-      showToast("QR 인식이 중단되었습니다.");
+      setScannerHelp("QR 인식 중 문제가 발생했습니다. 스캐너 모드로 전환해주세요.");
+      showToast("카메라 QR 인식이 중단되었습니다.");
     } finally {
       isDetectingFrame = false;
     }
@@ -2685,11 +2775,118 @@ function setScannerHelp(message) {
   }
 }
 
-function handleManualQrInput() {
-  const value = window.prompt("QR 또는 관리ID를 입력해주세요.");
-  if (value) {
-    handleQrValue(value);
+function resetHardwareScannerBuffer() {
+  if (state.hardwareScannerSubmitTimer) {
+    clearTimeout(state.hardwareScannerSubmitTimer);
+    state.hardwareScannerSubmitTimer = null;
   }
+  state.hardwareScannerBuffer = "";
+  state.hardwareScannerLastInputAt = 0;
+}
+
+function setHardwareScannerStatus(message, tone = "waiting") {
+  if (!elements.hardwareScannerStatus) {
+    return;
+  }
+
+  elements.hardwareScannerStatus.classList.toggle("receiving", tone === "receiving");
+  elements.hardwareScannerStatus.classList.toggle("success", tone === "success");
+  const label = elements.hardwareScannerStatus.querySelector("span");
+  if (label) {
+    label.textContent = message;
+  }
+}
+
+function handleHardwareScannerKeydown(event) {
+  if (elements.scannerScreen?.hidden || state.scannerInputMode !== "hardware" || event.isComposing || event.repeat) {
+    return;
+  }
+
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.matches("input, textarea, select") || target.isContentEditable)) {
+    return;
+  }
+
+  if (event.metaKey || event.ctrlKey || event.altKey) {
+    return;
+  }
+
+  if (event.key === "Enter" || event.key === "Tab" || event.code === "NumpadEnter") {
+    event.preventDefault();
+    submitHardwareScannerValue(state.hardwareScannerBuffer);
+    return;
+  }
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    resetHardwareScannerBuffer();
+    setHardwareScannerStatus("입력을 취소했습니다. 다음 QR을 스캔해주세요.");
+    return;
+  }
+
+  if (event.key.length !== 1) {
+    return;
+  }
+
+  const now = Date.now();
+  if (state.hardwareScannerLastInputAt && now - state.hardwareScannerLastInputAt > 600) {
+    state.hardwareScannerBuffer = "";
+  }
+
+  state.hardwareScannerBuffer += event.key;
+  state.hardwareScannerLastInputAt = now;
+  setHardwareScannerStatus(`QR 입력 감지 중… ${state.hardwareScannerBuffer.length}자`, "receiving");
+  if (state.hardwareScannerSubmitTimer) {
+    clearTimeout(state.hardwareScannerSubmitTimer);
+  }
+  state.hardwareScannerSubmitTimer = window.setTimeout(() => {
+    const bufferedValue = state.hardwareScannerBuffer;
+    state.hardwareScannerSubmitTimer = null;
+    submitHardwareScannerValue(bufferedValue);
+  }, HARDWARE_SCANNER_IDLE_SUBMIT_MS);
+  event.preventDefault();
+}
+
+function handleHardwareScannerPaste(event) {
+  if (elements.scannerScreen?.hidden || state.scannerInputMode !== "hardware") {
+    return;
+  }
+
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.matches("input, textarea") || target.isContentEditable)) {
+    return;
+  }
+
+  const value = event.clipboardData?.getData("text") || "";
+  if (!value.trim()) {
+    return;
+  }
+
+  event.preventDefault();
+  submitHardwareScannerValue(value);
+}
+
+async function submitHardwareScannerValue(rawValue) {
+  const value = String(rawValue || "").trim();
+  resetHardwareScannerBuffer();
+
+  if (!value) {
+    setHardwareScannerStatus("QR 입력을 인식하지 못했습니다. 다시 스캔해주세요.");
+    return;
+  }
+
+  if (state.hardwareScannerStatusTimer) {
+    clearTimeout(state.hardwareScannerStatusTimer);
+    state.hardwareScannerStatusTimer = null;
+  }
+
+  setHardwareScannerStatus("QR을 확인하고 있습니다…", "receiving");
+  await handleQrValue(value);
+  setHardwareScannerStatus("입력 처리 완료. 다음 QR을 스캔할 수 있습니다.", "success");
+  state.hardwareScannerStatusTimer = window.setTimeout(() => {
+    setHardwareScannerStatus("스캐너 입력을 기다리고 있습니다.");
+    state.hardwareScannerStatusTimer = null;
+  }, 1200);
 }
 
 async function handleQrValue(rawValue) {

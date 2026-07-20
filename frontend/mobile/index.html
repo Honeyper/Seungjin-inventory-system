@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260720-manual-shipping-button-icon" />
+    <link rel="stylesheet" href="./mobile.css?v=20260720-scanner-mode-toggle" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -403,16 +403,28 @@
           <video id="scannerVideo" playsinline muted></video>
           <div class="scanner-shade"></div>
           <div class="scanner-frame" aria-hidden="true"></div>
+          <div class="hardware-scanner-panel" id="hardwareScannerPanel" aria-hidden="true">
+            <span class="hardware-scanner-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 4h14v9H5z"></path>
+                <path d="M8 7h8M8 10h8"></path>
+                <path d="M9 13v7h5l1-7"></path>
+              </svg>
+            </span>
+            <strong>외부 스캐너 대기 중</strong>
+            <span>QR을 스캔하면 자동으로 등록됩니다.</span>
+            <p id="hardwareScannerStatus"><i aria-hidden="true"></i><span>스캐너 입력을 기다리고 있습니다.</span></p>
+          </div>
         </div>
         <header class="scanner-header">
           <button class="scanner-close" id="closeScannerButton" type="button" aria-label="닫기">
             <svg viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"></path></svg>
           </button>
-          <h2>QR 스캔</h2>
+          <h2 id="scannerTitle">QR 스캔</h2>
           <button class="scanner-flash" id="toggleFlashButton" type="button">OFF</button>
         </header>
-        <p class="scanner-tip">제품 박스의 QR 코드를 스캔해 주세요.</p>
-        <p class="scanner-help" id="scannerHelpText">QR 코드가 인식되지 않으면 수동 입력을 사용해주세요.</p>
+        <p class="scanner-tip" id="scannerTip">제품 박스의 QR 코드를 스캔해 주세요.</p>
+        <p class="scanner-help" id="scannerHelpText">카메라 또는 외부 스캐너로 QR을 읽어주세요.</p>
         <div class="scanner-list-panel" id="scannerListPanel">
           <button class="scanner-sheet-handle" id="scannerSheetHandle" type="button" aria-label="스캔 목록 펼치기"></button>
           <div class="scanner-list-header">
@@ -420,9 +432,22 @@
               <span>현재 스캔 목록</span>
               <strong><b id="scannerScannedCount">0</b>건</strong>
             </div>
-            <button id="manualQrButton" type="button">
-              <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
-              수동 입력
+            <button class="scanner-mode-toggle" id="scannerModeToggleButton" type="button" aria-label="QR 입력 방식 전환" aria-pressed="false">
+              <span class="active" data-scanner-mode="camera">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h3l2-2h6l2 2h3v11H4z"></path>
+                  <circle cx="12" cy="12.5" r="3.5"></circle>
+                </svg>
+                카메라
+              </span>
+              <span data-scanner-mode="hardware">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 4h14v9H5z"></path>
+                  <path d="M8 7h8M8 10h8"></path>
+                  <path d="M9 13v7h5l1-7"></path>
+                </svg>
+                스캐너
+              </span>
             </button>
           </div>
           <div class="scanner-scanned-list" id="scannerScannedList" aria-live="polite"></div>
@@ -444,6 +469,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260720-persistent-login-direct"></script>
+    <script src="./mobile.js?v=20260720-scanner-mode-toggle"></script>
   </body>
 </html>
