@@ -5633,37 +5633,76 @@ img {
 }
 
 #shippingScreen .shipping-product-group {
+  position: relative;
   display: grid;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(180, 198, 220, 0.95);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #edf4fc 0%, #f6f9fd 100%);
+  box-shadow: 0 10px 24px rgba(6, 31, 76, 0.08);
+  overflow: hidden;
+}
+
+#shippingScreen .shipping-product-group::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--gold), #e9c982);
+  content: "";
 }
 
 #shippingScreen .shipping-product-group + .shipping-product-group {
-  margin-top: 6px;
-  padding-top: 12px;
-  border-top: 1px solid #d8e2f0;
+  margin-top: 10px;
 }
 
 #shippingScreen .shipping-product-group-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
-  padding: 1px 3px 3px 10px;
-  border-left: 3px solid var(--gold);
+  padding: 0 2px 9px 5px;
+  border-bottom: 1px solid rgba(180, 198, 220, 0.8);
 }
 
 #shippingScreen .shipping-product-group-copy {
   min-width: 0;
 }
 
-#shippingScreen .shipping-product-group-copy span {
+#shippingScreen .shipping-product-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 21px;
+  padding: 0 7px;
+  border: 1px solid rgba(208, 161, 75, 0.42);
+  border-radius: 999px;
+  color: var(--gold-dark);
+  background: #fff7e8;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#shippingScreen .shipping-product-group-label svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+#shippingScreen .shipping-product-group-client {
   display: block;
   overflow: hidden;
+  margin-top: 5px;
   color: #687890;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5672,8 +5711,8 @@ img {
 #shippingScreen .shipping-product-group-copy h2 {
   margin: 2px 0 0;
   color: var(--navy-dark);
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 900;
   line-height: 1.25;
   word-break: keep-all;
   overflow-wrap: anywhere;
@@ -5695,13 +5734,19 @@ img {
 #shippingScreen .shipping-product-group-summary strong {
   color: var(--gold-dark);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 #shippingScreen .shipping-product-group-items {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
+}
+
+#shippingScreen .shipping-product-group-items .shipping-item {
+  border-color: rgba(196, 210, 228, 0.95);
+  background: #fff;
+  box-shadow: 0 6px 15px rgba(6, 31, 76, 0.07);
 }
 
 #shippingScreen .shipping-item-top {
