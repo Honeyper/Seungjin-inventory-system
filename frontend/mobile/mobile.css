@@ -3944,7 +3944,7 @@ img {
   pointer-events: none;
   transform: translateX(-50%);
   color: var(--navy-dark);
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.1;
 }
 
@@ -4667,12 +4667,12 @@ img {
 #shippingScreen .empty-state h2 {
   margin-top: 12px;
   color: var(--navy-dark);
-  font-size: 22px;
+  font-size: 19px;
 }
 
 #shippingScreen .empty-state p {
-  margin: 6px 0 14px;
-  font-size: 14px;
+  margin: 6px 0 4px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -6109,7 +6109,7 @@ img {
 
 #inventoryMoveScreen .mobile-toolbar h1 {
   color: var(--navy-dark);
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.1;
 }
 
@@ -6261,13 +6261,19 @@ img {
 #inventoryMoveScreen .empty-state h2 {
   margin-top: 12px;
   color: var(--navy-dark);
-  font-size: 22px;
+  font-size: 19px;
 }
 
 #inventoryMoveScreen .empty-state p {
-  margin: 6px 0 14px;
-  font-size: 14px;
+  margin: 6px 0 4px;
+  font-size: 13px;
   line-height: 1.35;
+}
+
+#inventoryMoveScreen .empty-state .primary-action {
+  min-height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
 }
 
 #inventoryMoveScreen .shipping-item {
