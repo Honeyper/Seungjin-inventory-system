@@ -1718,6 +1718,16 @@ function renderShippingItem(item) {
   const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
   const registeredAt = formatRegistrationDate(item.registeredAt);
+  const productDetails = [
+    ["관리 ID", normalizeDisplay(item.managementId || "-")],
+    ["제품 ID", normalizeDisplay(item.productId || "-")],
+    ["입고일", formatManualShippingInboundDate(item.inboundDate)],
+    ["보관 장소", normalizeDisplay(item.storage || "-")],
+    ["차수", batch],
+    ["최종공정", process],
+    ["박스당 수량", normalizeDisplay(item.boxQuantity || "-")],
+    ["재고 상태", normalizeDisplay(item.stockStatus || item.processStatus || "-")]
+  ];
 
   return `
     <article class="shipping-item">
@@ -1786,6 +1796,28 @@ function renderShippingItem(item) {
           `}
         </span>
       </div>
+      <details class="shipping-product-details">
+        <summary>
+          <span class="shipping-product-details-title">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 10.8v5.4M12 7.5h.01"></path>
+            </svg>
+            제품 상세정보
+          </span>
+          <svg class="shipping-product-details-chevron" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m7 10 5 5 5-5"></path>
+          </svg>
+        </summary>
+        <div class="shipping-product-details-grid">
+          ${productDetails.map(([label, value]) => `
+            <div class="shipping-product-detail-item">
+              <span>${escapeHtml(label)}</span>
+              <strong>${escapeHtml(value)}</strong>
+            </div>
+          `).join("")}
+        </div>
+      </details>
     </article>
   `;
 }
@@ -3662,6 +3694,8 @@ function compactScannedBoxRow(row) {
     storage: row?.storage || scannedBox.storage || "",
     stockStatus: row?.stockStatus || "",
     processStatus: row?.processStatus || "",
+    inboundDate: row?.inboundDate || "",
+    boxQuantity: row?.boxQuantity || "",
     currentBoxCount: row?.currentBoxCount || "",
     boxTotalCount: row?.boxTotalCount || "",
     totalBoxCount: row?.totalBoxCount || "",

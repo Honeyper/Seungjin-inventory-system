@@ -5862,6 +5862,96 @@ img {
   font-weight: 800;
 }
 
+#shippingScreen .shipping-product-details {
+  min-width: 0;
+  margin-top: 1px;
+  border-top: 1px solid #e2eaf3;
+}
+
+#shippingScreen .shipping-product-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+  padding: 4px 2px 0;
+  color: var(--navy-dark);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#shippingScreen .shipping-product-details summary::-webkit-details-marker {
+  display: none;
+}
+
+#shippingScreen .shipping-product-details-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+#shippingScreen .shipping-product-details-title svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--gold-dark);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
+#shippingScreen .shipping-product-details-chevron {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #718198;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  transition: transform 160ms ease;
+}
+
+#shippingScreen .shipping-product-details[open] .shipping-product-details-chevron {
+  transform: rotate(180deg);
+}
+
+#shippingScreen .shipping-product-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 4px 0 3px;
+}
+
+#shippingScreen .shipping-product-detail-item {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  min-height: 55px;
+  padding: 9px 10px;
+  border: 1px solid #e0e8f2;
+  border-radius: 9px;
+  background: #f7f9fc;
+}
+
+#shippingScreen .shipping-product-detail-item span {
+  color: #77869a;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+#shippingScreen .shipping-product-detail-item strong {
+  overflow-wrap: anywhere;
+  color: #26364e;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
 #shippingScreen .item-metrics {
   margin-top: 3px;
   padding-top: 8px;
