@@ -81,7 +81,9 @@ const state = {
   scannerSheetMoved: false,
   boxPickerProduct: null,
   boxPickerEditingGroupKey: "",
-  boxPickerMode: "edit"
+  boxPickerMode: "edit",
+  boxPickerSource: "card",
+  manualShippingQuery: ""
 };
 
 const elements = {
@@ -111,6 +113,11 @@ const elements = {
   shippingFilterMenu: document.querySelector("#shippingFilterMenu"),
   shippingListPanel: document.querySelector("#shippingListPanel"),
   openScannerButton: document.querySelector("#openScannerButton"),
+  openManualShippingButton: document.querySelector("#openManualShippingButton"),
+  manualShippingModal: document.querySelector("#manualShippingModal"),
+  closeManualShippingButton: document.querySelector("#closeManualShippingButton"),
+  manualShippingSearchInput: document.querySelector("#manualShippingSearchInput"),
+  manualShippingProductList: document.querySelector("#manualShippingProductList"),
   shippingBoxPickerModal: document.querySelector("#shippingBoxPickerModal"),
   shippingBoxPickerTitle: document.querySelector("#shippingBoxPickerTitle"),
   closeShippingBoxPickerButton: document.querySelector("#closeShippingBoxPickerButton"),
@@ -198,6 +205,13 @@ function bindEvents() {
     applyShippingFilters();
   });
   elements.openScannerButton?.addEventListener("click", openScanner);
+  elements.openManualShippingButton?.addEventListener("click", openManualShippingPicker);
+  elements.closeManualShippingButton?.addEventListener("click", closeManualShippingPicker);
+  elements.manualShippingSearchInput?.addEventListener("input", (event) => {
+    state.manualShippingQuery = event.target.value.trim().toLowerCase();
+    renderManualShippingProducts();
+  });
+  elements.manualShippingProductList?.addEventListener("click", handleManualShippingProductClick);
   elements.closeShippingBoxPickerButton?.addEventListener("click", closeShippingBoxPicker);
   elements.cancelShippingBoxPickerButton?.addEventListener("click", closeShippingBoxPicker);
   elements.boxPickerBoxList?.addEventListener("change", handleBoxPickerBoxChange);
@@ -286,6 +300,11 @@ function bindEvents() {
   elements.shippingBoxPickerModal?.addEventListener("click", (event) => {
     if (event.target === elements.shippingBoxPickerModal) {
       closeShippingBoxPicker();
+    }
+  });
+  elements.manualShippingModal?.addEventListener("click", (event) => {
+    if (event.target === elements.manualShippingModal) {
+      closeManualShippingPicker();
     }
   });
 }
@@ -1020,7 +1039,89 @@ async function openShippingBoxAdder(item) {
   return openShippingBoxPicker(item, "add");
 }
 
-async function openShippingBoxPicker(item, mode = "edit") {
+async function openManualShippingPicker() {
+  if (!elements.manualShippingModal) {
+    return;
+  }
+
+  state.manualShippingQuery = "";
+  elements.manualShippingSearchInput.value = "";
+  elements.manualShippingModal.hidden = false;
+  document.body.classList.add("modal-open");
+  elements.manualShippingProductList.innerHTML = '<p class="box-picker-empty">제품 정보를 불러오는 중입니다.</p>';
+
+  try {
+    await ensureDashboardLoaded();
+  } catch (error) {
+    elements.manualShippingProductList.innerHTML = '<p class="box-picker-empty">제품 정보를 불러오지 못했습니다.</p>';
+    return;
+  }
+
+  renderManualShippingProducts();
+  window.setTimeout(() => elements.manualShippingSearchInput?.focus(), 0);
+}
+
+function closeManualShippingPicker() {
+  if (!elements.manualShippingModal) {
+    return;
+  }
+
+  elements.manualShippingModal.hidden = true;
+  state.manualShippingQuery = "";
+  document.body.classList.remove("modal-open");
+}
+
+function getManualShippingProducts() {
+  return state.dashboard
+    .filter((row) => getKnownBoxes(row).some((box) => {
+      const status = normalizeText(box?.rawStatus || box?.status);
+      return !/출고완료|폐기/.test(status) && getBoxCurrentQuantity(box, row) > 0;
+    }))
+    .filter((row) => {
+      if (!state.manualShippingQuery) {
+        return true;
+      }
+      return normalizeDisplay(row.productName || "").toLowerCase().includes(state.manualShippingQuery);
+    })
+    .sort((left, right) => compareShippingText(left.productName, right.productName));
+}
+
+function renderManualShippingProducts() {
+  if (!elements.manualShippingProductList) {
+    return;
+  }
+
+  const rows = getManualShippingProducts();
+  elements.manualShippingProductList.innerHTML = rows.length ? rows.map((row) => {
+    const key = getShippingProductGroupKey(row);
+    const totalBoxCount = getShippingTotalBoxCount(row);
+    return `
+      <button class="box-picker-product-button manual-shipping-product-button" type="button" data-manual-shipping-product="${escapeHtml(key)}">
+        <strong>${escapeHtml(normalizeDisplay(row.productName || "-"))}</strong>
+        <b>최초 총 ${formatNumber(totalBoxCount)}박스</b>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg>
+      </button>
+    `;
+  }).join("") : '<p class="box-picker-empty">출고 가능한 제품이 없습니다.</p>';
+}
+
+function handleManualShippingProductClick(event) {
+  const button = event.target.closest("[data-manual-shipping-product]");
+  if (!button) {
+    return;
+  }
+
+  const item = state.dashboard.find((row) => getShippingProductGroupKey(row) === button.dataset.manualShippingProduct);
+  if (!item) {
+    showToast("선택한 제품 정보를 찾지 못했습니다.");
+    return;
+  }
+
+  closeManualShippingPicker();
+  openShippingBoxPicker(item, "add", "manual");
+}
+
+async function openShippingBoxPicker(item, mode = "edit", source = "card") {
   if (!elements.shippingBoxPickerModal) {
     return;
   }
@@ -1028,6 +1129,7 @@ async function openShippingBoxPicker(item, mode = "edit") {
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = getShippingProductGroupKey(item);
   state.boxPickerMode = mode;
+  state.boxPickerSource = source;
   elements.shippingBoxPickerModal.hidden = false;
   document.body.classList.add("modal-open");
   const isAddMode = mode === "add";
@@ -1038,10 +1140,12 @@ async function openShippingBoxPicker(item, mode = "edit") {
     : "출고할 박스를 선택하거나 선택 해제해주세요.";
   elements.boxPickerClientName.textContent = normalizeDisplay(item.clientName || "-");
   elements.boxPickerProductName.textContent = normalizeDisplay(item.productName || "-");
-  elements.boxPickerProductMeta.textContent = [item.finalProcess, item.batch, item.storage]
-    .map(normalizeDisplay)
-    .filter((value) => value !== "-")
-    .join(" · ") || "-";
+  elements.boxPickerProductMeta.textContent = source === "manual"
+    ? `최초 총 ${formatNumber(getShippingTotalBoxCount(item))}박스`
+    : [item.finalProcess, item.batch, item.storage]
+      .map(normalizeDisplay)
+      .filter((value) => value !== "-")
+      .join(" · ") || "-";
   elements.boxPickerBoxList.innerHTML = '<p class="box-picker-empty">박스 정보를 불러오는 중입니다.</p>';
   elements.confirmShippingBoxPickerButton.disabled = true;
   elements.confirmShippingBoxPickerButton.textContent = "불러오는 중";
@@ -1068,6 +1172,7 @@ function closeShippingBoxPicker() {
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = "";
   state.boxPickerMode = "edit";
+  state.boxPickerSource = "card";
   document.body.classList.remove("modal-open");
 }
 
@@ -1112,10 +1217,12 @@ function renderBoxPickerBoxes() {
 
   elements.boxPickerClientName.textContent = normalizeDisplay(row.clientName || "-");
   elements.boxPickerProductName.textContent = normalizeDisplay(row.productName || "-");
-  elements.boxPickerProductMeta.textContent = [row.finalProcess, row.batch, row.storage]
-    .map(normalizeDisplay)
-    .filter((value) => value !== "-")
-    .join(" · ") || "-";
+  elements.boxPickerProductMeta.textContent = state.boxPickerSource === "manual"
+    ? `최초 총 ${formatNumber(getShippingTotalBoxCount(row))}박스`
+    : [row.finalProcess, row.batch, row.storage]
+      .map(normalizeDisplay)
+      .filter((value) => value !== "-")
+      .join(" · ") || "-";
 
   elements.boxPickerBoxList.innerHTML = boxes.length ? boxes.map((box) => {
     const key = getBoxPickerBoxKey(box, row);
@@ -1134,7 +1241,9 @@ function renderBoxPickerBoxes() {
         <input type="checkbox" data-box-picker-box="${escapeHtml(key)}" data-box-status="${escapeHtml(normalizeDisplay(box?.status || "보관"))}" ${isAdded ? "checked" : ""} ${isDisabled ? "disabled" : ""} />
         <span class="box-picker-check-copy">
           <strong>${escapeHtml(number)}번 박스</strong>
-          <small>${escapeHtml(normalizeDisplay(box?.storage || row.storage || "미지정"))} · ${formatNumber(quantity)} ea</small>
+          <small>${state.boxPickerSource === "manual"
+            ? `${formatNumber(quantity)} ea`
+            : `${escapeHtml(normalizeDisplay(box?.storage || row.storage || "미지정"))} · ${formatNumber(quantity)} ea`}</small>
           <span class="box-picker-quantity-field">
             <input type="number" min="1" step="1" inputmode="numeric" value="${quantity}" data-box-picker-quantity="${escapeHtml(key)}" aria-label="${escapeHtml(number)}번 박스 수량" ${isDisabled ? "disabled" : ""} />
             <em>ea</em>

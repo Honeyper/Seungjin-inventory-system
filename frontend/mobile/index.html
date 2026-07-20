@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260715-input-focus-zoom" />
+    <link rel="stylesheet" href="./mobile.css?v=20260720-manual-shipping" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -204,6 +204,16 @@
             <strong id="shippingLiveDate">-</strong>
             <time id="shippingLiveTime" datetime="">--:--:--</time>
           </div>
+          <button class="manual-shipping-open-button" id="openManualShippingButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5h16v14H4z"></path>
+              <path d="M8 9h8M8 13h5M17 12v5M14.5 14.5h5"></path>
+            </svg>
+            <span>
+              <strong>수동출고등록</strong>
+              <small>제품명과 최초 총 박스 수로 선택</small>
+            </span>
+          </button>
           <div class="shipping-action-row">
             <p>총 <strong id="mobileShippingCount">0</strong>건</p>
             <button class="control-button" id="refreshShippingButton" type="button">
@@ -357,6 +367,32 @@
         </section>
       </div>
 
+      <div class="modal-backdrop box-picker-backdrop" id="manualShippingModal" hidden>
+        <section class="mobile-box-picker manual-shipping-picker" role="dialog" aria-modal="true" aria-labelledby="manualShippingTitle">
+          <header class="box-picker-header">
+            <div>
+              <span>출고 등록</span>
+              <h2 id="manualShippingTitle">수동출고등록</h2>
+            </div>
+            <button id="closeManualShippingButton" type="button" aria-label="수동출고등록 닫기">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"></path></svg>
+            </button>
+          </header>
+
+          <div class="box-picker-product-stage">
+            <label class="box-picker-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m16 16 4 4"></path>
+              </svg>
+              <input id="manualShippingSearchInput" type="search" placeholder="제품명을 입력하세요" autocomplete="off" />
+            </label>
+            <p class="box-picker-guide">제품명과 최초 총 박스 수를 확인한 뒤 선택해주세요.</p>
+            <div class="box-picker-product-list" id="manualShippingProductList" aria-live="polite"></div>
+          </div>
+        </section>
+      </div>
+
       <section class="scanner-screen" id="scannerScreen" hidden>
         <div class="scanner-camera" id="scannerCamera">
           <video id="scannerVideo" playsinline muted></video>
@@ -403,6 +439,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260720-qr-detection"></script>
+    <script src="./mobile.js?v=20260720-manual-shipping"></script>
   </body>
 </html>
