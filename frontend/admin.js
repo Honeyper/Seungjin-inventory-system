@@ -6255,6 +6255,7 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
   const total = boxes.length;
   const { baseProcess, additionalProcesses } = getInboundQrProcessData(inbound, boxes, productProcessInfo);
   const productName = inbound.productName || boxes[0]?.productName || "-";
+  const inboundDate = formatInboundQrDate(inbound.inboundDate || boxes[0]?.inboundDate);
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
     const qrData = box.qrData || box.boxId || "";
@@ -6267,7 +6268,8 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
         qrData,
         processText: baseProcess,
         additionalProcesses,
-        productName
+        productName,
+        inboundDate
       });
     }
 
@@ -6278,7 +6280,8 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
       qrData,
       processText: baseProcess,
       additionalProcesses,
-      productName
+      productName,
+      inboundDate
     });
   }).join("");
 }
@@ -6290,7 +6293,8 @@ function renderInboundQrStandardLabel({
   qrData,
   processText,
   additionalProcesses = [],
-  productName
+  productName,
+  inboundDate
 }, variantClass = "") {
   const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
   const hasAdditionalProcess = additionalProcesses.length > 0;
@@ -6312,6 +6316,7 @@ function renderInboundQrStandardLabel({
         <div class="box-qr-standard-media">
           <strong class="box-qr-standard-count">${escapeHtml(boxLabel)}</strong>
           <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
+          <small class="box-qr-standard-inbound-date">입고일 ${escapeHtml(inboundDate)}</small>
         </div>
       </div>
       <div class="box-qr-standard-checks" aria-label="공정별 수량, 포장일 및 서명">
@@ -6330,6 +6335,17 @@ function renderInboundQrStandardLabel({
       </div>
     </article>
   `;
+}
+
+function formatInboundQrDate(value) {
+  const normalized = normalizeDisplayValue(value);
+  const match = normalized.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+
+  if (!match) {
+    return normalized;
+  }
+
+  return `${match[1]}.${match[2].padStart(2, "0")}.${match[3].padStart(2, "0")}`;
 }
 
 function updateInboundQrLayoutButtons() {

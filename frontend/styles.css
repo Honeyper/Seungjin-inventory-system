@@ -6535,7 +6535,7 @@ input {
 
 .box-qr-label-standard {
   display: grid;
-  grid-template-rows: 27.3mm repeat(3, 7.4mm) 8.7mm;
+  grid-template-rows: 26.8mm repeat(3, 7.4mm) 8.7mm;
   gap: 0;
   height: 58.2mm;
   padding: 0;
@@ -6549,7 +6549,7 @@ input {
 }
 
 .qr-sheet-work .box-qr-label-standard {
-  grid-template-rows: 29mm repeat(3, 7.8mm) 10.1mm;
+  grid-template-rows: 28.5mm repeat(3, 7.8mm) 10.1mm;
   height: 62.5mm;
 }
 
@@ -6644,10 +6644,10 @@ input {
 
 .box-qr-standard-media {
   display: grid;
-  grid-template-rows: 7.8mm minmax(0, 1fr);
+  grid-template-rows: 6.5mm 16.2mm 2.5mm;
   place-items: center;
   min-width: 0;
-  padding: 0.4mm 0.7mm 0.8mm;
+  padding: 0.4mm 0.7mm 0.5mm;
 }
 
 .box-qr-standard-count {
@@ -6669,10 +6669,21 @@ input {
   height: 16.2mm;
 }
 
+.box-qr-standard-inbound-date {
+  display: block;
+  align-self: end;
+  color: #050505;
+  font-size: 5.8pt;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
 .box-qr-label-standard:not(.box-qr-label-layout-two) .box-qr-image {
   display: block;
-  align-self: start;
-  margin-top: 0.25mm;
+  align-self: center;
+  margin-top: 0;
 }
 
 .box-qr-standard-checks {
