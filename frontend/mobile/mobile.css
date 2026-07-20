@@ -5061,6 +5061,10 @@ img {
   display: grid;
 }
 
+.scanner-screen.scanner-mode-hardware {
+  --scanner-panel-height: clamp(320px, 62svh, 540px);
+}
+
 .scanner-screen.scanner-mode-hardware .scanner-camera video,
 .scanner-screen.scanner-mode-hardware .scanner-shade,
 .scanner-screen.scanner-mode-hardware .scanner-frame {
