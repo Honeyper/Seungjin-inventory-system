@@ -1078,10 +1078,7 @@ function closeManualShippingPicker() {
 
 function getManualShippingProducts() {
   return state.dashboard
-    .filter((row) => getKnownBoxes(row).some((box) => {
-      const status = normalizeText(box?.rawStatus || box?.status);
-      return !/출고완료|폐기/.test(status) && getBoxCurrentQuantity(box, row) > 0;
-    }))
+    .filter(hasManualShippingBoxes)
     .filter((row) => {
       if (!state.manualShippingQuery) {
         return true;
@@ -1269,7 +1266,9 @@ function renderBoxPickerBoxes() {
   const isCompletionMode = state.boxPickerMode === "complete";
   const boxes = (isCompletionMode
     ? state.boxPickerTargetItems.map(getScannedBox).filter(Boolean)
-    : getKnownBoxes(row))
+    : getKnownBoxes(row).filter((box) => (
+      state.boxPickerSource !== "manual" || isManualShippingBoxAvailable(box, row)
+    )))
     .sort((left, right) => parseNumber(left?.number || left?.sequence) - parseNumber(right?.number || right?.sequence));
   const addedKeys = getAddedShippingBoxKeys(row);
   const isAddMode = state.boxPickerMode === "add";
@@ -3781,6 +3780,22 @@ function getMovableBoxes(item) {
     const quantity = getBoxCurrentQuantity(box, item);
     return quantity > 0 && !/출고완료|폐기/.test(status);
   });
+}
+
+function isManualShippingBoxAvailable(box, item) {
+  const status = normalizeScanValue(box?.rawStatus || box?.status);
+  return !/출고완료|폐기/.test(status) && getBoxCurrentQuantity(box, item) > 0;
+}
+
+function hasManualShippingBoxes(item) {
+  const itemStatuses = [item?.stockStatus, item?.processStatus]
+    .map(normalizeScanValue)
+    .filter(Boolean);
+  if (itemStatuses.some((status) => /출고완료|폐기/.test(status))) {
+    return false;
+  }
+
+  return getKnownBoxes(item).some((box) => isManualShippingBoxAvailable(box, item));
 }
 
 function getKnownBoxes(item) {
