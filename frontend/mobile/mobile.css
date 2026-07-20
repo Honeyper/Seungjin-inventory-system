@@ -4080,32 +4080,43 @@ img {
 }
 
 #shippingScreen .manual-shipping-open-button {
-  display: flex;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 28px;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   width: 100%;
-  min-height: 52px;
-  border: 1px solid rgba(200, 213, 229, 0.98);
-  border-radius: 9px;
-  padding: 8px 13px;
+  min-height: 64px;
+  border: 1px solid rgba(168, 188, 213, 0.92);
+  border-radius: 13px;
+  padding: 10px 12px;
   text-align: left;
   color: var(--navy-dark);
-  background: #fff;
-  box-shadow: 0 8px 20px rgba(6, 31, 76, 0.05);
+  background: linear-gradient(135deg, #fff 0%, #f4f8fd 100%);
+  box-shadow: 0 10px 24px rgba(6, 31, 76, 0.09);
 }
 
-#shippingScreen .manual-shipping-open-button svg {
-  flex: 0 0 auto;
-  width: 25px;
-  height: 25px;
+#shippingScreen .manual-shipping-open-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: var(--gold);
+  background: linear-gradient(145deg, var(--navy), var(--navy-dark));
+  box-shadow: 0 8px 16px rgba(6, 31, 76, 0.2);
+}
+
+#shippingScreen .manual-shipping-open-icon svg {
+  width: 24px;
+  height: 24px;
   fill: none;
-  stroke: var(--gold-dark);
-  stroke-width: 1.8;
+  stroke: currentColor;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-#shippingScreen .manual-shipping-open-button span,
+#shippingScreen .manual-shipping-open-copy,
 #shippingScreen .manual-shipping-open-button strong,
 #shippingScreen .manual-shipping-open-button small {
   display: block;
@@ -4113,15 +4124,30 @@ img {
 }
 
 #shippingScreen .manual-shipping-open-button strong {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 900;
 }
 
 #shippingScreen .manual-shipping-open-button small {
-  margin-top: 2px;
+  margin-top: 3px;
   color: #758399;
   font-size: 11px;
   font-weight: 700;
+}
+
+#shippingScreen .manual-shipping-open-arrow {
+  width: 20px;
+  height: 20px;
+  justify-self: center;
+  color: var(--navy);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+}
+
+#shippingScreen .manual-shipping-open-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px rgba(6, 31, 76, 0.08);
 }
 
 #shippingScreen .empty-shipping-actions {

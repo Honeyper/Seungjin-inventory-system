@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260720-persistent-login-direct" />
+    <link rel="stylesheet" href="./mobile.css?v=20260720-manual-shipping-button-icon" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -205,14 +205,19 @@
             <time id="shippingLiveTime" datetime="">--:--:--</time>
           </div>
           <button class="manual-shipping-open-button" id="openManualShippingButton" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 5h16v14H4z"></path>
-              <path d="M8 9h8M8 13h5M17 12v5M14.5 14.5h5"></path>
-            </svg>
-            <span>
-              <strong>수동출고등록</strong>
-              <small>제품명과 최초 총 박스 수로 선택</small>
+            <span class="manual-shipping-open-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 5h16v14H4z"></path>
+                <path d="M8 9h8M8 13h5M17 12v5M14.5 14.5h5"></path>
+              </svg>
             </span>
+            <span class="manual-shipping-open-copy">
+              <strong>수동 출고 등록</strong>
+              <small>제품명과 최초 박스 수로 빠르게 선택</small>
+            </span>
+            <svg class="manual-shipping-open-arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
           </button>
           <div class="shipping-action-row">
             <p>총 <strong id="mobileShippingCount">0</strong>건</p>
