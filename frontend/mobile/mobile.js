@@ -1812,15 +1812,9 @@ function renderShippingItem(item) {
       </div>
       <details class="shipping-product-details">
         <summary>
-          <span class="shipping-product-details-title">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M12 10.8v5.4M12 7.5h.01"></path>
-            </svg>
-            제품 상세정보
-          </span>
-          <svg class="shipping-product-details-chevron" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m7 10 5 5 5-5"></path>
+          <span class="shipping-product-details-title">제품 상세정보</span>
+          <svg class="shipping-product-details-chevron" viewBox="0 0 10 6" aria-hidden="true">
+            <path d="M1 1l4 4 4-4"></path>
           </svg>
         </summary>
         <div class="shipping-product-details-grid">

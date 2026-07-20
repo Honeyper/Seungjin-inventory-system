@@ -5917,6 +5917,7 @@ img {
   gap: 7px;
   margin-top: 3px;
   width: 100%;
+  box-sizing: border-box;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -5971,12 +5972,13 @@ img {
 }
 
 #shippingScreen .item-registration-info {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 7px;
   min-width: 0;
   width: 100%;
+  box-sizing: border-box;
   padding-inline: 0;
 }
 
@@ -5999,7 +6001,7 @@ img {
 }
 
 #shippingScreen .item-registered-date {
-  flex: 0 0 auto;
+  justify-content: flex-end;
   color: #2b3546;
   font-weight: 800;
 }
@@ -6007,6 +6009,7 @@ img {
 #shippingScreen .shipping-product-details {
   min-width: 0;
   width: 100%;
+  box-sizing: border-box;
   margin-top: 1px;
   border-top: 1px solid #e2eaf3;
 }
@@ -6031,24 +6034,12 @@ img {
 }
 
 #shippingScreen .shipping-product-details-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-#shippingScreen .shipping-product-details-title svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: var(--gold-dark);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.9;
+  display: block;
 }
 
 #shippingScreen .shipping-product-details-chevron {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 9px;
   fill: none;
   stroke: #718198;
   stroke-linecap: round;
@@ -6098,6 +6089,7 @@ img {
 #shippingScreen .item-metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 100%;
+  box-sizing: border-box;
   margin-top: 3px;
   padding-top: 8px;
 }
