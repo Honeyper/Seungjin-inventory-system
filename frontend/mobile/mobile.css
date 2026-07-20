@@ -5971,6 +5971,7 @@ img {
 }
 
 #shippingScreen .item-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 3px;
   padding-top: 8px;
 }
@@ -5978,6 +5979,8 @@ img {
 #shippingScreen .metric {
   gap: 0;
   align-content: start;
+  min-width: 0;
+  padding-inline: 4px;
   min-height: 72px;
 }
 
@@ -5999,6 +6002,10 @@ img {
 #shippingScreen .metric small {
   margin-top: 5px;
   font-size: 12px;
+}
+
+#shippingScreen .metric:nth-child(2) > .metric-value-row {
+  margin-top: 12px;
 }
 
 @media (max-height: 700px), (max-width: 340px) {
