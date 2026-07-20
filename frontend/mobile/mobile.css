@@ -5830,7 +5830,16 @@ img {
   opacity: 1;
 }
 
-#shippingScreen .item-worker {
+#shippingScreen .item-registration-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+#shippingScreen .item-worker,
+#shippingScreen .item-registered-date {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -5840,8 +5849,17 @@ img {
   line-height: 1.2;
 }
 
-#shippingScreen .item-worker span {
+#shippingScreen .item-worker span,
+#shippingScreen .item-registered-date span {
   margin-right: 0;
+  color: var(--gold);
+  font-weight: 900;
+}
+
+#shippingScreen .item-registered-date {
+  flex: 0 0 auto;
+  color: #2b3546;
+  font-weight: 800;
 }
 
 #shippingScreen .item-metrics {

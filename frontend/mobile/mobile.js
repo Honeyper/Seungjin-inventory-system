@@ -903,9 +903,11 @@ function groupScannedShippingRows(rows) {
 
   rows.forEach((row, index) => {
     const key = getShippingProductGroupKey(row);
+    const registeredAt = normalizeText(row.registeredAt);
     if (!groups.has(key)) {
       groups.set(key, {
         ...row,
+        registeredAt,
         productGroupKey: key,
         scannedItems: [],
         scannedBoxes: [],
@@ -928,6 +930,7 @@ function groupScannedShippingRows(rows) {
     group.scannedBoxCount += 1;
     group.scannedTotalQuantity += totalQuantity;
     group.scannedCurrentQuantity += currentQuantity;
+    group.registeredAt = getLatestRegistrationDate(group.registeredAt, registeredAt);
   });
 
   return Array.from(groups.values());
@@ -1714,6 +1717,7 @@ function renderShippingItem(item) {
   const isCompleted = isShippingItemCompleted(item);
   const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
+  const registeredAt = formatRegistrationDate(item.registeredAt);
 
   return `
     <article class="shipping-item">
@@ -1747,7 +1751,10 @@ function renderShippingItem(item) {
             `}
         </div>
       </div>
-      <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
+      <div class="item-registration-info">
+        <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
+        <p class="item-registered-date"><span>등록일</span>${escapeHtml(registeredAt)}</p>
+      </div>
       <div class="item-metrics">
         <span class="metric">
           <span>등록 박스</span>
@@ -3660,6 +3667,7 @@ function compactScannedBoxRow(row) {
     totalBoxCount: row?.totalBoxCount || "",
     currentTotalQuantity: row?.currentTotalQuantity || "",
     registrant: row?.registrant || "",
+    registeredAt: row?.registeredAt || "",
     inspector: row?.inspector || "",
     scannedBox,
     scannedBoxId: scannedBox.boxId,
@@ -4271,6 +4279,58 @@ function formatLongDate(date) {
 }
 
 function formatManualShippingInboundDate(value) {
+  const dateKey = toDateKeyFromValue(value);
+  return dateKey ? dateKey.replace(/-/g, ".") : normalizeDisplay(value || "-");
+}
+
+function getLatestRegistrationDate(currentValue, candidateValue) {
+  const current = normalizeText(currentValue);
+  const candidate = normalizeText(candidateValue);
+
+  if (!candidate) {
+    return current;
+  }
+
+  if (!current) {
+    return candidate;
+  }
+
+  const currentSortValue = getRegistrationDateSortValue(current);
+  const candidateSortValue = getRegistrationDateSortValue(candidate);
+  if (candidateSortValue === null) {
+    return current;
+  }
+
+  return currentSortValue === null || candidateSortValue >= currentSortValue ? candidate : current;
+}
+
+function getRegistrationDateSortValue(value) {
+  const text = normalizeText(value);
+  const dateMatch = text.match(/(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})/);
+  if (!dateMatch) {
+    return null;
+  }
+
+  const timeMatch = text.match(/(?:(오전|오후|am|pm)\s*)?(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/i);
+  let hour = timeMatch ? Number(timeMatch[2]) : 0;
+  const meridiem = String(timeMatch?.[1] || "").toLowerCase();
+  if ((meridiem === "오후" || meridiem === "pm") && hour < 12) {
+    hour += 12;
+  } else if ((meridiem === "오전" || meridiem === "am") && hour === 12) {
+    hour = 0;
+  }
+
+  return Date.UTC(
+    Number(dateMatch[1]),
+    Number(dateMatch[2]) - 1,
+    Number(dateMatch[3]),
+    hour,
+    timeMatch ? Number(timeMatch[3]) : 0,
+    timeMatch ? Number(timeMatch[4] || 0) : 0
+  );
+}
+
+function formatRegistrationDate(value) {
   const dateKey = toDateKeyFromValue(value);
   return dateKey ? dateKey.replace(/-/g, ".") : normalizeDisplay(value || "-");
 }
