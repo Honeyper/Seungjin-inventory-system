@@ -3886,6 +3886,7 @@ function getFilteredInbounds() {
     item.productName,
     item.batch,
     item.process,
+    formatAdditionalProcess(item),
     item.storage,
     item.registrant,
     item.defectReason,
@@ -3939,13 +3940,13 @@ function renderTodayInbounds(message = "") {
   if (!sourceCount) {
     inboundTableBody.innerHTML = `
       <tr>
-        <td colspan="17" class="empty-cell">${escapeHtml(message || "입고 내역이 없습니다.")}</td>
+        <td colspan="18" class="empty-cell">${escapeHtml(message || "입고 내역이 없습니다.")}</td>
       </tr>
     `;
   } else if (!inbounds.length) {
     inboundTableBody.innerHTML = `
       <tr>
-        <td colspan="17" class="empty-cell">검색 결과가 없습니다.</td>
+        <td colspan="18" class="empty-cell">검색 결과가 없습니다.</td>
       </tr>
     `;
   } else {
@@ -3958,6 +3959,7 @@ function renderTodayInbounds(message = "") {
         <td>${escapeHtml(item.productName)}</td>
         <td>${escapeHtml(item.batch)}</td>
         <td>${escapeHtml(item.process)}</td>
+        <td>${escapeHtml(formatAdditionalProcess(item))}</td>
         <td>${escapeHtml(item.boxQuantity)}</td>
         <td>${escapeHtml(item.inboundBoxCount)}</td>
         <td>${escapeHtml(item.remainQuantity)}</td>
@@ -4679,7 +4681,7 @@ function renderInventoryLoading() {
 
   inventoryTableBody.innerHTML = `
     <tr>
-      <td colspan="14" class="empty-cell">재고 정보를 불러오는 중입니다.</td>
+      <td colspan="15" class="empty-cell">재고 정보를 불러오는 중입니다.</td>
     </tr>
   `;
 }
@@ -5372,6 +5374,7 @@ function applyInventoryFilters() {
       item.clientName,
       item.batch,
       item.finalProcess,
+      formatAdditionalProcess(item),
       item.storage,
       item.stockStatus,
       item.processStatus
@@ -5454,6 +5457,7 @@ function renderInventoryAggregateRow(rows) {
       <td><span class="inventory-total-value">${formatNumber(stats.productCount)}품목</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.batchCount)}개</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.processCount)}개</span></td>
+      <td><span class="inventory-total-muted">-</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.totalBoxes)} box</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.totalQuantity)} ea</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.storageCount)}곳</span></td>
@@ -5479,7 +5483,7 @@ function renderInventoryTable(message = "") {
   if (message || !rows.length) {
     inventoryTableBody.innerHTML = `
       <tr>
-        <td colspan="14" class="empty-cell">${escapeHtml(message || "재고 목록이 없습니다.")}</td>
+        <td colspan="15" class="empty-cell">${escapeHtml(message || "재고 목록이 없습니다.")}</td>
       </tr>
     `;
   } else {
@@ -5495,6 +5499,7 @@ function renderInventoryTable(message = "") {
         <td>${escapeHtml(item.productName)}</td>
         <td>${escapeHtml(item.batch)}</td>
         <td>${escapeHtml(item.finalProcess)}</td>
+        <td>${escapeHtml(formatAdditionalProcess(item))}</td>
         <td>${escapeHtml(item.currentBoxCount)}</td>
         <td>${escapeHtml(item.currentTotalQuantity)}</td>
         <td>${escapeHtml(item.storage)}</td>

@@ -18,6 +18,7 @@ const APP_ENVIRONMENTS = {
 const CONFIG = buildRuntimeConfig_();
 const API_READ_CACHE_TTL_SECONDS = 45;
 const API_READ_CACHE_MAX_LENGTH = 95000;
+const API_READ_CACHE_SCHEMA_VERSION = 'v2';
 
 function buildRuntimeConfig_() {
   const env = getAppEnvironment_();
@@ -178,7 +179,7 @@ function getCachedApiData_(key, loader) {
 }
 
 function getApiCacheKey_(key) {
-  return `sj-${CONFIG.ENV}-${key}`;
+  return `sj-${CONFIG.ENV}-${API_READ_CACHE_SCHEMA_VERSION}-${key}`;
 }
 
 function readChunkedApiCache_(key) {
@@ -886,6 +887,8 @@ function getInventoryDashboard() {
       inboundType: getObjectCell_(stockRow, ['입고 유형', '입고유형']),
       batch: getObjectCell_(stockRow, ['차수']),
       finalProcess: getObjectCell_(stockRow, ['최종공정', '최종 공정']),
+      dustRemovalStatus: product.dustRemovalStatus || '무',
+      flameTreatmentStatus: product.flameTreatmentStatus || '무',
       storage: boxSummary.primaryStorage || stockStorage,
       boxQuantity: getObjectCell_(stockRow, ['박스당 수량', '박스당수량']),
       trayQuantity: product.trayQuantity || '',
@@ -1103,7 +1106,8 @@ function getTodayInbounds(payload) {
   const requestedEndDate = normalizeDateKey_(payload?.endDate || payload?.date || requestedStartDate);
   const startDate = requestedStartDate <= requestedEndDate ? requestedStartDate : requestedEndDate;
   const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
-  const productDueDateMap = getProductDueDateMap_();
+  const productInfo = readDisplayRowsByHeaders_(getProductSheet_(), ['제품 ID', '업체명', '제품명']);
+  const productMap = buildInventoryProductMap_(productInfo.rows);
   const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
   const boxSummaryMap = buildInventoryBoxSummaryMap_(boxInfo.rows);
   const inbounds = values.slice(headerRowIndex + 1)
@@ -1119,6 +1123,7 @@ function getTodayInbounds(payload) {
     .filter(({ row }) => !isExistingStockInboundType_(pickCell_(row, indexes, ['입고 유형', '입고유형'])))
     .map(({ row, richRow }) => {
       const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
+      const product = productMap[productId] || {};
 
       const managementId = pickCell_(row, indexes, ['관리 ID', '관리ID']);
       const productName = pickCell_(row, indexes, ['제품명']);
@@ -1134,13 +1139,15 @@ function getTodayInbounds(payload) {
         registeredAt: pickCell_(row, indexes, ['등록 일시', '등록일시']),
         inboundDate: pickCell_(row, indexes, ['입고일']),
         inboundTime: pickCell_(row, indexes, ['입고 시간', '입고시간']),
-        dueDate: pickCell_(row, indexes, ['납기일']) || productDueDateMap[productId] || '',
+        dueDate: pickCell_(row, indexes, ['납기일']) || product.dueDate || '',
         clientName: normalizeClientName_(pickCell_(row, indexes, ['업체명', '거래처명'])),
         inboundType: pickCell_(row, indexes, ['입고 유형', '입고유형']),
         productId,
         productName,
         batch: pickCell_(row, indexes, ['차수']),
         process: pickCell_(row, indexes, ['최종공정', '최종 공정']),
+        dustRemovalStatus: product.dustRemovalStatus || '무',
+        flameTreatmentStatus: product.flameTreatmentStatus || '무',
         storage: pickCell_(row, indexes, ['보관위치', '보관 위치']),
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         inboundBoxCount: pickCell_(row, indexes, ['입고 박스 수', '입고박스수']),
@@ -3852,6 +3859,8 @@ function buildInventoryProductMap_(productRows) {
         productName: getObjectCell_(row, ['제품명']),
         orderQuantity: getObjectCell_(row, ['발주량', '주문량']),
         trayQuantity: getObjectCell_(row, ['트레이 수량', '트레이수량']),
+        dustRemovalStatus: getObjectCell_(row, ['박가루제거 유무', '박가루 제거 유무']) || '무',
+        flameTreatmentStatus: getObjectCell_(row, ['화염처리 유무', '화염 처리 유무']) || '무',
         dueDate: getObjectCell_(row, ['납기일'])
       };
     }
