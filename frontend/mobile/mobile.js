@@ -2303,8 +2303,11 @@ async function completeShippingItem(item, selectedBoxes, action = "complete", se
   const isCancelPendingAction = action === "cancelPending";
   const isCancelCompletedAction = action === "cancelCompleted";
   const boxQuantities = getSelectedBoxQuantities(item, selectedBoxes);
-  const inspectionQuantity = Object.values(boxQuantities)
-    .reduce((sum, quantity) => sum + parseNumber(quantity), 0);
+  const inspectionQuantity = parseNumber(item.trayQuantity);
+
+  if (!isPendingAction && !isCancelPendingAction && !isCancelCompletedAction && inspectionQuantity <= 0) {
+    throw new Error("제품의 트레이 수량을 확인할 수 없습니다. 목록을 새로고침한 후 다시 시도해주세요.");
+  }
 
   const payload = {
     managementId: item.managementId,
@@ -3987,6 +3990,7 @@ function compactScannedBoxRow(row) {
     boxTotalCount: row?.boxTotalCount || "",
     totalBoxCount: row?.totalBoxCount || "",
     currentTotalQuantity: row?.currentTotalQuantity || "",
+    trayQuantity: row?.trayQuantity || "",
     registrant: row?.registrant || "",
     registeredAt: row?.registeredAt || "",
     inspector: row?.inspector || "",

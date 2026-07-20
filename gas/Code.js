@@ -888,6 +888,7 @@ function getInventoryDashboard() {
       finalProcess: getObjectCell_(stockRow, ['최종공정', '최종 공정']),
       storage: boxSummary.primaryStorage || stockStorage,
       boxQuantity: getObjectCell_(stockRow, ['박스당 수량', '박스당수량']),
+      trayQuantity: product.trayQuantity || '',
       inboundBoxCount: getObjectCell_(stockRow, ['입고 박스 수', '입고박스수']),
       remainQuantity: getObjectCell_(stockRow, ['잔량 수량', '잔량수량', '잔량']),
       boxTotalCount: formatBox_(boxTotalCount),
@@ -3345,6 +3346,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
   let remainingShippedRows = 0;
   const remainingStatusCounts = {};
   let matchedBoxNumber = 0;
+  let wroteAutoInspectionMetric = false;
 
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex].slice(0, headerInfo.headers.length);
@@ -3398,17 +3400,21 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
 
         if (data.autoShippingInspection === true) {
           const payloadInspectionQuantity = displayQuantityToNumber_(data.inspectionQuantity);
-          const inspectionQuantity = payloadInspectionQuantity > 0
-            ? formatEa_(payloadInspectionQuantity)
-            : currentQuantity > 0 ? formatEa_(currentQuantity) : '-';
+          const shouldWriteInspectionMetric = !wroteAutoInspectionMetric;
+          const inspectionQuantity = shouldWriteInspectionMetric
+            ? payloadInspectionQuantity > 0
+              ? formatEa_(payloadInspectionQuantity)
+              : currentQuantity > 0 ? formatEa_(currentQuantity) : '-'
+            : '';
           setRowValue_(row, indexes, ['출고 검수일', '검수일'], data.inspectionDate);
           setRowValue_(row, indexes, ['출고 검수시간', '검수시간'], data.inspectionTime);
           setRowValue_(row, indexes, ['출고 검수자', '검수자'], data.inspector);
           setRowValue_(row, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], inspectionQuantity);
-          setRowValue_(row, indexes, ['불량 수량', '불량수량'], formatEa_(displayQuantityToNumber_(data.defectQuantity)));
+          setRowValue_(row, indexes, ['불량 수량', '불량수량'], shouldWriteInspectionMetric ? formatEa_(displayQuantityToNumber_(data.defectQuantity)) : '');
           setRowValue_(row, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason || '양호');
-          setRowValue_(row, indexes, ['불량률'], data.defectRate || '0%');
+          setRowValue_(row, indexes, ['불량률'], shouldWriteInspectionMetric ? data.defectRate || '0%' : '');
           setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
+          wroteAutoInspectionMetric = true;
         }
       } else if (data.status === '검수완료' || data.status === '보관') {
         if (shippingTypeIndex >= 0) {
@@ -3845,6 +3851,7 @@ function buildInventoryProductMap_(productRows) {
         clientName: getObjectCell_(row, ['업체명', '거래처명']),
         productName: getObjectCell_(row, ['제품명']),
         orderQuantity: getObjectCell_(row, ['발주량', '주문량']),
+        trayQuantity: getObjectCell_(row, ['트레이 수량', '트레이수량']),
         dueDate: getObjectCell_(row, ['납기일'])
       };
     }

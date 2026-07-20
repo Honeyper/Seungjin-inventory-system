@@ -2627,6 +2627,7 @@ function renderShippingTable(message = "") {
       <tr
         data-management-id="${escapeAttribute(item.managementId)}"
         data-product-id="${escapeAttribute(item.productId)}"
+        data-tray-quantity="${escapeAttribute(item.trayQuantity || "")}"
         data-box-count="${boxes}"
         data-quantity="${quantity}"
         data-inspection-quantity="${inspectionQuantity}"
@@ -3370,11 +3371,11 @@ function getShippingSettlementBoxItems() {
       ...(Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : []),
       ...(Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [])
     ];
+    const trayQuantity = getShippingInspectionTrayQuantityFromItem(item);
 
     if (!boxes.length) {
       const status = getEffectiveShippingStatus(item);
       const date = getShippingSettlementItemDate(item);
-      const trayQuantity = getShippingInspectionTrayQuantityFromItem(item);
 
       if (!isShippingSettlementDateInRange(date)) {
         return [];
@@ -3409,8 +3410,8 @@ function getShippingSettlementBoxItems() {
         date,
         boxes: 1,
         quantity,
-        inspectionQuantity: ["출고대기", "보류", "출고완료"].includes(status)
-          ? boxInspectionQuantity
+        inspectionQuantity: ["출고대기", "보류", "출고완료"].includes(status) && boxInspectionQuantity > 0
+          ? trayQuantity || boxInspectionQuantity
           : 0,
         inspectionKey: getShippingSettlementInspectionKey(item, box, status, date),
         defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
@@ -3427,7 +3428,8 @@ function getShippingSettlementInspectionKey(item, box, status, date) {
     box?.inspectionTime || "",
     toDateInputValue(box?.shippingDate) || "",
     box?.shippingTime || "",
-    status || ""
+    status || "",
+    parseShippingSettlementNumber(box?.inspectionQuantity || "")
   ].join("|");
 }
 
