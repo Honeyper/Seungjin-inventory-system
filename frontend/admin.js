@@ -6343,7 +6343,7 @@ function renderQrProcessDateCheck(label, finalProcess = "", options = {}) {
 
 function getQrImageUrl(value) {
   const data = String(value || "-");
-  return `https://api.qrserver.com/v1/create-qr-code/?size=128x128&margin=1&data=${encodeURIComponent(data)}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=1&data=${encodeURIComponent(data)}`;
 }
 
 function openActiveInboundEdit() {

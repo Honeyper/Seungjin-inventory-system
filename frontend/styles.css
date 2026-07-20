@@ -6560,7 +6560,7 @@ input {
 
 .box-qr-standard-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 16.8mm;
+  grid-template-columns: minmax(0, 1fr) 18.6mm;
   min-height: 0;
   border-bottom: 0.75pt solid #050505;
 }
@@ -6639,7 +6639,7 @@ input {
   grid-template-rows: 7.8mm minmax(0, 1fr);
   place-items: center;
   min-width: 0;
-  padding: 0.4mm 1mm 1.1mm;
+  padding: 0.4mm 0.7mm 0.8mm;
 }
 
 .box-qr-standard-count {
@@ -6657,8 +6657,8 @@ input {
 }
 
 .box-qr-label-standard .box-qr-image {
-  width: 14.5mm;
-  height: 14.5mm;
+  width: 16.2mm;
+  height: 16.2mm;
 }
 
 .box-qr-label-standard:not(.box-qr-label-layout-two) .box-qr-image {

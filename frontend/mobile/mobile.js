@@ -6,13 +6,16 @@ const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
 const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
 const SCANNER_DEVICE_MEMORY_GB = Number(navigator.deviceMemory) || 8;
-const IS_LOW_POWER_SCANNER = SCANNER_DEVICE_CORES <= 4 || SCANNER_DEVICE_MEMORY_GB <= 3;
+const IS_ANDROID_SCANNER = /Android/i.test(navigator.userAgent);
+const IS_LOW_POWER_SCANNER = SCANNER_DEVICE_CORES <= 4
+  || SCANNER_DEVICE_MEMORY_GB <= 3
+  || (IS_ANDROID_SCANNER && SCANNER_DEVICE_MEMORY_GB <= 4);
 const BARCODE_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
 const JSQR_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
-const JSQR_FAST_MAX_EDGE = IS_LOW_POWER_SCANNER ? 720 : 840;
-const JSQR_DETAIL_MAX_EDGE = IS_LOW_POWER_SCANNER ? 960 : 1120;
-const JSQR_DETAIL_SCAN_INTERVAL = IS_LOW_POWER_SCANNER ? 4 : 3;
-const JSQR_NATIVE_FALLBACK_INTERVAL = 2;
+const JSQR_FAST_MAX_EDGE = IS_LOW_POWER_SCANNER ? 840 : 960;
+const JSQR_DETAIL_MAX_EDGE = IS_LOW_POWER_SCANNER ? 1280 : 1440;
+const JSQR_DETAIL_SCAN_INTERVAL = 3;
+const JSQR_NATIVE_FALLBACK_INTERVAL = 1;
 const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
@@ -2222,8 +2225,8 @@ async function getScannerStream() {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
       facingMode: { ideal: "environment" },
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
       frameRate: { ideal: 24, max: 30 }
     },
     audio: false
@@ -2449,7 +2452,10 @@ function startJsQrDetection(detector = null) {
     if (state.scannerCanvas.height !== height) {
       state.scannerCanvas.height = height;
     }
-    context.imageSmoothingEnabled = false;
+    context.imageSmoothingEnabled = scale < 1;
+    if (scale < 1) {
+      context.imageSmoothingQuality = "low";
+    }
     context.drawImage(video, 0, 0, width, height);
 
     try {
