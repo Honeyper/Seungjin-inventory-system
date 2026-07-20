@@ -1,5 +1,6 @@
 const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "";
 const SESSION_KEY = "seungjinMobileSession";
+const PERSISTENT_SESSION_KEY = "seungjinMobilePersistentSession";
 const LOGIN_PREFERENCES_KEY = "seungjinMobileLoginPreferences";
 const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
@@ -170,7 +171,7 @@ function initializeMobileApp() {
   updateShippingClock();
   const loginPreferences = restoreLoginPreferences();
 
-  const savedSession = readSavedSession();
+  const savedSession = readSavedSession(loginPreferences);
   if (savedSession) {
     state.user = savedSession;
     state.scannedShippingRows = readSavedScannedRows();
@@ -436,11 +437,11 @@ async function attemptAdminLogin(options = {}) {
     }
 
     state.user = loginResult.user;
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(loginResult.user));
+    saveLoginPreferences({ accountId, password });
+    saveSession(loginResult.user);
     if (!state.scannedMoveRows.length) {
       state.scannedMoveRows = readSavedMoveRows();
     }
-    saveLoginPreferences({ accountId, password });
     showHome();
   } catch (error) {
     setLoginMessage(error.message || "로그인 서버에 연결할 수 없습니다.");
@@ -503,6 +504,11 @@ function handleLoginPreferenceChange(event) {
 function logout() {
   releaseScannerStream();
   sessionStorage.removeItem(SESSION_KEY);
+  try {
+    localStorage.removeItem(PERSISTENT_SESSION_KEY);
+  } catch (error) {
+    // Private browsing or device policy can block persistent storage.
+  }
   sessionStorage.removeItem(ROUTE_KEY);
   sessionStorage.removeItem(SCANNED_ROWS_KEY);
   sessionStorage.removeItem(MOVE_ROWS_KEY);
@@ -511,6 +517,10 @@ function logout() {
   state.filteredRows = [];
   state.scannedShippingRows = [];
   state.scannedMoveRows = [];
+  if (elements.autoLogin) {
+    elements.autoLogin.checked = false;
+    saveLoginPreferences();
+  }
   showScreen("login");
 }
 
@@ -3271,11 +3281,40 @@ async function requestApi(action, payload = {}, options = {}) {
   return options.unwrap === false ? result : result.data;
 }
 
-function readSavedSession() {
+function readSavedSession(loginPreferences = {}) {
   try {
-    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+    const session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+    if (session) {
+      if (loginPreferences.autoLogin) {
+        localStorage.setItem(PERSISTENT_SESSION_KEY, JSON.stringify(session));
+      }
+      return session;
+    }
+
+    if (!loginPreferences.autoLogin) {
+      return null;
+    }
+
+    const persistentSession = JSON.parse(localStorage.getItem(PERSISTENT_SESSION_KEY) || "null");
+    if (persistentSession) {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(persistentSession));
+    }
+    return persistentSession;
   } catch (error) {
     return null;
+  }
+}
+
+function saveSession(user) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    if (elements.autoLogin?.checked) {
+      localStorage.setItem(PERSISTENT_SESSION_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(PERSISTENT_SESSION_KEY);
+    }
+  } catch (error) {
+    // Private browsing or device policy can block persistent storage.
   }
 }
 
@@ -3324,6 +3363,9 @@ function saveLoginPreferences(credentials = null) {
 
   try {
     localStorage.setItem(LOGIN_PREFERENCES_KEY, JSON.stringify(preferences));
+    if (!autoLogin) {
+      localStorage.removeItem(PERSISTENT_SESSION_KEY);
+    }
   } catch (error) {
     // Private browsing or device policy can block persistent storage.
   }
