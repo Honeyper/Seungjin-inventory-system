@@ -5727,56 +5727,6 @@ img {
   }
 }
 
-/* Keep automatic sign-in separate from the credential form on app launch. */
-#launchScreen {
-  padding: max(24px, env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(237, 243, 251, 0.98)),
-    url("../assets/login-background.png") center / cover no-repeat;
-}
-
-#launchScreen.active {
-  display: grid;
-  place-items: center;
-}
-
-.app-launch-content {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  color: var(--navy-dark);
-  text-align: center;
-}
-
-.app-launch-content img {
-  width: 88px;
-  height: 88px;
-  object-fit: contain;
-  filter: drop-shadow(0 16px 24px rgba(6, 31, 76, 0.16));
-}
-
-.app-launch-content strong {
-  margin-top: 4px;
-  font-size: 30px;
-  font-weight: 900;
-}
-
-.app-launch-content span {
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.app-launch-spinner {
-  width: 28px;
-  height: 28px;
-  margin-top: 8px;
-  border: 3px solid rgba(8, 46, 108, 0.18);
-  border-top-color: var(--gold);
-  border-radius: 50%;
-  animation: adminLoginSpin 0.75s linear infinite;
-}
-
 /* Inventory move uses the same compact workflow shell as shipping. */
 #inventoryMoveScreen {
   height: 100vh;
