@@ -2455,6 +2455,8 @@ async function setScannerInputMode(mode, options = {}) {
     });
   }
 
+  renderScannerScannedList();
+
   if (options.save !== false) {
     try {
       localStorage.setItem(SCANNER_MODE_KEY, nextMode);
@@ -3242,10 +3244,17 @@ function renderScannerScannedList() {
   }
 
   if (!rows.length) {
+    const emptyInstruction = isInventoryMove
+      ? state.scannerInputMode === "hardware"
+        ? "외부 스캐너로 이동할 박스 QR을 읽어주세요."
+        : "위치를 이동할 박스 QR을 카메라에 맞춰주세요."
+      : state.scannerInputMode === "hardware"
+        ? "외부 스캐너로 제품 박스 QR을 읽어주세요."
+        : "상단 카메라에 제품 박스 QR을 맞춰주세요.";
     elements.scannerScannedList.innerHTML = `
       <div class="scanner-empty">
         <strong>아직 스캔한 제품이 없습니다</strong>
-        <span>${isInventoryMove ? "위치를 이동할 박스 QR을 카메라에 맞춰주세요." : "상단 카메라에 제품 박스 QR을 맞춰주세요."}</span>
+        <span>${emptyInstruction}</span>
       </div>
     `;
     return;

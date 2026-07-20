@@ -5048,8 +5048,8 @@ img {
   display: none;
   align-content: center;
   justify-items: center;
-  gap: 10px;
-  padding: 104px 28px 48px;
+  gap: 7px;
+  padding: 76px 20px 18px;
   color: #fff;
   text-align: center;
   background:
@@ -5075,14 +5075,19 @@ img {
   visibility: hidden;
 }
 
+.scanner-screen.scanner-mode-hardware .scanner-tip,
+.scanner-screen.scanner-mode-hardware .scanner-help {
+  display: none;
+}
+
 .hardware-scanner-icon {
   display: grid;
   place-items: center;
-  width: 76px;
-  height: 76px;
+  width: 68px;
+  height: 68px;
   margin-bottom: 2px;
   border: 1px solid rgba(208, 161, 75, 0.56);
-  border-radius: 24px;
+  border-radius: 20px;
   color: var(--gold);
   background: rgba(255, 255, 255, 0.08);
   box-shadow:
@@ -5091,15 +5096,17 @@ img {
 }
 
 .hardware-scanner-icon svg {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .hardware-scanner-panel > strong {
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 900;
 }
 
@@ -5159,8 +5166,8 @@ img {
 
 @media (max-height: 700px) {
   .hardware-scanner-panel {
-    gap: 6px;
-    padding: 78px 20px 24px;
+    gap: 5px;
+    padding: 60px 16px 14px;
   }
 
   .hardware-scanner-icon {
