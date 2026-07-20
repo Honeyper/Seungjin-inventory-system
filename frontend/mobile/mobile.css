@@ -5250,9 +5250,9 @@ img {
 
 .scanner-frame {
   top: calc((100svh - var(--scanner-panel-height)) * 0.52 + 14px);
-  width: min(86vw, 440px);
-  height: min(58svh, 440px);
-  max-height: 440px;
+  width: min(72vw, 300px);
+  height: min(72vw, 300px);
+  max-height: 300px;
   border: 2px solid rgba(255, 255, 255, 0.66);
   border-radius: 22px;
   box-shadow:
@@ -5538,8 +5538,8 @@ img {
 
   .scanner-frame {
     top: calc((100svh - var(--scanner-panel-height)) * 0.54 + 18px);
-    width: min(82vw, 320px);
-    height: min(48svh, 320px);
+    width: min(68vw, 260px);
+    height: min(68vw, 260px);
   }
 
   .scanner-frame::before {
@@ -5599,8 +5599,8 @@ img {
   }
 
   .scanner-frame {
-    width: min(78vw, 260px);
-    height: min(44svh, 260px);
+    width: min(64vw, 230px);
+    height: min(64vw, 230px);
   }
 
   .scanner-help {
