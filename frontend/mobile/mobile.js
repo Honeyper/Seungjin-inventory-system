@@ -1036,28 +1036,17 @@ function renderShippingList(rows) {
 function renderShippingProductGroup(group) {
   const boxCount = group.items.reduce((sum, item) => sum + getShippingBoxCount(item), 0);
   const process = normalizeDisplay(group.finalProcess || "-");
-  const itemCount = group.items.length;
-  const groupLabel = itemCount > 1 ? `같은 제품 ${formatNumber(itemCount)}건` : "제품";
 
   return `
-    <section class="shipping-product-group ${itemCount > 1 ? "is-multi" : "is-single"}" data-shipping-product-group="${escapeHtml(group.key)}">
+    <section class="shipping-product-group" data-shipping-product-group="${escapeHtml(group.key)}">
       <header class="shipping-product-group-header">
         <div class="shipping-product-group-copy">
-          <span class="shipping-product-group-label">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3.5" y="4" width="7" height="7" rx="1.5"></rect>
-              <rect x="13.5" y="4" width="7" height="7" rx="1.5"></rect>
-              <rect x="3.5" y="14" width="7" height="6" rx="1.5"></rect>
-              <rect x="13.5" y="14" width="7" height="6" rx="1.5"></rect>
-            </svg>
-            ${groupLabel}
-          </span>
-          <span class="shipping-product-group-client">${escapeHtml(normalizeDisplay(group.clientName || "-"))}</span>
+          <span>${escapeHtml(normalizeDisplay(group.clientName || "-"))}</span>
           <h2>${escapeHtml(normalizeDisplay(group.productName || "-"))}</h2>
         </div>
         <div class="shipping-product-group-summary">
           <span>${escapeHtml(process)}</span>
-          <strong>${formatNumber(itemCount)}건 · ${formatNumber(boxCount)}박스</strong>
+          <strong>${formatNumber(group.items.length)}건 · ${formatNumber(boxCount)}박스</strong>
         </div>
       </header>
       <div class="shipping-product-group-items">
