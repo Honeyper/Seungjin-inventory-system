@@ -5753,11 +5753,18 @@ img {
 
 #shippingScreen .process-pill {
   align-self: flex-end;
-  min-width: 39px;
-  min-height: 32px;
+  max-width: 112px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   margin-top: 0;
-  padding: 0 9px;
-  font-size: 15px;
+  padding: 5px 8px;
+  border: 1px solid rgba(208, 161, 75, 0.45);
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #shippingScreen .shipping-meta-stack {
@@ -6001,10 +6008,9 @@ img {
   }
 
   #shippingScreen .process-pill {
-    min-width: 34px;
-    min-height: 28px;
-    padding: 0 7px;
-    font-size: 13px;
+    max-width: 96px;
+    padding: 4px 6px;
+    font-size: 10px;
   }
 
   #shippingScreen .shipping-item-top {
@@ -6329,14 +6335,20 @@ img {
 
 #inventoryMoveScreen .process-pill {
   align-self: flex-end;
-  min-width: 39px;
-  min-height: 32px;
+  max-width: 112px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   margin-top: 0;
-  padding: 0 9px;
-  border-radius: 9px;
+  padding: 5px 8px;
+  border: 1px solid rgba(208, 161, 75, 0.45);
+  border-radius: 999px;
   color: var(--navy-dark);
   background: #fff3dc;
-  font-size: 15px;
+  font-size: 11px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #inventoryMoveScreen .shipping-card-actions {
