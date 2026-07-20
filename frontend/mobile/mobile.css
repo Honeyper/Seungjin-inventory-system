@@ -4116,6 +4116,12 @@ img {
   margin: 0 auto;
 }
 
+#shippingScreen .empty-shipping-actions > :only-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc((100% - 8px) / 2);
+}
+
 #shippingScreen .empty-shipping-actions .secondary-action {
   min-height: 44px;
   margin: 0;
