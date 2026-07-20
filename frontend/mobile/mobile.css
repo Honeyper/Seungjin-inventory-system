@@ -1278,11 +1278,11 @@ img {
 }
 
 .confirm-meta-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, auto));
   justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .confirm-meta-list[hidden] {
@@ -1290,15 +1290,20 @@ img {
 }
 
 .confirm-meta-list span {
-  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 104px;
+  min-height: 34px;
   border: 1px solid rgba(196, 210, 228, 0.9);
   border-radius: 999px;
-  padding: 5px 9px;
+  padding: 0 12px;
   color: var(--navy-dark);
   background: #f8fafc;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
-  line-height: 1.1;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .dialog-actions {
@@ -1306,6 +1311,17 @@ img {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-top: 24px;
+  align-items: stretch;
+}
+
+.mobile-dialog .dialog-actions .compact {
+  min-height: 64px;
+  height: 64px;
+  border-radius: 12px;
+  padding: 0 10px;
+  font-size: clamp(15px, 4vw, 18px);
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .dialog-actions .secondary-action {
