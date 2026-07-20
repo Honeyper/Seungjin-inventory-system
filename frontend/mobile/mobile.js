@@ -81,6 +81,7 @@ const state = {
   scannerSheetMoved: false,
   boxPickerProduct: null,
   boxPickerEditingGroupKey: "",
+  boxPickerTargetItems: [],
   boxPickerMode: "edit",
   boxPickerSource: "card",
   manualShippingQuery: ""
@@ -285,7 +286,11 @@ function bindEvents() {
     const action = shippingButton.dataset.mobileShippingAction || "complete";
     const item = state.filteredRows.find((row) => getShippingKey(row) === key);
     if (item) {
-      openConfirmModal(item, action);
+      if (action === "complete") {
+        openShippingCompletionPicker(item);
+      } else {
+        openConfirmModal(item, action);
+      }
     }
   });
 
@@ -1163,6 +1168,52 @@ async function openShippingBoxPicker(item, mode = "edit", source = "card") {
   }
 }
 
+function openShippingCompletionPicker(item) {
+  if (!elements.shippingBoxPickerModal) {
+    return;
+  }
+
+  const targetItems = getShippingCompletionPickerItems(item);
+  if (!targetItems.length) {
+    showToast("출고할 수 있는 출고대기 박스가 없습니다.");
+    return;
+  }
+
+  const groupedItem = groupScannedShippingRows(targetItems)[0] || targetItems[0];
+  state.boxPickerProduct = groupedItem;
+  state.boxPickerEditingGroupKey = getShippingProductGroupKey(groupedItem);
+  state.boxPickerTargetItems = targetItems;
+  state.boxPickerMode = "complete";
+  state.boxPickerSource = "shippingConfirm";
+
+  elements.shippingBoxPickerModal.hidden = false;
+  document.body.classList.add("modal-open");
+  elements.shippingBoxPickerTitle.textContent = "출고 박스 확인";
+  elements.boxPickerSectionTitle.textContent = "이번 출고 박스";
+  elements.boxPickerSectionDescription.textContent = "출고하지 않을 박스는 체크를 해제해주세요. 선택한 박스만 출고됩니다.";
+  elements.boxPickerClientName.textContent = normalizeDisplay(groupedItem.clientName || "-");
+  elements.boxPickerProductName.textContent = normalizeDisplay(groupedItem.productName || "-");
+  elements.boxPickerProductMeta.textContent = `출고대기 ${formatNumber(targetItems.length)}박스`;
+  renderBoxPickerBoxes();
+}
+
+function getShippingCompletionPickerItems(item) {
+  let items = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+
+  if (items.length === 1 && !getScannedBox(items[0])) {
+    items = getKnownBoxes(item).map((box) => buildScannedBoxItem(item, box, {
+      boxId: normalizeScanValue(box?.boxId || box?.id || box?.qrId),
+      managementId: normalizeScanValue(item.managementId),
+      productId: normalizeScanValue(item.productId),
+      boxNumber: String(box?.number || box?.sequence || "").trim()
+    }, box?.boxId || box?.number || box?.sequence || ""));
+  }
+
+  const pendingItems = items.filter(isShippingItemPending);
+  return (pendingItems.length ? pendingItems : items.filter((row) => !isCompletedShippingItem(row)))
+    .filter((row) => getScannedBox(row));
+}
+
 function closeShippingBoxPicker() {
   if (!elements.shippingBoxPickerModal) {
     return;
@@ -1171,6 +1222,7 @@ function closeShippingBoxPicker() {
   elements.shippingBoxPickerModal.hidden = true;
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = "";
+  state.boxPickerTargetItems = [];
   state.boxPickerMode = "edit";
   state.boxPickerSource = "card";
   document.body.classList.remove("modal-open");
@@ -1210,14 +1262,19 @@ function renderBoxPickerBoxes() {
     return;
   }
 
-  const boxes = getKnownBoxes(row)
+  const isCompletionMode = state.boxPickerMode === "complete";
+  const boxes = (isCompletionMode
+    ? state.boxPickerTargetItems.map(getScannedBox).filter(Boolean)
+    : getKnownBoxes(row))
     .sort((left, right) => parseNumber(left?.number || left?.sequence) - parseNumber(right?.number || right?.sequence));
   const addedKeys = getAddedShippingBoxKeys(row);
   const isAddMode = state.boxPickerMode === "add";
 
   elements.boxPickerClientName.textContent = normalizeDisplay(row.clientName || "-");
   elements.boxPickerProductName.textContent = normalizeDisplay(row.productName || "-");
-  elements.boxPickerProductMeta.textContent = state.boxPickerSource === "manual"
+  elements.boxPickerProductMeta.textContent = isCompletionMode
+    ? `출고대기 ${formatNumber(boxes.length)}박스`
+    : state.boxPickerSource === "manual"
     ? `최초 총 ${formatNumber(getShippingTotalBoxCount(row))}박스`
     : [row.finalProcess, row.batch, row.storage]
       .map(normalizeDisplay)
@@ -1231,21 +1288,24 @@ function renderBoxPickerBoxes() {
     const status = normalizeText(box?.rawStatus || box?.status);
     const isCompleted = /출고완료|폐기/.test(status) || quantity <= 0;
     const isAdded = addedKeys.has(key);
-    const isDisabled = isCompleted || (isAddMode && isAdded);
-    const statusLabel = isAdded
+    const isChecked = isCompletionMode || isAdded;
+    const isDisabled = isCompletionMode ? false : isCompleted || (isAddMode && isAdded);
+    const statusLabel = isCompletionMode
+      ? "출고 선택"
+      : isAdded
       ? (isAddMode ? "등록됨" : "선택됨")
       : isCompleted ? (status.includes("폐기") ? "폐기" : "출고완료") : normalizeDisplay(box?.status || "보관");
 
     return `
       <label class="box-picker-check-card${isDisabled ? " disabled" : ""}">
-        <input type="checkbox" data-box-picker-box="${escapeHtml(key)}" data-box-status="${escapeHtml(normalizeDisplay(box?.status || "보관"))}" ${isAdded ? "checked" : ""} ${isDisabled ? "disabled" : ""} />
+        <input type="checkbox" data-box-picker-box="${escapeHtml(key)}" data-box-status="${escapeHtml(normalizeDisplay(box?.status || "보관"))}" ${isChecked ? "checked" : ""} ${isDisabled ? "disabled" : ""} />
         <span class="box-picker-check-copy">
           <strong>${escapeHtml(number)}번 박스</strong>
           <small>${state.boxPickerSource === "manual"
             ? `${formatNumber(quantity)} ea`
             : `${escapeHtml(normalizeDisplay(box?.storage || row.storage || "미지정"))} · ${formatNumber(quantity)} ea`}</small>
           <span class="box-picker-quantity-field">
-            <input type="number" min="1" step="1" inputmode="numeric" value="${quantity}" data-box-picker-quantity="${escapeHtml(key)}" aria-label="${escapeHtml(number)}번 박스 수량" ${isDisabled ? "disabled" : ""} />
+            <input type="number" min="1" step="1" inputmode="numeric" value="${quantity}" data-box-picker-quantity="${escapeHtml(key)}" aria-label="${escapeHtml(number)}번 박스 수량" ${isCompletionMode ? "readonly" : isDisabled ? "disabled" : ""} />
             <em>ea</em>
           </span>
         </span>
@@ -1281,15 +1341,19 @@ function syncBoxPickerSelection() {
     if (!input.disabled) {
       const status = card?.querySelector("b");
       if (status) {
-        status.textContent = input.checked ? "선택됨" : input.dataset.boxStatus || "보관";
+        status.textContent = state.boxPickerMode === "complete"
+          ? (input.checked ? "출고 선택" : "출고 제외")
+          : input.checked ? "선택됨" : input.dataset.boxStatus || "보관";
       }
     }
   });
   const selectable = checkboxes.filter((input) => !input.disabled);
   const selected = selectable.filter((input) => input.checked);
   elements.boxPickerSelectedCount.textContent = String(selected.length);
-  elements.confirmShippingBoxPickerButton.disabled = false;
-  elements.confirmShippingBoxPickerButton.textContent = state.boxPickerMode === "add" ? "선택 박스 추가" : "수정 완료";
+  elements.confirmShippingBoxPickerButton.disabled = state.boxPickerMode === "complete" && selected.length === 0;
+  elements.confirmShippingBoxPickerButton.textContent = state.boxPickerMode === "complete"
+    ? "선택 박스 출고"
+    : state.boxPickerMode === "add" ? "선택 박스 추가" : "수정 완료";
   elements.boxPickerSelectAll.disabled = selectable.length === 0;
   elements.boxPickerSelectAll.checked = selectable.length > 0 && selected.length === selectable.length;
   elements.boxPickerSelectAll.indeterminate = selected.length > 0 && selected.length < selectable.length;
@@ -1303,6 +1367,26 @@ function updateSelectedShippingBoxes() {
 
   const selectedInputs = Array.from(elements.boxPickerBoxList.querySelectorAll("[data-box-picker-box]:checked:not(:disabled)"));
   const isAddMode = state.boxPickerMode === "add";
+  const isCompletionMode = state.boxPickerMode === "complete";
+
+  if (isCompletionMode) {
+    if (!selectedInputs.length) {
+      showToast("출고할 박스를 한 개 이상 선택해주세요.");
+      return;
+    }
+
+    const selectedKeys = new Set(selectedInputs.map((input) => input.dataset.boxPickerBox));
+    const targetItems = state.boxPickerTargetItems.filter((item) => selectedKeys.has(getShippingCompositeBoxKey(item)));
+    if (!targetItems.length) {
+      showToast("선택한 출고대기 박스를 찾지 못했습니다.");
+      return;
+    }
+
+    const groupedItem = groupScannedShippingRows(targetItems)[0] || targetItems[0];
+    closeShippingBoxPicker();
+    openConfirmModal(groupedItem, "complete");
+    return;
+  }
 
   if (isAddMode && !selectedInputs.length) {
     showToast("추가할 박스를 선택해주세요.");

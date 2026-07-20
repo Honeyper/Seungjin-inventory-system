@@ -4385,6 +4385,7 @@ img {
 }
 
 .box-picker-section-header label {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -4394,6 +4395,7 @@ img {
   padding: 0 9px;
   font-size: 12px;
   font-weight: 900;
+  white-space: nowrap;
   background: #fff;
 }
 
