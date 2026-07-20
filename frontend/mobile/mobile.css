@@ -5784,6 +5784,7 @@ img {
 #shippingScreen .shipping-card-actions {
   gap: 7px;
   margin-top: 3px;
+  width: 100%;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -5843,6 +5844,8 @@ img {
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
+  width: 100%;
+  padding-inline: 0;
 }
 
 #shippingScreen .item-worker,
@@ -5871,6 +5874,7 @@ img {
 
 #shippingScreen .shipping-product-details {
   min-width: 0;
+  width: 100%;
   margin-top: 1px;
   border-top: 1px solid #e2eaf3;
 }
@@ -5881,7 +5885,7 @@ img {
   justify-content: space-between;
   gap: 12px;
   min-height: 38px;
-  padding: 4px 2px 0;
+  padding: 4px 0 0;
   color: var(--navy-dark);
   font-size: 13px;
   font-weight: 900;
@@ -5961,6 +5965,7 @@ img {
 
 #shippingScreen .item-metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
   margin-top: 3px;
   padding-top: 8px;
 }
@@ -5969,7 +5974,7 @@ img {
   gap: 0;
   align-content: start;
   min-width: 0;
-  padding-inline: 4px;
+  padding-inline: 0;
   min-height: 72px;
 }
 
