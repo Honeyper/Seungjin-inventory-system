@@ -1044,19 +1044,12 @@ function renderShippingList(rows) {
 }
 
 function renderShippingProductGroup(group) {
-  const boxCount = group.items.reduce((sum, item) => sum + getShippingBoxCount(item), 0);
-  const process = normalizeDisplay(group.finalProcess || "-");
-
   return `
     <section class="shipping-product-group" data-shipping-product-group="${escapeHtml(group.key)}">
       <header class="shipping-product-group-header">
         <div class="shipping-product-group-copy">
           <span>${escapeHtml(normalizeDisplay(group.clientName || "-"))}</span>
           <h2>${escapeHtml(normalizeDisplay(group.productName || "-"))}</h2>
-        </div>
-        <div class="shipping-product-group-summary">
-          <span>${escapeHtml(process)}</span>
-          <strong>${formatNumber(group.items.length)}건 · ${formatNumber(boxCount)}박스</strong>
         </div>
       </header>
       <div class="shipping-product-group-items">

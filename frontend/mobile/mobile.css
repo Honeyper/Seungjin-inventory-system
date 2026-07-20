@@ -5653,10 +5653,7 @@ img {
 }
 
 #shippingScreen .shipping-product-group-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
+  display: block;
   min-width: 0;
   padding: 1px 3px 3px 10px;
   border-left: 3px solid var(--gold);
@@ -5685,25 +5682,6 @@ img {
   line-height: 1.25;
   word-break: keep-all;
   overflow-wrap: anywhere;
-}
-
-#shippingScreen .shipping-product-group-summary {
-  display: grid;
-  flex: 0 0 auto;
-  gap: 1px;
-  text-align: right;
-}
-
-#shippingScreen .shipping-product-group-summary span {
-  color: #77869a;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-#shippingScreen .shipping-product-group-summary strong {
-  color: var(--gold-dark);
-  font-size: 12px;
-  font-weight: 800;
 }
 
 #shippingScreen .shipping-product-group-items {
