@@ -94,6 +94,7 @@ const state = {
   activeDetailInboundId: "",
   activeDetailInboundProductId: "",
   activeDetailInboundRecord: null,
+  activeShippingDetailItem: null,
   activeQrInboundId: "",
   activeQrInboundProductId: "",
   activeMenuProductCode: "",
@@ -109,6 +110,7 @@ const state = {
   isSavingShippingInspection: false,
   isSavingShippingCompletion: false,
   isSavingShippingCancel: false,
+  isCancelingDiscardedBoxes: false,
   inboundProductPickerQuery: "",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
@@ -840,6 +842,12 @@ document.querySelector("#closeInboundDetailModal").addEventListener("click", clo
 closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
 editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
 saveInboundEditButton?.addEventListener("click", saveInboundEdit);
+inboundDetailContent?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-cancel-discarded-boxes]");
+  if (button) {
+    cancelDiscardedBoxesFromDetail(button);
+  }
+});
 closeInboundQrModalButton?.addEventListener("click", closeInboundQrModal);
 closeInboundQrButton?.addEventListener("click", closeInboundQrModal);
 printInboundQrButton?.addEventListener("click", () => window.print());
@@ -1519,7 +1527,8 @@ function getShippingRowBoxes(row, datasetKey, fallbackCount = 0, fallbackQuantit
           shippingDate: box.shippingDate || "",
           shippingTime: box.shippingTime || "",
           shippingType: box.shippingType || "",
-          shipper: box.shipper || ""
+          shipper: box.shipper || "",
+          storage: box.storage || ""
         }))
         .sort((left, right) => left.number - right.number);
     }
@@ -2071,7 +2080,7 @@ async function saveShippingInspection() {
   }
 }
 
-function renderShippingHoldActions(photoUrl = "", photoCount = 0, allowCancelShipping = false) {
+function renderShippingHoldActions(photoUrl = "", photoCount = 0, allowCancelShipping = false, showDiscardDetail = false) {
   const photoButton = photoUrl
     ? `<button class="shipping-row-button" type="button" data-shipping-action="photo" data-photo-url="${escapeAttribute(photoUrl)}" data-photo-count="${Number(photoCount) || 0}">사진</button>`
     : "";
@@ -2081,6 +2090,7 @@ function renderShippingHoldActions(photoUrl = "", photoCount = 0, allowCancelShi
       <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">재검수</button>
       <button class="shipping-row-button" type="button" data-shipping-action="holdGuide" data-photo-url="${escapeAttribute(photoUrl)}" data-photo-count="${Number(photoCount) || 0}">보류 상세</button>
       ${photoButton}
+      ${showDiscardDetail ? '<button class="shipping-row-button secondary" type="button" data-shipping-action="detail">폐기 상세</button>' : ""}
       ${allowCancelShipping ? '<button class="shipping-row-button secondary" type="button" data-shipping-action="cancelShip">출고 취소</button>' : ""}
     </div>
   `;
@@ -2800,10 +2810,12 @@ function renderShippingTable(message = "") {
         data-defect-photo-count="${Number(item.defectPhotoCount) || 0}"
         data-all-shipping-boxes="${escapeAttribute(JSON.stringify(item.allShippingBoxes || [
           ...(item.activeShippingBoxes || []),
-          ...(item.shippedShippingBoxes || [])
+          ...(item.shippedShippingBoxes || []),
+          ...(item.discardedShippingBoxes || [])
         ]))}"
         data-active-shipping-boxes="${escapeAttribute(JSON.stringify(item.activeShippingBoxes || []))}"
         data-shipped-shipping-boxes="${escapeAttribute(JSON.stringify(item.shippedShippingBoxes || []))}"
+        data-discarded-shipping-boxes="${escapeAttribute(JSON.stringify(item.discardedShippingBoxes || []))}"
         data-defect-reason="${escapeAttribute(item.shippingDefectReason || "")}">
         <td>${start + index + 1}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
@@ -2946,8 +2958,10 @@ function getShippingSourceRows() {
   return (state.inventoryRows || []).filter((item) => {
     const status = getEffectiveShippingStatus(item);
     const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
-    return !["폐기"].includes(status)
-      && (quantity > 0 || ["출고대기", "보류", "일부 출고", "출고완료"].includes(status))
+    const hasDiscardedBoxes = Array.isArray(item.discardedShippingBoxes) && item.discardedShippingBoxes.length > 0;
+    return (hasDiscardedBoxes
+      || (!["폐기"].includes(status)
+        && (quantity > 0 || ["출고대기", "보류", "일부 출고", "출고완료"].includes(status))))
       && isShippingSettlementDateMatch(item);
   });
 }
@@ -3225,6 +3239,10 @@ function renderShippingStatusBadge(item) {
     return '<span class="shipping-badge hold">출고 보류</span>';
   }
 
+  if (status === "폐기") {
+    return '<span class="shipping-badge discarded">폐기</span>';
+  }
+
   if (isShippingInspected(item)) {
     return '<span class="shipping-badge wait">출고 대기</span>';
   }
@@ -3237,12 +3255,20 @@ function renderShippingRowAction(item) {
   const counts = getShippingBoxStatusCounts(item);
   const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
   const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
+  const discardedBoxes = Array.isArray(item.discardedShippingBoxes) ? item.discardedShippingBoxes : [];
   const hasRemainingBoxes = activeBoxes.some((box) => normalizeInventoryStockStatus(box.status) === "보관");
   const isPartialShipping = status === "일부 출고" || (activeBoxes.length > 0 && shippedBoxes.length > 0);
   const registerActionLabel = isPartialShipping && hasRemainingBoxes ? "추가 출고" : "출고 건 수정";
   const cancelShippingButton = shippedBoxes.length
     ? '<button class="shipping-row-button secondary" type="button" data-shipping-action="cancelShip">출고 취소</button>'
     : "";
+  const discardDetailButton = discardedBoxes.length
+    ? '<button class="shipping-row-button secondary" type="button" data-shipping-action="detail">상세</button>'
+    : "";
+
+  if (status === "폐기" && discardedBoxes.length) {
+    return discardDetailButton;
+  }
 
   if (isPartialShipping) {
     const additionalShippingAction = counts["출고대기"] ? "ship" : "inspect";
@@ -3271,6 +3297,7 @@ function renderShippingRowAction(item) {
     return `
       <div class="shipping-action-group">
         <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">수정</button>
+        ${discardDetailButton}
         <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고</button>
         ${cancelShippingButton}
       </div>
@@ -3307,19 +3334,30 @@ function renderShippingRowAction(item) {
   }
 
   if (counts["보류"]) {
-    return renderShippingHoldActions(item.defectPhotoFolderUrl || "", Number(item.defectPhotoCount) || 0, shippedBoxes.length > 0);
+    return renderShippingHoldActions(
+      item.defectPhotoFolderUrl || "",
+      Number(item.defectPhotoCount) || 0,
+      shippedBoxes.length > 0,
+      discardedBoxes.length > 0
+    );
   }
 
   if (counts["검수완료"] || isShippingInspected(item)) {
     return `
       <div class="shipping-action-group">
         <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">${registerActionLabel}</button>
+        ${discardDetailButton}
         <button class="shipping-row-button" type="button" data-shipping-action="queue">출고</button>
       </div>
     `;
   }
 
-  return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">출고대기 등록</button>';
+  return `
+    <div class="shipping-action-group">
+      ${discardDetailButton}
+      <button class="shipping-row-button" type="button" data-shipping-action="inspect">출고대기 등록</button>
+    </div>
+  `;
 }
 
 function openShippingInventoryDetail(row) {
@@ -3345,6 +3383,9 @@ function buildShippingDetailItemFromRow(row, item = {}) {
   const explicitShippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes");
   const fallbackShippedBoxes = allShippingBoxes.filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료");
   const shippedShippingBoxes = explicitShippedBoxes.length ? explicitShippedBoxes : fallbackShippedBoxes;
+  const explicitDiscardedBoxes = getShippingRowBoxes(row, "discardedShippingBoxes");
+  const fallbackDiscardedBoxes = allShippingBoxes.filter((box) => normalizeInventoryStockStatus(box.status) === "폐기");
+  const discardedShippingBoxes = explicitDiscardedBoxes.length ? explicitDiscardedBoxes : fallbackDiscardedBoxes;
   const fallbackStatus = !activeShippingBoxes.length && shippedShippingBoxes.length ? "출고완료" : item.stockStatus;
 
   return {
@@ -3363,7 +3404,8 @@ function buildShippingDetailItemFromRow(row, item = {}) {
     stockStatus: fallbackStatus,
     allShippingBoxes,
     activeShippingBoxes,
-    shippedShippingBoxes
+    shippedShippingBoxes,
+    discardedShippingBoxes
   };
 }
 
@@ -3438,7 +3480,8 @@ function getShippingSettlementItemDate(item) {
 function getShippingSettlementItemDates(item) {
   const boxDates = [
     ...(Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : []),
-    ...(Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : [])
+    ...(Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : []),
+    ...(Array.isArray(item?.discardedShippingBoxes) ? item.discardedShippingBoxes : [])
   ].map((box) => getShippingSettlementBoxDate(box))
     .filter(Boolean);
 
@@ -4786,9 +4829,13 @@ async function loadInventoryDashboardRequest(showLoadingToast = true, options = 
     state.inventoryRows = normalizeInventoryRows(Array.isArray(result.rows) ? result.rows : []);
     state.inventoryLocationBoxStats = Array.isArray(result.locationBoxStats) ? result.locationBoxStats : [];
     state.inventoryLocationQuantityStats = Array.isArray(result.locationQuantityStats) ? result.locationQuantityStats : [];
+    const inventorySummaryRows = state.inventoryRows.filter((item) => (
+      normalizeInventoryStockStatus(item.stockStatus) !== "폐기"
+        || parseShippingSettlementNumber(item.currentTotalQuantity) > 0
+    ));
     const inventorySummary = {
       ...(result.summary || {}),
-      totalItems: buildInventoryAggregateStats(state.inventoryRows).productCount
+      totalItems: buildInventoryAggregateStats(inventorySummaryRows).productCount
     };
     renderInventorySummary(inventorySummary, buildInventoryAttentionSummary(state.inventoryRows, result.attention || {}));
     renderInventoryFilterOptions(buildInventoryFilterOptions(state.inventoryRows, result.filters || {}));
@@ -5811,6 +5858,7 @@ function openShippingDetail(item) {
   state.activeDetailInboundId = item.managementId;
   state.activeDetailInboundProductId = item.productId || "";
   state.activeDetailInboundRecord = null;
+  state.activeShippingDetailItem = item;
   if (inboundDetailTitle) {
     inboundDetailTitle.textContent = "출고 상세보기";
   }
@@ -6254,6 +6302,8 @@ function closeInboundDetailModal() {
   state.activeDetailInboundId = "";
   state.activeDetailInboundProductId = "";
   state.activeDetailInboundRecord = null;
+  state.activeShippingDetailItem = null;
+  state.isCancelingDiscardedBoxes = false;
   state.inboundEditDefectReasons = [];
   setInboundDetailMode("view");
 
@@ -6797,6 +6847,7 @@ function renderInboundDetail(inbound) {
 function renderShippingDetail(item) {
   const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
   const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const discardedBoxes = Array.isArray(item.discardedShippingBoxes) ? item.discardedShippingBoxes : [];
   const shippingHistoryGroups = buildShippingHistoryGroups(shippedBoxes);
   const shippedQuantity = shippedBoxes.reduce((sum, box) => sum + parseShippingSettlementNumber(box.quantity || ""), 0);
   const remainingQuantity = activeBoxes.reduce((sum, box) => sum + parseShippingSettlementNumber(box.quantity || ""), 0);
@@ -6860,7 +6911,65 @@ function renderShippingDetail(item) {
         ${detailItem("남은 박스", remainingBoxText, false, "full-span")}
       </div>
     </section>
+
+    ${discardedBoxes.length ? `
+      <section class="detail-section discarded-box-detail-section" aria-labelledby="shippingDetailDiscardedTitle">
+        <h3 id="shippingDetailDiscardedTitle">폐기 박스</h3>
+        <div class="discarded-box-detail-panel">
+          <div class="discarded-box-detail-copy">
+            <span>폐기된 박스</span>
+            <strong>${escapeHtml(discardedBoxes.map((box) => `${box.number}번 박스`).join(", "))}</strong>
+            <small>폐기 취소 시 박스는 보관 상태로 복구되고 수량이 다시 재고에 반영됩니다.</small>
+          </div>
+          <button class="discarded-box-cancel-button" type="button" data-cancel-discarded-boxes>폐기 취소</button>
+        </div>
+      </section>
+    ` : ""}
   `;
+}
+
+async function cancelDiscardedBoxesFromDetail(button) {
+  const item = state.activeShippingDetailItem;
+  const discardedBoxes = Array.isArray(item?.discardedShippingBoxes) ? item.discardedShippingBoxes : [];
+
+  if (!item || !discardedBoxes.length || state.isCancelingDiscardedBoxes) {
+    return;
+  }
+
+  const boxNumbers = discardedBoxes.map((box) => `${box.number}번`).join(", ");
+  const confirmed = window.confirm(`${boxNumbers} 박스의 폐기를 취소하고 재고로 복구할까요?`);
+  if (!confirmed) {
+    return;
+  }
+
+  state.isCancelingDiscardedBoxes = true;
+  const previousText = button.textContent;
+  button.disabled = true;
+  button.textContent = "복구 중";
+
+  try {
+    const result = await requestApi("cancelDiscardedBoxes", {
+      managementId: item.managementId || "",
+      productId: item.productId || "",
+      clientName: item.clientName || "",
+      productName: item.productName || "",
+      batch: item.batch || "",
+      finalProcess: item.finalProcess || item.process || "",
+      storage: item.storage || "",
+      storageLocation: item.storage || "",
+      selectedBoxes: discardedBoxes.map((box) => box.number),
+      selectedBoxIds: discardedBoxes.map((box) => box.boxId).filter(Boolean),
+      userName: session?.name || "Admin"
+    });
+    closeInboundDetailModal();
+    await loadInventoryDashboard(false, { preserveExisting: true });
+    showToast(`${result?.updatedBoxRows || discardedBoxes.length}개 폐기 박스를 재고로 복구했습니다.`);
+  } catch (error) {
+    showToast(error.message || "폐기 취소 처리 중 문제가 발생했습니다.");
+    state.isCancelingDiscardedBoxes = false;
+    button.disabled = false;
+    button.textContent = previousText;
+  }
 }
 
 function renderInboundAttachmentDetail(inbound) {

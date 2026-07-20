@@ -2808,6 +2808,11 @@ input {
   background: #fff3dc;
 }
 
+.shipping-badge.discarded {
+  color: #b42318;
+  background: #fee4e2;
+}
+
 .due-badge.safe {
   color: #167340;
   background: #edf8ef;
@@ -4688,6 +4693,61 @@ body.shipping-box-drag-selecting * {
   color: #63728a;
   font-weight: 900;
   text-align: center;
+}
+
+.discarded-box-detail-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #f4c7c3;
+  border-radius: 0.5rem;
+  background: #fff7f6;
+}
+
+.discarded-box-detail-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+}
+
+.discarded-box-detail-copy span {
+  color: #8a3a33;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.discarded-box-detail-copy strong {
+  color: #7a271a;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.discarded-box-detail-copy small {
+  color: #7a5a57;
+  font-weight: 700;
+}
+
+.discarded-box-cancel-button {
+  flex: 0 0 auto;
+  min-height: 2.5rem;
+  padding: 0 1.05rem;
+  color: #fff;
+  font-weight: 900;
+  border: 0;
+  border-radius: 0.42rem;
+  background: #c43228;
+  cursor: pointer;
+}
+
+.discarded-box-cancel-button:hover {
+  background: #a92a22;
+}
+
+.discarded-box-cancel-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .inbound-detail-modal .detail-content {
@@ -7333,6 +7393,15 @@ body.shipping-box-drag-selecting * {
 
   .inbound-detail-modal .detail-item {
     grid-template-columns: minmax(5.4rem, 7rem) minmax(0, 1fr);
+  }
+
+  .discarded-box-detail-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .discarded-box-cancel-button {
+    width: 100%;
   }
 
   .table-footer {
