@@ -89,6 +89,7 @@ const state = {
 };
 
 const elements = {
+  launchScreen: document.querySelector("#launchScreen"),
   loginScreen: document.querySelector("#loginScreen"),
   homeScreen: document.querySelector("#homeScreen"),
   shippingScreen: document.querySelector("#shippingScreen"),
@@ -180,12 +181,15 @@ function initializeMobileApp() {
     return;
   }
 
-  showScreen("login");
   if (loginPreferences.autoLogin && loginPreferences.accountId && loginPreferences.password) {
+    showScreen("launch");
     window.setTimeout(() => {
       attemptAdminLogin({ automatic: true });
     }, 0);
+    return;
   }
+
+  showScreen("login");
 }
 
 function bindEvents() {
@@ -415,11 +419,17 @@ async function attemptAdminLogin(options = {}) {
   setLoginMessage("");
 
   if (!accountId || !password) {
+    if (automatic) {
+      showScreen("login");
+    }
     setLoginMessage("직원번호와 비밀번호를 입력해주세요.");
     return;
   }
 
   if (!API_URL) {
+    if (automatic) {
+      showScreen("login");
+    }
     setLoginMessage("API 주소가 설정되지 않았습니다.");
     return;
   }
@@ -432,6 +442,9 @@ async function attemptAdminLogin(options = {}) {
     const loginResult = result.data || result;
 
     if (!result.ok || !loginResult.success) {
+      if (automatic) {
+        showScreen("login");
+      }
       setLoginMessage(loginResult.message || result.message || "로그인에 실패했습니다.");
       return;
     }
@@ -444,6 +457,9 @@ async function attemptAdminLogin(options = {}) {
     }
     showHome();
   } catch (error) {
+    if (automatic) {
+      showScreen("login");
+    }
     setLoginMessage(error.message || "로그인 서버에 연결할 수 없습니다.");
   } finally {
     setAdminLoginLoading(false);
@@ -573,6 +589,7 @@ function showInventoryMove() {
 
 function showScreen(name) {
   const screens = {
+    launch: elements.launchScreen,
     login: elements.loginScreen,
     home: elements.homeScreen,
     shipping: elements.shippingScreen,
@@ -581,7 +598,7 @@ function showScreen(name) {
 
   Object.values(screens).forEach((screen) => screen?.classList.remove("active"));
   screens[name]?.classList.add("active");
-  elements.bottomNav.hidden = name === "login";
+  elements.bottomNav.hidden = name === "login" || name === "launch";
   saveCurrentRoute(name);
 
   document.querySelectorAll("#bottomNav [data-mobile-route]").forEach((button) => {

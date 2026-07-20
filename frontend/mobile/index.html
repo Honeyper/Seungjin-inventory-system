@@ -16,10 +16,19 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260720-center-empty-scan-button" />
+    <link rel="stylesheet" href="./mobile.css?v=20260720-auto-login-launch" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
+      <section class="screen app-launch-screen" id="launchScreen" aria-label="앱 시작 중">
+        <div class="app-launch-content" role="status" aria-live="polite">
+          <img src="../assets/logo-generated.png" alt="" />
+          <strong>(주)승진</strong>
+          <span>로그인 상태를 확인하고 있습니다.</span>
+          <i class="app-launch-spinner" aria-hidden="true"></i>
+        </div>
+      </section>
+
       <section class="screen" id="loginScreen" aria-labelledby="loginTitle">
         <div class="login-hero">
           <div class="mobile-brand">
@@ -439,6 +448,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260720-persistent-auto-login"></script>
+    <script src="./mobile.js?v=20260720-auto-login-launch"></script>
   </body>
 </html>
