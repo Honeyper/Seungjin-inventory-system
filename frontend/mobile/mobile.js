@@ -17,6 +17,7 @@ const JSQR_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
 const JSQR_FAST_MAX_EDGE = IS_LOW_POWER_SCANNER ? 840 : 960;
 const JSQR_DETAIL_MAX_EDGE = IS_LOW_POWER_SCANNER ? 1280 : 1440;
 const JSQR_DETAIL_SCAN_INTERVAL = 3;
+const JSQR_CENTER_CROP_RATIO = 0.72;
 const JSQR_NATIVE_FALLBACK_INTERVAL = 1;
 const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
@@ -75,6 +76,7 @@ const state = {
   scannerTimer: null,
   scannerCanvas: null,
   scannerCanvasContext: null,
+  scannerCameraRequestPending: false,
   scannerInputMode: "camera",
   hardwareScannerBuffer: "",
   hardwareScannerLastInputAt: 0,
@@ -609,13 +611,21 @@ function showScreen(name) {
 
 function handlePageVisibilityChange() {
   if (document.hidden) {
-    releaseScannerStream();
     stopShippingClock();
+    if (!state.scannerCameraRequestPending) {
+      releaseScannerStream();
+    }
     return;
   }
 
   if (elements.shippingScreen?.classList.contains("active") || elements.inventoryMoveScreen?.classList.contains("active")) {
     startShippingClock();
+  }
+
+  if (!elements.scannerScreen?.hidden
+    && state.scannerInputMode === "camera"
+    && !getReusableScannerStream()) {
+    void startScannerCamera();
   }
 }
 
@@ -2487,9 +2497,14 @@ async function startScannerCamera() {
     return;
   }
 
+  if (state.scannerCameraRequestPending) {
+    return;
+  }
+
+  state.scannerCameraRequestPending = true;
   try {
     const stream = await getScannerStream();
-    if (state.scannerInputMode !== "camera" || elements.scannerScreen?.hidden) {
+    if (document.hidden || state.scannerInputMode !== "camera" || elements.scannerScreen?.hidden) {
       stopScannerCamera();
       return;
     }
@@ -2501,6 +2516,8 @@ async function startScannerCamera() {
   } catch (error) {
     showToast("카메라를 열지 못해 외부 스캐너 모드로 전환합니다.");
     await setScannerInputMode("hardware");
+  } finally {
+    state.scannerCameraRequestPending = false;
   }
 }
 
@@ -2775,9 +2792,14 @@ function startJsQrDetection(detector = null) {
     jsQrScanCount += 1;
     const isDetailScan = jsQrScanCount % JSQR_DETAIL_SCAN_INTERVAL === 0;
     const maxEdge = isDetailScan ? JSQR_DETAIL_MAX_EDGE : JSQR_FAST_MAX_EDGE;
-    const scale = Math.min(1, maxEdge / Math.max(sourceWidth, sourceHeight));
-    const width = Math.max(1, Math.floor(sourceWidth * scale));
-    const height = Math.max(1, Math.floor(sourceHeight * scale));
+    const cropRatio = isDetailScan ? JSQR_CENTER_CROP_RATIO : 1;
+    const cropWidth = Math.max(1, Math.floor(sourceWidth * cropRatio));
+    const cropHeight = Math.max(1, Math.floor(sourceHeight * cropRatio));
+    const cropX = Math.floor((sourceWidth - cropWidth) / 2);
+    const cropY = Math.floor((sourceHeight - cropHeight) / 2);
+    const scale = Math.min(1, maxEdge / Math.max(cropWidth, cropHeight));
+    const width = Math.max(1, Math.floor(cropWidth * scale));
+    const height = Math.max(1, Math.floor(cropHeight * scale));
 
     if (state.scannerCanvas.width !== width) {
       state.scannerCanvas.width = width;
@@ -2789,7 +2811,7 @@ function startJsQrDetection(detector = null) {
     if (scale < 1) {
       context.imageSmoothingQuality = "low";
     }
-    context.drawImage(video, 0, 0, width, height);
+    context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, width, height);
 
     try {
       const imageData = context.getImageData(0, 0, width, height);
