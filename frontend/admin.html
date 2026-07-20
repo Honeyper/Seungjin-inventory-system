@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260720-shipping-box-drag-select" />
+    <link rel="stylesheet" href="./styles.css?v=20260720-inbound-product-create" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -2080,13 +2080,21 @@
         </header>
 
         <div class="picker-body">
-          <label class="search-field picker-search">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m16 16 4 4" />
-            </svg>
-            <input id="inboundProductPickerSearch" type="search" placeholder="제품명, 제품코드, 거래처명 검색" />
-          </label>
+          <div class="picker-toolbar">
+            <label class="search-field picker-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m16 16 4 4" />
+              </svg>
+              <input id="inboundProductPickerSearch" type="search" placeholder="제품명, 제품코드, 거래처명 검색" />
+            </label>
+            <button class="picker-create-product-button" type="button" id="createProductFromPickerButton">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span>신규 제품 등록</span>
+            </button>
+          </div>
 
           <div class="picker-list" id="inboundProductPickerList"></div>
           <p class="picker-empty" id="inboundProductPickerEmpty" hidden>선택할 제품이 없습니다.</p>
@@ -2145,6 +2153,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260720-shipping-box-drag-select"></script>
+    <script src="./admin.js?v=20260720-inbound-product-create"></script>
   </body>
 </html>

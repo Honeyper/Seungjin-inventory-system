@@ -89,6 +89,7 @@ const state = {
   inboundQrLayout: "standard",
   activeQrBoxes: [],
   productFormMode: "create",
+  productModalReturnContext: null,
   editingProductCode: "",
   activeDetailProductCode: "",
   activeDetailInboundId: "",
@@ -209,6 +210,7 @@ const inboundProductPickerModal = document.querySelector("#inboundProductPickerM
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
 const inboundProductPickerList = document.querySelector("#inboundProductPickerList");
 const inboundProductPickerEmpty = document.querySelector("#inboundProductPickerEmpty");
+const createProductFromPickerButton = document.querySelector("#createProductFromPickerButton");
 const inboundInvoiceFile = document.querySelector("#inboundInvoiceFile");
 const inboundInvoiceUploadButton = document.querySelector("#inboundInvoiceUploadButton");
 const inboundInvoicePreview = document.querySelector("#inboundInvoicePreview");
@@ -790,6 +792,7 @@ inboundProductPickerSearch.addEventListener("input", (event) => {
   state.inboundProductPickerQuery = event.target.value.trim().toLowerCase();
   renderInboundProductPicker();
 });
+createProductFromPickerButton?.addEventListener("click", openProductModalFromPicker);
 
 productSearch.addEventListener("input", (event) => {
   state.query = event.target.value.trim().toLowerCase();
@@ -4383,6 +4386,23 @@ function closeInboundProductPicker() {
   }
 }
 
+function openProductModalFromPicker() {
+  const returnContext = {
+    target: state.inboundProductPickerTarget || "inbound",
+    query: state.inboundProductPickerQuery || ""
+  };
+
+  inboundProductPickerModal.hidden = true;
+  openProductModal("create", null, { returnContext });
+}
+
+function restoreInboundProductPickerContext(context = {}) {
+  openInboundProductPicker(context.target || "inbound");
+  state.inboundProductPickerQuery = context.query || "";
+  inboundProductPickerSearch.value = context.query || "";
+  renderInboundProductPicker();
+}
+
 function renderInboundProductPicker() {
   const query = state.inboundProductPickerQuery;
   const products = state.products.filter((product) => {
@@ -7548,9 +7568,10 @@ function renderPagination(pageCount) {
   });
 }
 
-function openProductModal(mode = "create", product = null) {
+function openProductModal(mode = "create", product = null, options = {}) {
   state.productFormMode = mode;
   state.editingProductCode = mode === "edit" ? product?.productCode || "" : "";
+  state.productModalReturnContext = mode === "create" ? options.returnContext || null : null;
 
   productForm.reset();
   productFormMessage.textContent = "";
@@ -7587,20 +7608,31 @@ function openProductModal(mode = "create", product = null) {
   window.setTimeout(() => productClientName.focus(), 0);
 }
 
-function closeProductModal() {
+function closeProductModal(options = {}) {
   if (state.isSavingProduct) {
     return;
   }
 
+  const returnContext = state.productModalReturnContext;
+  const shouldRestorePicker = options?.restorePicker !== false && Boolean(returnContext);
   productModal.hidden = true;
-  document.body.classList.remove("modal-open");
   state.productFormMode = "create";
   state.editingProductCode = "";
+  state.productModalReturnContext = null;
   productModalTitle.textContent = "신규 제품 등록";
   productModalDescription.textContent = "신규 제품 정보를 입력해주세요. * 표시는 필수 입력입니다.";
   saveProductButton.textContent = "저장";
   productFormMessage.textContent = "";
   productFormMessage.classList.remove("success");
+
+  if (shouldRestorePicker) {
+    restoreInboundProductPickerContext(returnContext);
+    return;
+  }
+
+  if (productDetailModal.hidden && inboundProductPickerModal.hidden && existingStockModal?.hidden !== false) {
+    document.body.classList.remove("modal-open");
+  }
 }
 
 function renderClientOptions() {
@@ -7709,6 +7741,7 @@ async function saveProduct() {
 
   try {
     const isEdit = state.productFormMode === "edit";
+    const returnContext = !isEdit ? state.productModalReturnContext : null;
     const result = await requestApi(
       isEdit ? "updateProduct" : "createProduct",
       isEdit ? { ...payload, productId: state.editingProductCode } : payload
@@ -7717,7 +7750,36 @@ async function saveProduct() {
 
     setFormMessage(isEdit ? "제품이 수정되었습니다." : "제품이 저장되었습니다.", "success");
     setProductSaving(false);
-    closeProductModal();
+    closeProductModal({ restorePicker: false });
+
+    if (returnContext && !isEdit) {
+      await loadProducts();
+      const createdProduct = getProductByCode(result?.productId) || {
+        productCode: result?.productId || "",
+        productId: result?.productId || "",
+        clientName: payload["업체명"] || "",
+        productName: payload["제품명"] || "",
+        color: payload["색상"] || "",
+        finalProcess: payload["최종공정"] || "",
+        dustRemovalStatus: payload["박가루제거 유무"] || "무",
+        flameTreatmentStatus: payload["화염처리 유무"] || "무",
+        useStatus: payload["사용 여부"] || "사용중",
+        orderQuantity: payload["발주량"] || "",
+        dueDate: payload["납기일"] || "",
+        boxQuantity: payload["박스당 수량"] || "",
+        trayQuantity: payload["트레이 수량"] || "",
+        note: payload["비고"] || ""
+      };
+      state.inboundProductPickerTarget = returnContext.target || "inbound";
+      if (state.inboundProductPickerTarget === "existingStock") {
+        selectExistingStockProduct(createdProduct);
+      } else {
+        selectInboundProduct(createdProduct);
+      }
+      showToast(`신규 제품이 등록되고 입고 제품으로 선택됐습니다.${productId}`);
+      return;
+    }
+
     showToast(isEdit ? `제품 정보가 수정되었습니다.${productId}` : `신규 제품이 등록되었습니다.${productId}`);
     void refreshAdminDataInBackground({ products: true });
   } catch (error) {
