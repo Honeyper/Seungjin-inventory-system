@@ -531,13 +531,11 @@ shippingCancelSelectAllBoxes?.addEventListener("change", () => {
 shippingCancelBoxList?.addEventListener("change", syncShippingCancelBoxState);
 shippingSettlementStartDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("start");
-  updateShippingSummaryCards(getShippingSettlementItems());
-  updateShippingSettlementSummary();
+  refreshShippingSettlementView();
 });
 shippingSettlementEndDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("end");
-  updateShippingSummaryCards(getShippingSettlementItems());
-  updateShippingSettlementSummary();
+  refreshShippingSettlementView();
 });
 shippingSettlementTodayButton?.addEventListener("click", () => {
   const today = getLocalDateInputValue();
@@ -547,8 +545,7 @@ shippingSettlementTodayButton?.addEventListener("click", () => {
   if (shippingSettlementEndDate) {
     shippingSettlementEndDate.value = today;
   }
-  updateShippingSummaryCards(getShippingSettlementItems());
-  updateShippingSettlementSummary();
+  refreshShippingSettlementView();
 });
 editShippingInspectorButton?.addEventListener("click", () => {
   setInboundLockedFieldEditable(
@@ -2787,7 +2784,8 @@ function getShippingSourceRows() {
     const status = getEffectiveShippingStatus(item);
     const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
     return !["폐기"].includes(status)
-      && (quantity > 0 || ["출고대기", "보류", "일부 출고", "출고완료"].includes(status));
+      && (quantity > 0 || ["출고대기", "보류", "일부 출고", "출고완료"].includes(status))
+      && isShippingSettlementDateMatch(item);
   });
 }
 
@@ -3260,6 +3258,12 @@ function getShippingSettlementDateRange() {
     startDate: shippingSettlementStartDate?.value || "",
     endDate: shippingSettlementEndDate?.value || ""
   };
+}
+
+function refreshShippingSettlementView() {
+  state.shippingPage = 1;
+  renderShippingTable();
+  updateShippingSettlementSummary();
 }
 
 function getShippingSettlementItemDate(item) {
