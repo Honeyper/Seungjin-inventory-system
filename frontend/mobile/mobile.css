@@ -3926,7 +3926,7 @@ img {
 }
 
 #shippingScreen .mobile-toolbar {
-  position: static;
+  position: relative;
   grid-template-columns: 38px minmax(0, 1fr) auto;
   min-height: 54px;
   margin: calc(-1 * max(10px, env(safe-area-inset-top))) -12px 8px;
@@ -3937,6 +3937,12 @@ img {
 }
 
 #shippingScreen .mobile-toolbar h1 {
+  position: absolute;
+  left: 50%;
+  width: max-content;
+  max-width: 42%;
+  pointer-events: none;
+  transform: translateX(-50%);
   color: var(--navy-dark);
   font-size: 22px;
   line-height: 1.1;
@@ -3954,6 +3960,8 @@ img {
 }
 
 #shippingScreen .scan-button {
+  grid-column: 3;
+  justify-self: end;
   min-height: 38px;
   gap: 5px;
   border-radius: 9px;
