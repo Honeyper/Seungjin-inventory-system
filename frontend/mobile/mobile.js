@@ -1100,9 +1100,13 @@ function renderManualShippingProducts() {
   elements.manualShippingProductList.innerHTML = rows.length ? rows.map((row) => {
     const key = getShippingProductGroupKey(row);
     const totalBoxCount = getShippingTotalBoxCount(row);
+    const inboundDate = formatManualShippingInboundDate(row.inboundDate);
     return `
       <button class="box-picker-product-button manual-shipping-product-button" type="button" data-manual-shipping-product="${escapeHtml(key)}">
-        <strong>${escapeHtml(normalizeDisplay(row.productName || "-"))}</strong>
+        <span class="manual-shipping-product-copy">
+          <strong>${escapeHtml(normalizeDisplay(row.productName || "-"))}</strong>
+          <small>입고일 ${escapeHtml(inboundDate)}</small>
+        </span>
         <b>최초 총 ${formatNumber(totalBoxCount)}박스</b>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg>
       </button>
@@ -1270,7 +1274,10 @@ function renderBoxPickerBoxes() {
   const addedKeys = getAddedShippingBoxKeys(row);
   const isAddMode = state.boxPickerMode === "add";
 
-  elements.boxPickerClientName.textContent = normalizeDisplay(row.clientName || "-");
+  const clientName = normalizeDisplay(row.clientName || "-");
+  elements.boxPickerClientName.textContent = state.boxPickerSource === "manual"
+    ? `${clientName} · 입고일 ${formatManualShippingInboundDate(row.inboundDate)}`
+    : clientName;
   elements.boxPickerProductName.textContent = normalizeDisplay(row.productName || "-");
   elements.boxPickerProductMeta.textContent = isCompletionMode
     ? `출고대기 ${formatNumber(boxes.length)}박스`
@@ -4014,6 +4021,11 @@ function formatShortDate(date) {
 function formatLongDate(date) {
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")} (${weekdays[date.getDay()]})`;
+}
+
+function formatManualShippingInboundDate(value) {
+  const dateKey = toDateKeyFromValue(value);
+  return dateKey ? dateKey.replace(/-/g, ".") : normalizeDisplay(value || "-");
 }
 
 function normalizeScanValue(value) {
