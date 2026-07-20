@@ -196,6 +196,11 @@ const inboundProcess = document.querySelector("#inboundProcess");
 const inboundStorage = document.querySelector("#inboundStorage");
 const inboundBoxCount = document.querySelector("#inboundBoxCount");
 const inboundRemainQty = document.querySelector("#inboundRemainQty");
+const inboundMultipleRemainders = document.querySelector("#inboundMultipleRemainders");
+const inboundSingleRemainderField = document.querySelector("#inboundSingleRemainderField");
+const inboundMultipleRemainderPanel = document.querySelector("#inboundMultipleRemainderPanel");
+const inboundRemainderList = document.querySelector("#inboundRemainderList");
+const addInboundRemainderButton = document.querySelector("#addInboundRemainderButton");
 const inboundDefectQty = document.querySelector("#inboundDefectQty");
 const inboundSubmitButton = document.querySelector("#inboundSubmitButton");
 const inboundTableBody = document.querySelector("#inboundTableBody");
@@ -420,6 +425,28 @@ window.addEventListener("hashchange", () => {
 
 inboundNumberInputs.forEach(({ input }) => {
   input?.addEventListener("input", updateInboundSummary);
+});
+inboundMultipleRemainders?.addEventListener("change", () => {
+  setInboundRemainderMode(inboundMultipleRemainders.checked);
+});
+addInboundRemainderButton?.addEventListener("click", () => {
+  addInboundRemainderInput();
+  updateInboundSummary();
+});
+inboundRemainderList?.addEventListener("input", (event) => {
+  if (event.target.matches("[data-inbound-remainder-input]")) {
+    updateInboundSummary();
+  }
+});
+inboundRemainderList?.addEventListener("click", (event) => {
+  const removeButton = event.target.closest("[data-remove-inbound-remainder]");
+  if (!removeButton) {
+    return;
+  }
+
+  removeButton.closest(".remainder-input-row")?.remove();
+  renumberRemainderInputs(inboundRemainderList, "data-inbound-remainder-input");
+  updateInboundSummary();
 });
 setCurrentInboundTimeButton?.addEventListener("click", () => {
   setCurrentInboundTime();
@@ -3779,6 +3806,113 @@ function updateShippingSettlementSummary() {
   setShippingSettlementText("defectRate", formatShippingSettlementPercent(defectRate));
 }
 
+function createRemainderInputRow(value, index, inputAttribute, removeAttribute) {
+  const normalizedValue = Number(value) > 0 ? String(Number(value)) : "";
+
+  return `
+    <div class="remainder-input-row">
+      <label class="remainder-input-copy">
+        <span>${index + 1}번 잔량</span>
+        <span class="unit-input">
+          <input type="number" min="1" value="${escapeAttribute(normalizedValue)}" ${inputAttribute} />
+          <i>ea</i>
+        </span>
+      </label>
+      <button class="remove-remainder-button" type="button" ${removeAttribute} aria-label="${index + 1}번 잔량 박스 삭제">×</button>
+    </div>
+  `;
+}
+
+function renderRemainderInputs(container, values, inputAttribute, removeAttribute) {
+  if (!container) {
+    return;
+  }
+
+  const normalizedValues = Array.isArray(values) && values.length ? values : [0, 0];
+  while (normalizedValues.length < 2) {
+    normalizedValues.push(0);
+  }
+  container.innerHTML = normalizedValues
+    .map((value, index) => createRemainderInputRow(value, index, inputAttribute, removeAttribute))
+    .join("");
+  renumberRemainderInputs(container, inputAttribute);
+}
+
+function renumberRemainderInputs(container, inputAttribute) {
+  if (!container) {
+    return;
+  }
+
+  const rows = Array.from(container.querySelectorAll(".remainder-input-row"));
+  rows.forEach((row, index) => {
+    const label = row.querySelector(".remainder-input-copy > span");
+    const removeButton = row.querySelector(".remove-remainder-button");
+    if (label) {
+      label.textContent = `${index + 1}번 잔량`;
+    }
+    if (removeButton) {
+      removeButton.disabled = rows.length <= 2;
+      removeButton.setAttribute("aria-label", `${index + 1}번 잔량 박스 삭제`);
+    }
+  });
+}
+
+function addRemainderInput(container, inputAttribute, removeAttribute, value = 0) {
+  if (!container) {
+    return;
+  }
+
+  const index = container.querySelectorAll(`[${inputAttribute}]`).length;
+  container.insertAdjacentHTML("beforeend", createRemainderInputRow(value, index, inputAttribute, removeAttribute));
+  renumberRemainderInputs(container, inputAttribute);
+  container.querySelectorAll(`[${inputAttribute}]`)[index]?.focus();
+}
+
+function addInboundRemainderInput(value = 0) {
+  addRemainderInput(inboundRemainderList, "data-inbound-remainder-input", "data-remove-inbound-remainder", value);
+}
+
+function setInboundRemainderMode(isMultiple) {
+  if (!inboundSingleRemainderField || !inboundMultipleRemainderPanel || !inboundRemainderList) {
+    return;
+  }
+
+  if (isMultiple) {
+    const currentValue = getNumberValue(inboundRemainQty);
+    const currentValues = getRemainderInputValues(inboundRemainderList, "data-inbound-remainder-input");
+    renderRemainderInputs(
+      inboundRemainderList,
+      currentValues.length ? currentValues : [currentValue, 0],
+      "data-inbound-remainder-input",
+      "data-remove-inbound-remainder"
+    );
+  } else {
+    const values = getRemainderInputValues(inboundRemainderList, "data-inbound-remainder-input");
+    if (values.length) {
+      inboundRemainQty.value = String(values.reduce((sum, value) => sum + value, 0));
+    }
+    inboundRemainderList.innerHTML = "";
+  }
+
+  inboundSingleRemainderField.hidden = isMultiple;
+  inboundMultipleRemainderPanel.hidden = !isMultiple;
+  updateInboundSummary();
+}
+
+function getRemainderInputValues(container, inputAttribute) {
+  return Array.from(container?.querySelectorAll(`[${inputAttribute}]`) || [])
+    .map((input) => getNumberValue(input));
+}
+
+function getInboundRemainderQuantities() {
+  if (inboundMultipleRemainders?.checked) {
+    return getRemainderInputValues(inboundRemainderList, "data-inbound-remainder-input");
+  }
+
+  const value = getNumberValue(inboundRemainQty);
+  return value > 0 ? [value] : [];
+}
+
 function updateInboundSummary() {
   inboundNumberInputs.forEach(({ input, output }) => {
     if (!input || !output) {
@@ -3800,12 +3934,21 @@ function updateInboundSummary() {
   const boxQuantityInput = document.querySelector("#inboundBoxQty");
   const boxCountInput = document.querySelector("#inboundBoxCount");
   const remainQuantityInput = document.querySelector("#inboundRemainQty");
-  const hasQuantityValue = [boxQuantityInput, boxCountInput, remainQuantityInput].some((input) => input?.value.trim());
+  const remainderInputs = inboundMultipleRemainders?.checked
+    ? Array.from(inboundRemainderList?.querySelectorAll("[data-inbound-remainder-input]") || [])
+    : [remainQuantityInput];
+  const hasQuantityValue = [boxQuantityInput, boxCountInput, ...remainderInputs].some((input) => input?.value.trim());
   const boxQuantity = Number(boxQuantityInput?.value || 0);
   const boxCount = Number(boxCountInput?.value || 0);
-  const remainQuantity = Number(remainQuantityInput?.value || 0);
-  const totalBoxCount = boxCount + (remainQuantity > 0 ? 1 : 0);
+  const remainderQuantities = getInboundRemainderQuantities();
+  const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
+  const totalBoxCount = boxCount + remainderQuantities.filter((value) => value > 0).length;
   const currentInboundQuantity = boxQuantity * boxCount + remainQuantity;
+
+  const remainOutput = document.querySelector("#calcRemainQty");
+  if (remainOutput) {
+    remainOutput.textContent = hasQuantityValue ? remainQuantity.toLocaleString("ko-KR") : "-";
+  }
 
   if (totalOutput) {
     totalOutput.textContent = hasQuantityValue ? currentInboundQuantity.toLocaleString("ko-KR") : "-";
@@ -3891,10 +4034,11 @@ async function saveInbound() {
 function getInboundPayload() {
   const boxQuantity = getNumberValue(inboundBoxQty);
   const inboundBoxValue = getNumberValue(inboundBoxCount);
-  const remainQuantity = getNumberValue(inboundRemainQty);
+  const remainderQuantities = getInboundRemainderQuantities();
+  const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
   const inspectionQuantity = getNumberValue(inboundTrayQty);
   const defectQuantity = getNumberValue(inboundDefectQty);
-  const totalBoxCount = inboundBoxValue + (remainQuantity > 0 ? 1 : 0);
+  const totalBoxCount = inboundBoxValue + remainderQuantities.filter((value) => value > 0).length;
   const totalQuantity = boxQuantity * inboundBoxValue + remainQuantity;
 
   return {
@@ -3913,6 +4057,8 @@ function getInboundPayload() {
     boxQuantity,
     inboundBoxCount: inboundBoxValue,
     remainQuantity,
+    remainderQuantities,
+    multipleRemainders: Boolean(inboundMultipleRemainders?.checked),
     boxTotalCount: totalBoxCount,
     inboundTotalQuantity: totalQuantity,
     inspectionQuantity,
@@ -4020,6 +4166,15 @@ function validateInboundPayload(payload) {
   const invalidZero = zeroNumberFields.find(([field]) => !Number.isFinite(payload[field]) || payload[field] < 0);
   if (invalidZero) {
     return `${invalidZero[1]}은 0 이상의 숫자로 입력해주세요.`;
+  }
+
+  if (payload.multipleRemainders) {
+    if (!Array.isArray(payload.remainderQuantities) || payload.remainderQuantities.length < 2) {
+      return "잔량 박스를 2개 이상 입력해주세요.";
+    }
+    if (payload.remainderQuantities.some((value) => !Number.isFinite(value) || value <= 0)) {
+      return "각 잔량 박스 수량은 1 이상으로 입력해주세요.";
+    }
   }
 
   return "";
@@ -6824,6 +6979,11 @@ function renderProductDetail(product) {
 }
 
 function renderInboundDetail(inbound) {
+  const remainderQuantities = getInboundRecordRemainderQuantities(inbound);
+  const remainderDetail = remainderQuantities
+    .map((value, index) => `${index + 1}번 ${Number(value).toLocaleString("ko-KR")} ea`)
+    .join(", ");
+
   inboundDetailContent.innerHTML = `
     <section class="detail-section" aria-labelledby="inboundDetailBaseTitle">
       <h3 id="inboundDetailBaseTitle">입고 기본 정보</h3>
@@ -6855,6 +7015,7 @@ function renderInboundDetail(inbound) {
         ${detailItem("박스당 수량", inbound.boxQuantity)}
         ${detailItem("입고 박스 수", inbound.inboundBoxCount)}
         ${detailItem("잔량", inbound.remainQuantity)}
+        ${remainderQuantities.length > 1 ? detailItem("잔량 박스별 수량", remainderDetail, false, "full-span") : ""}
         ${detailItem("박스 총 수량", inbound.boxTotalCount)}
         ${detailItem("입고 총 수량", inbound.inboundTotalQuantity)}
         ${detailItem("검수 수량", inbound.inspectionQuantity)}
@@ -7100,6 +7261,9 @@ function renderInboundEditForm(inbound) {
   state.inboundEditDefectReasons = parseDefectReasonList(inbound.defectReason);
   const inboundProduct = getProductByCode(inbound.productId);
   const inboundFinalProcess = inbound.process || inboundProduct?.finalProcess;
+  const inboundRemainderQuantities = getInboundRecordRemainderQuantities(inbound);
+  const hasMultipleRemainders = inboundRemainderQuantities.length > 1;
+  const editRemainderValues = hasMultipleRemainders ? inboundRemainderQuantities : [0, 0];
 
   inboundDetailContent.innerHTML = `
     <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditReadonlyTitle">
@@ -7175,10 +7339,25 @@ function renderInboundEditForm(inbound) {
           <span>입고 박스 수 (BOX) <b>*</b></span>
           ${renderUnitInput("inboundEditBoxCount", extractQuantityNumber(inbound.inboundBoxCount), "box")}
         </label>
-        <label class="form-field">
-          <span>잔량 (EA) <b>*</b></span>
-          ${renderUnitInput("inboundEditRemainQty", extractQuantityNumber(inbound.remainQuantity), "ea")}
-        </label>
+        <div class="form-field inbound-edit-remainder-field">
+          <div class="remainder-field-heading">
+            <span>잔량 (EA) <b>*</b></span>
+            <label class="multi-remainder-toggle" for="inboundEditMultipleRemainders">
+              <input id="inboundEditMultipleRemainders" type="checkbox" ${hasMultipleRemainders ? "checked" : ""} />
+              <span>잔량 박스 다수</span>
+            </label>
+          </div>
+          <span class="unit-input" id="inboundEditSingleRemainderField" ${hasMultipleRemainders ? "hidden" : ""}>
+            <input id="inboundEditRemainQty" type="number" value="${escapeAttribute(extractQuantityNumber(inbound.remainQuantity))}" min="0" />
+            <i>ea</i>
+          </span>
+          <div class="multiple-remainder-panel" id="inboundEditMultipleRemainderPanel" ${hasMultipleRemainders ? "" : "hidden"}>
+            <div class="remainder-input-list" id="inboundEditRemainderList">
+              ${editRemainderValues.map((value, index) => createRemainderInputRow(value, index, "data-inbound-edit-remainder-input", "data-remove-inbound-edit-remainder")).join("")}
+            </div>
+            <button class="add-remainder-button" id="addInboundEditRemainderButton" type="button">+  잔량 박스 추가</button>
+          </div>
+        </div>
         <label class="form-field">
           <span>검수 수량 (EA) <b>*</b></span>
           ${renderEditableUnitInput("inboundEditInspectionQty", "검수 수량 수정", extractQuantityNumber(inbound.inspectionQuantity), "ea", true)}
@@ -7238,8 +7417,68 @@ function bindInboundEditFormEvents() {
     });
   });
 
+  const multipleToggle = inboundDetailContent.querySelector("#inboundEditMultipleRemainders");
+  const remainderList = inboundDetailContent.querySelector("#inboundEditRemainderList");
+  multipleToggle?.addEventListener("change", () => {
+    setInboundEditRemainderMode(multipleToggle.checked);
+  });
+  inboundDetailContent.querySelector("#addInboundEditRemainderButton")?.addEventListener("click", () => {
+    addRemainderInput(remainderList, "data-inbound-edit-remainder-input", "data-remove-inbound-edit-remainder");
+  });
+  remainderList?.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-inbound-edit-remainder]");
+    if (!removeButton) {
+      return;
+    }
+    removeButton.closest(".remainder-input-row")?.remove();
+    renumberRemainderInputs(remainderList, "data-inbound-edit-remainder-input");
+  });
+  renumberRemainderInputs(remainderList, "data-inbound-edit-remainder-input");
+
   bindInboundEditFilePicker("inboundEditInvoiceFile", "inboundEditInvoiceUploadButton", "inboundEditInvoiceFileName");
   bindInboundEditFilePicker("inboundEditDefectFiles", "inboundEditDefectUploadButton", "inboundEditDefectFileName");
+}
+
+function getInboundRecordRemainderQuantities(inbound) {
+  if (Array.isArray(inbound?.remainderQuantities)) {
+    const values = inbound.remainderQuantities
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    if (values.length) {
+      return values;
+    }
+  }
+
+  const fallback = extractQuantityNumber(inbound?.remainQuantity);
+  return Number(fallback) > 0 ? [Number(fallback)] : [];
+}
+
+function setInboundEditRemainderMode(isMultiple) {
+  const singleField = inboundDetailContent.querySelector("#inboundEditSingleRemainderField");
+  const singleInput = inboundDetailContent.querySelector("#inboundEditRemainQty");
+  const panel = inboundDetailContent.querySelector("#inboundEditMultipleRemainderPanel");
+  const list = inboundDetailContent.querySelector("#inboundEditRemainderList");
+
+  if (!singleField || !singleInput || !panel || !list) {
+    return;
+  }
+
+  if (isMultiple) {
+    const currentValue = getNumberValue(singleInput);
+    renderRemainderInputs(
+      list,
+      [currentValue, 0],
+      "data-inbound-edit-remainder-input",
+      "data-remove-inbound-edit-remainder"
+    );
+  } else {
+    const values = getRemainderInputValues(list, "data-inbound-edit-remainder-input");
+    singleInput.value = String(values.reduce((sum, value) => sum + value, 0));
+    list.innerHTML = "";
+  }
+
+  singleField.hidden = isMultiple;
+  panel.hidden = !isMultiple;
 }
 
 function bindInboundEditFilePicker(inputId, buttonId, fileNameId) {
@@ -7401,6 +7640,14 @@ async function saveInboundEdit() {
 
 async function getInboundEditPayload() {
   const source = state.activeDetailInboundRecord || {};
+  const multipleRemainders = Boolean(inboundDetailContent.querySelector("#inboundEditMultipleRemainders")?.checked);
+  const remainderQuantities = multipleRemainders
+    ? getRemainderInputValues(inboundDetailContent.querySelector("#inboundEditRemainderList"), "data-inbound-edit-remainder-input")
+    : (() => {
+      const value = getNumberValue(inboundDetailContent.querySelector("#inboundEditRemainQty"));
+      return value > 0 ? [value] : [];
+    })();
+  const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
   const payload = {
     managementId: state.activeDetailInboundId,
     productId: state.activeDetailInboundProductId || source.productId || "",
@@ -7416,7 +7663,9 @@ async function getInboundEditPayload() {
     stockStatus: inboundDetailContent.querySelector("#inboundEditStockStatus")?.value.trim() || "",
     boxQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditBoxQty")),
     inboundBoxCount: getNumberValue(inboundDetailContent.querySelector("#inboundEditBoxCount")),
-    remainQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditRemainQty")),
+    remainQuantity,
+    remainderQuantities,
+    multipleRemainders,
     inspectionQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditInspectionQty")),
     defectQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditDefectQty")),
     defectReason: inboundDetailContent.querySelector("#inboundEditDefectReason")?.value.trim() || ""
@@ -7486,6 +7735,15 @@ function validateInboundEditPayload(payload) {
   const invalidZero = zeroNumberFields.find(([field]) => !Number.isFinite(payload[field]) || payload[field] < 0);
   if (invalidZero) {
     return `${invalidZero[1]}은 0 이상의 숫자로 입력해주세요.`;
+  }
+
+  if (payload.multipleRemainders) {
+    if (!Array.isArray(payload.remainderQuantities) || payload.remainderQuantities.length < 2) {
+      return "잔량 박스를 2개 이상 입력해주세요.";
+    }
+    if (payload.remainderQuantities.some((value) => !Number.isFinite(value) || value <= 0)) {
+      return "각 잔량 박스 수량은 1 이상으로 입력해주세요.";
+    }
   }
 
   return "";

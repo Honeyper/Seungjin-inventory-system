@@ -18,7 +18,7 @@ const APP_ENVIRONMENTS = {
 const CONFIG = buildRuntimeConfig_();
 const API_READ_CACHE_TTL_SECONDS = 45;
 const API_READ_CACHE_MAX_LENGTH = 95000;
-const API_READ_CACHE_SCHEMA_VERSION = 'v3';
+const API_READ_CACHE_SCHEMA_VERSION = 'v4';
 
 function buildRuntimeConfig_() {
   const env = getAppEnvironment_();
@@ -897,6 +897,10 @@ function getInventoryDashboard() {
       trayQuantity: product.trayQuantity || '',
       inboundBoxCount: getObjectCell_(stockRow, ['입고 박스 수', '입고박스수']),
       remainQuantity: getObjectCell_(stockRow, ['잔량 수량', '잔량수량', '잔량']),
+      remainderQuantities: parseRemainderQuantities_(
+        getObjectCell_(stockRow, ['잔량 상세', '잔량상세']),
+        getObjectCell_(stockRow, ['잔량 수량', '잔량수량', '잔량'])
+      ),
       boxTotalCount: formatBox_(boxTotalCount),
       currentBoxCount: formatBox_(boxTotalCount),
       inboundTotalQuantity: getObjectCell_(stockRow, ['입고 총 수량', '입고총수량']),
@@ -1162,6 +1166,10 @@ function getTodayInbounds(payload) {
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         inboundBoxCount: pickCell_(row, indexes, ['입고 박스 수', '입고박스수']),
         remainQuantity: pickCell_(row, indexes, ['잔량 수량', '잔량']),
+        remainderQuantities: parseRemainderQuantities_(
+          pickCell_(row, indexes, ['잔량 상세', '잔량상세']),
+          pickCell_(row, indexes, ['잔량 수량', '잔량'])
+        ),
         inboundTotalQuantity: pickCell_(row, indexes, ['입고 총 수량', '입고총수량']),
         boxTotalCount: pickCell_(row, indexes, ['박스 총 수량', '박스총수량']),
         qrPrintStatus,
@@ -1524,7 +1532,8 @@ function createInbound(payload) {
 
   const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
   const inboundBoxCount = toPositiveNumber_(payload.inboundBoxCount, '입고 박스 수');
-  const remainQuantity = toNumber_(payload.remainQuantity);
+  const remainderQuantities = normalizeRemainderQuantities_(payload);
+  const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
   const inspectionQuantity = isExistingStock
     ? toNumber_(payload.inspectionQuantity || boxQuantity)
     : toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
@@ -1546,7 +1555,7 @@ function createInbound(payload) {
     const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
     const managementDate = Utilities.formatDate(now, timezone, 'yyMMdd');
     const managementId = generateInboundManagementId_(stockSheet, boxSheet, managementDate, payload.productId);
-    const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
+    const totalBoxCount = inboundBoxCount + remainderQuantities.length;
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
     const note = dash_(payload.note);
@@ -1576,6 +1585,7 @@ function createInbound(payload) {
       boxQuantity: formatEa_(boxQuantity),
       inboundBoxCount: formatBox_(inboundBoxCount),
       remainQuantity: formatEa_(remainQuantity),
+      remainderDetails: serializeRemainderQuantities_(remainderQuantities),
       boxTotalCount: formatBox_(totalBoxCount),
       inboundTotalQuantity: formatEa_(totalQuantity),
       inspectionQuantity: formatEa_(inspectionQuantity),
@@ -1591,8 +1601,8 @@ function createInbound(payload) {
     const boxRecords = [];
 
     for (let index = 1; index <= totalBoxCount; index += 1) {
-      const isRemainderBox = remainQuantity > 0 && index === totalBoxCount;
-      const currentQuantity = isRemainderBox ? remainQuantity : boxQuantity;
+      const remainderIndex = index - inboundBoxCount - 1;
+      const currentQuantity = remainderIndex >= 0 ? remainderQuantities[remainderIndex] : boxQuantity;
       const boxId = `${managementId}-B${String(index).padStart(3, '0')}`;
 
       boxRecords.push({
@@ -1673,7 +1683,8 @@ function updateInbound(payload) {
 
   const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
   const inboundBoxCount = toPositiveNumber_(payload.inboundBoxCount, '입고 박스 수');
-  const remainQuantity = toNumber_(payload.remainQuantity);
+  const remainderQuantities = normalizeRemainderQuantities_(payload);
+  const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
   const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
   const defectQuantity = toNumber_(payload.defectQuantity);
 
@@ -1700,7 +1711,7 @@ function updateInbound(payload) {
     }
 
     const row = rowInfo.rowValues.slice();
-    const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
+    const totalBoxCount = inboundBoxCount + remainderQuantities.length;
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
     const productId = dash_(payloadProductId || pickCell_(row, rowInfo.indexes, ['제품ID', '제품 ID']));
@@ -1745,6 +1756,7 @@ function updateInbound(payload) {
     setRowValue_(row, rowInfo.indexes, ['박스당 수량', '박스당수량'], formatEa_(boxQuantity));
     setRowValue_(row, rowInfo.indexes, ['입고 박스 수', '입고박스수'], formatBox_(inboundBoxCount));
     setRowValue_(row, rowInfo.indexes, ['잔량 수량', '잔량수량'], formatEa_(remainQuantity));
+    setRowValue_(row, rowInfo.indexes, ['잔량 상세', '잔량상세'], serializeRemainderQuantities_(remainderQuantities));
     setRowValue_(row, rowInfo.indexes, ['박스 총 수량', '박스총수량'], formatBox_(totalBoxCount));
     setRowValue_(row, rowInfo.indexes, ['입고 총 수량', '입고총수량'], formatEa_(totalQuantity));
     setRowValue_(row, rowInfo.indexes, ['검수 수량', '검수수량'], formatEa_(inspectionQuantity));
@@ -1768,8 +1780,8 @@ function updateInbound(payload) {
     const boxRecords = [];
 
     for (let index = 1; index <= totalBoxCount; index += 1) {
-      const isRemainderBox = remainQuantity > 0 && index === totalBoxCount;
-      const currentQuantity = isRemainderBox ? remainQuantity : boxQuantity;
+      const remainderIndex = index - inboundBoxCount - 1;
+      const currentQuantity = remainderIndex >= 0 ? remainderQuantities[remainderIndex] : boxQuantity;
       const boxIdBase = productId && !String(managementId).includes(productId)
         ? `${managementId}-${productId}`
         : managementId;
@@ -1879,6 +1891,7 @@ function appendStockDbRow_(sheet, record) {
   setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], record.boxQuantity);
   setRowValue_(row, indexes, ['입고 박스 수', '입고박스수'], record.inboundBoxCount);
   setRowValue_(row, indexes, ['잔량 수량', '잔량수량'], record.remainQuantity);
+  setRowValue_(row, indexes, ['잔량 상세', '잔량상세'], record.remainderDetails || '[]');
   setRowValue_(row, indexes, ['박스 총 수량', '박스총수량'], record.boxTotalCount);
   setRowValue_(row, indexes, ['입고 총 수량', '입고총수량'], record.inboundTotalQuantity);
   setRowValue_(row, indexes, ['검수 수량', '검수수량', '검사 수량'], record.inspectionQuantity);
@@ -1902,7 +1915,7 @@ function ensureStockDbAttachmentHeaders_(sheet) {
     return;
   }
 
-  const requiredHeaders = ['거래명세표', '불량 사진'];
+  const requiredHeaders = ['거래명세표', '불량 사진', '잔량 상세'];
   const existingHeaders = headerInfo.headers.map((header) => String(header || '').trim());
   let nextColumn = existingHeaders.length + 1;
 
@@ -4333,6 +4346,66 @@ function toNumber_(value) {
   }
 
   return number;
+}
+
+function normalizeRemainderQuantities_(payload) {
+  const source = Array.isArray(payload && payload.remainderQuantities)
+    ? payload.remainderQuantities
+    : null;
+
+  if (source) {
+    const values = source.map((value) => toNumber_(value));
+    const isMultiple = Boolean(payload.multipleRemainders);
+
+    if (isMultiple && values.length < 2) {
+      throw new Error('잔량 박스를 2개 이상 입력해주세요.');
+    }
+
+    if (values.some((value) => value <= 0)) {
+      throw new Error('각 잔량 박스 수량은 1 이상으로 입력해주세요.');
+    }
+
+    return values;
+  }
+
+  const fallback = toNumber_(payload && payload.remainQuantity);
+  if (fallback < 0) {
+    throw new Error('잔량은 0 이상의 숫자로 입력해주세요.');
+  }
+  return fallback > 0 ? [fallback] : [];
+}
+
+function serializeRemainderQuantities_(values) {
+  return JSON.stringify((values || []).map((value) => Number(value || 0)).filter((value) => value > 0));
+}
+
+function parseRemainderQuantities_(value, fallbackValue) {
+  const source = String(value || '').trim();
+
+  if (source) {
+    try {
+      const parsed = JSON.parse(source);
+      if (Array.isArray(parsed)) {
+        const values = parsed
+          .map((item) => Number(item))
+          .filter((item) => Number.isFinite(item) && item > 0);
+        if (values.length) {
+          return values;
+        }
+      }
+    } catch (error) {
+      const values = source
+        .split(/[,/|]/)
+        .map((item) => displayQuantityToNumber_(item))
+        .filter((item) => item > 0);
+      if (values.length) {
+        return values;
+      }
+    }
+  }
+
+  const fallback = displayQuantityToNumber_(fallbackValue);
+  return fallback > 0 ? [fallback] : [];
 }
 
 function displayQuantityToNumber_(value) {

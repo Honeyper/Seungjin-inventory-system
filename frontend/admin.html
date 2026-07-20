@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260720-inbound-time-now" />
+    <link rel="stylesheet" href="./styles.css?v=20260720-multi-remainders" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -288,13 +288,23 @@
                       <i>box</i>
                     </span>
                   </label>
-                  <label class="form-field quantity-remain">
-                    <span>잔량 (EA) <b>*</b></span>
-                    <span class="unit-input">
+                  <div class="form-field quantity-remain" id="inboundRemainderField">
+                    <div class="remainder-field-heading">
+                      <span>잔량 (EA) <b>*</b></span>
+                      <label class="multi-remainder-toggle" for="inboundMultipleRemainders">
+                        <input id="inboundMultipleRemainders" type="checkbox" />
+                        <span>잔량 박스 다수</span>
+                      </label>
+                    </div>
+                    <span class="unit-input" id="inboundSingleRemainderField">
                       <input id="inboundRemainQty" type="number" min="0" />
                       <i>ea</i>
                     </span>
-                  </label>
+                    <div class="multiple-remainder-panel" id="inboundMultipleRemainderPanel" hidden>
+                      <div class="remainder-input-list" id="inboundRemainderList"></div>
+                      <button class="add-remainder-button" id="addInboundRemainderButton" type="button">+  잔량 박스 추가</button>
+                    </div>
+                  </div>
                   <label class="form-field quantity-tray">
                     <span>검수 수량 (EA) <b>*</b></span>
                     <span class="unit-input editable-lock-input editable-unit-input">
@@ -2162,6 +2172,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260720-inbound-time-now"></script>
+    <script src="./admin.js?v=20260720-multi-remainders"></script>
   </body>
 </html>
