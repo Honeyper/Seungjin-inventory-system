@@ -6600,7 +6600,7 @@ input {
 }
 
 .box-qr-label-standard .box-qr-process.has-additional-process small {
-  font-size: 5.8pt;
+  font-size: 7.8pt;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -6645,6 +6645,7 @@ input {
 .box-qr-standard-media {
   display: grid;
   grid-template-rows: 6.5mm 16.2mm 2.5mm;
+  row-gap: 0.25mm;
   place-items: center;
   min-width: 0;
   padding: 0.4mm 0.7mm 0.5mm;
