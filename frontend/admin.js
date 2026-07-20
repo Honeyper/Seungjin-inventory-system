@@ -3302,7 +3302,7 @@ function renderShippingRowAction(item) {
     : "";
 
   if (status === "폐기" && discardedBoxes.length) {
-    return discardDetailButton;
+    return `<div class="shipping-action-group">${discardDetailButton}</div>`;
   }
 
   if (isPartialShipping) {

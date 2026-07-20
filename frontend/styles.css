@@ -2738,6 +2738,15 @@ input {
   font-weight: 900;
 }
 
+.shipping-table th:nth-child(14),
+.shipping-table td:nth-child(14) {
+  width: 10.35rem;
+  min-width: 10.35rem;
+  padding-right: 0.45rem;
+  padding-left: 0.45rem;
+  vertical-align: middle;
+}
+
 .shipping-badge,
 .due-badge {
   display: inline-flex;
@@ -2830,7 +2839,8 @@ input {
 }
 
 .shipping-row-button {
-  min-width: 4.8rem;
+  width: 100%;
+  min-width: 0;
   height: 1.95rem;
   color: var(--navy-dark);
   font-size: 0.74rem;
@@ -2840,6 +2850,7 @@ input {
   background: #fff;
   box-shadow: 0 0.12rem 0.3rem rgba(8, 42, 98, 0.04);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .shipping-row-button.primary {
@@ -2849,24 +2860,25 @@ input {
 }
 
 .shipping-row-button.secondary {
-  min-width: 4.2rem;
   color: #53647a;
   background: #f7f9fc;
 }
 
 .shipping-action-group {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 4.8rem));
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
   gap: 0.35rem;
-  max-width: 12.8rem;
+  width: 9.95rem;
+  max-width: none;
 }
 
 .shipping-action-menu {
   position: relative;
   display: inline-flex;
   justify-content: center;
+  width: 100%;
   vertical-align: middle;
 }
 
@@ -2905,7 +2917,7 @@ input {
 }
 
 .shipping-partial-actions {
-  flex-wrap: nowrap;
+  grid-template-columns: repeat(2, minmax(0, 4.8rem));
   max-width: none;
 }
 
@@ -2980,7 +2992,8 @@ input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 4.8rem;
+  width: 100%;
+  min-width: 0;
   height: 1.95rem;
   color: #175a36;
   font-size: 0.74rem;
