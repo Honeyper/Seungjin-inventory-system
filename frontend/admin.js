@@ -5329,10 +5329,23 @@ function normalizeInventoryProcessStatus(value, fallback = "보관") {
   return stockStatus === "검수완료" ? "출고대기" : stockStatus;
 }
 function buildInventoryFilterOptions(rows, fallback = {}) {
+  const stockStatusOrder = new Map(INVENTORY_STOCK_STATUSES.map((status, index) => [status, index]));
+  const stockStatuses = new Set();
+
+  rows.forEach((item) => {
+    getInventoryStockStatuses(item).forEach((status) => stockStatuses.add(status));
+  });
+  stockStatuses.add("보류");
+  stockStatuses.add("폐기");
+
   return {
     clients: fallback.clients || uniqueValuesFromRows(rows, "clientName"),
     storages: fallback.storages || uniqueValuesFromRows(rows, "storage"),
-    stockStatuses: uniqueValuesFromRows(rows, "stockStatus"),
+    stockStatuses: [...stockStatuses].sort((left, right) => {
+      const leftOrder = stockStatusOrder.has(left) ? stockStatusOrder.get(left) : Number.MAX_SAFE_INTEGER;
+      const rightOrder = stockStatusOrder.has(right) ? stockStatusOrder.get(right) : Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder || String(left).localeCompare(String(right), "ko");
+    }),
     processStatuses: uniqueValuesFromRows(rows, "processStatus")
   };
 }
@@ -5343,8 +5356,51 @@ function buildInventoryAttentionSummary(rows, fallback = {}) {
     printWaitingBoxes: getInventoryBoxCountTotal(rows.filter(isInventoryPrintWaiting)),
     unspecifiedStorageCount: rows.filter(isInventoryUnspecifiedStorageTarget).length,
     longStorageCount: rows.filter(isLongStoredInventory).length,
-    holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ""))).length
+    holdOrDiscardCount: rows.filter(hasInventoryHoldOrDiscard).length
   };
+}
+
+function getInventoryStockStatuses(item) {
+  const statuses = new Set();
+  const addStatus = (value) => {
+    const normalized = normalizeInventoryStockStatus(value);
+    if (normalized) {
+      statuses.add(normalized);
+    }
+  };
+
+  addStatus(item?.stockStatus);
+  [
+    ...(Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : []),
+    ...(Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : []),
+    ...(Array.isArray(item?.discardedShippingBoxes) ? item.discardedShippingBoxes : [])
+  ].forEach((box) => addStatus(box?.status));
+
+  if (Array.isArray(item?.discardedShippingBoxes) && item.discardedShippingBoxes.length) {
+    statuses.add("폐기");
+  }
+
+  return [...statuses];
+}
+
+function hasInventoryHoldOrDiscard(item) {
+  return getInventoryStockStatuses(item).some((status) => status === "보류" || status === "폐기");
+}
+
+function getInventoryHoldDiscardMetric(item) {
+  const holdCount = (Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : [])
+    .filter((box) => normalizeInventoryStockStatus(box?.status) === "보류").length;
+  const discardCount = Array.isArray(item?.discardedShippingBoxes) ? item.discardedShippingBoxes.length : 0;
+  const labels = [];
+
+  if (holdCount) {
+    labels.push(`보류 ${formatNumber(holdCount)}box`);
+  }
+  if (discardCount) {
+    labels.push(`폐기 ${formatNumber(discardCount)}box`);
+  }
+
+  return labels.join(" · ") || normalizeDisplayValue(item?.stockStatus);
 }
 
 function uniqueValuesFromRows(rows, key) {
@@ -5505,11 +5561,11 @@ function getInventoryAttentionConfig(type) {
     },
     hold: {
       title: "보류 / 폐기 재고",
-      description: "상태가 보류 또는 폐기인 재고 목록입니다.",
+      description: "보류 또는 폐기 상태인 박스가 포함된 재고 목록입니다.",
       tone: "red",
       metricLabel: "상태",
-      metric: (item) => normalizeDisplayValue(item.stockStatus),
-      filter: (item) => /보류|폐기/.test(String(item.stockStatus || ""))
+      metric: getInventoryHoldDiscardMetric,
+      filter: hasInventoryHoldOrDiscard
     }
   };
 
@@ -5745,7 +5801,7 @@ function applyInventoryFilters() {
       return false;
     }
 
-    if (filters.stock && item.stockStatus !== filters.stock) {
+    if (filters.stock && !getInventoryStockStatuses(item).includes(filters.stock)) {
       return false;
     }
 

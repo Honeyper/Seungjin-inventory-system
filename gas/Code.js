@@ -18,7 +18,7 @@ const APP_ENVIRONMENTS = {
 const CONFIG = buildRuntimeConfig_();
 const API_READ_CACHE_TTL_SECONDS = 45;
 const API_READ_CACHE_MAX_LENGTH = 95000;
-const API_READ_CACHE_SCHEMA_VERSION = 'v4';
+const API_READ_CACHE_SCHEMA_VERSION = 'v5';
 
 function buildRuntimeConfig_() {
   const env = getAppEnvironment_();
@@ -959,7 +959,10 @@ function getInventoryDashboard() {
     .filter((row) => !String(row.processStatus || row.stockStatus || '').includes('작업중'))
     .reduce((sum, row) => sum + displayQuantityToNumber_(row.currentBoxCount), 0);
   const unspecifiedStorageCount = activeRows.filter((row) => isUnspecifiedStorage_(row.storage)).length;
-  const holdOrDiscardCount = rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ''))).length;
+  const holdOrDiscardCount = rows.filter(isHoldOrDiscardInventoryRow_).length;
+  const stockStatuses = uniqueSorted_(visibleRows.reduce((statuses, row) => (
+    statuses.concat(getInventoryRowStockStatuses_(row))
+  ), []).concat(['보류', '폐기']));
 
   return {
     summary: {
@@ -971,7 +974,7 @@ function getInventoryDashboard() {
     filters: {
       clients: uniqueSorted_(visibleRows.map((row) => row.clientName)),
       storages: uniqueSorted_(visibleRows.map((row) => row.storage)),
-      stockStatuses: uniqueSorted_(visibleRows.map((row) => row.stockStatus)),
+      stockStatuses,
       processStatuses: uniqueSorted_(visibleRows.map((row) => row.processStatus))
     },
     locationBoxStats,
@@ -983,6 +986,32 @@ function getInventoryDashboard() {
     },
     rows: visibleRows.reverse()
   };
+}
+
+function getInventoryRowStockStatuses_(row) {
+  const statuses = {};
+  const addStatus = (value) => {
+    const normalized = normalizeStockStatusText_(value);
+    if (normalized) {
+      statuses[normalized] = true;
+    }
+  };
+
+  addStatus(row && row.stockStatus);
+  ['activeShippingBoxes', 'shippedShippingBoxes', 'discardedShippingBoxes'].forEach((key) => {
+    const boxes = row && Array.isArray(row[key]) ? row[key] : [];
+    boxes.forEach((box) => addStatus(box && box.status));
+  });
+
+  if (row && Array.isArray(row.discardedShippingBoxes) && row.discardedShippingBoxes.length) {
+    statuses['폐기'] = true;
+  }
+
+  return Object.keys(statuses);
+}
+
+function isHoldOrDiscardInventoryRow_(row) {
+  return getInventoryRowStockStatuses_(row).some((status) => status === '보류' || status === '폐기');
 }
 
 function getStockStatusFromBoxSummary_(summary) {
