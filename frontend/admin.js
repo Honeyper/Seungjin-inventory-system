@@ -351,8 +351,7 @@ const shippingSettlementFields = {
   remainder: document.querySelector("#shippingSettlementRemainder"),
   inspectedQuantity: document.querySelector("#shippingSettlementInspectedQuantity"),
   defectQuantity: document.querySelector("#shippingSettlementDefectQuantity"),
-  defectRate: document.querySelector("#shippingSettlementDefectRate"),
-  inspectionShare: document.querySelector("#shippingSettlementInspectionShare")
+  defectRate: document.querySelector("#shippingSettlementDefectRate")
 };
 const openExistingStockModalButton = document.querySelector("#openExistingStockModalButton");
 const existingStockModal = document.querySelector("#existingStockModal");
@@ -3552,15 +3551,12 @@ function updateShippingSettlementSummary() {
     : inspectedQuantity
       ? (defectQuantity / inspectedQuantity) * 100
       : 0;
-  const inspectionShare = totalQuantity ? (inspectedQuantity / totalQuantity) * 100 : 0;
-
   setShippingSettlementText("totalQuantity", formatShippingSettlementNumber(totalQuantity));
   setShippingSettlementText("totalBoxes", formatShippingSettlementNumber(totalBoxes));
   setShippingSettlementText("remainder", formatShippingSettlementNumber(remainder));
   setShippingSettlementText("inspectedQuantity", formatShippingSettlementNumber(inspectedQuantity));
   setShippingSettlementText("defectQuantity", formatShippingSettlementNumber(defectQuantity));
   setShippingSettlementText("defectRate", formatShippingSettlementPercent(defectRate));
-  setShippingSettlementText("inspectionShare", formatShippingSettlementPercent(inspectionShare));
 }
 
 function updateInboundSummary() {

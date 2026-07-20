@@ -2693,8 +2693,7 @@ input {
   color: #c62828;
 }
 
-.shipping-settlement-card.rate strong b,
-.shipping-settlement-card.share strong b {
+.shipping-settlement-card.rate strong b {
   color: var(--gold);
 }
 
