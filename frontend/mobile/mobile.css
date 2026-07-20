@@ -5636,6 +5636,7 @@ img {
 }
 
 #shippingScreen .shipping-list-panel {
+  grid-auto-rows: max-content;
   align-content: start;
   align-items: start;
 }
@@ -5650,15 +5651,15 @@ img {
   border-radius: 16px;
   background: linear-gradient(180deg, #edf4fc 0%, #f6f9fd 100%);
   box-shadow: 0 10px 24px rgba(6, 31, 76, 0.08);
-  overflow: hidden;
 }
 
 #shippingScreen .shipping-product-group::before {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 1px;
+  bottom: 1px;
   left: 0;
   width: 4px;
+  border-radius: 15px 0 0 15px;
   background: linear-gradient(180deg, var(--gold), #e9c982);
   content: "";
 }
