@@ -296,6 +296,8 @@ const shippingInspectionPhotoName = document.querySelector("#shippingInspectionP
 const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
 const shippingInspectionHoldStatus = document.querySelector("#shippingInspectionHoldStatus");
 const shippingInspectionDiscardStatus = document.querySelector("#shippingInspectionDiscardStatus");
+let shippingBoxDragSelection = null;
+let suppressShippingBoxClick = false;
 const shippingCompletionModal = document.querySelector("#shippingCompletionModal");
 const shippingCompletionForm = document.querySelector("#shippingCompletionForm");
 const shippingCompletionRecordId = document.querySelector("#shippingCompletionRecordId");
@@ -596,6 +598,19 @@ shippingInspectionBoxList?.addEventListener("input", (event) => {
     syncShippingInspectionBoxState();
   }
 });
+shippingInspectionBoxList?.addEventListener("pointerdown", startShippingBoxDragSelection);
+shippingInspectionBoxList?.addEventListener("click", (event) => {
+  if (!suppressShippingBoxClick) {
+    return;
+  }
+
+  suppressShippingBoxClick = false;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
+window.addEventListener("pointermove", updateShippingBoxDragSelection, { passive: false });
+window.addEventListener("pointerup", finishShippingBoxDragSelection);
+window.addEventListener("pointercancel", cancelShippingBoxDragSelection);
 shippingCompletionBoxList?.addEventListener("change", () => {
   syncShippingCompletionBoxState();
 });
@@ -1315,6 +1330,142 @@ function setShippingInspectionBoxSelection(checked) {
   syncShippingInspectionBoxState();
 }
 
+function startShippingBoxDragSelection(event) {
+  if (
+    event.pointerType !== "mouse"
+    || event.button !== 0
+    || event.target.closest("input, button, textarea, select, a, .shipping-box-quantity-field")
+  ) {
+    return;
+  }
+
+  const cards = Array.from(shippingInspectionBoxList?.querySelectorAll(".shipping-box-check-card") || [])
+    .map((card) => ({
+      card,
+      input: card.querySelector('input[name="shippingInspectionBox"]')
+    }))
+    .filter(({ input }) => input && !input.disabled);
+
+  if (!cards.length) {
+    return;
+  }
+
+  const startInput = event.target.closest(".shipping-box-check-card")
+    ?.querySelector('input[name="shippingInspectionBox"]');
+
+  shippingBoxDragSelection = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    currentX: event.clientX,
+    currentY: event.clientY,
+    moved: false,
+    select: startInput && !startInput.disabled ? !startInput.checked : true,
+    cards: cards.map(({ card, input }) => ({ card, input, initialChecked: input.checked })),
+    marquee: null
+  };
+}
+
+function updateShippingBoxDragSelection(event) {
+  const selection = shippingBoxDragSelection;
+
+  if (!selection || event.pointerId !== selection.pointerId) {
+    return;
+  }
+
+  selection.currentX = event.clientX;
+  selection.currentY = event.clientY;
+
+  if (!selection.moved) {
+    const distance = Math.hypot(selection.currentX - selection.startX, selection.currentY - selection.startY);
+    if (distance < 6) {
+      return;
+    }
+
+    selection.moved = true;
+    selection.marquee = document.createElement("div");
+    selection.marquee.className = "shipping-box-selection-marquee";
+    document.body.appendChild(selection.marquee);
+    document.body.classList.add("shipping-box-drag-selecting");
+    shippingInspectionBoxList?.classList.add("drag-selecting");
+  }
+
+  event.preventDefault();
+  renderShippingBoxDragSelection(selection);
+}
+
+function renderShippingBoxDragSelection(selection) {
+  const left = Math.min(selection.startX, selection.currentX);
+  const top = Math.min(selection.startY, selection.currentY);
+  const right = Math.max(selection.startX, selection.currentX);
+  const bottom = Math.max(selection.startY, selection.currentY);
+  const width = right - left;
+  const height = bottom - top;
+
+  Object.assign(selection.marquee.style, {
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${width}px`,
+    height: `${height}px`
+  });
+
+  selection.cards.forEach(({ card, input, initialChecked }) => {
+    const cardRect = card.getBoundingClientRect();
+    const intersects = cardRect.left < right
+      && cardRect.right > left
+      && cardRect.top < bottom
+      && cardRect.bottom > top;
+
+    input.checked = intersects ? selection.select : initialChecked;
+    card.classList.toggle("drag-target", intersects);
+  });
+
+  syncShippingInspectionBoxState();
+}
+
+function finishShippingBoxDragSelection(event) {
+  const selection = shippingBoxDragSelection;
+
+  if (!selection || event.pointerId !== selection.pointerId) {
+    return;
+  }
+
+  if (selection.moved) {
+    event.preventDefault();
+    suppressShippingBoxClick = true;
+    window.setTimeout(() => {
+      suppressShippingBoxClick = false;
+    }, 250);
+  }
+
+  clearShippingBoxDragSelection();
+}
+
+function cancelShippingBoxDragSelection(event) {
+  const selection = shippingBoxDragSelection;
+
+  if (!selection || (event?.pointerId !== undefined && event.pointerId !== selection.pointerId)) {
+    return;
+  }
+
+  selection.cards.forEach(({ card, input, initialChecked }) => {
+    input.checked = initialChecked;
+    card.classList.remove("drag-target");
+  });
+  syncShippingInspectionBoxState();
+  clearShippingBoxDragSelection();
+}
+
+function clearShippingBoxDragSelection() {
+  const selection = shippingBoxDragSelection;
+
+  selection?.cards.forEach(({ card }) => card.classList.remove("drag-target"));
+  selection?.marquee?.remove();
+  shippingInspectionBoxList?.classList.remove("drag-selecting");
+  document.body.classList.remove("shipping-box-drag-selecting");
+  shippingBoxDragSelection = null;
+}
+
 function syncShippingInspectionBoxState() {
   const inputs = Array.from(shippingInspectionBoxList?.querySelectorAll('input[name="shippingInspectionBox"]') || []);
   const enabledInputs = inputs.filter((input) => !input.disabled);
@@ -1556,6 +1707,7 @@ function closeShippingInspectionModal() {
     return;
   }
 
+  cancelShippingBoxDragSelection();
   shippingInspectionModal.hidden = true;
   state.activeShippingInspectionRow = null;
   resetShippingInspectionPhotoPreview();

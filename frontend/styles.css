@@ -3630,6 +3630,10 @@ input {
   gap: 0.55rem;
 }
 
+.shipping-box-check-list.drag-selecting .shipping-box-check-card:not(.disabled) {
+  cursor: crosshair;
+}
+
 .shipping-box-check-card {
   display: flex;
   align-items: center;
@@ -3647,6 +3651,27 @@ input {
   border-color: rgba(213, 163, 65, 0.55);
   background: linear-gradient(180deg, #fffaf0, #fff);
   box-shadow: inset 0 0 0 1px rgba(213, 163, 65, 0.16);
+}
+
+.shipping-box-check-card.drag-target:not(.disabled) {
+  outline: 2px solid rgba(25, 107, 204, 0.5);
+  outline-offset: 1px;
+}
+
+.shipping-box-selection-marquee {
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
+  border: 1px solid rgba(25, 107, 204, 0.85);
+  border-radius: 0.28rem;
+  background: rgba(25, 107, 204, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65) inset;
+}
+
+body.shipping-box-drag-selecting,
+body.shipping-box-drag-selecting * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 .shipping-box-check-card > span {
