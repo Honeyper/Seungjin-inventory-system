@@ -4169,7 +4169,10 @@ img {
 #shippingScreen .empty-shipping-actions > :only-child {
   grid-column: 1 / -1;
   justify-self: center;
-  width: calc((100% - 8px) / 2);
+  width: min(100%, 150px);
+  min-width: 132px;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 #shippingScreen .empty-shipping-actions .secondary-action {
