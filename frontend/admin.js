@@ -2804,7 +2804,7 @@ function renderShippingTable(message = "") {
         <td colspan="14" class="empty-cell">${escapeHtml(message || "출고 목록이 없습니다.")}</td>
       </tr>
     `;
-    updateShippingSummaryCards([]);
+    updateShippingSummaryCards(getShippingSettlementItems());
     if (shippingCountLabel) {
       shippingCountLabel.textContent = "전체 0건";
     }
@@ -2996,8 +2996,7 @@ function getShippingSourceRows() {
     const hasDiscardedBoxes = Array.isArray(item.discardedShippingBoxes) && item.discardedShippingBoxes.length > 0;
     return (hasDiscardedBoxes
       || (!["폐기"].includes(status)
-        && (quantity > 0 || ["출고대기", "보류", "일부 출고", "출고완료"].includes(status))))
-      && isShippingSettlementDateMatch(item);
+        && (quantity > 0 || ["출고대기", "보류", "일부 출고", "출고완료"].includes(status))));
   });
 }
 
@@ -3501,8 +3500,7 @@ function getShippingSettlementDateRange() {
 }
 
 function refreshShippingSettlementView() {
-  state.shippingPage = 1;
-  renderShippingTable();
+  updateShippingSummaryCards(getShippingSettlementItems());
   updateShippingSettlementSummary();
 }
 
