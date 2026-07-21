@@ -1319,6 +1319,7 @@ img {
 .mobile-dialog .dialog-actions .compact {
   min-height: 64px;
   height: 64px;
+  margin: 0;
   border-radius: 12px;
   padding: 0 10px;
   font-size: clamp(15px, 4vw, 18px);
