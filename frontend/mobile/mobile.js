@@ -86,6 +86,7 @@ const state = {
   scannerCameraRequestPending: false,
   scannerFocusRequestPending: false,
   scannerFocusFeedbackTimer: null,
+  scannerTuneTimers: [],
   scannerInputMode: "camera",
   hardwareScannerBuffer: "",
   hardwareScannerLastInputAt: 0,
@@ -2688,6 +2689,8 @@ async function startScannerCamera() {
       elements.scannerVideo.srcObject = stream;
     }
     await elements.scannerVideo.play();
+    await tuneScannerCamera(stream);
+    scheduleScannerCameraTuning(stream);
     startBarcodeDetection();
   } catch (error) {
     showToast("카메라를 열지 못해 외부 스캐너 모드로 전환합니다.");
@@ -2736,15 +2739,23 @@ async function getScannerStream() {
     return reusableStream;
   }
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { ideal: "environment" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      frameRate: { ideal: 24, max: 30 }
-    },
-    audio: false
-  });
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { min: 640, ideal: 1280, max: 1920 },
+        height: { min: 480, ideal: 720, max: 1080 },
+        frameRate: { ideal: 24, max: 30 }
+      },
+      audio: false
+    });
+  } catch (error) {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    });
+  }
 
   state.scannerStream = stream;
   stream.getTracks().forEach((track) => {
@@ -2757,7 +2768,6 @@ async function getScannerStream() {
       }
     });
   });
-  await tuneScannerCamera(stream);
   return stream;
 }
 
@@ -2772,49 +2782,81 @@ function getReusableScannerStream() {
 
 async function tuneScannerCamera(stream) {
   const [track] = stream.getVideoTracks();
-  if (!track?.getCapabilities || !track.applyConstraints) {
+  if (!track?.applyConstraints) {
     return;
   }
 
-  const capabilities = track.getCapabilities();
-  const advanced = [];
-
-  if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
-    advanced.push({ focusMode: "continuous" });
+  let capabilities = {};
+  try {
+    capabilities = track.getCapabilities?.() || {};
+  } catch (error) {
+    capabilities = {};
   }
 
-  if (Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes("continuous")) {
-    advanced.push({ exposureMode: "continuous" });
+  const controlSets = [];
+  const supportedConstraints = navigator.mediaDevices?.getSupportedConstraints?.() || {};
+  const focusModes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+  const exposureModes = Array.isArray(capabilities.exposureMode) ? capabilities.exposureMode : [];
+  const whiteBalanceModes = Array.isArray(capabilities.whiteBalanceMode) ? capabilities.whiteBalanceMode : [];
+
+  if (focusModes.includes("continuous") || (!focusModes.length && supportedConstraints.focusMode)) {
+    controlSets.push({ focusMode: "continuous" });
   }
 
-  if (Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes("continuous")) {
-    advanced.push({ whiteBalanceMode: "continuous" });
+  if (exposureModes.includes("continuous") || (!exposureModes.length && supportedConstraints.exposureMode)) {
+    controlSets.push({ exposureMode: "continuous" });
   }
 
-  if (advanced.length) {
-    try {
-      await track.applyConstraints({ advanced });
-    } catch (error) {
-      // 일부 모바일 브라우저는 capabilities를 알려줘도 constraint 적용을 거부합니다.
-    }
+  if (whiteBalanceModes.includes("continuous") || (!whiteBalanceModes.length && supportedConstraints.whiteBalanceMode)) {
+    controlSets.push({ whiteBalanceMode: "continuous" });
   }
 
-  const zoom = capabilities.zoom;
-  if (!zoom || typeof zoom.max !== "number" || zoom.max <= 1 || !track.applyConstraints) {
-    return;
+  if (supportedConstraints.pointsOfInterest) {
+    controlSets.push({ pointsOfInterest: [{ x: 0.5, y: 0.5 }] });
   }
 
-  const minZoom = typeof zoom.min === "number" ? zoom.min : 1;
-  const targetZoom = Math.min(zoom.max, Math.max(minZoom, 1.18));
-  if (targetZoom <= minZoom) {
+  if (!controlSets.length) {
     return;
   }
 
   try {
-    await track.applyConstraints({ advanced: [{ zoom: targetZoom }] });
+    await applyScannerTrackControls(track, controlSets);
   } catch (error) {
-    // 줌 제어가 막힌 브라우저에서는 기본 화각 그대로 사용합니다.
+    // Some older Android browsers report camera controls but reject them at runtime.
   }
+}
+
+async function applyScannerTrackControls(track, controls) {
+  let currentConstraints = {};
+  try {
+    currentConstraints = track.getConstraints?.() || {};
+  } catch (error) {
+    currentConstraints = {};
+  }
+
+  const { advanced: unusedAdvanced, ...persistentConstraints } = currentConstraints;
+  await track.applyConstraints({
+    ...persistentConstraints,
+    advanced: Array.isArray(controls) ? controls : [controls]
+  });
+}
+
+function scheduleScannerCameraTuning(stream) {
+  clearScannerCameraTuning();
+  [420, 1200].forEach((delay) => {
+    const timer = window.setTimeout(() => {
+      state.scannerTuneTimers = state.scannerTuneTimers.filter((entry) => entry !== timer);
+      if (state.scannerStream === stream && getReusableScannerStream() === stream && !elements.scannerScreen?.hidden) {
+        tuneScannerCamera(stream);
+      }
+    }, delay);
+    state.scannerTuneTimers.push(timer);
+  });
+}
+
+function clearScannerCameraTuning() {
+  state.scannerTuneTimers.forEach((timer) => window.clearTimeout(timer));
+  state.scannerTuneTimers = [];
 }
 
 async function handleScannerFocusRequest() {
@@ -2875,13 +2917,23 @@ async function applyScannerCenterFocus(track) {
 
   if (focusModes.includes("single-shot")) {
     attempts.push({ ...pointConstraint, focusMode: "single-shot" });
+    if (supportsPointOfInterest) {
+      attempts.push({ focusMode: "single-shot" });
+    }
   }
   if (focusModes.includes("continuous")) {
     attempts.push({ ...pointConstraint, focusMode: "continuous" });
+    if (supportsPointOfInterest) {
+      attempts.push({ focusMode: "continuous" });
+    }
   }
   if (!focusModes.length && supportsFocusMode) {
     attempts.push({ ...pointConstraint, focusMode: "single-shot" });
     attempts.push({ ...pointConstraint, focusMode: "continuous" });
+    if (supportsPointOfInterest) {
+      attempts.push({ focusMode: "single-shot" });
+      attempts.push({ focusMode: "continuous" });
+    }
   }
   if (!attempts.length && supportsPointOfInterest) {
     attempts.push(pointConstraint);
@@ -2889,11 +2941,14 @@ async function applyScannerCenterFocus(track) {
 
   for (const constraints of attempts) {
     try {
-      await track.applyConstraints({ advanced: [constraints] });
+      await applyScannerTrackControls(track, constraints);
       if (constraints.focusMode === "single-shot" && focusModes.includes("continuous")) {
         window.setTimeout(() => {
           if (track.readyState === "live") {
-            track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+            const stream = getReusableScannerStream();
+            if (stream) {
+              tuneScannerCamera(stream);
+            }
           }
         }, 900);
       }
@@ -2929,6 +2984,7 @@ function closeScanner() {
 
 function stopScannerCamera() {
   pauseScannerDetection();
+  clearScannerCameraTuning();
 
   window.clearTimeout(state.scannerFocusFeedbackTimer);
   state.scannerFocusFeedbackTimer = null;
