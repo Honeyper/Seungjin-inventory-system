@@ -4190,7 +4190,7 @@ function validateInboundPayload(payload) {
   }
 
   const zeroNumberFields = [
-    ["inboundBoxCount", "입고 박스 수"],
+    ["inboundBoxCount", "완박스 수"],
     ["remainQuantity", "잔량"],
     ["defectQuantity", "불량 수량"]
   ];
@@ -4210,7 +4210,7 @@ function validateInboundPayload(payload) {
   }
 
   if (payload.inboundBoxCount === 0 && payload.remainQuantity === 0) {
-    return "입고 박스 수와 잔량을 모두 0으로 등록할 수 없습니다.";
+    return "완박스 수와 잔량을 모두 0으로 등록할 수 없습니다.";
   }
 
   return "";
@@ -7153,7 +7153,7 @@ function renderInboundDetail(inbound) {
       <h3 id="inboundDetailQuantityTitle">수량 정보</h3>
       <div class="detail-grid">
         ${detailItem("박스당 수량", inbound.boxQuantity)}
-        ${detailItem("입고 박스 수", inbound.inboundBoxCount)}
+        ${detailItem("완박스 수", inbound.inboundBoxCount)}
         ${detailItem("잔량", inbound.remainQuantity)}
         ${remainderQuantities.length > 1 ? detailItem("잔량 박스별 수량", remainderDetail, false, "full-span") : ""}
         ${detailItem("박스 총 수량", inbound.boxTotalCount)}
@@ -7476,7 +7476,7 @@ function renderInboundEditForm(inbound) {
           ${renderEditableUnitInput("inboundEditBoxQty", "박스당 수량 수정", extractQuantityNumber(inbound.boxQuantity), "ea", true)}
         </label>
         <label class="form-field">
-          <span>입고 박스 수 (BOX) <b>*</b></span>
+          <span>완박스 수 (BOX) <b>*</b></span>
           ${renderUnitInput("inboundEditBoxCount", extractQuantityNumber(inbound.inboundBoxCount), "box")}
         </label>
         <div class="form-field inbound-edit-remainder-field">
@@ -7867,7 +7867,7 @@ function validateInboundEditPayload(payload) {
   }
 
   const zeroNumberFields = [
-    ["inboundBoxCount", "입고 박스 수"],
+    ["inboundBoxCount", "완박스 수"],
     ["remainQuantity", "잔량"],
     ["defectQuantity", "불량 수량"]
   ];
@@ -7887,7 +7887,7 @@ function validateInboundEditPayload(payload) {
   }
 
   if (payload.inboundBoxCount === 0 && payload.remainQuantity === 0) {
-    return "입고 박스 수와 잔량을 모두 0으로 등록할 수 없습니다.";
+    return "완박스 수와 잔량을 모두 0으로 등록할 수 없습니다.";
   }
 
   return "";

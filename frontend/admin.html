@@ -282,7 +282,7 @@
                     </span>
                   </label>
                   <label class="form-field quantity-box-count">
-                    <span>입고 박스 수 (BOX) <b>*</b></span>
+                    <span>완박스 수 (BOX) <b>*</b></span>
                     <span class="unit-input">
                       <input id="inboundBoxCount" type="number" min="0" />
                       <i>box</i>
@@ -411,7 +411,7 @@
               </h2>
               <dl>
                 <div><dt>박스당 수량</dt><dd><strong id="calcBoxQty">-</strong> ea</dd></div>
-                <div><dt>입고 박스 수</dt><dd><strong id="calcBoxCount">-</strong> box</dd></div>
+                <div><dt>완박스 수</dt><dd><strong id="calcBoxCount">-</strong> box</dd></div>
                 <div><dt>잔량 수량</dt><dd><strong id="calcRemainQty">-</strong> ea</dd></div>
               </dl>
               <div class="summary-order-progress" aria-label="발주 진행 정보">
@@ -558,8 +558,8 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="9" aria-label="입고 박스 수 정렬">
-                        입고 박스 수
+                      <button class="sort-header-button" type="button" data-inbound-sort="9" aria-label="완박스 수 정렬">
+                        완박스 수
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
                           <path class="sort-icon-down" d="m8 14 4 4 4-4" />
@@ -2204,6 +2204,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260721-remainder-only-inbound"></script>
+    <script src="./admin.js?v=20260721-full-box-label"></script>
   </body>
 </html>

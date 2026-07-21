@@ -1678,7 +1678,7 @@ function createInbound(payload) {
   });
 
   const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
-  const inboundBoxCount = toNonNegativeNumber_(payload.inboundBoxCount, '입고 박스 수');
+  const inboundBoxCount = toNonNegativeNumber_(payload.inboundBoxCount, '완박스 수');
   const remainderQuantities = normalizeRemainderQuantities_(payload);
   const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
   const inspectionQuantity = isExistingStock
@@ -1691,7 +1691,7 @@ function createInbound(payload) {
   }
 
   if (inboundBoxCount === 0 && remainQuantity === 0) {
-    throw new Error('입고 박스 수와 잔량을 모두 0으로 등록할 수 없습니다.');
+    throw new Error('완박스 수와 잔량을 모두 0으로 등록할 수 없습니다.');
   }
 
   const lock = LockService.getScriptLock();
@@ -1833,7 +1833,7 @@ function updateInbound(payload) {
   }
 
   const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
-  const inboundBoxCount = toNonNegativeNumber_(payload.inboundBoxCount, '입고 박스 수');
+  const inboundBoxCount = toNonNegativeNumber_(payload.inboundBoxCount, '완박스 수');
   const remainderQuantities = normalizeRemainderQuantities_(payload);
   const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
   const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
@@ -1844,7 +1844,7 @@ function updateInbound(payload) {
   }
 
   if (inboundBoxCount === 0 && remainQuantity === 0) {
-    throw new Error('입고 박스 수와 잔량을 모두 0으로 등록할 수 없습니다.');
+    throw new Error('완박스 수와 잔량을 모두 0으로 등록할 수 없습니다.');
   }
 
   const lock = LockService.getScriptLock();
