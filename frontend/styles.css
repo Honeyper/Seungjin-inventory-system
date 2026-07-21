@@ -5224,6 +5224,131 @@ body.shipping-box-drag-selecting * {
   outline-offset: 3px;
 }
 
+.common-container-toggle {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 4.2rem;
+  padding: 0.85rem 1rem;
+  color: var(--navy-dark);
+  border: 1px solid #dce4ef;
+  border-radius: 0.55rem;
+  background: #f8fafd;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.common-container-toggle:hover {
+  border-color: rgba(208, 161, 75, 0.65);
+}
+
+.common-container-toggle:has(input:checked) {
+  border-color: rgba(208, 161, 75, 0.72);
+  background: #fff9ec;
+  box-shadow: 0 0 0 0.16rem rgba(208, 161, 75, 0.08);
+}
+
+.common-container-toggle > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.common-container-check {
+  display: grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  color: #fff;
+  border: 1.5px solid #9cabc0;
+  border-radius: 0.35rem;
+  background: #fff;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.common-container-check svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.common-container-toggle > input:checked + .common-container-check {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+.common-container-toggle > input:checked + .common-container-check svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.common-container-toggle > input:focus-visible + .common-container-check {
+  outline: 2px solid rgba(8, 42, 98, 0.2);
+  outline-offset: 3px;
+}
+
+.common-container-toggle-copy {
+  min-width: 0;
+}
+
+.common-container-toggle-copy strong,
+.common-container-toggle-copy small {
+  display: block;
+}
+
+.common-container-toggle-copy strong {
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.common-container-toggle-copy small {
+  margin-top: 0.18rem;
+  color: #728097;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.common-container-config {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(12rem, 0.42fr) minmax(0, 1fr);
+  gap: 1rem 1.25rem;
+  padding: 1rem;
+  border: 1px solid #ead8b4;
+  border-radius: 0.55rem;
+  background: #fffcf6;
+}
+
+.common-container-config[hidden] {
+  display: none;
+}
+
+.common-container-count-field {
+  align-self: start;
+}
+
+.common-container-name-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.common-container-name-grid .form-field > span {
+  font-size: 0.88rem;
+}
+
 .form-message {
   min-height: 1.3rem;
   margin: 0.25rem 0 0;
@@ -7594,6 +7719,11 @@ body.shipping-box-drag-selecting * {
   .form-grid {
     grid-template-columns: 1fr;
     row-gap: 0.85rem;
+  }
+
+  .common-container-config,
+  .common-container-name-grid {
+    grid-template-columns: 1fr;
   }
 
   .detail-grid {

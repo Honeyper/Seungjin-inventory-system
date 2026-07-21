@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260721-partial-shipping-waiting-count" />
+    <link rel="stylesheet" href="./styles.css?v=20260721-common-container-product" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1848,6 +1848,38 @@
                   <span>미사용</span>
                 </label>
               </fieldset>
+
+              <label class="common-container-toggle full-span">
+                <input id="productCommonContainer" type="checkbox" />
+                <span class="common-container-check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="m5 12 4 4L19 6" />
+                  </svg>
+                </span>
+                <span class="common-container-toggle-copy">
+                  <strong>공용용기 제품</strong>
+                  <small>같은 용기를 인쇄에 따라 여러 제품명으로 출고하는 경우 체크하세요.</small>
+                </span>
+              </label>
+
+              <div class="common-container-config full-span" id="productCommonContainerFields" hidden>
+                <label class="form-field common-container-count-field">
+                  <span>출고 시 제품 종류 수 <b>*</b></span>
+                  <select id="productShippingProductCount">
+                    <option value="1">1개</option>
+                    <option value="2">2개</option>
+                    <option value="3">3개</option>
+                    <option value="4">4개</option>
+                    <option value="5">5개</option>
+                    <option value="6">6개</option>
+                    <option value="7">7개</option>
+                    <option value="8">8개</option>
+                    <option value="9">9개</option>
+                    <option value="10">10개</option>
+                  </select>
+                </label>
+                <div class="common-container-name-grid" id="productShippingProductNames"></div>
+              </div>
             </div>
           </section>
 
@@ -2172,6 +2204,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260721-partial-shipping-waiting-count"></script>
+    <script src="./admin.js?v=20260721-common-container-product"></script>
   </body>
 </html>
