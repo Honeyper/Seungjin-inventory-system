@@ -4181,7 +4181,6 @@ function validateInboundPayload(payload) {
 
   const positiveNumberFields = [
     ["boxQuantity", "박스당 수량"],
-    ["inboundBoxCount", "입고 박스 수"],
     ["inspectionQuantity", "검수 수량"]
   ];
 
@@ -4191,6 +4190,7 @@ function validateInboundPayload(payload) {
   }
 
   const zeroNumberFields = [
+    ["inboundBoxCount", "입고 박스 수"],
     ["remainQuantity", "잔량"],
     ["defectQuantity", "불량 수량"]
   ];
@@ -4207,6 +4207,10 @@ function validateInboundPayload(payload) {
     if (payload.remainderQuantities.some((value) => !Number.isFinite(value) || value <= 0)) {
       return "각 잔량 박스 수량은 1 이상으로 입력해주세요.";
     }
+  }
+
+  if (payload.inboundBoxCount === 0 && payload.remainQuantity === 0) {
+    return "입고 박스 수와 잔량을 모두 0으로 등록할 수 없습니다.";
   }
 
   return "";
@@ -4802,8 +4806,7 @@ function validateExistingStockPayload(payload) {
   }
 
   const positiveNumberFields = [
-    ["boxQuantity", "박스당 수량"],
-    ["inboundBoxCount", "현재 박스 수"]
+    ["boxQuantity", "박스당 수량"]
   ];
   const invalidPositive = positiveNumberFields.find(([field]) => !Number.isFinite(payload[field]) || payload[field] <= 0);
 
@@ -4811,8 +4814,16 @@ function validateExistingStockPayload(payload) {
     return `${invalidPositive[1]}은 1 이상의 숫자로 입력해주세요.`;
   }
 
+  if (!Number.isFinite(payload.inboundBoxCount) || payload.inboundBoxCount < 0) {
+    return "현재 박스 수는 0 이상의 숫자로 입력해주세요.";
+  }
+
   if (!Number.isFinite(payload.remainQuantity) || payload.remainQuantity < 0) {
     return "잔량은 0 이상의 숫자로 입력해주세요.";
+  }
+
+  if (payload.inboundBoxCount === 0 && payload.remainQuantity === 0) {
+    return "현재 박스 수와 잔량을 모두 0으로 등록할 수 없습니다.";
   }
 
   return "";
@@ -7847,7 +7858,6 @@ function validateInboundEditPayload(payload) {
 
   const positiveNumberFields = [
     ["boxQuantity", "박스당 수량"],
-    ["inboundBoxCount", "입고 박스 수"],
     ["inspectionQuantity", "검수 수량"]
   ];
 
@@ -7857,6 +7867,7 @@ function validateInboundEditPayload(payload) {
   }
 
   const zeroNumberFields = [
+    ["inboundBoxCount", "입고 박스 수"],
     ["remainQuantity", "잔량"],
     ["defectQuantity", "불량 수량"]
   ];
@@ -7873,6 +7884,10 @@ function validateInboundEditPayload(payload) {
     if (payload.remainderQuantities.some((value) => !Number.isFinite(value) || value <= 0)) {
       return "각 잔량 박스 수량은 1 이상으로 입력해주세요.";
     }
+  }
+
+  if (payload.inboundBoxCount === 0 && payload.remainQuantity === 0) {
+    return "입고 박스 수와 잔량을 모두 0으로 등록할 수 없습니다.";
   }
 
   return "";
