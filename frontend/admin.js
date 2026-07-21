@@ -38,6 +38,7 @@ const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
+const SHIPPING_BOX_DRAFT_TTL_MS = 10 * 60 * 1000;
 
 if (!session || session.role !== "admin") {
   location.replace("./index.html");
@@ -1597,13 +1598,20 @@ function getShippingRowWithDraft(row) {
   }
 
   const draftKey = getShippingDraftKeyFromRow(row);
-  const draft = draftKey ? readShippingBoxDrafts()[draftKey] : null;
+  const draft = getShippingBoxDraft(draftKey);
 
   if (!draft || !Array.isArray(draft.boxes) || !draft.boxes.length) {
     return row;
   }
 
   const activeBoxes = getShippingRowBoxes(row, "activeShippingBoxes");
+  const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes");
+  const serverStatus = normalizeInventoryStockStatus(row.dataset.shippingStatus || "");
+  if (!activeBoxes.length && (shippedBoxes.length || serverStatus === "출고완료")) {
+    clearShippingBoxDraft(draftKey);
+    return row;
+  }
+
   const hasActionableBox = activeBoxes.some((box) => (
     ["검수완료", "출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status))
   ));
@@ -1615,6 +1623,7 @@ function getShippingRowWithDraft(row) {
   const draftBoxes = draft.boxes
     .map((box) => ({
       number: Number(box.number),
+      boxId: String(box.boxId || "").trim(),
       quantity: parseShippingSettlementNumber(box.quantity || ""),
       status: normalizeInventoryStockStatus(box.status || "출고대기"),
       rawStatus: box.rawStatus || box.status || "출고대기",
@@ -1630,7 +1639,12 @@ function getShippingRowWithDraft(row) {
     return row;
   }
 
-  row.dataset.activeShippingBoxes = JSON.stringify(draftBoxes);
+  const activeBoxByNumber = new Map(activeBoxes.map((box) => [Number(box.number), box]));
+  row.dataset.activeShippingBoxes = JSON.stringify(draftBoxes.map((draftBox) => ({
+    ...activeBoxByNumber.get(Number(draftBox.number)),
+    ...draftBox,
+    boxId: activeBoxByNumber.get(Number(draftBox.number))?.boxId || draftBox.boxId || ""
+  })));
   return row;
 }
 
@@ -2530,8 +2544,11 @@ async function confirmShippingCancellation() {
     await updateShippingStatus(row, "보관", {
       selectedBoxes: selectedBoxes.map((box) => box.number),
       selectedBoxIds: selectedBoxes.map((box) => box.boxId).filter(Boolean),
-      allowCancelCompleted: true
+      allowCancelCompleted: true,
+      deferRefresh: true
     });
+    clearShippingBoxDraft(getShippingDraftKeyFromRow(row));
+    await refreshAdminDataInBackground({ inventory: true });
     closeShippingCancelModal();
     showToast(`${formatNumber(selectedBoxes.length)}개 박스의 출고를 취소하고 보관 상태로 변경했습니다.`);
   } catch (error) {
@@ -5150,6 +5167,28 @@ function writeShippingBoxDrafts(drafts) {
   sessionStorage.setItem(SHIPPING_BOX_DRAFTS_STORAGE_KEY, JSON.stringify(drafts || {}));
 }
 
+function getShippingBoxDraft(draftKey) {
+  const key = String(draftKey || "").trim();
+
+  if (!key) {
+    return null;
+  }
+
+  const drafts = readShippingBoxDrafts();
+  const draft = drafts[key];
+  const updatedAt = Number(draft?.updatedAt || 0);
+
+  if (!draft || !updatedAt || Date.now() - updatedAt > SHIPPING_BOX_DRAFT_TTL_MS) {
+    if (drafts[key]) {
+      delete drafts[key];
+      writeShippingBoxDrafts(drafts);
+    }
+    return null;
+  }
+
+  return draft;
+}
+
 function normalizeShippingDraftKeyPart(value) {
   return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
 }
@@ -5210,8 +5249,10 @@ function saveShippingBoxDraft(draftKey, boxes = [], status = "출고대기") {
   const normalizedBoxes = boxes
     .map((box) => ({
       number: Number(box.number),
+      boxId: String(box.boxId || "").trim(),
       quantity: parseShippingSettlementNumber(box.quantity || ""),
       status,
+      rawStatus: status,
       inspectionDate: toDateInputValue(box.inspectionDate || ""),
       inspectionQuantity: parseShippingSettlementNumber(box.inspectionQuantity || ""),
       defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
@@ -5247,7 +5288,7 @@ function clearShippingBoxDraft(draftKey) {
 
 function mergeShippingBoxDraft(item) {
   const draftKey = getShippingDraftKeyFromItem(item);
-  const draft = draftKey ? readShippingBoxDrafts()[draftKey] : null;
+  const draft = getShippingBoxDraft(draftKey);
 
   if (!draft || !Array.isArray(draft.boxes) || !draft.boxes.length) {
     return item;
@@ -5276,6 +5317,13 @@ function mergeShippingBoxDraft(item) {
   }
 
   const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
+  const serverStatus = normalizeInventoryStockStatus(item.stockStatus || item.processStatus || "");
+  if (!activeBoxes.length && (shippedBoxes.length || serverStatus === "출고완료")) {
+    clearShippingBoxDraft(draftKey);
+    return item;
+  }
+
   const hasActionableBox = activeBoxes.some((box) => (
     ["검수완료", "출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status))
   ));

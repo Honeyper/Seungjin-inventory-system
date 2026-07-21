@@ -3654,6 +3654,9 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
   const remainingStatusCounts = {};
   let matchedBoxNumber = 0;
   let wroteAutoInspectionMetric = false;
+  let matchedManagementRows = 0;
+  let matchedSelectedRows = 0;
+  let matchedAlreadyShippedRows = 0;
 
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex].slice(0, headerInfo.headers.length);
@@ -3664,6 +3667,10 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     const isSameManagementId = rowManagementId === managementId;
     const isIdentityMatch = isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data);
     const canUseBoxIdScope = selectedBoxIds.size > 0 && (isSameManagementId || isDirectBoxIdMatch);
+
+    if (isSameManagementId) {
+      matchedManagementRows += 1;
+    }
 
     if (!isIdentityMatch && !canUseBoxIdScope) {
       continue;
@@ -3679,6 +3686,12 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     const isSelectedBox = selectedBoxIds.size > 0
       ? isDirectBoxIdMatch
       : selectedBoxNumbers.has(sequence);
+    if (isSelectedBox) {
+      matchedSelectedRows += 1;
+      if (isAlreadyShipped) {
+        matchedAlreadyShippedRows += 1;
+      }
+    }
     const forceCompleteShipping = data.forceCompleteShipping === true;
     const canCancelCompleted = data.status === '보관'
       && data.allowCancelCompleted === true
@@ -3759,7 +3772,16 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
   }
 
   if (!updatedRows) {
-    throw new Error(`박스관리 DB에서 관리 ID ${managementId}를 찾을 수 없습니다.`);
+    if (!matchedManagementRows) {
+      throw new Error(`박스관리 DB에서 관리 ID ${managementId}를 찾을 수 없습니다.`);
+    }
+    if (!matchedSelectedRows) {
+      throw new Error('선택한 박스 정보가 최신 서버 정보와 다릅니다. 목록을 새로고침한 후 다시 선택해주세요.');
+    }
+    if (matchedAlreadyShippedRows === matchedSelectedRows) {
+      throw new Error('선택한 박스는 이미 출고완료 상태입니다. 먼저 출고 취소한 뒤 새로고침 후 다시 출고해주세요.');
+    }
+    throw new Error('현재 상태에서 변경할 수 있는 박스가 없습니다. 목록을 새로고침한 후 다시 확인해주세요.');
   }
 
   return {
