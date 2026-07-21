@@ -3360,6 +3360,7 @@ async function handleQrValue(rawValue) {
       renderScannerScannedList();
       updateScannerActionLabels();
     } else {
+      // QR scans remain local until the user explicitly chooses an action.
       const existingRow = state.scannedShippingRows.find((row) => getShippingKey(row) === key);
       if (!existingRow) {
         state.scannedShippingRows = [matched, ...state.scannedShippingRows];
@@ -3375,8 +3376,13 @@ async function handleQrValue(rawValue) {
     }
 
     triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
-    setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
-    showToast(state.activeWorkflow === "inventoryMove" ? "이동할 박스를 등록했습니다." : "스캔 목록에 추가했습니다.");
+    if (state.activeWorkflow === "inventoryMove") {
+      setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
+      showToast("이동할 박스를 등록했습니다.");
+    } else {
+      setScannerHelp("스캔 목록에만 추가했습니다. 출고등록은 아래 버튼을 눌러야 처리됩니다.");
+      showToast("스캔 목록에만 추가했습니다.");
+    }
   } catch (error) {
     setScannerHelp(error.message || "스캔한 제품 정보를 확인하지 못했습니다.");
     showToast(error.message || "제품 정보를 확인하지 못했습니다.");
