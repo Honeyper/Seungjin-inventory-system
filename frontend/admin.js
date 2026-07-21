@@ -7486,6 +7486,10 @@ function renderInboundEditForm(inbound) {
             ${renderOptionList(["", ...INVENTORY_STOCK_STATUSES], normalizeEditableValue(inbound.stockStatus || inbound.status || "보관"), "선택하세요.")}
           </select>
         </label>
+        <label class="form-field full-span">
+          <span>비고</span>
+          <textarea id="inboundEditNote" placeholder="비고를 입력하세요.">${escapeHtml(normalizeEditableValue(inbound.note))}</textarea>
+        </label>
       </div>
     </section>
 
@@ -7822,6 +7826,7 @@ async function getInboundEditPayload() {
     process: inboundDetailContent.querySelector("#inboundEditProcess")?.value.trim() || "",
     storage: inboundDetailContent.querySelector("#inboundEditStorage")?.value.trim() || "",
     stockStatus: inboundDetailContent.querySelector("#inboundEditStockStatus")?.value.trim() || "",
+    note: inboundDetailContent.querySelector("#inboundEditNote")?.value.trim() || "",
     boxQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditBoxQty")),
     inboundBoxCount: getNumberValue(inboundDetailContent.querySelector("#inboundEditBoxCount")),
     remainQuantity,

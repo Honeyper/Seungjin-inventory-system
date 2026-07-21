@@ -1803,6 +1803,9 @@ function updateInbound(payload) {
   const storage = String(payload.storage || payload['보관위치'] || '').trim();
   const stockStatus = String(payload.stockStatus || payload.status || payload['상태'] || payload['재고 상태'] || '보관').trim();
   const defectReason = String(payload.defectReason || payload['불량 사유'] || payload['불량사유'] || '').trim();
+  const hasNotePayload = Object.prototype.hasOwnProperty.call(payload, 'note')
+    || Object.prototype.hasOwnProperty.call(payload, '비고');
+  const note = String(payload.note ?? payload['비고'] ?? '').trim();
 
   if (!inboundDate) {
     throw new Error('입고일 값이 필요합니다.');
@@ -1918,6 +1921,9 @@ function updateInbound(payload) {
     setRowValue_(row, rowInfo.indexes, ['불량 수량', '불량수량'], formatEa_(defectQuantity));
     setRowValue_(row, rowInfo.indexes, ['불량률'], `${defectRate}%`);
     setRowValue_(row, rowInfo.indexes, ['불량 사유', '불량사유'], dash_(defectReason));
+    if (hasNotePayload) {
+      setRowValue_(row, rowInfo.indexes, ['비고'], dash_(note));
+    }
     if (invoiceFileUrl) {
       setRowValue_(row, rowInfo.indexes, ['거래명세표', '거래명세서'], invoiceFileUrl);
     }
