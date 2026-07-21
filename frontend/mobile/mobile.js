@@ -3380,8 +3380,9 @@ async function handleQrValue(rawValue) {
       setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
       showToast("이동할 박스를 등록했습니다.");
     } else {
-      setScannerHelp("스캔 목록에만 추가했습니다. 출고등록은 아래 버튼을 눌러야 처리됩니다.");
-      showToast("스캔 목록에만 추가했습니다.");
+      const successMessage = "스캔 완료. 목록에 성공적으로 추가했습니다.";
+      setScannerHelp(successMessage);
+      showToast(successMessage);
     }
   } catch (error) {
     setScannerHelp(error.message || "스캔한 제품 정보를 확인하지 못했습니다.");
