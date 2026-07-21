@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260721-galaxy-two-column-box-picker" />
+    <link rel="stylesheet" href="./mobile.css?v=20260721-tap-camera-focus" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -428,7 +428,11 @@
         <div class="scanner-camera" id="scannerCamera">
           <video id="scannerVideo" playsinline muted></video>
           <div class="scanner-shade"></div>
-          <div class="scanner-frame" aria-hidden="true"></div>
+          <div class="scanner-frame">
+            <button class="scanner-focus-target" id="scannerFocusButton" type="button" aria-label="화면 가운데에 카메라 초점 맞추기">
+              <span aria-hidden="true"></span>
+            </button>
+          </div>
           <div class="hardware-scanner-panel" id="hardwareScannerPanel" aria-hidden="true">
             <span class="hardware-scanner-icon">
               <svg viewBox="0 0 24 24">
@@ -493,6 +497,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260721-auto-shipping-registration"></script>
+    <script src="./mobile.js?v=20260721-tap-camera-focus"></script>
   </body>
 </html>

@@ -84,6 +84,8 @@ const state = {
   scannerCanvas: null,
   scannerCanvasContext: null,
   scannerCameraRequestPending: false,
+  scannerFocusRequestPending: false,
+  scannerFocusFeedbackTimer: null,
   scannerInputMode: "camera",
   hardwareScannerBuffer: "",
   hardwareScannerLastInputAt: 0,
@@ -169,6 +171,7 @@ const elements = {
   scannerTitle: document.querySelector("#scannerTitle"),
   scannerTip: document.querySelector("#scannerTip"),
   scannerVideo: document.querySelector("#scannerVideo"),
+  scannerFocusButton: document.querySelector("#scannerFocusButton"),
   hardwareScannerPanel: document.querySelector("#hardwareScannerPanel"),
   hardwareScannerStatus: document.querySelector("#hardwareScannerStatus"),
   scannerHelpText: document.querySelector("#scannerHelpText"),
@@ -244,6 +247,7 @@ function bindEvents() {
     renderInventoryMoveList();
   });
   elements.closeScannerButton?.addEventListener("click", closeScanner);
+  elements.scannerFocusButton?.addEventListener("click", handleScannerFocusRequest);
   elements.albumQrButton?.addEventListener("click", () => {
     showToast("앨범 QR 선택은 다음 단계에서 연결합니다.");
   });
@@ -2658,7 +2662,7 @@ async function setScannerInputMode(mode, options = {}) {
 
   setScannerHelp(state.activeWorkflow === "inventoryMove"
     ? "이동할 박스 QR을 카메라에 비춰주세요."
-    : "QR이 화면에 보이면 카메라가 자동으로 인식합니다.");
+    : "QR이 흐리면 화면 가운데를 눌러 초점을 맞춰주세요.");
   await startScannerCamera();
 }
 
@@ -2813,12 +2817,122 @@ async function tuneScannerCamera(stream) {
   }
 }
 
+async function handleScannerFocusRequest() {
+  if (state.scannerInputMode !== "camera" || elements.scannerScreen?.hidden || state.scannerFocusRequestPending) {
+    return;
+  }
+
+  const stream = getReusableScannerStream();
+  const [track] = stream?.getVideoTracks?.() || [];
+  if (!track) {
+    showToast("카메라를 준비하는 중입니다. 잠시 후 다시 눌러주세요.");
+    return;
+  }
+
+  showScannerFocusFeedback();
+  setScannerHelp("화면 가운데 QR에 초점을 맞추고 있습니다.");
+  state.scannerFocusRequestPending = true;
+
+  try {
+    const focusApplied = await applyScannerCenterFocus(track);
+    if (focusApplied) {
+      setScannerHelp("초점을 맞췄습니다. QR을 가운데에 잠시 고정해 주세요.");
+      return;
+    }
+
+    stopScannerCamera();
+    await startScannerCamera();
+    if (getReusableScannerStream()) {
+      showScannerFocusFeedback();
+      setScannerHelp("자동 초점을 다시 시작했습니다. QR을 가운데에 잠시 고정해 주세요.");
+      return;
+    }
+
+    setScannerHelp("이 기기에서는 터치 초점을 지원하지 않습니다. QR과 카메라 거리를 조금 늘려주세요.");
+  } finally {
+    state.scannerFocusRequestPending = false;
+  }
+}
+
+async function applyScannerCenterFocus(track) {
+  if (!track?.applyConstraints) {
+    return false;
+  }
+
+  let capabilities = {};
+  try {
+    capabilities = track.getCapabilities?.() || {};
+  } catch (error) {
+    capabilities = {};
+  }
+
+  const supportedConstraints = navigator.mediaDevices?.getSupportedConstraints?.() || {};
+  const focusModes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+  const supportsFocusMode = Boolean(supportedConstraints.focusMode || focusModes.length);
+  const supportsPointOfInterest = Boolean(supportedConstraints.pointsOfInterest);
+  const attempts = [];
+  const pointConstraint = supportsPointOfInterest ? { pointsOfInterest: [{ x: 0.5, y: 0.5 }] } : {};
+
+  if (focusModes.includes("single-shot")) {
+    attempts.push({ ...pointConstraint, focusMode: "single-shot" });
+  }
+  if (focusModes.includes("continuous")) {
+    attempts.push({ ...pointConstraint, focusMode: "continuous" });
+  }
+  if (!focusModes.length && supportsFocusMode) {
+    attempts.push({ ...pointConstraint, focusMode: "single-shot" });
+    attempts.push({ ...pointConstraint, focusMode: "continuous" });
+  }
+  if (!attempts.length && supportsPointOfInterest) {
+    attempts.push(pointConstraint);
+  }
+
+  for (const constraints of attempts) {
+    try {
+      await track.applyConstraints({ advanced: [constraints] });
+      if (constraints.focusMode === "single-shot" && focusModes.includes("continuous")) {
+        window.setTimeout(() => {
+          if (track.readyState === "live") {
+            track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+          }
+        }, 900);
+      }
+      return true;
+    } catch (error) {
+      // Older Android browsers can expose a constraint but reject it at runtime.
+    }
+  }
+
+  return false;
+}
+
+function showScannerFocusFeedback() {
+  const button = elements.scannerFocusButton;
+  if (!button) {
+    return;
+  }
+
+  button.classList.remove("is-focusing");
+  void button.offsetWidth;
+  button.classList.add("is-focusing");
+
+  window.clearTimeout(state.scannerFocusFeedbackTimer);
+  state.scannerFocusFeedbackTimer = window.setTimeout(() => {
+    button.classList.remove("is-focusing");
+    state.scannerFocusFeedbackTimer = null;
+  }, 850);
+}
+
 function closeScanner() {
   releaseScannerStream();
 }
 
 function stopScannerCamera() {
   pauseScannerDetection();
+
+  window.clearTimeout(state.scannerFocusFeedbackTimer);
+  state.scannerFocusFeedbackTimer = null;
+  elements.scannerFocusButton?.classList.remove("is-focusing");
 
   if (elements.scannerVideo) {
     elements.scannerVideo.pause();
@@ -2914,7 +3028,7 @@ function startJsQrDetection(detector = null) {
     state.scannerCanvasContext = state.scannerCanvas.getContext("2d", { willReadFrequently: true });
   }
 
-  setScannerHelp("QR이 화면에 보이면 자동 인식합니다. 박스 안에 딱 맞추지 않아도 됩니다.");
+  setScannerHelp("QR이 흐리면 화면 가운데를 눌러 초점을 맞춰주세요.");
   let isDetectingFrame = false;
   let nativeMissCount = 0;
   let slowNativeDetectCount = 0;
