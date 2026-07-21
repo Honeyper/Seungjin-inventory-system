@@ -4348,6 +4348,31 @@ img {
 
 .manual-shipping-picker .box-picker-product-stage {
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+  scroll-padding-top: 62px;
+}
+
+#manualShippingModal {
+  inset: auto 0 auto;
+  top: var(--manual-shipping-viewport-top, 0px);
+  height: var(--manual-shipping-viewport-height, 100dvh);
+}
+
+#manualShippingModal .manual-shipping-picker {
+  height: var(--manual-shipping-picker-height, min(88dvh, 820px));
+  max-height: var(--manual-shipping-picker-height, min(88dvh, 820px));
+}
+
+#manualShippingModal .box-picker-search {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  box-shadow: 0 5px 12px rgba(6, 31, 76, 0.08);
+}
+
+#manualShippingModal.is-keyboard-open .box-picker-header {
+  padding-top: 10px;
+  padding-bottom: 9px;
 }
 
 .manual-shipping-product-button {

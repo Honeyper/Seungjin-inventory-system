@@ -104,7 +104,8 @@ const state = {
   boxPickerTargetItems: [],
   boxPickerMode: "edit",
   boxPickerSource: "card",
-  manualShippingQuery: ""
+  manualShippingQuery: "",
+  manualShippingViewportBaseHeight: 0
 };
 
 const elements = {
@@ -235,6 +236,7 @@ function bindEvents() {
     state.manualShippingQuery = event.target.value.trim().toLowerCase();
     renderManualShippingProducts();
   });
+  elements.manualShippingSearchInput?.addEventListener("focus", syncManualShippingViewport);
   elements.manualShippingProductList?.addEventListener("click", handleManualShippingProductClick);
   elements.closeShippingBoxPickerButton?.addEventListener("click", closeShippingBoxPicker);
   elements.cancelShippingBoxPickerButton?.addEventListener("click", closeShippingBoxPicker);
@@ -268,6 +270,9 @@ function bindEvents() {
   document.addEventListener("visibilitychange", handlePageVisibilityChange);
   document.addEventListener("click", closeShippingSortMenu);
   window.addEventListener("pagehide", releaseScannerStream);
+  window.addEventListener("resize", syncManualShippingViewport);
+  window.visualViewport?.addEventListener("resize", syncManualShippingViewport);
+  window.visualViewport?.addEventListener("scroll", syncManualShippingViewport);
 
   document.querySelectorAll("[data-mobile-route]").forEach((button) => {
     button.addEventListener("click", () => navigate(button.dataset.mobileRoute));
@@ -1146,6 +1151,8 @@ async function openManualShippingPicker() {
   elements.manualShippingSearchInput.value = "";
   elements.manualShippingModal.hidden = false;
   document.body.classList.add("modal-open");
+  state.manualShippingViewportBaseHeight = getManualShippingViewportMetrics().height;
+  syncManualShippingViewport();
   elements.manualShippingProductList.innerHTML = '<p class="box-picker-empty">제품 정보를 불러오는 중입니다.</p>';
 
   try {
@@ -1156,7 +1163,14 @@ async function openManualShippingPicker() {
   }
 
   renderManualShippingProducts();
-  window.setTimeout(() => elements.manualShippingSearchInput?.focus(), 0);
+  window.setTimeout(() => {
+    try {
+      elements.manualShippingSearchInput?.focus({ preventScroll: true });
+    } catch (error) {
+      elements.manualShippingSearchInput?.focus();
+    }
+    syncManualShippingViewport();
+  }, 0);
 }
 
 function closeManualShippingPicker() {
@@ -1164,9 +1178,60 @@ function closeManualShippingPicker() {
     return;
   }
 
+  elements.manualShippingSearchInput?.blur();
   elements.manualShippingModal.hidden = true;
+  elements.manualShippingModal.classList.remove("is-keyboard-open");
+  elements.manualShippingModal.style.removeProperty("--manual-shipping-viewport-height");
+  elements.manualShippingModal.style.removeProperty("--manual-shipping-viewport-top");
+  elements.manualShippingModal.style.removeProperty("--manual-shipping-picker-height");
+  state.manualShippingViewportBaseHeight = 0;
   state.manualShippingQuery = "";
   document.body.classList.remove("modal-open");
+}
+
+function getManualShippingViewportMetrics() {
+  const viewport = window.visualViewport;
+  return {
+    height: Math.max(1, Math.round(viewport?.height || window.innerHeight || document.documentElement.clientHeight || 1)),
+    top: Math.max(0, Math.round(viewport?.offsetTop || 0))
+  };
+}
+
+function syncManualShippingViewport() {
+  if (!elements.manualShippingModal || elements.manualShippingModal.hidden) {
+    return;
+  }
+
+  const { height, top } = getManualShippingViewportMetrics();
+  const baseHeight = state.manualShippingViewportBaseHeight || height;
+  const isKeyboardOpen = baseHeight - height > 100;
+  const pickerHeight = isKeyboardOpen
+    ? Math.max(1, height - 6)
+    : Math.min(820, Math.round(height * 0.88));
+
+  elements.manualShippingModal.classList.toggle("is-keyboard-open", isKeyboardOpen);
+  elements.manualShippingModal.style.setProperty("--manual-shipping-viewport-height", `${height}px`);
+  elements.manualShippingModal.style.setProperty("--manual-shipping-viewport-top", `${top}px`);
+  elements.manualShippingModal.style.setProperty("--manual-shipping-picker-height", `${pickerHeight}px`);
+}
+
+function waitForManualShippingKeyboardClose(targetHeight) {
+  if (!targetHeight) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const startedAt = performance.now();
+    const checkViewport = () => {
+      const currentHeight = getManualShippingViewportMetrics().height;
+      if (currentHeight >= targetHeight - 64 || performance.now() - startedAt >= 400) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(checkViewport);
+    };
+    window.requestAnimationFrame(checkViewport);
+  });
 }
 
 function getManualShippingProducts() {
@@ -1204,7 +1269,7 @@ function renderManualShippingProducts() {
   }).join("") : '<p class="box-picker-empty">출고 가능한 제품이 없습니다.</p>';
 }
 
-function handleManualShippingProductClick(event) {
+async function handleManualShippingProductClick(event) {
   const button = event.target.closest("[data-manual-shipping-product]");
   if (!button) {
     return;
@@ -1216,7 +1281,9 @@ function handleManualShippingProductClick(event) {
     return;
   }
 
+  const viewportBaseHeight = state.manualShippingViewportBaseHeight;
   closeManualShippingPicker();
+  await waitForManualShippingKeyboardClose(viewportBaseHeight);
   openShippingBoxPicker(item, "add", "manual");
 }
 
