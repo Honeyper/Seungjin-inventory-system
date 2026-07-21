@@ -3243,9 +3243,18 @@ function getCompletedShippingStatusClass(label) {
 function renderShippingStatusBadge(item) {
   const status = getEffectiveShippingStatus(item);
   const counts = getShippingBoxStatusCounts(item);
+  const waitingBoxCount = (counts["출고대기"] || 0) + (counts["검수완료"] || 0);
 
   if (status === "일부 출고") {
-    return '<span class="shipping-badge partial">일부 출고</span>';
+    const waitingBadge = waitingBoxCount > 0
+      ? `<span class="shipping-badge wait">출고대기 ${waitingBoxCount}박스</span>`
+      : "";
+    return `
+      <span class="shipping-status-badges">
+        <span class="shipping-badge partial">일부 출고</span>
+        ${waitingBadge}
+      </span>
+    `;
   }
 
   if (counts["출고대기"]) {

@@ -2761,6 +2761,14 @@ input {
   white-space: nowrap;
 }
 
+.shipping-status-badges {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.24rem;
+  vertical-align: middle;
+}
+
 .shipping-badge.muted {
   color: #59687d;
   border: 1px solid #dfe7f0;
