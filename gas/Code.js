@@ -3130,7 +3130,7 @@ function cancelDiscardedBoxes(payload) {
   );
   const selectedBoxIds = new Set(
     (Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : [])
-      .map((value) => String(value || '').trim())
+      .map((value) => normalizeInventoryIdentityPart_(value))
       .filter(Boolean)
   );
 
@@ -3174,8 +3174,9 @@ function cancelDiscardedBoxes(payload) {
     matchedBoxNumber += 1;
     const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(row[sequenceIndex]) : matchedBoxNumber;
     const boxId = boxIdIndex >= 0 ? String(row[boxIdIndex] || '').trim() : '';
+    const normalizedBoxId = normalizeInventoryIdentityPart_(boxId);
     const isSelected = selectedBoxIds.size > 0
-      ? selectedBoxIds.has(boxId) || (!boxId && selectedBoxes.has(sequence))
+      ? selectedBoxIds.has(normalizedBoxId) || (!boxId && selectedBoxes.has(sequence))
       : selectedBoxes.has(sequence);
     const status = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '';
 
@@ -3512,7 +3513,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
   );
   const selectedBoxIds = new Set(
     (data.selectedBoxIds || [])
-      .map((value) => String(value || '').trim())
+      .map((value) => normalizeInventoryIdentityPart_(value))
       .filter(Boolean)
   );
   const requiresSelectedBoxes = ['보관', '출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status);
@@ -3539,7 +3540,8 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex].slice(0, headerInfo.headers.length);
     const rowBoxId = boxIdIndex >= 0 ? String(row[boxIdIndex] || '').trim() : '';
-    const isDirectBoxIdMatch = Boolean(rowBoxId && selectedBoxIds.has(rowBoxId));
+    const normalizedRowBoxId = normalizeInventoryIdentityPart_(rowBoxId);
+    const isDirectBoxIdMatch = Boolean(normalizedRowBoxId && selectedBoxIds.has(normalizedRowBoxId));
     const rowManagementId = String(pickCell_(row, indexes, ['관리ID', '관리 ID']) || '').trim();
     const isSameManagementId = rowManagementId === managementId;
     const isIdentityMatch = isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data);

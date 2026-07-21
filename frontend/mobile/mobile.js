@@ -2106,9 +2106,11 @@ async function handleConfirmShipping() {
       }
       saveScannedShippingRows();
       applyShippingFilters();
-      showToast(result.failedItems.length ? `${result.completedCount}개 박스 ${actionLabel} 완료, ${result.failedItems.length}건 실패` : `${result.completedCount}개 박스 ${actionLabel} 완료`);
+      showToast(result.failedItems.length
+        ? `${result.completedCount}개 박스 ${actionLabel} 완료 · ${result.errors[0] || `${result.failedItems.length}건 실패`}`
+        : `${result.completedCount}개 박스 ${actionLabel} 완료`);
     } else {
-      showToast(action === "cancelCompleted" ? "출고가 취소된 박스가 없습니다." : action === "cancelPending" ? "출고대기가 취소된 박스가 없습니다." : action === "pending" ? "출고대기로 등록된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
+      showToast(result.errors[0] || (action === "cancelCompleted" ? "출고가 취소된 박스가 없습니다." : action === "cancelPending" ? "출고대기가 취소된 박스가 없습니다." : action === "pending" ? "출고대기로 등록된 박스가 없습니다." : "출고 처리된 박스가 없습니다."));
     }
     void loadShippingDashboard({ silent: true });
   } catch (error) {
@@ -2144,7 +2146,7 @@ async function handleCompleteScannedShipping(action = "complete") {
   }
 
   try {
-    const { completedCount, failedItems } = await completeShippingItems(items, action);
+    const { completedCount, failedItems, errors } = await completeShippingItems(items, action);
 
     if (completedCount > 0) {
       triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
@@ -2156,14 +2158,18 @@ async function handleCompleteScannedShipping(action = "complete") {
       state.scannerSessionShippingKeys = failedItems.map(getShippingKey);
       saveScannedShippingRows();
       applyShippingFilters();
-      showToast(failedItems.length ? `${completedCount}개 박스 ${actionLabel} 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 ${actionLabel} 완료`);
+      showToast(failedItems.length
+        ? `${completedCount}개 박스 ${actionLabel} 완료 · ${errors[0] || `${failedItems.length}건 실패`}`
+        : `${completedCount}개 박스 ${actionLabel} 완료`);
       if (!failedItems.length) {
         closeScanner();
       }
       void loadShippingDashboard({ silent: true });
     } else {
-      showToast(isPendingAction ? "출고대기로 등록된 박스가 없습니다." : "출고 처리된 박스가 없습니다.");
+      showToast(errors[0] || (isPendingAction ? "출고대기로 등록된 박스가 없습니다." : "출고 처리된 박스가 없습니다."));
     }
+  } catch (error) {
+    showToast(error.message || (isPendingAction ? "출고대기 등록 중 문제가 발생했습니다." : "출고 처리 중 문제가 발생했습니다."));
   } finally {
     state.isCompletingShipping = false;
     updateScannerActionLabels();
@@ -2194,22 +2200,35 @@ async function completeShippingItems(items, action = "complete") {
     const selectedBoxes = getSelectedBoxNumbers(group);
     const selectedBoxIds = getSelectedBoxIds(group, selectedBoxes);
     if (!selectedBoxes.length && !selectedBoxIds.length) {
-      return { completedCount: 0, failedItems: group.scannedItems };
+      return {
+        completedCount: 0,
+        failedItems: group.scannedItems,
+        errors: ["처리할 박스 번호를 확인할 수 없습니다."]
+      };
     }
 
     try {
-      await completeShippingItem(group, selectedBoxes, action, selectedBoxIds);
-      return { completedCount: Math.max(selectedBoxes.length, selectedBoxIds.length), failedItems: [] };
+      const result = await completeShippingItem(group, selectedBoxes, action, selectedBoxIds);
+      const updatedCount = parseNumber(result?.updatedBoxRows);
+      if (updatedCount <= 0) {
+        throw new Error("서버에서 처리된 박스를 확인하지 못했습니다.");
+      }
+      return { completedCount: updatedCount, failedItems: [], errors: [] };
     } catch (error) {
-      return { completedCount: 0, failedItems: group.scannedItems };
+      return {
+        completedCount: 0,
+        failedItems: group.scannedItems,
+        errors: [error?.message || "출고 처리 중 문제가 발생했습니다."]
+      };
     }
   });
 
   return results.reduce((summary, result) => {
     summary.completedCount += result.completedCount;
     summary.failedItems.push(...result.failedItems);
+    summary.errors.push(...(result.errors || []));
     return summary;
-  }, { completedCount: 0, failedItems: [] });
+  }, { completedCount: 0, failedItems: [], errors: [] });
 }
 
 function markShippingItemsPending(items, failedItems = []) {
@@ -2679,8 +2698,11 @@ function updateScannerActionLabels() {
     return;
   }
 
+  const scannerBottom = elements.scannerDoneButton.closest(".scanner-bottom");
   if (state.activeWorkflow === "inventoryMove") {
     const hasScannedMoveRows = state.scannedMoveRows.length > 0;
+    elements.scannerPendingButton.hidden = false;
+    scannerBottom?.classList.remove("single-action");
     elements.scannerPendingButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M8 7h12"></path><path d="M8 12h12"></path><path d="M8 17h12"></path><path d="M4 7h.01"></path><path d="M4 12h.01"></path><path d="M4 17h.01"></path></svg>
       스캔 박스 이동
@@ -2694,14 +2716,9 @@ function updateScannerActionLabels() {
     return;
   }
 
-  elements.scannerPendingButton.innerHTML = `
-    <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
-    출고대기 등록
-  `;
+  elements.scannerPendingButton.hidden = true;
+  scannerBottom?.classList.add("single-action");
   const scannerRows = getScannerSessionShippingRows();
-  elements.scannerPendingButton.disabled = state.isCompletingShipping
-    || !scannerRows.length
-    || scannerRows.every((item) => isShippingItemPending(item));
   elements.scannerDoneButton.innerHTML = `
     <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
     출고
@@ -3166,6 +3183,7 @@ async function handleQrValue(rawValue) {
       renderScannerScannedList();
       updateScannerActionLabels();
     } else {
+      await ensureScannedShippingRegistered(matched);
       const existingRow = state.scannedShippingRows.find((row) => getShippingKey(row) === key);
       if (!existingRow) {
         state.scannedShippingRows = [matched, ...state.scannedShippingRows];
@@ -3181,8 +3199,13 @@ async function handleQrValue(rawValue) {
     }
 
     triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
-    setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
-    showToast("스캔한 박스를 등록했습니다.");
+    if (state.activeWorkflow === "inventoryMove") {
+      setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
+      showToast("이동할 박스를 등록했습니다.");
+    } else {
+      setScannerHelp("출고등록 완료. 다른 휴대폰과 PC에서도 확인할 수 있습니다.");
+      showToast("스캔과 동시에 출고등록을 완료했습니다.");
+    }
   } catch (error) {
     setScannerHelp(error.message || "스캔한 제품 정보를 확인하지 못했습니다.");
     showToast(error.message || "제품 정보를 확인하지 못했습니다.");
@@ -3192,6 +3215,31 @@ async function handleQrValue(rawValue) {
       state.isProcessingScan = false;
     }, SCAN_PROCESSING_LOCK_MS);
   }
+}
+
+async function ensureScannedShippingRegistered(item) {
+  if (isShippingItemPending(item)) {
+    item.syncedFromPending = true;
+    return false;
+  }
+
+  const selectedBoxes = getSelectedBoxNumbers(item);
+  const selectedBoxIds = getSelectedBoxIds(item, selectedBoxes);
+  if (!selectedBoxes.length && !selectedBoxIds.length) {
+    throw new Error("출고등록할 박스 번호를 확인할 수 없습니다.");
+  }
+
+  setScannerHelp("스캔한 박스를 서버에 출고등록하고 있습니다…");
+  const result = await completeShippingItem(item, selectedBoxes, "pending", selectedBoxIds);
+  if (parseNumber(result?.updatedBoxRows) <= 0) {
+    throw new Error("서버에 출고등록된 박스가 없습니다.");
+  }
+
+  markShippingItemsPending([item]);
+  item.syncedFromPending = true;
+  item.registrant = state.user?.name || item.registrant || "Admin";
+  item.registeredAt = toDateKey(new Date());
+  return true;
 }
 
 async function ensureDashboardLoaded() {
@@ -4201,10 +4249,11 @@ function getSelectedBoxIds(item, selectedBoxes = []) {
     return item.scannedItems
       .flatMap((row) => getSelectedBoxIds(row, selectedBoxes))
       .filter((boxId) => {
-        if (!boxId || seen.has(boxId)) {
+        const normalizedBoxId = normalizeScanValue(boxId);
+        if (!boxId || seen.has(normalizedBoxId)) {
           return false;
         }
-        seen.add(boxId);
+        seen.add(normalizedBoxId);
         return true;
       });
   }
@@ -4223,17 +4272,18 @@ function getSelectedBoxIds(item, selectedBoxes = []) {
       return boxIds;
     }
 
-    const boxId = normalizeScanValue(
+    const boxId = String(
       box?.boxId ||
       box?.id ||
       box?.qrId ||
       (box === scannedBox ? item?.scannedBoxId : "")
-    );
-    if (!boxId || seen.has(boxId)) {
+    ).trim();
+    const normalizedBoxId = normalizeScanValue(boxId);
+    if (!boxId || seen.has(normalizedBoxId)) {
       return boxIds;
     }
 
-    seen.add(boxId);
+    seen.add(normalizedBoxId);
     boxIds.push(boxId);
     return boxIds;
   }, []);
