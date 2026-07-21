@@ -6785,6 +6785,7 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
   const total = boxes.length;
   const { baseProcess, additionalProcesses } = getInboundQrProcessData(inbound, boxes, productProcessInfo);
   const productName = inbound.productName || boxes[0]?.productName || "-";
+  const batchText = formatInboundQrBatch(inbound.batch || boxes[0]?.batch);
   const inboundDate = formatInboundQrDate(inbound.inboundDate || boxes[0]?.inboundDate);
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
@@ -6799,6 +6800,7 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
         processText: baseProcess,
         additionalProcesses,
         productName,
+        batchText,
         inboundDate
       });
     }
@@ -6811,6 +6813,7 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
       processText: baseProcess,
       additionalProcesses,
       productName,
+      batchText,
       inboundDate
     });
   }).join("");
@@ -6824,6 +6827,7 @@ function renderInboundQrStandardLabel({
   processText,
   additionalProcesses = [],
   productName,
+  batchText = "",
   inboundDate
 }, variantClass = "") {
   const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
@@ -6839,7 +6843,10 @@ function renderInboundQrStandardLabel({
           </div>
           <div class="box-qr-standard-product">
             <span>제품명</span>
-            <strong>${escapeHtml(productName)}</strong>
+            <span class="box-qr-standard-product-name">
+              <strong>${escapeHtml(productName)}</strong>
+              ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
+            </span>
             <small>승진 관리 시스템</small>
           </div>
         </div>
@@ -6865,6 +6872,20 @@ function renderInboundQrStandardLabel({
       </div>
     </article>
   `;
+}
+
+function formatInboundQrBatch(value) {
+  const normalized = normalizeDisplayValue(value).replace(/^<\s*|\s*>$/g, "").trim();
+
+  if (!normalized || normalized === "-") {
+    return "";
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    return `${normalized}차`;
+  }
+
+  return normalized.replace(/^(\d+)\s*차$/, "$1차");
 }
 
 function formatInboundQrDate(value) {

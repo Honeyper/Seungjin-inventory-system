@@ -7057,14 +7057,24 @@ body.shipping-box-drag-selecting * {
   text-align: center;
 }
 
-.box-qr-standard-product span {
+.box-qr-standard-product > span:first-child {
   font-size: 7.7pt;
   font-weight: 900;
   line-height: 1;
 }
 
-.box-qr-standard-product strong {
+.box-qr-standard-product-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8mm;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.box-qr-standard-product-name strong {
   display: -webkit-box;
+  min-width: 0;
   max-width: 100%;
   overflow: hidden;
   color: #050505;
@@ -7075,6 +7085,15 @@ body.shipping-box-drag-selecting * {
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+.box-qr-standard-product-name b {
+  flex: 0 0 auto;
+  color: #050505;
+  font-size: 7.6pt;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .box-qr-standard-product small {
