@@ -3,7 +3,7 @@
 ## 비교 기준
 
 - 선택 시안: `/Users/kang-kyoungmo/.codex/generated_images/019f7ec1-a531-7630-86c5-a5feee995e1a/exec-07d5fd75-9371-4a86-aa22-15ccb2e7870b.png`
-- 입고관리 구현: `/tmp/seungjin-dev-live-inbound-final-2.png`
+- 입고관리 구현: `/tmp/seungjin-dev-live-inbound-final-3.png`
 - 재고관리 구현: `/tmp/seungjin-dev-live-inventory.png`
 - 출고관리 구현: `/tmp/seungjin-dev-live-shipping.png`
 - 제품관리 구현: `/tmp/seungjin-dev-live-products.png`
