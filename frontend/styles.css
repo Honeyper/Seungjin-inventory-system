@@ -7633,3 +7633,30 @@ input {
   color: currentColor;
   font-size: 1.35rem;
 }
+
+/* Make the primary inbound registration action visually unmistakable. */
+@media (min-width: 1101px) {
+  .inbound-summary-card {
+    grid-template-columns: minmax(18rem, 1fr) minmax(22rem, 1.25fr) minmax(15rem, 0.8fr) 10.5rem;
+  }
+
+  .inbound-submit {
+    align-self: stretch;
+    min-height: 4.6rem;
+    height: auto;
+    gap: 0.62rem;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+
+  .inbound-submit .inbound-submit-icon {
+    color: #fff;
+    font-size: 1.7rem;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1360px) {
+  .inbound-summary-card {
+    grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 1.1fr) minmax(12rem, 0.72fr) 9.4rem;
+  }
+}
