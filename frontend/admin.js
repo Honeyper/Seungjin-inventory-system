@@ -189,6 +189,7 @@ const inboundMultipleRemainders = document.querySelector("#inboundMultipleRemain
 const inboundSingleRemainderField = document.querySelector("#inboundSingleRemainderField");
 const inboundMultipleRemainderPanel = document.querySelector("#inboundMultipleRemainderPanel");
 const inboundRemainderList = document.querySelector("#inboundRemainderList");
+const inboundRemainderSummary = document.querySelector("#inboundRemainderSummary");
 const addInboundRemainderButton = document.querySelector("#addInboundRemainderButton");
 const inboundDefectQty = document.querySelector("#inboundDefectQty");
 const inboundSubmitButton = document.querySelector("#inboundSubmitButton");
@@ -3104,7 +3105,7 @@ function createRemainderInputRow(value, index, inputAttribute, removeAttribute) 
         </span>
       </label>
       <button class="remove-remainder-button" type="button" ${removeAttribute} aria-label="${index + 1}번 잔량 박스 삭제">
-        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
       </button>
     </div>
   `;
@@ -3200,6 +3201,16 @@ function getInboundRemainderQuantities() {
   return value > 0 ? [value] : [];
 }
 
+function updateInboundRemainderPanelSummary() {
+  if (!inboundRemainderSummary) {
+    return;
+  }
+
+  const inputs = Array.from(inboundRemainderList?.querySelectorAll("[data-inbound-remainder-input]") || []);
+  const total = inputs.reduce((sum, input) => sum + getNumberValue(input), 0);
+  inboundRemainderSummary.textContent = `${inputs.length}박스 · 합계 ${total.toLocaleString("ko-KR")} ea`;
+}
+
 function updateInboundSummary() {
   inboundNumberInputs.forEach(({ input, output }) => {
     if (!input || !output) {
@@ -3231,6 +3242,8 @@ function updateInboundSummary() {
   const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
   const totalBoxCount = boxCount + remainderQuantities.filter((value) => value > 0).length;
   const currentInboundQuantity = boxQuantity * boxCount + remainQuantity;
+
+  updateInboundRemainderPanelSummary();
 
   const remainOutput = document.querySelector("#calcRemainQty");
   if (remainOutput) {

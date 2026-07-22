@@ -7803,3 +7803,364 @@ input {
     grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 1.1fr) minmax(12rem, 0.72fr) 9.4rem;
   }
 }
+
+/* Unified DEV management surfaces and multi-remainder editor */
+.multiple-remainder-panel {
+  grid-column: 1 / -1;
+  padding: 0.78rem 0.85rem 0.85rem;
+  border: 1px solid #dfe5ed;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+}
+
+.multiple-remainder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.62rem;
+  border-bottom: 1px solid #e3e8ef;
+}
+
+.multiple-remainder-header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.multiple-remainder-header strong {
+  color: #071f49;
+  font-size: 0.82rem;
+}
+
+.multiple-remainder-header span {
+  color: #6b778a;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.multiple-remainder-header output {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid #e4cf9f;
+  border-radius: 999px;
+  color: #8c641b;
+  background: #fff9ec;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.multiple-remainder-panel > .remainder-input-list {
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.52rem;
+}
+
+.multiple-remainder-panel > .add-remainder-button {
+  justify-self: start;
+  min-height: 2.4rem;
+  margin-top: 0.08rem;
+  padding: 0 0.78rem;
+  background: #fff;
+}
+
+.remove-remainder-button {
+  color: #8b5a5a;
+  border-color: #eadada;
+  background: #fff;
+}
+
+.remove-remainder-button:not(:disabled):hover {
+  color: #b42318;
+  border-color: #efb5b0;
+  background: #fff7f6;
+}
+
+@media (min-width: 1101px) {
+  .quantity-grid {
+    grid-template-areas:
+      "box box-count remain tray defect reason file-actions file-actions"
+      "remainder-editor remainder-editor remainder-editor remainder-editor remainder-editor remainder-editor remainder-editor remainder-editor";
+  }
+
+  .quantity-grid > .multiple-remainder-panel {
+    grid-area: remainder-editor;
+    margin-top: 0.08rem;
+  }
+
+  .management-heading-trail {
+    display: flex;
+    align-items: center;
+    gap: 0.72rem;
+  }
+
+  .management-heading-trail .eyebrow {
+    margin: 0;
+    color: var(--dev-navy) !important;
+    font-size: 1.12rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-transform: none;
+  }
+
+  .management-heading-trail h1,
+  .inventory-view .management-heading-trail h1,
+  .product-view .management-heading-trail h1,
+  .shipping-view .management-heading-trail h1 {
+    margin: 0;
+    padding-left: 0.72rem;
+    border-left: 1px solid #cfd7e2;
+    color: var(--dev-navy);
+    font-size: 1.12rem;
+    line-height: 1.25;
+  }
+
+  .inventory-heading-actions .material-symbols-outlined,
+  .product-view .page-heading > .primary-action .material-symbols-outlined {
+    font-size: 1.22rem;
+  }
+
+  .inventory-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .inventory-summary-card {
+    position: relative;
+    min-height: 4.8rem;
+    gap: 0.82rem;
+    overflow: hidden;
+  }
+
+  .inventory-summary-card::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 0.17rem;
+    background: currentColor;
+    opacity: 0.55;
+    content: "";
+  }
+
+  .inventory-stat-icon,
+  .inventory-stat-icon img {
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+
+  .inventory-stat-icon {
+    border: 1px solid currentColor;
+    border-radius: 0.5rem;
+    background: #fff;
+    box-shadow: 0 0.2rem 0.55rem rgba(10, 31, 64, 0.06);
+  }
+
+  .inventory-stat-icon .material-symbols-outlined {
+    font-size: 1.55rem;
+  }
+
+  .inventory-summary-value {
+    line-height: 1;
+  }
+
+  .inventory-chart-card,
+  .inventory-attention-card {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .inventory-card-title,
+  .inventory-attention-card > h2 {
+    min-height: 3.15rem;
+    margin: 0;
+    padding: 0.8rem 0.95rem;
+    border-bottom: 1px solid var(--dev-line);
+    background: #fff;
+  }
+
+  .inventory-bars {
+    margin: 0.85rem 0.95rem 0.4rem;
+  }
+
+  .inventory-link-button {
+    margin: 0 0.95rem 0.8rem auto;
+  }
+
+  .inventory-attention-card {
+    gap: 0;
+  }
+
+  .inventory-attention-card .attention-item {
+    margin: 0.42rem 0.72rem 0;
+    border-radius: 0.42rem;
+    background: #fff;
+  }
+
+  .inventory-attention-card .attention-item:last-child {
+    margin-bottom: 0.65rem;
+  }
+
+  .inventory-filter-panel,
+  .shipping-filter-panel {
+    border: 0;
+    border-top: 1px solid var(--dev-line);
+    border-bottom: 1px solid var(--dev-line);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .inventory-list-totals {
+    gap: 0.55rem;
+    border-bottom: 1px solid var(--dev-line);
+  }
+
+  .inventory-total-chip {
+    background: #fff;
+  }
+
+  .inventory-total-chip.primary {
+    color: var(--dev-navy);
+    border-color: #bfcde1;
+    background: #f4f8fd;
+  }
+
+  .product-view .product-hero {
+    display: grid;
+    grid-template-columns: 3.3rem repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    min-height: 4.8rem;
+    padding: 0.62rem 0.85rem;
+  }
+
+  .product-view .product-hero > div:not(.product-hero-visual) {
+    display: grid;
+    align-content: center;
+    gap: 0.12rem;
+    padding: 0 1.2rem;
+    border-left: 1px solid #e3e8ef;
+  }
+
+  .product-view .product-hero strong {
+    color: var(--dev-navy);
+    font-size: 1.25rem;
+    line-height: 1.1;
+  }
+
+  .product-view .product-hero span:not(.material-symbols-outlined) {
+    color: #69758a;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .product-view .product-hero-visual {
+    align-self: center;
+    width: 2.8rem;
+    height: 2.8rem;
+    border: 1px solid #dce4ee;
+    border-radius: 0.5rem;
+    background: #f7f9fc;
+  }
+
+  .product-hero-visual .material-symbols-outlined {
+    font-size: 1.65rem;
+  }
+
+  .product-list-tools {
+    position: relative;
+    z-index: 2;
+    margin-bottom: 0 !important;
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+    box-shadow: none !important;
+  }
+
+  .product-list-panel {
+    margin-top: -1px;
+    border-radius: 0 0 0.5rem 0.5rem;
+    box-shadow: 0 0.2rem 0.65rem rgba(12, 31, 65, 0.035);
+  }
+
+  .product-list-panel .table-status:empty {
+    display: none;
+  }
+
+  .shipping-settlement-heading h2,
+  .shipping-list-header h2,
+  .inventory-list-header h2 {
+    color: var(--dev-navy);
+  }
+
+  .shipping-settlement-heading p {
+    color: #6b778a;
+    font-size: 0.72rem;
+  }
+
+  .shipping-settlement-summary {
+    border-top: 1px solid var(--dev-line);
+    border-bottom: 1px solid var(--dev-line);
+    background: #f8fafc;
+  }
+
+  .shipping-settlement-summary .shipping-summary-card {
+    background: #fff;
+  }
+
+  .shipping-settlement-summary .shipping-summary-icon,
+  .shipping-settlement-summary .shipping-summary-icon img {
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+
+  .shipping-settlement-summary .shipping-summary-icon .material-symbols-outlined {
+    font-size: 1.55rem;
+  }
+
+  .shipping-settlement-grid {
+    background: #fff;
+  }
+
+  .shipping-settlement-card {
+    border: 1px solid #e0e6ee;
+    background: #fff;
+  }
+
+  .shipping-settlement-card strong {
+    color: var(--dev-navy);
+  }
+
+  .shipping-settlement-card.danger strong {
+    color: #c33535;
+  }
+
+  .shipping-list-filter {
+    padding: 0.82rem 0.95rem;
+  }
+
+  .shipping-row-button,
+  .row-action {
+    border-radius: 0.34rem;
+    box-shadow: none;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1360px) {
+  .quantity-grid {
+    grid-template-areas:
+      "box box-count remain"
+      "tray defect reason"
+      "remainder-editor remainder-editor remainder-editor"
+      "file-actions file-actions file-actions";
+  }
+}
+
+@media (max-width: 720px) {
+  .multiple-remainder-header,
+  .multiple-remainder-header > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .multiple-remainder-panel > .remainder-input-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
