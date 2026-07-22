@@ -6212,6 +6212,31 @@ input {
   color: #46566b;
 }
 
+.box-qr-meta .box-qr-product-row {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 7.5mm;
+}
+
+.box-qr-product-heading {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+.box-qr-product-heading span {
+  grid-column: 2;
+}
+
+.box-qr-product-heading b {
+  grid-column: 3;
+  justify-self: end;
+  color: #111827;
+  font: inherit;
+  white-space: nowrap;
+}
+
 .box-qr-meta dd {
   color: #111827;
   text-align: center;

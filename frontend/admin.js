@@ -5538,6 +5538,7 @@ function renderInboundQrSheet(inbound, boxes) {
   const total = boxes.length;
   const processText = getInboundQrProcessText(inbound);
   const productName = inbound.productName || boxes[0]?.productName || "-";
+  const batchText = formatInboundQrBatch(inbound.batch || boxes[0]?.batch);
 
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
@@ -5550,7 +5551,8 @@ function renderInboundQrSheet(inbound, boxes) {
         total,
         qrData,
         processText,
-        productName
+        productName,
+        batchText
       });
     }
 
@@ -5566,8 +5568,11 @@ function renderInboundQrSheet(inbound, boxes) {
           </div>
         </div>
         <dl class="box-qr-meta">
-          <div>
-            <dt>제품명</dt>
+          <div class="box-qr-product-row">
+            <dt class="box-qr-product-heading">
+              <span>제품명</span>
+              ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
+            </dt>
             <dd>${escapeHtml(productName)}</dd>
           </div>
           <div>
@@ -5580,6 +5585,20 @@ function renderInboundQrSheet(inbound, boxes) {
   }).join("");
 }
 
+function formatInboundQrBatch(value) {
+  const normalized = normalizeDisplayValue(value).replace(/^<\s*|\s*>$/g, "").trim();
+
+  if (!normalized || normalized === "-") {
+    return "";
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    return `${normalized}차`;
+  }
+
+  return normalized.replace(/^(\d+)\s*차$/, "$1차");
+}
+
 function updateInboundQrLayoutButtons() {
   inboundQrLayoutButtons.forEach((button) => {
     const isActive = (button.dataset.qrLayout || "standard") === state.inboundQrLayout;
@@ -5588,7 +5607,7 @@ function updateInboundQrLayoutButtons() {
   });
 }
 
-function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, productName }) {
+function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, productName, batchText = "" }) {
   return `
     <article class="box-qr-label box-qr-label-work">
       <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
@@ -5601,8 +5620,11 @@ function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, p
         </div>
       </div>
       <dl class="box-qr-meta">
-        <div>
-          <dt>제품명</dt>
+        <div class="box-qr-product-row">
+          <dt class="box-qr-product-heading">
+            <span>제품명</span>
+            ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
+          </dt>
           <dd>${escapeHtml(productName)}</dd>
         </div>
         <div>
