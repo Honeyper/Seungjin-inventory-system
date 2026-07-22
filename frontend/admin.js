@@ -3554,6 +3554,38 @@ function getFilteredInbounds() {
   ].some((value) => String(value || "").toLowerCase().includes(query)));
 }
 
+function isQrGeneratedForItem(item) {
+  const statusText = String(item?.qrPrintStatus || "").replace(/\s+/g, "");
+  const totalBoxCount = parseShippingSettlementNumber(item?.boxTotalCount || item?.currentBoxCount || "");
+  const generatedCount = parseShippingSettlementNumber(item?.qrGeneratedCount || "");
+
+  return statusText.includes("QR생성") || (totalBoxCount > 0 && generatedCount >= totalBoxCount);
+}
+
+function renderQrActionButton(item, context) {
+  const isGenerated = isQrGeneratedForItem(item);
+  const datasetName = context === "inventory" ? "inventory-qr" : "qr-inbound";
+  const productDatasetName = context === "inventory" ? "inventory-qr-product" : "qr-inbound-product";
+  const label = isGenerated ? "QR 보기" : "QR 생성";
+  const className = isGenerated ? "qr-action generated" : "qr-action create";
+
+  return `
+    <button
+      class="${className}"
+      type="button"
+      data-${datasetName}="${escapeAttribute(item.managementId)}"
+      data-${productDatasetName}="${escapeAttribute(item.productId)}"
+      aria-label="${escapeAttribute(label)}"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
+        <path d="M14 14h2v2h-2zM18 14h2v6h-2zM14 18h2v2h-2z" />
+      </svg>
+      <span>${label}</span>
+    </button>
+  `;
+}
+
 function renderTodayInbounds(message = "") {
   if (!inboundTableBody || !inboundCountLabel) {
     return;
@@ -3580,14 +3612,7 @@ function renderTodayInbounds(message = "") {
   } else {
     inboundTableBody.innerHTML = visibleInbounds.map((item) => `
       <tr>
-        <td>
-          <button class="qr-action" type="button" data-qr-inbound="${escapeAttribute(item.managementId)}" data-qr-inbound-product="${escapeAttribute(item.productId)}" aria-label="입고 QR 보기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
-              <path d="M14 14h2v2h-2zM18 14h2v6h-2zM14 18h2v2h-2z" />
-            </svg>
-          </button>
-        </td>
+        <td>${renderQrActionButton(item, "inbound")}</td>
         <td>${escapeHtml(formatInboundDateTime(item.inboundDate, item.inboundTime))}</td>
         <td>${escapeHtml(item.clientName)}</td>
         <td>${escapeHtml(item.inboundType)}</td>
@@ -5011,14 +5036,7 @@ function renderInventoryTable(message = "") {
       renderInventoryAggregateRow(state.filteredInventoryRows),
       ...rows.map((item) => `
       <tr>
-        <td>
-          <button class="inventory-qr-button qr-action" type="button" data-inventory-qr="${escapeAttribute(item.managementId)}" data-inventory-qr-product="${escapeAttribute(item.productId)}" aria-label="재고 QR 보기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" />
-              <path d="M14 14h2v2h-2zM18 14h2v6h-2zM14 18h2v2h-2z" />
-            </svg>
-          </button>
-        </td>
+        <td>${renderQrActionButton(item, "inventory")}</td>
         <td>${escapeHtml(item.inboundDate)}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
         <td>${escapeHtml(item.clientName)}</td>
@@ -5653,6 +5671,7 @@ async function openInboundQrModal(managementId, productId = "") {
     const boxes = Array.isArray(result.boxes) ? result.boxes : [];
     state.activeQrBoxes = boxes;
     inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
+    markInboundQrGenerated(managementId, state.activeQrInboundProductId, boxes.length);
     renderInboundQrSheet(inbound, boxes);
   } catch (error) {
     inboundQrSheet.innerHTML = `<p class="qr-loading qr-error">${escapeHtml(error.message || "QR 데이터를 불러오지 못했습니다.")}</p>`;
@@ -5664,6 +5683,24 @@ async function openInboundQrModal(managementId, productId = "") {
 
 function findInboundRecordByManagementId(managementId, productId = "") {
   return getInboundByManagementId(managementId, productId);
+}
+
+function markInboundQrGenerated(managementId, productId, generatedCount) {
+  const matches = (item) => String(item.managementId || "") === String(managementId || "")
+    && (!productId || String(item.productId || "") === String(productId || ""));
+  const updateItem = (item) => matches(item)
+    ? {
+      ...item,
+      qrPrintStatus: "QR 생성",
+      qrGeneratedCount: generatedCount || parseShippingSettlementNumber(item.boxTotalCount || item.currentBoxCount || "")
+    }
+    : item;
+
+  state.todayInbounds = state.todayInbounds.map(updateItem);
+  state.inventoryRows = state.inventoryRows.map(updateItem);
+  state.filteredInventoryRows = state.filteredInventoryRows.map(updateItem);
+  renderTodayInbounds();
+  renderInventoryTable();
 }
 
 function getInboundQrProcessText(inbound) {

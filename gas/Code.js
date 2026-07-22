@@ -929,6 +929,7 @@ function createProduct(payload) {
 
 function getTodayInbounds(payload) {
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const dataRange = stockSheet.getDataRange();
   const values = dataRange.getDisplayValues();
   const richValues = dataRange.getRichTextValues();
@@ -949,6 +950,8 @@ function getTodayInbounds(payload) {
   const startDate = requestedStartDate <= requestedEndDate ? requestedStartDate : requestedEndDate;
   const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
   const productDueDateMap = getProductDueDateMap_();
+  const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
+  const boxSummaryMap = buildInventoryBoxSummaryMap_(boxInfo.rows);
   const inbounds = values.slice(headerRowIndex + 1)
     .map((row, offset) => ({
       row,
@@ -962,9 +965,16 @@ function getTodayInbounds(payload) {
     .filter(({ row }) => !isExistingStockInboundType_(pickCell_(row, indexes, ['입고 유형', '입고유형'])))
     .map(({ row, richRow }) => {
       const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
+      const managementId = pickCell_(row, indexes, ['관리 ID', '관리ID']);
+      const productName = pickCell_(row, indexes, ['제품명']);
+      const storage = pickCell_(row, indexes, ['보관위치', '보관 위치']) || '미지정';
+      const boxSummary = boxSummaryMap[getInventoryIdentityKey_(managementId, productId, productName, storage)] || {};
+      const boxTotalCount = displayQuantityToNumber_(pickCell_(row, indexes, ['박스 총 수량', '박스총수량']));
+      const qrGeneratedCount = boxSummary.qrGeneratedCount || 0;
+      const qrPrintStatus = boxTotalCount > 0 && qrGeneratedCount >= boxTotalCount ? 'QR 생성' : '미인쇄';
 
       return {
-        managementId: pickCell_(row, indexes, ['관리 ID', '관리ID']),
+        managementId,
         status: pickCell_(row, indexes, ['상태']),
         registeredAt: pickCell_(row, indexes, ['등록 일시', '등록일시']),
         inboundDate: pickCell_(row, indexes, ['입고일']),
@@ -973,7 +983,7 @@ function getTodayInbounds(payload) {
         clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
         inboundType: pickCell_(row, indexes, ['입고 유형', '입고유형']),
         productId,
-        productName: pickCell_(row, indexes, ['제품명']),
+        productName,
         batch: pickCell_(row, indexes, ['차수']),
         process: pickCell_(row, indexes, ['최종공정', '최종 공정']),
         storage: pickCell_(row, indexes, ['보관위치', '보관 위치']),
@@ -986,6 +996,8 @@ function getTodayInbounds(payload) {
         ),
         inboundTotalQuantity: pickCell_(row, indexes, ['입고 총 수량', '입고총수량']),
         boxTotalCount: pickCell_(row, indexes, ['박스 총 수량', '박스총수량']),
+        qrPrintStatus,
+        qrGeneratedCount,
         inspectionQuantity: pickCell_(row, indexes, ['검수 수량', '검수수량']),
         defectQuantity: pickCell_(row, indexes, ['불량 수량', '불량수량']),
         defectRate: pickCell_(row, indexes, ['불량률']),
