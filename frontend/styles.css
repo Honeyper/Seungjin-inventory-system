@@ -7057,10 +7057,28 @@ body.shipping-box-drag-selecting * {
   text-align: center;
 }
 
-.box-qr-standard-product > span:first-child {
+.box-qr-standard-product-heading {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
   font-size: 7.7pt;
   font-weight: 900;
   line-height: 1;
+}
+
+.box-qr-standard-product-heading > span {
+  grid-column: 2;
+}
+
+.box-qr-standard-product-heading > b {
+  grid-column: 3;
+  justify-self: end;
+  color: #050505;
+  font-size: 7.6pt;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .box-qr-standard-product-name {
@@ -7085,15 +7103,6 @@ body.shipping-box-drag-selecting * {
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-}
-
-.box-qr-standard-product-name b {
-  flex: 0 0 auto;
-  color: #050505;
-  font-size: 7.6pt;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
 }
 
 .box-qr-standard-product small {

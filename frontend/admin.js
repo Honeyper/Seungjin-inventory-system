@@ -6842,10 +6842,12 @@ function renderInboundQrStandardLabel({
             ${hasAdditionalProcess ? `<small>+ ${escapeHtml(additionalProcesses.join(" / + "))}</small>` : ""}
           </div>
           <div class="box-qr-standard-product">
-            <span>제품명</span>
+            <span class="box-qr-standard-product-heading">
+              <span>제품명</span>
+              ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
+            </span>
             <span class="box-qr-standard-product-name">
               <strong>${escapeHtml(productName)}</strong>
-              ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
             </span>
             <small>승진 관리 시스템</small>
           </div>
