@@ -3327,6 +3327,8 @@ function getInboundPayload() {
   const defectQuantity = getNumberValue(inboundDefectQty);
   const totalBoxCount = inboundBoxValue + remainderQuantities.filter((value) => value > 0).length;
   const totalQuantity = boxQuantity * inboundBoxValue + remainQuantity;
+  const selectedProduct = getProductByCode(inboundProductId.value.trim());
+  const finalProcess = String(selectedProduct?.finalProcess || "").trim();
 
   return {
     registrant: inboundRegistrant.value.trim() || session?.name || "Admin",
@@ -3338,7 +3340,7 @@ function getInboundPayload() {
     productId: inboundProductId.value.trim(),
     clientName: inboundClient.value.trim(),
     batch: inboundBatch.value.trim(),
-    process: inboundProcess.value.trim(),
+    process: finalProcess,
     storage: inboundStorage.value.trim(),
     note: inboundNote.value.trim(),
     boxQuantity,
@@ -3424,7 +3426,7 @@ function validateInboundPayload(payload) {
     ["productName", "제품을 선택해주세요."],
     ["productId", "제품 ID를 확인해주세요."],
     ["clientName", "거래처명을 입력해주세요."],
-    ["process", "최종공정을 선택해주세요."],
+    ["process", "제품관리에서 최종공정을 먼저 등록해주세요."],
     ["storage", "보관위치를 선택해주세요."],
     ["defectReason", "불량 사유를 선택해주세요."]
   ];
@@ -3855,6 +3857,7 @@ function selectInboundProduct(product) {
   inboundProductName.value = normalizeDisplayValue(product.productName);
   inboundProductId.value = normalizeDisplayValue(product.productCode);
   inboundClient.value = normalizeDisplayValue(product.clientName);
+  inboundProcess.value = String(product.finalProcess || "").trim();
   setInboundClientEditable(false);
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);

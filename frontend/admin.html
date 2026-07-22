@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260722-12" />
+    <link rel="stylesheet" href="./styles.css?v=20260722-13" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -193,13 +193,7 @@
                   </label>
                   <label class="form-field">
                     <span>최종공정 <b>*</b></span>
-                    <select id="inboundProcess">
-                      <option value="" selected disabled>선택하세요.</option>
-                      <option>1도</option>
-                      <option>2도</option>
-                      <option>3도</option>
-                      <option>코팅</option>
-                    </select>
+                    <input id="inboundProcess" type="text" placeholder="제품 선택 시 자동 입력" disabled />
                   </label>
                   <label class="form-field">
                     <span>보관위치 <b>*</b></span>
@@ -2025,6 +2019,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260722-12"></script>
+    <script src="./admin.js?v=20260722-13"></script>
   </body>
 </html>
