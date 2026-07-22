@@ -5,44 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#061f4c" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="승진 모바일" />
+    <meta name="apple-mobile-web-app-title" content="승진 관리프로그램" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>(주)승진 모바일 재고관리</title>
-    <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="../assets/logo-generated.png" />
+    <title>승진 관리프로그램</title>
+    <link rel="manifest" href="./manifest.webmanifest?v=20260720-management-app-v2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png?v=20260720-pearl-icon-v2" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css" />
+    <link rel="stylesheet" href="./mobile.css?v=20260721-manual-picker-keyboard" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
-      <section class="screen active" id="loginScreen" aria-labelledby="loginTitle">
+      <section class="screen" id="loginScreen" aria-labelledby="loginTitle">
         <div class="login-hero">
           <div class="mobile-brand">
-            <strong>(주)승진</strong>
-            <span>SEUNGJIN CO., LTD.</span>
+            <img src="../assets/logo-generated.png" alt="" />
+            <span class="brand-copy">
+              <strong>(주)승진</strong>
+              <em>SEUNGJIN CO., LTD.</em>
+            </span>
           </div>
           <div class="hero-copy">
-            <p>QR 기반</p>
             <h1 id="loginTitle">재고관리 시스템</h1>
-            <span>QR을 스캔하여 입고, 작업, 출고 현황을 실시간으로 관리하세요.</span>
           </div>
-          <div class="hero-visual" aria-hidden="true">
-            <img src="../assets/mobile-hero-warehouse.svg" alt="" />
+          <div class="hero-visual hero-logistics-art" aria-hidden="true">
+            <img src="../assets/mobile-login-hero-reference.png" alt="" />
           </div>
         </div>
 
         <form class="mobile-card login-card" id="mobileLoginForm">
           <div class="login-card-head">
             <div class="login-lock" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <rect x="5" y="10" width="14" height="10" rx="2"></rect>
-                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
-              </svg>
+              <img src="../assets/login-icon-lock-line.svg?v=20260710-line-login-icons" alt="" />
             </div>
             <div>
               <h2>로그인</h2>
@@ -53,10 +51,7 @@
           <label class="mobile-field">
             <span>직원번호</span>
             <span class="field-control">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20 21a8 8 0 0 0-16 0"></path>
-                <circle cx="12" cy="8" r="4"></circle>
-              </svg>
+              <img src="../assets/login-icon-user-line.svg?v=20260710-line-icons" alt="" />
               <input id="mobileAccountId" type="text" autocomplete="username" placeholder="직원번호를 입력하세요" />
             </span>
           </label>
@@ -64,28 +59,34 @@
           <label class="mobile-field">
             <span>비밀번호</span>
             <span class="field-control">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="5" y="10" width="14" height="10" rx="2"></rect>
-                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
-              </svg>
+              <img src="../assets/login-icon-password-line.svg?v=20260710-line-icons" alt="" />
               <input id="mobilePassword" type="password" autocomplete="current-password" placeholder="비밀번호를 입력하세요" />
               <button class="ghost-icon-button" id="toggleMobilePassword" type="button" aria-label="비밀번호 보기">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
+                <img src="../assets/login-icon-eye.png" alt="" />
               </button>
             </span>
           </label>
+
+          <div class="login-preferences" aria-label="로그인 정보 저장 설정">
+            <label>
+              <input id="saveMobileAccount" type="checkbox" />
+              <span>계정 저장</span>
+            </label>
+            <label>
+              <input id="saveMobilePassword" type="checkbox" />
+              <span>비밀번호 저장</span>
+            </label>
+            <label>
+              <input id="enableMobileAutoLogin" type="checkbox" />
+              <span>자동 로그인</span>
+            </label>
+          </div>
 
           <p class="form-message" id="mobileLoginMessage" role="alert" aria-live="polite"></p>
 
           <button class="primary-action disabled-action" id="workerLoginButton" type="button" disabled>로그인</button>
           <button class="secondary-action" id="adminLoginButton" type="submit">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6l-8-3z"></path>
-              <path d="m9 12 2 2 4-5"></path>
-            </svg>
+            <img src="../assets/login-icon-admin-shield-line.svg?v=20260710-line-login-icons" alt="" />
             관리자 로그인
           </button>
         </form>
@@ -94,8 +95,11 @@
       <section class="screen" id="homeScreen" aria-labelledby="homeTitle">
         <header class="mobile-home-header">
           <div class="mobile-brand">
-            <strong>(주)승진</strong>
-            <span>SEUNGJIN CO., LTD.</span>
+            <img src="../assets/logo-generated.png" alt="" />
+            <span class="brand-copy">
+              <strong>(주)승진</strong>
+              <em>SEUNGJIN CO., LTD.</em>
+            </span>
           </div>
           <button class="small-outline-button" id="mobileLogoutButton" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -110,21 +114,21 @@
         <section class="welcome-panel">
           <div>
             <h1 id="homeTitle"><span id="mobileUserName">관리자</span>님, 환영합니다!</h1>
-            <p>오늘 필요한 현장 업무만 간단하게 처리하세요.</p>
+            <p>재고 관리 및 출고 업무를 관리하세요.</p>
           </div>
-          <div class="welcome-boxes" aria-hidden="true">
-            <img src="../assets/mobile-hero-warehouse.svg" alt="" />
+          <div class="welcome-art" aria-hidden="true">
+            <img src="../assets/mobile-login-hero-reference.png" alt="" />
           </div>
         </section>
 
         <div class="mobile-menu-list" aria-label="모바일 메뉴">
           <button class="mobile-menu-card" type="button" data-mobile-route="shipping">
             <span class="menu-icon scan-icon" aria-hidden="true">
-              <img src="../assets/mobile-menu-shipping.svg" alt="" />
+              <img src="../assets/mobile-icon-shipping-2d.png?v=20260711-home-2d-icons" alt="" />
             </span>
             <span class="menu-copy">
-              <strong>출고 등록</strong>
-              <small>출고대기 박스를 확인하고 모바일에서 바로 출고 처리합니다.</small>
+              <strong>출고 관리</strong>
+              <small>QR을 스캔하여 제품을 확인하고 출고 수량을 등록합니다.</small>
             </span>
             <span class="status-pill ready">사용 가능</span>
             <span class="menu-arrow" aria-hidden="true">→</span>
@@ -132,38 +136,38 @@
 
           <button class="mobile-menu-card locked" type="button" disabled>
             <span class="menu-icon work-icon" aria-hidden="true">
-              <img src="../assets/mobile-menu-work.svg" alt="" />
+              <img src="../assets/mobile-icon-work-2d.png?v=20260711-home-2d-icons" alt="" />
             </span>
             <span class="menu-copy">
               <strong>작업 현황</strong>
               <small>작업자가 등록한 작업 완료 현황을 확인합니다.</small>
             </span>
             <span class="status-pill pending">준비 중</span>
-            <span class="lock-mark" aria-hidden="true">준비</span>
+            <span class="lock-mark" aria-hidden="true">잠금</span>
           </button>
 
           <button class="mobile-menu-card locked" type="button" disabled>
             <span class="menu-icon inventory-icon" aria-hidden="true">
-              <img src="../assets/mobile-menu-inventory.svg" alt="" />
+              <img src="../assets/mobile-icon-inventory-2d.png?v=20260711-home-2d-icons" alt="" />
             </span>
             <span class="menu-copy">
               <strong>재고 현황 조회</strong>
               <small>현재 재고의 상태와 위치, 잔여 수량 등을 조회합니다.</small>
             </span>
             <span class="status-pill pending">준비 중</span>
-            <span class="lock-mark" aria-hidden="true">준비</span>
+            <span class="lock-mark" aria-hidden="true">잠금</span>
           </button>
 
-          <button class="mobile-menu-card locked" type="button" disabled>
+          <button class="mobile-menu-card" type="button" data-mobile-route="inventoryMove">
             <span class="menu-icon edit-icon" aria-hidden="true">
-              <img src="../assets/mobile-menu-edit.svg" alt="" />
+              <img src="../assets/mobile-icon-edit-2d.png?v=20260711-home-2d-icons" alt="" />
             </span>
             <span class="menu-copy">
               <strong>재고 수정 / 예외 처리</strong>
               <small>재고 수량, 위치, 상태 등 예외 사항을 수정하고 관리합니다.</small>
             </span>
-            <span class="status-pill pending">준비 중</span>
-            <span class="lock-mark" aria-hidden="true">준비</span>
+            <span class="status-pill ready">사용 가능</span>
+            <span class="menu-arrow" aria-hidden="true">›</span>
           </button>
         </div>
       </section>
@@ -175,7 +179,7 @@
               <path d="M15 18 9 12l6-6"></path>
             </svg>
           </button>
-          <h1 id="shippingTitle">출고 등록</h1>
+          <h1 id="shippingTitle">출고 관리</h1>
           <button class="scan-button" id="openScannerButton" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"></path>
@@ -193,7 +197,27 @@
             </svg>
             <input id="shippingSearchInput" type="search" placeholder="제품명 / 업체명 검색" />
           </label>
-          <div class="date-chip-row" id="dateChipRow" aria-label="조회 날짜"></div>
+          <div class="shipping-live-clock" aria-label="현재 일시">
+            <span>오늘</span>
+            <strong id="shippingLiveDate">-</strong>
+            <time id="shippingLiveTime" datetime="">--:--:--</time>
+          </div>
+          <button class="manual-shipping-open-button" id="openManualShippingButton" type="button">
+            <span class="manual-shipping-open-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="m4 7 8-4 8 4-8 4-8-4Z"></path>
+                <path d="M4 7v10l8 4 2.6-1.3M20 7v5M12 11v10"></path>
+                <path d="M16 16h6M19 13v6"></path>
+              </svg>
+            </span>
+            <span class="manual-shipping-open-copy">
+              <strong>수동 출고 등록</strong>
+              <small>제품명과 최초 박스 수로 빠르게 선택</small>
+            </span>
+            <svg class="manual-shipping-open-arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
+          </button>
           <div class="shipping-action-row">
             <p>총 <strong id="mobileShippingCount">0</strong>건</p>
             <button class="control-button" id="refreshShippingButton" type="button">
@@ -204,41 +228,119 @@
               </svg>
               새로고침
             </button>
-            <button class="control-button" id="filterShippingButton" type="button">
+            <button class="shipping-completed-toggle" id="showCompletedShippingToggle" type="button" aria-pressed="false" aria-label="출고완료 박스 보기" title="출고완료 박스 보기">
+              <span class="shipping-toggle-track" aria-hidden="true"><span></span></span>
+              완료 박스
+            </button>
+            <button class="control-button" id="filterShippingButton" type="button" aria-haspopup="menu" aria-expanded="false">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h16M7 12h10M10 17h4"></path>
               </svg>
               필터
             </button>
           </div>
+          <div class="shipping-filter-menu" id="shippingFilterMenu" hidden role="menu" aria-label="출고 목록 정렬"></div>
         </div>
 
         <section class="shipping-list-panel" id="shippingListPanel" aria-live="polite"></section>
       </section>
 
+      <section class="screen app-screen" id="inventoryMoveScreen" aria-labelledby="inventoryMoveTitle">
+        <header class="mobile-toolbar">
+          <button class="nav-icon-button" type="button" data-mobile-route="home" aria-label="뒤로">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 18 9 12l6-6"></path>
+            </svg>
+          </button>
+          <h1 id="inventoryMoveTitle">재고 수정</h1>
+          <button class="scan-button" id="openInventoryScannerButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"></path>
+              <path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM14 14h2v2h-2z"></path>
+            </svg>
+            QR 스캔
+          </button>
+        </header>
+
+        <div class="shipping-controls inventory-move-controls">
+          <label class="mobile-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m16 16 4 4"></path>
+            </svg>
+            <input id="inventoryMoveSearchInput" type="search" placeholder="제품명 / 업체명 / 보관장소 검색" />
+          </label>
+          <div class="shipping-live-clock" aria-label="현재 일시">
+            <span>오늘</span>
+            <strong id="inventoryMoveLiveDate">-</strong>
+            <time id="inventoryMoveLiveTime" datetime="">--:--:--</time>
+          </div>
+          <div class="shipping-action-row">
+            <p>총 <strong id="inventoryMoveCount">0</strong>건</p>
+            <button class="control-button" id="refreshInventoryMoveButton" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 12a9 9 0 0 1-15.6 6"></path>
+                <path d="M3 12a9 9 0 0 1 15.6-6"></path>
+                <path d="M18 2v4h-4M6 22v-4h4"></path>
+              </svg>
+              새로고침
+            </button>
+          </div>
+        </div>
+
+        <section class="shipping-list-panel inventory-move-list-panel" id="inventoryMoveListPanel" aria-live="polite"></section>
+      </section>
+
       <nav class="bottom-nav" id="bottomNav" aria-label="모바일 하단 메뉴" hidden>
         <button type="button" data-mobile-route="home" class="active">
-          <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"></path></svg>
+          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m3 11 9-8 9 8" />
+            <path d="M5 10v10h14V10" />
+            <path d="M9 20v-6h6v6" />
+          </svg>
           홈
         </button>
         <button type="button" data-mobile-route="shipping">
-          <svg viewBox="0 0 24 24"><path d="M8 4h8l1 3H7z"></path><path d="M6 7h12v14H6z"></path></svg>
-          출고 등록
+          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m3.7 7.5 8.3 4.8 8.3-4.8" />
+            <path d="M12 21.5v-9.2" />
+            <path d="M20.3 13.1V7.5L12 2.7 3.7 7.5v9l8.3 4.8 2.1-1.2" />
+            <path d="M17 18h4" />
+            <path d="M19 16v4" />
+          </svg>
+          출고 관리
         </button>
         <button type="button" disabled>
-          <svg viewBox="0 0 24 24"><path d="M8 4h8l1 3H7z"></path><path d="M6 7h12v14H6z"></path><path d="m9 14 2 2 4-5"></path></svg>
+          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="5" y="4" width="14" height="17" rx="2" />
+            <path d="M9 4.5V3h6v1.5" />
+            <path d="m9 13 2 2 4-5" />
+          </svg>
           작업완료현황
         </button>
         <button type="button" disabled>
-          <svg viewBox="0 0 24 24"><path d="M4 7 12 3l8 4-8 4-8-4z"></path><path d="M4 7v10l8 4 8-4V7"></path></svg>
+          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m3.7 7.5 8.3 4.8 8.3-4.8" />
+            <path d="M12 21.5v-9.2" />
+            <path d="M20.3 13.1V7.5L12 2.7 3.7 7.5v9l8.3 4.8 2.3-1.3" />
+            <circle cx="18" cy="18" r="2.5" />
+            <path d="m20 20 1.5 1.5" />
+          </svg>
           재고 현황 조회
         </button>
-        <button type="button" disabled>
-          <svg viewBox="0 0 24 24"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20z"></path></svg>
+        <button type="button" data-mobile-route="inventoryMove">
+          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-6" />
+            <path d="m8 16 1-.2 8.8-8.8a2.1 2.1 0 0 0-3-3L6 12.8 5.8 16z" />
+            <path d="m13.8 5 3 3" />
+          </svg>
           재고 수정
         </button>
         <button type="button" disabled>
-          <svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg>
+          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+          </svg>
           내 정보
         </button>
       </nav>
@@ -246,11 +348,78 @@
       <div class="modal-backdrop" id="confirmModal" hidden>
         <section class="mobile-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
           <h2 id="confirmTitle">출고 확인</h2>
-          <p>해당 제품을 출고 처리하시겠습니까?</p>
+          <p id="confirmMessage">해당 제품을 출고 처리하시겠습니까?</p>
           <strong id="confirmProductName">-</strong>
+          <div class="confirm-meta-list" id="confirmMetaList" aria-label="출고 상세"></div>
           <div class="dialog-actions">
             <button class="secondary-action compact" id="cancelConfirmButton" type="button">취소</button>
             <button class="primary-action compact" id="acceptConfirmButton" type="button">확인</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="modal-backdrop box-picker-backdrop" id="shippingBoxPickerModal" hidden>
+        <section class="mobile-box-picker" role="dialog" aria-modal="true" aria-labelledby="shippingBoxPickerTitle">
+          <header class="box-picker-header">
+            <div>
+              <span>출고 관리</span>
+              <h2 id="shippingBoxPickerTitle">박스 수정</h2>
+            </div>
+            <button id="closeShippingBoxPickerButton" type="button" aria-label="박스 선택 닫기">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"></path></svg>
+            </button>
+          </header>
+
+          <div class="box-picker-box-stage" id="boxPickerBoxStage">
+            <div class="box-picker-selected-product">
+              <div>
+                <span id="boxPickerClientName">-</span>
+                <strong id="boxPickerProductName">-</strong>
+              </div>
+              <em id="boxPickerProductMeta">-</em>
+            </div>
+            <div class="box-picker-section-header">
+              <div>
+                <h3 id="boxPickerSectionTitle">이번 출고 박스</h3>
+                <p id="boxPickerSectionDescription">출고할 박스를 선택하거나 선택 해제해주세요.</p>
+              </div>
+              <label>
+                <input id="boxPickerSelectAll" type="checkbox" />
+                <span>전체 선택</span>
+              </label>
+            </div>
+            <div class="box-picker-box-list" id="boxPickerBoxList"></div>
+            <footer class="box-picker-footer">
+              <p><strong id="boxPickerSelectedCount">0</strong>개 박스 선택</p>
+              <button class="secondary-action compact" id="cancelShippingBoxPickerButton" type="button">취소</button>
+              <button class="primary-action compact" id="confirmShippingBoxPickerButton" type="button">수정 완료</button>
+            </footer>
+          </div>
+        </section>
+      </div>
+
+      <div class="modal-backdrop box-picker-backdrop" id="manualShippingModal" hidden>
+        <section class="mobile-box-picker manual-shipping-picker" role="dialog" aria-modal="true" aria-labelledby="manualShippingTitle">
+          <header class="box-picker-header">
+            <div>
+              <span>출고 관리</span>
+              <h2 id="manualShippingTitle">수동출고등록</h2>
+            </div>
+            <button id="closeManualShippingButton" type="button" aria-label="수동출고등록 닫기">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"></path></svg>
+            </button>
+          </header>
+
+          <div class="box-picker-product-stage">
+            <label class="box-picker-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m16 16 4 4"></path>
+              </svg>
+              <input id="manualShippingSearchInput" type="search" placeholder="제품명을 입력하세요" autocomplete="off" />
+            </label>
+            <p class="box-picker-guide">제품명과 최초 총 박스 수를 확인한 뒤 선택해주세요.</p>
+            <div class="box-picker-product-list" id="manualShippingProductList" aria-live="polite"></div>
           </div>
         </section>
       </div>
@@ -259,26 +428,67 @@
         <div class="scanner-camera" id="scannerCamera">
           <video id="scannerVideo" playsinline muted></video>
           <div class="scanner-shade"></div>
-          <div class="scanner-frame" aria-hidden="true"></div>
+          <div class="scanner-frame">
+            <button class="scanner-focus-target" id="scannerFocusButton" type="button" aria-label="화면 가운데에 카메라 초점 맞추기">
+              <span aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="hardware-scanner-panel" id="hardwareScannerPanel" aria-hidden="true">
+            <span class="hardware-scanner-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M3 5V3h2M19 3h2v2M21 19v2h-2M5 21H3v-2"></path>
+                <path d="M7 8v8M10 8v8M14 8v8M17 8v8"></path>
+              </svg>
+            </span>
+            <strong>외부 스캐너 대기 중</strong>
+            <span>QR을 스캔하면 자동으로 등록됩니다.</span>
+            <p id="hardwareScannerStatus"><i aria-hidden="true"></i><span>스캐너 입력을 기다리고 있습니다.</span></p>
+          </div>
         </div>
         <header class="scanner-header">
           <button class="scanner-close" id="closeScannerButton" type="button" aria-label="닫기">
             <svg viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"></path></svg>
           </button>
-          <h2>QR 스캔</h2>
+          <h2 id="scannerTitle">QR 스캔</h2>
           <button class="scanner-flash" id="toggleFlashButton" type="button">OFF</button>
         </header>
-        <p class="scanner-tip">제품 박스의 QR 코드를 스캔해 주세요.</p>
-        <p class="scanner-help">QR 코드가 인식되지 않으면 수동 입력을 사용해주세요.</p>
-        <div class="scanner-bottom">
-          <button id="albumQrButton" type="button">
-            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"></path><path d="m4 15 4-4 4 4 3-3 5 5"></path></svg>
-            앨범에서 QR 선택
-          </button>
-          <button id="manualQrButton" type="button">
-            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
-            수동 입력
-          </button>
+        <p class="scanner-tip" id="scannerTip">제품 박스의 QR 코드를 스캔해 주세요.</p>
+        <p class="scanner-help" id="scannerHelpText">카메라 또는 외부 스캐너로 QR을 읽어주세요.</p>
+        <div class="scanner-list-panel" id="scannerListPanel">
+          <button class="scanner-sheet-handle" id="scannerSheetHandle" type="button" aria-label="스캔 목록 펼치기"></button>
+          <div class="scanner-list-header">
+            <div>
+              <span>현재 스캔 목록</span>
+              <strong><b id="scannerScannedCount">0</b>건</strong>
+            </div>
+            <button class="scanner-mode-toggle" id="scannerModeToggleButton" type="button" aria-label="QR 입력 방식 전환" aria-pressed="false">
+              <span class="active" data-scanner-mode="camera">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h3l2-2h6l2 2h3v11H4z"></path>
+                  <circle cx="12" cy="12.5" r="3.5"></circle>
+                </svg>
+                카메라
+              </span>
+              <span data-scanner-mode="hardware">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 5V3h2M19 3h2v2M21 19v2h-2M5 21H3v-2"></path>
+                  <path d="M7 8v8M10 8v8M14 8v8M17 8v8"></path>
+                </svg>
+                스캐너
+              </span>
+            </button>
+          </div>
+          <div class="scanner-scanned-list" id="scannerScannedList" aria-live="polite"></div>
+          <div class="scanner-bottom">
+            <button id="scannerPendingButton" type="button">
+              <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
+              출고대기 등록
+            </button>
+            <button id="scannerDoneButton" type="button">
+              <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
+              출고
+            </button>
+          </div>
         </div>
       </section>
 
@@ -286,7 +496,7 @@
     </main>
 
     <script src="../config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <script src="./mobile.js"></script>
+    <script src="../vendor/jsQR.min.js"></script>
+    <script src="./mobile.js?v=20260721-manual-picker-keyboard"></script>
   </body>
 </html>
