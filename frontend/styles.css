@@ -6715,3 +6715,760 @@ input {
     width: 100%;
   }
 }
+
+/* DEV PC redesign — selected clean white layout */
+@media (min-width: 1101px) {
+  .admin-body {
+    --dev-navy: #071f49;
+    --dev-ink: #17233a;
+    --dev-muted: #637087;
+    --dev-line: #dfe5ed;
+    --dev-soft: #f6f8fb;
+    --dev-gold: #d5a33f;
+    --dev-teal: #0a9b91;
+    overflow: hidden;
+    color: var(--dev-ink);
+    background: #f6f8fb;
+  }
+
+  .admin-shell {
+    grid-template-columns: 5.25rem minmax(0, 1fr);
+    grid-template-rows: 4.25rem minmax(0, 1fr);
+  }
+
+  .admin-topbar {
+    z-index: 60;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid var(--dev-line);
+    background: #fff;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .admin-brand {
+    gap: 0.62rem;
+    font-size: 0.94rem;
+    letter-spacing: -0.02em;
+  }
+
+  .admin-brand img {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .admin-actions {
+    gap: 0.75rem;
+  }
+
+  .icon-button,
+  .user-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .admin-user {
+    gap: 0.55rem;
+    min-height: 2.5rem;
+    padding-left: 0.85rem;
+    font-size: 0.86rem;
+  }
+
+  .admin-sidebar {
+    border-right: 1px solid var(--dev-line);
+    background: #fff;
+  }
+
+  .side-nav {
+    gap: 0.2rem;
+    padding: 0.75rem 0;
+  }
+
+  .side-nav-row {
+    min-height: 4rem;
+    padding: 0;
+  }
+
+  .side-nav-item {
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    min-height: 3.75rem;
+    padding: 0.3rem 0.2rem;
+    gap: 0.26rem;
+    color: #69758a;
+    font-size: 0.65rem;
+    border-radius: 0;
+  }
+
+  .side-nav-row:has(.side-nav-item.active) {
+    background: transparent;
+  }
+
+  .side-nav-row:has(.side-nav-item.active)::after {
+    display: none;
+  }
+
+  .side-nav-row:has(.side-nav-item.active)::before {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0.18rem;
+    border-radius: 0 999px 999px 0;
+    background: var(--dev-gold);
+  }
+
+  .side-nav-item.active {
+    color: var(--dev-navy);
+    background: #f8f5ef;
+  }
+
+  .side-nav-item.disabled {
+    opacity: 0.7;
+  }
+
+  .side-icon,
+  .side-icon.visual,
+  .side-icon.product {
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 0.32rem;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .side-icon.visual img,
+  .side-icon.product img {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .sidebar-footer {
+    display: grid;
+    place-items: center;
+    padding: 0.75rem 0.2rem;
+    border-color: var(--dev-line);
+  }
+
+  .sidebar-footer img {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .sidebar-footer strong {
+    display: none;
+  }
+
+  .sidebar-footer span {
+    display: none;
+  }
+
+  .admin-main {
+    scroll-behavior: auto;
+    padding: 1.35rem 1.45rem 2rem;
+    background: #f6f8fb;
+  }
+
+  .page-heading,
+  .inventory-view .page-heading,
+  .product-view .page-heading,
+  .shipping-view .page-heading,
+  .inbound-view .page-heading {
+    align-items: center;
+    min-height: 3rem;
+    margin: 0 0 0.85rem;
+  }
+
+  .page-heading h1,
+  .inventory-view .page-heading h1,
+  .product-view .page-heading h1,
+  .shipping-view .page-heading h1,
+  .inbound-view .page-heading h1 {
+    margin: 0.08rem 0 0.18rem;
+    color: var(--dev-navy);
+    font-size: 1.4rem;
+    line-height: 1.22;
+    letter-spacing: -0.035em;
+  }
+
+  .page-heading p,
+  .inventory-view .page-heading p,
+  .product-view .page-heading p,
+  .shipping-view .page-heading p,
+  .inbound-view .page-heading p {
+    color: var(--dev-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .eyebrow,
+  .inventory-view .eyebrow,
+  .product-view .eyebrow,
+  .shipping-view .eyebrow,
+  .inbound-view .eyebrow {
+    color: #9a752f !important;
+    font-size: 0.65rem;
+    letter-spacing: 0.09em;
+  }
+
+  .primary-action,
+  .secondary-action {
+    min-height: 2.65rem;
+    padding: 0 1rem;
+    border-radius: 0.38rem;
+    box-shadow: none;
+  }
+
+  .primary-action {
+    background: var(--dev-navy);
+  }
+
+  .secondary-action {
+    border-color: #d7dee8;
+  }
+
+  .primary-action:hover,
+  .secondary-action:hover {
+    transform: none;
+  }
+
+  .inbound-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .inbound-workspace {
+    gap: 0.65rem;
+  }
+
+  .inbound-card,
+  .inbound-summary-card,
+  .table-panel,
+  .inventory-summary-card,
+  .inventory-filter-panel,
+  .inventory-chart-card,
+  .inventory-attention-card,
+  .inventory-list-panel,
+  .shipping-settlement-panel,
+  .shipping-summary-card,
+  .shipping-list-panel,
+  .product-hero,
+  .list-tools {
+    border: 1px solid var(--dev-line);
+    border-radius: 0.5rem;
+    background: #fff;
+    box-shadow: 0 0.2rem 0.65rem rgba(12, 31, 65, 0.035);
+  }
+
+  .inbound-card {
+    padding: 0.85rem 0.95rem 0.95rem;
+  }
+
+  .inbound-card h2,
+  .inbound-summary-card h2,
+  .panel-title-row h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.42rem;
+    margin-bottom: 0.72rem;
+    padding-left: 0;
+    font-size: 0.88rem;
+  }
+
+  .inbound-card h2::before,
+  .inbound-list-panel .panel-title-row h2::before {
+    display: none;
+  }
+
+  .section-step {
+    display: inline-grid;
+    place-items: center;
+    width: 1.18rem;
+    height: 1.18rem;
+    color: var(--dev-navy);
+    font-size: 0.72rem;
+    border-left: 0.16rem solid var(--dev-gold);
+  }
+
+  .inbound-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem 1.1rem;
+  }
+
+  .inbound-card:not(.inbound-quantity-card) .form-field {
+    display: grid;
+    grid-template-columns: 6.7rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .inbound-card:not(.inbound-quantity-card) .form-field > span:first-child {
+    margin: 0;
+  }
+
+  .quantity-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-areas:
+      "box box-count remain tray defect reason"
+      "file-actions file-actions file-actions file-actions file-actions file-actions";
+    gap: 0.58rem 0.75rem;
+  }
+
+  .inbound-view .form-field,
+  .inventory-filter-field,
+  .shipping-filter-field {
+    font-size: 0.76rem;
+  }
+
+  .inbound-view .form-field > span,
+  .inbound-view .usage-field legend {
+    margin-bottom: 0.3rem;
+  }
+
+  .inbound-view .form-field input:not([type="radio"]),
+  .inbound-view .form-field select,
+  .inbound-view .form-field textarea,
+  .multi-select-trigger {
+    min-height: 2.42rem;
+    color: var(--dev-ink);
+    border-color: #dbe2eb;
+    border-radius: 0.34rem;
+    background-color: #fff;
+    box-shadow: none;
+  }
+
+  .inbound-view .form-field input:not([type="radio"]):disabled {
+    color: #748196;
+    background: #f5f7fa;
+  }
+
+  .inbound-view .form-field input::placeholder,
+  .inventory-filter-field input::placeholder,
+  .shipping-filter-field input::placeholder,
+  .product-view input::placeholder {
+    color: #7d899b;
+  }
+
+  .editable-lock-input button {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-color: #d8e0ea;
+  }
+
+  .quantity-file-actions {
+    grid-template-columns: repeat(2, minmax(0, 12rem));
+    justify-content: end;
+    gap: 0.55rem;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .quantity-file-actions .secondary-action {
+    min-height: 4.2rem;
+    border-style: dashed;
+    border-color: #ced8e5;
+    background: #fbfcfe;
+  }
+
+  .upload-tile-content {
+    flex-direction: column;
+    gap: 0.28rem;
+    font-size: 0.76rem;
+  }
+
+  .upload-tile-icon {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  .inbound-summary-card {
+    position: static;
+    display: grid;
+    grid-template-columns: 7rem minmax(19rem, 1.15fr) minmax(20rem, 1.25fr) minmax(13rem, 0.8fr) 8.5rem;
+    align-items: stretch;
+    gap: 0.7rem;
+    padding: 0.68rem 0.8rem;
+  }
+
+  .inbound-summary-card h2 {
+    align-self: center;
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .summary-icon {
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid #e1e6ed;
+    border-radius: 0.4rem;
+    background: #fff;
+    box-shadow: 0 0.22rem 0.45rem rgba(12, 31, 65, 0.08);
+  }
+
+  .inbound-summary-card dl,
+  .summary-order-progress {
+    border-color: #dde4ed;
+    border-radius: 0.4rem;
+    background: #fbfcfe;
+  }
+
+  .inbound-summary-card dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .inbound-summary-card dl div {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 2.55rem;
+    padding: 0.45rem 0.65rem;
+    border-right: 1px solid #e4e9f0;
+    border-bottom: 0;
+  }
+
+  .inbound-summary-card dl div:last-child {
+    border-right: 0;
+  }
+
+  .inbound-summary-card dt {
+    color: #5d6a80;
+    font-size: 0.76rem;
+  }
+
+  .inbound-summary-card dd,
+  .inbound-summary-card dd strong {
+    color: var(--dev-navy);
+    font-size: 0.9rem;
+  }
+
+  .summary-order-progress {
+    gap: 0.5rem;
+    margin-top: 0;
+    padding: 0.68rem;
+  }
+
+  .summary-order-row strong span {
+    color: #c99735;
+  }
+
+  .summary-current-inbound-row {
+    background: #e9f7f5;
+    box-shadow: inset 0 0 0 1px #c8ebe6;
+  }
+
+  .summary-totals {
+    align-content: center;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0 0.75rem;
+    border-top: 0;
+    border-left: 1px solid #dfe6ef;
+  }
+
+  .summary-total span,
+  .summary-total strong {
+    color: var(--dev-navy);
+  }
+
+  .summary-total > span {
+    color: #526078;
+    font-size: 0.74rem;
+    font-weight: 800;
+  }
+
+  .summary-total strong {
+    color: #c99735;
+    font-size: 1rem;
+  }
+
+  .inbound-submit {
+    align-self: stretch;
+    margin: 0;
+    min-height: 100%;
+  }
+
+  .panel-title-row,
+  .inventory-list-header,
+  .shipping-list-header {
+    min-height: 3.25rem;
+    padding: 0.72rem 0.95rem;
+    border-color: var(--dev-line);
+    background: #fff;
+  }
+
+  .inbound-list-tools {
+    gap: 0.45rem;
+  }
+
+  .inbound-list-search {
+    min-width: 17rem;
+  }
+
+  .search-field input,
+  .client-filter select,
+  .date-range-field input,
+  .inventory-filter-field input,
+  .inventory-filter-field select,
+  .shipping-filter-field input,
+  .shipping-filter-field select {
+    height: 2.5rem;
+    border-color: #d9e0e9;
+    border-radius: 0.34rem;
+    background-color: #fff;
+  }
+
+  .product-table {
+    color: #2a3548;
+    font-size: 0.78rem;
+  }
+
+  .product-table th,
+  .product-table td {
+    height: 3rem;
+    padding: 0 0.78rem;
+    border-color: #e7ebf1;
+  }
+
+  .product-table th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    color: #435067;
+    font-size: 0.74rem;
+    background: #f7f9fc;
+  }
+
+  .product-table tbody tr:hover {
+    background: #fafbfd;
+  }
+
+  .table-scroll {
+    scrollbar-color: #c8d0dc #f5f7fa;
+  }
+
+  .table-footer {
+    min-height: 3.65rem;
+    padding: 0.65rem 0.95rem;
+    border-top: 1px solid #e7ebf1;
+  }
+
+  .pagination button {
+    min-width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 0.32rem;
+  }
+
+  .inventory-summary-grid {
+    gap: 0.65rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .inventory-summary-card {
+    min-height: 5.2rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .inventory-stat-icon,
+  .inventory-stat-icon img {
+    width: 3.2rem;
+    height: 3.2rem;
+  }
+
+  .inventory-stat-icon {
+    border-radius: 0.62rem;
+  }
+
+  .inventory-summary-label {
+    color: #5a687e;
+    font-size: 0.78rem;
+  }
+
+  .inventory-summary-value {
+    font-size: 1.45rem;
+  }
+
+  .inventory-insight-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 15.8rem;
+    gap: 0.65rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .inventory-chart-card,
+  .inventory-attention-card {
+    min-height: 16.5rem;
+    padding: 0.9rem;
+  }
+
+  .inventory-bars {
+    min-height: 9.3rem;
+  }
+
+  .attention-item {
+    border: 1px solid #e2e7ee;
+    background: #fafbfd;
+  }
+
+  .inventory-list-totals {
+    padding: 0.65rem 0.95rem;
+    background: #f8fafc;
+  }
+
+  .inventory-total-chip {
+    min-height: 2.4rem;
+    border-color: #e0e6ee;
+    border-radius: 0.36rem;
+  }
+
+  .product-view .product-hero {
+    gap: 0.7rem;
+    margin-bottom: 0.65rem;
+    padding: 0.7rem 0.9rem;
+  }
+
+  .product-view .product-hero-visual {
+    width: 3.25rem;
+    height: 3.25rem;
+    background: #f5f7fa;
+  }
+
+  .product-view .product-hero-visual img {
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+
+  .product-view .list-tools {
+    margin-bottom: 0.65rem;
+    padding: 0.7rem 0.9rem;
+  }
+
+  .shipping-settlement-panel {
+    margin-bottom: 0.65rem;
+  }
+
+  .shipping-settlement-date-tools {
+    gap: 0.45rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .shipping-settlement-date-tools label {
+    height: 2.5rem;
+    min-width: 12.2rem;
+    border-radius: 0.34rem;
+  }
+
+  .shipping-settlement-date-tools button {
+    height: 2.5rem;
+    border-radius: 0.34rem;
+  }
+
+  .shipping-settlement-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    padding: 0.8rem 0.95rem;
+  }
+
+  .shipping-settlement-summary .shipping-summary-card {
+    min-height: 4.7rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid #e2e7ee;
+    background: #fafbfd;
+  }
+
+  .shipping-settlement-summary .shipping-summary-icon,
+  .shipping-settlement-summary .shipping-summary-icon img {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .shipping-settlement-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.6rem;
+    padding: 0.8rem 0.95rem 0.95rem;
+  }
+
+  .shipping-settlement-card {
+    min-height: 4.25rem;
+    border-radius: 0.38rem;
+    background: #fff;
+  }
+
+  .shipping-filter-panel {
+    padding: 0.8rem 0.95rem;
+    background: #fff;
+  }
+
+  .shipping-filter-grid,
+  .inventory-filter-grid {
+    gap: 0.62rem;
+  }
+
+  .shipping-filter-actions {
+    margin-top: 0.65rem;
+  }
+
+  .row-action,
+  .shipping-row-button,
+  .shipping-action-complete,
+  .editable-lock-input button,
+  .icon-button {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #2c69b7;
+    outline-offset: 2px;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1360px) {
+  .admin-shell {
+    grid-template-columns: 5.25rem minmax(0, 1fr);
+  }
+
+  .admin-main {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .inbound-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .quantity-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "box box-count remain"
+      "tray defect reason"
+      "file-actions file-actions file-actions";
+  }
+
+  .inbound-summary-card {
+    grid-template-columns: 6.5rem minmax(17rem, 1fr) minmax(18rem, 1.1fr) minmax(12rem, 0.72fr) 7.5rem;
+  }
+
+  .quantity-file-actions .secondary-action {
+    min-height: 3.8rem;
+  }
+
+  .inventory-insight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-attention-card {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: auto auto;
+    min-height: 0;
+  }
+
+  .inventory-attention-card h2 {
+    grid-column: 1 / -1;
+  }
+}

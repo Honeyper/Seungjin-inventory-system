@@ -127,7 +127,7 @@
           <div class="inbound-layout">
             <div class="inbound-workspace">
               <section class="inbound-card" aria-labelledby="inboundBaseTitle">
-                <h2 id="inboundBaseTitle">기본 정보</h2>
+                <h2 id="inboundBaseTitle"><span class="section-step">1</span><span>기본 정보</span></h2>
                 <div class="inbound-form-grid">
                   <label class="form-field">
                     <span>입고일 <b>*</b></span>
@@ -241,7 +241,7 @@
               </section>
 
               <section class="inbound-card inbound-quantity-card" aria-labelledby="inboundQuantityTitle">
-                <h2 id="inboundQuantityTitle">수량 정보</h2>
+                <h2 id="inboundQuantityTitle"><span class="section-step">2</span><span>수량 · 첨부</span></h2>
                 <div class="inbound-form-grid quantity-grid">
                   <label class="form-field quantity-box">
                     <span>박스당 수량 (EA) <b>*</b></span>
@@ -261,7 +261,7 @@
                     </span>
                   </label>
                   <label class="form-field quantity-box-count">
-                    <span>입고 박스 수 (BOX) <b>*</b></span>
+                    <span>완박스 수 (BOX) <b>*</b></span>
                     <span class="unit-input">
                       <input id="inboundBoxCount" type="number" min="0" />
                       <i>box</i>
@@ -380,7 +380,7 @@
               </h2>
               <dl>
                 <div><dt>박스당 수량</dt><dd><strong id="calcBoxQty">-</strong> ea</dd></div>
-                <div><dt>입고 박스 수</dt><dd><strong id="calcBoxCount">-</strong> box</dd></div>
+                <div><dt>완박스 수</dt><dd><strong id="calcBoxCount">-</strong> box</dd></div>
                 <div><dt>잔량 수량</dt><dd><strong id="calcRemainQty">-</strong> ea</dd></div>
               </dl>
               <div class="summary-order-progress" aria-label="발주 진행 정보">
@@ -518,8 +518,8 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="8" aria-label="입고 박스 수 정렬">
-                        입고 박스 수
+                      <button class="sort-header-button" type="button" data-inbound-sort="8" aria-label="완박스 수 정렬">
+                        완박스 수
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
                           <path class="sort-icon-down" d="m8 14 4 4 4-4" />
@@ -1003,10 +1003,6 @@
               <article class="shipping-settlement-card rate">
                 <span>불량률 평균</span>
                 <strong><b id="shippingSettlementDefectRate">0</b><em>%</em></strong>
-              </article>
-              <article class="shipping-settlement-card share">
-                <span>검수 비중</span>
-                <strong><b id="shippingSettlementInspectionShare">0</b><em>%</em></strong>
               </article>
             </div>
           </section>

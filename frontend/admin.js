@@ -930,6 +930,7 @@ function setActiveView(view) {
 
   closeRowActionMenu();
   closeInboundRowActionMenu();
+  document.querySelector(".admin-main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
 
   if (view === "inventory" && !state.inventoryLoaded) {
     loadInventoryDashboard();
@@ -3287,7 +3288,7 @@ function validateInboundPayload(payload) {
 
   const positiveNumberFields = [
     ["boxQuantity", "박스당 수량"],
-    ["inboundBoxCount", "입고 박스 수"],
+    ["inboundBoxCount", "완박스 수"],
     ["inspectionQuantity", "검수 수량"]
   ];
 
@@ -5857,7 +5858,7 @@ function renderInboundDetail(inbound) {
       <h3 id="inboundDetailQuantityTitle">수량 정보</h3>
       <div class="detail-grid">
         ${detailItem("박스당 수량", inbound.boxQuantity)}
-        ${detailItem("입고 박스 수", inbound.inboundBoxCount)}
+        ${detailItem("완박스 수", inbound.inboundBoxCount)}
         ${detailItem("잔량", inbound.remainQuantity)}
         ${detailItem("박스 총 수량", inbound.boxTotalCount)}
         ${detailItem("입고 총 수량", inbound.inboundTotalQuantity)}
@@ -6110,7 +6111,7 @@ function renderInboundEditForm(inbound) {
           ${renderEditableUnitInput("inboundEditBoxQty", "박스당 수량 수정", extractQuantityNumber(inbound.boxQuantity), "ea", true)}
         </label>
         <label class="form-field">
-          <span>입고 박스 수 (BOX) <b>*</b></span>
+          <span>완박스 수 (BOX) <b>*</b></span>
           ${renderUnitInput("inboundEditBoxCount", extractQuantityNumber(inbound.inboundBoxCount), "box")}
         </label>
         <label class="form-field">
@@ -6421,7 +6422,7 @@ function validateInboundEditPayload(payload) {
 
   const positiveNumberFields = [
     ["boxQuantity", "박스당 수량"],
-    ["inboundBoxCount", "입고 박스 수"],
+    ["inboundBoxCount", "완박스 수"],
     ["inspectionQuantity", "검수 수량"]
   ];
 
