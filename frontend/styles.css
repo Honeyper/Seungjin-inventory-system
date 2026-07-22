@@ -7626,6 +7626,129 @@ input {
   font-size: 1.35rem;
 }
 
+/* Multiple remainder boxes */
+.remainder-field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.15rem;
+  margin-bottom: 0.28rem;
+}
+
+.remainder-field-heading > span {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.multi-remainder-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  min-width: 0;
+  color: #59677d;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.inbound-view .form-field .multi-remainder-toggle input[type="checkbox"],
+.inbound-edit-section .form-field .multi-remainder-toggle input[type="checkbox"] {
+  width: 0.92rem;
+  min-width: 0.92rem;
+  height: 0.92rem;
+  min-height: 0.92rem;
+  margin: 0;
+  padding: 0;
+  border-radius: 0.2rem;
+  box-shadow: none;
+  accent-color: var(--gold);
+}
+
+.multiple-remainder-panel {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.multiple-remainder-panel[hidden],
+.quantity-remain > .unit-input[hidden],
+.inbound-edit-remainder-field > .unit-input[hidden] {
+  display: none;
+}
+
+.remainder-input-list {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.remainder-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.36rem;
+}
+
+.remainder-input-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.remainder-input-copy > span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.remove-remainder-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.45rem;
+  min-width: 2.45rem;
+  height: 2.45rem;
+  padding: 0;
+  border: 1px solid #d8e1ed;
+  border-radius: 0.42rem;
+  color: #6e7b8f;
+  background: #fff;
+  cursor: pointer;
+}
+
+.remove-remainder-button .material-symbols-outlined {
+  font-size: 1.2rem;
+}
+
+.remove-remainder-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.add-remainder-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 2.15rem;
+  padding: 0 0.6rem;
+  border: 1px dashed #d5a646;
+  border-radius: 0.42rem;
+  color: #8e6517;
+  background: #fffaf0;
+  font-size: 0.74rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.add-remainder-button .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.inbound-edit-remainder-field {
+  align-self: start;
+}
+
 /* Make the primary inbound registration action visually unmistakable. */
 @media (min-width: 1101px) {
   .inbound-summary-card {
