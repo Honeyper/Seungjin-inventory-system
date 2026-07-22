@@ -6910,6 +6910,35 @@ input {
     letter-spacing: 0.09em;
   }
 
+  .inbound-heading-trail {
+    display: flex;
+    align-items: center;
+    gap: 0.72rem;
+  }
+
+  .inbound-heading-trail .eyebrow {
+    margin: 0;
+    color: var(--dev-navy) !important;
+    font-size: 1.12rem;
+    letter-spacing: -0.03em;
+    text-transform: none;
+  }
+
+  .inbound-heading-trail h1 {
+    margin: 0;
+    padding-left: 0.72rem;
+    font-size: 1.12rem;
+    border-left: 1px solid #cfd7e2;
+  }
+
+  .inbound-heading-status {
+    margin: 0 !important;
+    padding-left: 0.72rem;
+    color: #9a752f !important;
+    font-size: 0.72rem !important;
+    border-left: 1px solid #dfe5ed;
+  }
+
   .primary-action,
   .secondary-action {
     min-height: 2.65rem;
