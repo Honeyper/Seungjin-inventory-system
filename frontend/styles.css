@@ -6978,14 +6978,6 @@ input {
     border-left: 1px solid #cfd7e2;
   }
 
-  .inbound-heading-status {
-    margin: 0 !important;
-    padding-left: 0.72rem;
-    color: #9a752f !important;
-    font-size: 0.72rem !important;
-    border-left: 1px solid #dfe5ed;
-  }
-
   .primary-action,
   .secondary-action {
     min-height: 2.65rem;
