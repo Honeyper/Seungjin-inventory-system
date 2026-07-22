@@ -6845,8 +6845,10 @@ input {
 
   .side-icon.visual img,
   .side-icon.product img {
-    width: 2rem;
-    height: 2rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    max-width: none;
+    max-height: none;
   }
 
   .sidebar-footer {
