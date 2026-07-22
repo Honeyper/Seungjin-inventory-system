@@ -5282,18 +5282,21 @@ input {
   width: 1.88rem;
   min-width: 0;
   height: 1.82rem;
-  color: var(--navy-dark);
-  border: 1px solid #dce4ef;
+  color: #526078;
+  border: 0;
   border-radius: 0.3rem;
-  background: #fff;
+  background: transparent;
   cursor: pointer;
   transform: translateY(-50%);
 }
 
-.editable-lock-input button:hover,
+.editable-lock-input button:hover {
+  color: var(--navy-dark);
+  background: #e9eef5;
+}
+
 .editable-lock-input button[aria-pressed="true"] {
   color: #fff;
-  border-color: var(--navy-dark);
   background: var(--navy-dark);
 }
 
@@ -5309,6 +5312,18 @@ input {
 
 .editable-lock-input button .lock-icon {
   display: none;
+}
+
+.editable-lock-input button .edit-icon {
+  display: none;
+}
+
+.editable-lock-input button:not([aria-pressed="true"])::before {
+  display: block;
+  width: 1.08rem;
+  height: 1.08rem;
+  background: url("./assets/menu-icon-edit-generated.png") center / contain no-repeat;
+  content: "";
 }
 
 .editable-lock-input button[aria-pressed="true"] .edit-icon {
@@ -7078,9 +7093,11 @@ input {
   }
 
   .editable-lock-input button {
-    width: 1.9rem;
-    height: 1.9rem;
-    border-color: #d8e0ea;
+    right: 0.35rem;
+    width: 1.72rem;
+    height: 1.72rem;
+    border: 0;
+    background: transparent;
   }
 
   .quantity-file-actions {
