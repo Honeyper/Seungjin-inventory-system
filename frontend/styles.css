@@ -26,6 +26,23 @@ body {
   background: #f6f9fc;
 }
 
+.material-symbols-outlined {
+  display: inline-block;
+  font-family: "Material Symbols Outlined";
+  font-size: 1.35rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
 button,
 input {
   font: inherit;
@@ -5320,10 +5337,16 @@ input {
 
 .editable-lock-input button:not([aria-pressed="true"])::before {
   display: block;
-  width: 1.3rem;
-  height: 1.3rem;
-  background: url("./assets/menu-icon-edit-generated.png") center / contain no-repeat;
-  content: "";
+  color: currentColor;
+  font-family: "Material Symbols Outlined";
+  font-size: 1.3rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  content: "edit";
+  font-feature-settings: "liga";
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
 }
 
 .editable-lock-input button[aria-pressed="true"] .edit-icon {
@@ -7550,4 +7573,63 @@ input {
   .inventory-attention-card h2 {
     grid-column: 1 / -1;
   }
+}
+
+/* Concept 3 icon language — clean outlined symbols */
+.side-icon .material-symbols-outlined {
+  display: inline-grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: currentColor;
+  font-size: 1.78rem;
+}
+
+.upload-tile-icon.material-symbols-outlined {
+  display: inline-grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  color: var(--navy-dark);
+  font-size: 1.55rem;
+}
+
+.summary-icon .material-symbols-outlined {
+  color: var(--navy-dark);
+  font-size: 1.35rem;
+}
+
+.inventory-stat-icon .material-symbols-outlined {
+  color: currentColor;
+  font-size: 2rem;
+}
+
+.attention-icon .material-symbols-outlined {
+  color: currentColor;
+  font-size: 1.45rem;
+}
+
+.product-hero-visual .material-symbols-outlined {
+  color: var(--navy-dark);
+  font-size: 3rem;
+}
+
+.shipping-summary-icon .material-symbols-outlined,
+.shipping-settlement-summary .shipping-summary-icon .material-symbols-outlined {
+  display: inline-grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  color: currentColor;
+  font-size: 2rem;
+  text-align: center;
+}
+
+.row-menu-item > .material-symbols-outlined {
+  flex: 0 0 auto;
+  width: 1.45rem;
+  height: 1.45rem;
+  color: currentColor;
+  font-size: 1.35rem;
 }
