@@ -7018,16 +7018,6 @@ input {
     display: none;
   }
 
-  .section-step {
-    display: inline-grid;
-    place-items: center;
-    width: 1.18rem;
-    height: 1.18rem;
-    color: var(--dev-navy);
-    font-size: 0.72rem;
-    border-left: 0.16rem solid var(--dev-gold);
-  }
-
   .inbound-form-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.65rem 1.1rem;
