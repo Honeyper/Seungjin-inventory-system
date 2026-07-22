@@ -5320,8 +5320,8 @@ input {
 
 .editable-lock-input button:not([aria-pressed="true"])::before {
   display: block;
-  width: 1.08rem;
-  height: 1.08rem;
+  width: 1.3rem;
+  height: 1.3rem;
   background: url("./assets/menu-icon-edit-generated.png") center / contain no-repeat;
   content: "";
 }
