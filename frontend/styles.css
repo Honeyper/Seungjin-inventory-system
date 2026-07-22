@@ -7181,9 +7181,29 @@ input {
   .summary-order-progress {
     grid-column: 2;
     grid-row: 2;
-    gap: 0.5rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.32rem 0.55rem;
+    align-content: center;
     margin-top: 0;
     padding: 0.68rem;
+  }
+
+  .summary-order-progress .summary-order-row {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.12rem;
+    min-width: 0;
+    padding: 0.25rem 0.35rem;
+  }
+
+  .summary-order-progress .summary-current-inbound-row {
+    margin-top: 0;
+  }
+
+  .summary-order-progress .summary-progress-meter,
+  .summary-order-progress > p {
+    grid-column: 1 / -1;
   }
 
   .summary-order-row strong span {
@@ -7225,9 +7245,10 @@ input {
   .inbound-submit {
     grid-column: 4;
     grid-row: 2;
-    align-self: stretch;
+    align-self: end;
     margin: 0;
-    min-height: 100%;
+    min-height: 2.7rem;
+    height: 2.7rem;
   }
 
   .panel-title-row,

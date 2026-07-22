@@ -3,7 +3,7 @@
 ## 비교 기준
 
 - 선택 시안: `/Users/kang-kyoungmo/.codex/generated_images/019f7ec1-a531-7630-86c5-a5feee995e1a/exec-07d5fd75-9371-4a86-aa22-15ccb2e7870b.png`
-- 입고관리 구현: `/tmp/seungjin-dev-live-inbound.png`
+- 입고관리 구현: `/tmp/seungjin-dev-live-inbound-final-2.png`
 - 재고관리 구현: `/tmp/seungjin-dev-live-inventory.png`
 - 출고관리 구현: `/tmp/seungjin-dev-live-shipping.png`
 - 제품관리 구현: `/tmp/seungjin-dev-live-products.png`
@@ -17,6 +17,7 @@
 3. 2번 시안에 빠져 있던 `입고 정보`는 사용자의 요청에 따라 전체 폭 가로 요약 패널로 추가했다.
 4. 거래명세서와 불량 사진은 3번 시안의 문서·카메라 아이콘 스타일을 유지했다.
 5. 입고관리, 재고관리, 출고관리, 제품관리에서 고정 헤더 겹침, 제목 잘림, 필터 정렬, 표 가독성을 다시 확인했다.
+6. 수량 입력 6개와 첨부 2개를 한 줄로 정렬하고, `입고 정보` 제목을 카드 상단으로 분리한 뒤 발주 진행 정보와 등록 버튼 높이를 압축했다.
 
 ## 최종 확인
 
