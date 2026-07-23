@@ -181,6 +181,7 @@ const closeInboundQrButton = document.querySelector("#closeInboundQrButton");
 const printInboundQrButton = document.querySelector("#printInboundQrButton");
 const inboundQrLayoutButtons = document.querySelectorAll("[data-qr-layout]");
 const inboundTime = document.querySelector("#inboundTime");
+const setCurrentInboundTimeButton = document.querySelector("#setCurrentInboundTimeButton");
 const inboundDate = document.querySelector("#inboundDate");
 const inboundType = document.querySelector("#inboundType");
 const inboundDueDate = document.querySelector("#inboundDueDate");
@@ -448,6 +449,12 @@ window.addEventListener("hashchange", () => {
 inboundNumberInputs.forEach(({ input }) => {
   input?.addEventListener("input", updateInboundSummary);
 });
+
+setCurrentInboundTimeButton?.addEventListener("click", () => {
+  setCurrentInboundTime();
+  inboundTime.focus();
+});
+
 inboundMultipleRemainders?.addEventListener("change", () => {
   setInboundRemainderMode(inboundMultipleRemainders.checked);
 });

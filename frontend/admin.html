@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-38" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-39" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -164,10 +164,21 @@
                     <span>입고일 <b>*</b></span>
                     <input id="inboundDate" type="date" />
                   </label>
-                  <label class="form-field">
-                    <span>입고 시간 <b>*</b></span>
-                    <input id="inboundTime" type="time" />
-                  </label>
+                  <div class="form-field inbound-time-field">
+                    <label for="inboundTime">입고 시간 <b>*</b></label>
+                    <div class="inbound-time-control">
+                      <input id="inboundTime" type="time" />
+                      <button
+                        class="inbound-time-now-button"
+                        type="button"
+                        id="setCurrentInboundTimeButton"
+                        title="현재 시간으로 설정"
+                      >
+                        <i class="ti ti-clock" aria-hidden="true"></i>
+                        <span>현재시간</span>
+                      </button>
+                    </div>
+                  </div>
                   <label class="form-field">
                     <span>입고 유형 <b>*</b></span>
                     <select id="inboundType">
@@ -2178,6 +2189,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260723-25"></script>
+    <script src="./admin.js?v=20260723-26"></script>
   </body>
 </html>

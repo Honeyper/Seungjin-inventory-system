@@ -7002,6 +7002,54 @@ input {
   padding-left: 0.75rem;
 }
 
+.inbound-time-field > label {
+  display: block;
+  margin-bottom: 0.28rem;
+}
+
+.inbound-time-field > label b {
+  color: #d62626;
+}
+
+.inbound-time-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.inbound-time-now-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 2.45rem;
+  padding: 0 0.72rem;
+  color: #173868;
+  font-size: 0.72rem;
+  font-weight: 900;
+  border: 1px solid #d6dfeb;
+  border-radius: 0.38rem;
+  background: #f7f9fc;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+.inbound-time-now-button:hover,
+.inbound-time-now-button:focus-visible {
+  color: #fff;
+  border-color: #173868;
+  background: #173868;
+  outline: none;
+}
+
+.inbound-time-now-button .ti {
+  color: var(--gold);
+  font-size: 0.92rem;
+}
+
 .quantity-grid .full-span {
   grid-column: 1 / -1;
 }
@@ -8818,6 +8866,10 @@ input {
   }
 
   .inbound-card:not(.inbound-quantity-card) .form-field > span:first-child {
+    margin: 0;
+  }
+
+  .inbound-card:not(.inbound-quantity-card) .inbound-time-field > label {
     margin: 0;
   }
 
