@@ -5883,21 +5883,7 @@ input {
 }
 
 .editable-lock-input button .edit-icon {
-  display: none;
-}
-
-.editable-lock-input button:not([aria-pressed="true"])::before {
   display: block;
-  color: currentColor;
-  font-family: "Material Symbols Outlined";
-  font-size: 1.3rem;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 1;
-  content: "edit";
-  font-feature-settings: "liga";
-  -webkit-font-feature-settings: "liga";
-  -webkit-font-smoothing: antialiased;
 }
 
 .editable-lock-input button[aria-pressed="true"] .edit-icon {

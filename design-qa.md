@@ -52,3 +52,7 @@
 - 공통 제목 기능 보존: 화면별 제목 문구와 우측 빠른 작업 버튼은 유지하고 공통 레이아웃 클래스만 추가했다.
 
 final result: blocked; authenticated live visual capture pending
+## 23. 수정 아이콘 폴백 표시
+
+- 입고 등록의 박스당 수량·검수 수량 등 잠금형 입력란에서 Material Symbols 폰트가 없을 때 `edit` 문자열이 노출되던 문제를 제거했다.
+- 기본 상태에서는 기존 연필 SVG를 표시하고, 편집 상태에서는 잠금 SVG로 전환되어 버튼의 의미가 글자 폴백 없이 일관되게 전달된다.
