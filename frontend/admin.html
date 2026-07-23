@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-26" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-27" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1654,6 +1654,7 @@
         </header>
 
         <form class="product-form product-create-form" id="productForm">
+          <div class="modal-form-scroll">
           <section class="form-section" aria-labelledby="productBaseTitle">
             <h3 id="productBaseTitle">
               <span class="product-section-icon" aria-hidden="true"><i class="ti ti-package"></i></span>
@@ -1750,6 +1751,7 @@
           </section>
 
           <p class="form-message" id="productFormMessage" role="alert" aria-live="polite"></p>
+          </div>
 
           <div class="modal-actions">
             <button class="secondary-modal-action" type="button" id="cancelProductModal">취소</button>
@@ -1818,6 +1820,7 @@
         </header>
 
         <form class="product-form existing-stock-form existing-stock-create-form" id="existingStockForm">
+          <div class="modal-form-scroll">
           <section class="form-section" aria-labelledby="existingStockBaseTitle">
             <h3 id="existingStockBaseTitle">
               <span class="product-section-icon" aria-hidden="true"><i class="ti ti-building-warehouse"></i></span>
@@ -1934,6 +1937,7 @@
           </section>
 
           <p class="form-message" id="existingStockFormMessage" role="alert" aria-live="polite"></p>
+          </div>
 
           <div class="modal-actions">
             <button class="secondary-modal-action" type="button" id="cancelExistingStockModal">취소</button>
@@ -2026,6 +2030,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260723-20"></script>
+    <script src="./admin.js?v=20260723-21"></script>
   </body>
 </html>

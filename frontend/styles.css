@@ -4035,10 +4035,11 @@ input {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 200;
   display: grid;
   place-items: center;
   padding: 1.25rem;
+  overflow: hidden;
   background: rgba(15, 23, 42, 0.24);
   backdrop-filter: blur(2px);
 }
@@ -4048,8 +4049,9 @@ input {
 }
 
 .product-modal {
+  box-sizing: border-box;
   width: min(61rem, calc(100vw - 2.5rem));
-  max-height: min(92vh, 58rem);
+  max-height: calc(100dvh - 2.5rem);
   overflow: auto;
   color: var(--navy-dark);
   border: 1px solid #dfe6ef;
@@ -4060,7 +4062,7 @@ input {
 
 /* Product create dialog: fixed shell with a compact, independently scrolling form. */
 #productModal {
-  z-index: 120;
+  z-index: 200;
   padding: clamp(0.75rem, 2vh, 1.25rem);
 }
 
@@ -4068,6 +4070,7 @@ input {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: min(67rem, calc(100vw - 2rem));
+  height: min(46rem, calc(100dvh - clamp(1.5rem, 4vh, 2.5rem)));
   max-height: calc(100dvh - clamp(1.5rem, 4vh, 2.5rem));
   overflow: hidden;
   border-color: #dce3ec;
@@ -4105,13 +4108,21 @@ input {
 }
 
 .product-create-form {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
-  padding: 0.9rem 1.25rem 0;
+  padding: 0;
+  overflow: hidden;
+  background: #f7f9fc;
+}
+
+.product-create-form > .modal-form-scroll {
+  min-height: 0;
+  padding: 0.9rem 1.25rem 1rem;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  background: #f7f9fc;
 }
 
 .product-create-form .form-section {
@@ -4201,12 +4212,11 @@ input {
 }
 
 .product-create-form > .modal-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  position: static;
   align-items: center;
-  margin: 0.35rem -1.25rem 0;
-  padding: 0.82rem 1.25rem 0.95rem;
+  min-height: 4.15rem;
+  margin: 0;
+  padding: 0.65rem 1.25rem;
   border-top: 1px solid #dfe5ed;
   background: #fff;
 }
@@ -4236,7 +4246,7 @@ input {
 }
 
 #existingStockModal {
-  z-index: 120;
+  z-index: 200;
   padding: clamp(0.75rem, 2vh, 1.25rem);
 }
 
@@ -4244,6 +4254,7 @@ input {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: min(66rem, calc(100vw - 2rem));
+  height: min(48rem, calc(100dvh - clamp(1.5rem, 4vh, 2.5rem)));
   max-height: calc(100dvh - clamp(1.5rem, 4vh, 2.5rem));
   overflow: hidden;
   border-color: #dce3ec;
@@ -4281,13 +4292,21 @@ input {
 }
 
 .existing-stock-create-form {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
-  padding: 0.9rem 1.25rem 0;
+  padding: 0;
+  overflow: hidden;
+  background: #f7f9fc;
+}
+
+.existing-stock-create-form > .modal-form-scroll {
+  min-height: 0;
+  padding: 0.9rem 1.25rem 1rem;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  background: #f7f9fc;
 }
 
 .existing-stock-create-form .form-section {
@@ -4366,12 +4385,11 @@ input {
 }
 
 .existing-stock-create-form > .modal-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  position: static;
   align-items: center;
-  margin: 0.35rem -1.25rem 0;
-  padding: 0.82rem 1.25rem 0.95rem;
+  min-height: 4.15rem;
+  margin: 0;
+  padding: 0.65rem 1.25rem;
   border-top: 1px solid #dfe5ed;
   background: #fff;
 }
@@ -4487,13 +4505,14 @@ input {
 }
 
 #inboundProductPickerModal {
-  z-index: 120;
+  z-index: 220;
 }
 
 .product-picker-modal {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: min(58rem, calc(100vw - 2rem));
+  height: min(46rem, calc(100dvh - clamp(1.5rem, 4vh, 2.5rem)));
   max-height: calc(100dvh - clamp(1.5rem, 4vh, 2.5rem));
   overflow: hidden;
   border-color: #dce3ec;
@@ -4535,6 +4554,7 @@ input {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-height: 0;
   padding: 0.9rem 1.25rem 1.05rem;
+  overflow: hidden;
   background: #f7f9fc;
 }
 
@@ -4553,8 +4573,14 @@ input {
 }
 
 .product-picker-modal .picker-search > .ti {
+  position: absolute;
+  top: 50%;
+  left: 1.05rem;
+  z-index: 1;
   color: #173868;
   font-size: 1.22rem;
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .product-picker-modal .picker-search input {
@@ -8962,12 +8988,18 @@ input {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(66rem, calc(100vw - 2rem));
+  height: min(50rem, calc(100dvh - clamp(1.5rem, 4vh, 2.5rem)));
   max-height: calc(100dvh - clamp(1.5rem, 4vh, 2.5rem));
   overflow: hidden;
   border-color: #dce3ec;
   border-radius: 0.72rem;
   background: #fff;
   box-shadow: 0 1.5rem 4rem rgba(15, 23, 42, 0.22);
+}
+
+#productDetailModal .detail-modal:focus,
+#inboundDetailModal:not(.is-editing) .detail-modal:focus {
+  outline: none;
 }
 
 #productDetailModal .detail-modal .modal-header,

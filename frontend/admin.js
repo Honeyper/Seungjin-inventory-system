@@ -1033,6 +1033,7 @@ async function openShippingInspectionModal(row) {
   }
 
   shippingInspectionModal.hidden = false;
+  resetModalScrollPosition(shippingInspectionModal);
   document.body.classList.add("modal-open");
 }
 
@@ -1835,6 +1836,7 @@ function showShippingHoldGuide(row, button) {
   }
 
   shippingHoldGuideModal.hidden = false;
+  resetModalScrollPosition(shippingHoldGuideModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => reinspectFromHoldGuideButton?.focus(), 0);
 }
@@ -1963,6 +1965,7 @@ function openShippingWaitingConfirmModal(row) {
   }
 
   shippingWaitingConfirmModal.hidden = false;
+  resetModalScrollPosition(shippingWaitingConfirmModal);
   document.body.classList.add("modal-open");
 }
 
@@ -2127,6 +2130,7 @@ function openShippingCompletionModal(row) {
   }
 
   shippingCompletionModal.hidden = false;
+  resetModalScrollPosition(shippingCompletionModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => shippingCompletionTime?.focus(), 0);
 }
@@ -3840,6 +3844,7 @@ function openInboundProductPicker(target = "inbound") {
     : "제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.";
   renderInboundProductPicker();
   inboundProductPickerModal.hidden = false;
+  resetModalScrollPosition(inboundProductPickerModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => inboundProductPickerSearch.focus(), 0);
 }
@@ -3934,6 +3939,7 @@ function selectInboundProduct(product) {
 function openExistingStockModal() {
   resetExistingStockForm();
   existingStockModal.hidden = false;
+  resetModalScrollPosition(existingStockModal);
   document.body.classList.add("modal-open");
 }
 
@@ -4576,6 +4582,7 @@ function openInventoryAttentionModal(type) {
   });
 
   inventoryAttentionModal.hidden = false;
+  resetModalScrollPosition(inventoryAttentionModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => closeInventoryAttentionModalButton?.focus(), 0);
 }
@@ -4637,6 +4644,7 @@ function openInventoryLocationModal(type) {
   });
 
   inventoryAttentionModal.hidden = false;
+  resetModalScrollPosition(inventoryAttentionModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => closeInventoryAttentionModalButton?.focus(), 0);
 }
@@ -5210,8 +5218,9 @@ function openInventoryInboundDetail(inbound) {
   setInboundDetailMode("view");
   renderInboundDetail(detailInbound);
   inboundDetailModal.hidden = false;
+  resetModalScrollPosition(inboundDetailModal);
   document.body.classList.add("modal-open");
-  window.setTimeout(() => document.querySelector("#closeInboundDetailButton")?.focus(), 0);
+  focusModalDialog(inboundDetailModal);
 }
 
 function openShippingDetail(item) {
@@ -5233,8 +5242,9 @@ function openShippingDetail(item) {
   inboundDetailModal.classList.remove("is-editing");
   renderShippingDetail(item);
   inboundDetailModal.hidden = false;
+  resetModalScrollPosition(inboundDetailModal);
   document.body.classList.add("modal-open");
-  window.setTimeout(() => document.querySelector("#closeInboundDetailButton")?.focus(), 0);
+  focusModalDialog(inboundDetailModal);
 }
 
 function buildShippingHistoryGroups(boxes = []) {
@@ -5616,8 +5626,9 @@ function openActiveProductDetail() {
   state.activeDetailProductCode = product.productCode;
   renderProductDetail(product);
   productDetailModal.hidden = false;
+  resetModalScrollPosition(productDetailModal);
   document.body.classList.add("modal-open");
-  window.setTimeout(() => document.querySelector("#closeProductDetailButton").focus(), 0);
+  focusModalDialog(productDetailModal);
 }
 
 function closeProductDetailModal() {
@@ -5650,8 +5661,9 @@ function openActiveInboundDetail() {
   setInboundDetailMode("view");
   renderInboundDetail(inbound);
   inboundDetailModal.hidden = false;
+  resetModalScrollPosition(inboundDetailModal);
   document.body.classList.add("modal-open");
-  window.setTimeout(() => document.querySelector("#closeInboundDetailButton").focus(), 0);
+  focusModalDialog(inboundDetailModal);
 }
 
 function closeInboundDetailModal() {
@@ -5692,6 +5704,7 @@ async function openInboundQrModal(managementId, productId = "") {
   inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · QR 데이터를 준비 중입니다.`;
   inboundQrSheet.innerHTML = '<p class="qr-loading">박스 QR 데이터를 불러오는 중입니다.</p>';
   inboundQrModal.hidden = false;
+  resetModalScrollPosition(inboundQrModal);
   document.body.classList.add("modal-open");
 
   try {
@@ -5909,6 +5922,7 @@ function openActiveInboundEdit() {
   setInboundDetailMode("edit");
   renderInboundEditForm(inbound);
   inboundDetailModal.hidden = false;
+  resetModalScrollPosition(inboundDetailModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => document.querySelector("#inboundEditBatch")?.focus(), 0);
 }
@@ -5925,6 +5939,7 @@ function openDetailInboundEdit() {
   state.activeDetailInboundRecord = inbound;
   setInboundDetailMode("edit");
   renderInboundEditForm(inbound);
+  resetModalScrollPosition(inboundDetailModal);
   window.setTimeout(() => document.querySelector("#inboundEditBatch")?.focus(), 0);
 }
 
@@ -6933,6 +6948,28 @@ function renderPagination(pageCount) {
   });
 }
 
+function resetModalScrollPosition(modal) {
+  if (!modal) {
+    return;
+  }
+
+  modal.querySelectorAll(".product-modal, .modal-form-scroll, .detail-content, .picker-body, .picker-list").forEach((element) => {
+    element.scrollTop = 0;
+    element.scrollLeft = 0;
+  });
+}
+
+function focusModalDialog(modal) {
+  const dialog = modal?.querySelector('[role="dialog"]');
+
+  if (!dialog) {
+    return;
+  }
+
+  dialog.tabIndex = -1;
+  window.setTimeout(() => dialog.focus({ preventScroll: true }), 0);
+}
+
 function openProductModal(mode = "create", product = null) {
   state.productFormMode = mode;
   state.editingProductCode = mode === "edit" ? product?.productCode || "" : "";
@@ -6963,6 +7000,7 @@ function openProductModal(mode = "create", product = null) {
 
   setProductSaving(false);
   productModal.hidden = false;
+  resetModalScrollPosition(productModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => productClientName.focus(), 0);
 }
