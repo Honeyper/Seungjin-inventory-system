@@ -103,6 +103,9 @@ const state = {
   activeInboundMenuRecord: "",
   activeInboundMenuProductId: "",
   activeInboundMenuButton: null,
+  activeShippingMenuButton: null,
+  activeShippingMenuRow: null,
+  activeShippingMenuActions: [],
   activeShippingInspectionRow: null,
   activeShippingCompletionRow: null,
   activeShippingWaitingRow: null,
@@ -163,6 +166,7 @@ const productFormMessage = document.querySelector("#productFormMessage");
 const saveProductButton = document.querySelector("#saveProductButton");
 const rowActionMenu = document.querySelector("#rowActionMenu");
 const inboundRowActionMenu = document.querySelector("#inboundRowActionMenu");
+const shippingRowActionMenu = document.querySelector("#shippingRowActionMenu");
 const productDetailModal = document.querySelector("#productDetailModal");
 const productDetailContent = document.querySelector("#productDetailContent");
 const inboundDetailModal = document.querySelector("#inboundDetailModal");
@@ -643,6 +647,13 @@ shippingCompletionBoxList?.addEventListener("change", () => {
   syncShippingCompletionBoxState();
 });
 shippingTable?.addEventListener("click", (event) => {
+  const menuButton = event.target.closest("[data-shipping-menu-actions]");
+  if (menuButton) {
+    event.stopPropagation();
+    toggleShippingRowActionMenu(menuButton);
+    return;
+  }
+
   const button = event.target.closest("[data-shipping-action]");
   if (!button) {
     return;
@@ -650,8 +661,10 @@ shippingTable?.addEventListener("click", (event) => {
 
   const row = button.closest("tr");
   const action = button.dataset.shippingAction;
-  button.closest(".shipping-action-menu")?.removeAttribute("open");
+  handleShippingAction(row, action, button);
+});
 
+function handleShippingAction(row, action, button) {
   if (action === "inspect") {
     openShippingInspectionModal(row);
     return;
@@ -688,7 +701,7 @@ shippingTable?.addEventListener("click", (event) => {
   if (action === "holdGuide") {
     showShippingHoldGuide(row, button);
   }
-});
+}
 
 openExistingStockModalButton?.addEventListener("click", openExistingStockModal);
 document.querySelector("#closeExistingStockModal")?.addEventListener("click", closeExistingStockModal);
@@ -881,6 +894,17 @@ document.addEventListener("click", (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  if (!shippingRowActionMenu || shippingRowActionMenu.hidden) {
+    return;
+  }
+
+  const clickedActionButton = event.target.closest("[data-shipping-menu-actions]");
+  if (!shippingRowActionMenu.contains(event.target) && !clickedActionButton) {
+    closeShippingRowActionMenu();
+  }
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") {
     return;
@@ -893,6 +917,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!inboundRowActionMenu.hidden) {
     closeInboundRowActionMenu();
+    return;
+  }
+
+  if (shippingRowActionMenu && !shippingRowActionMenu.hidden) {
+    closeShippingRowActionMenu(true);
     return;
   }
 
@@ -997,13 +1026,34 @@ inboundRowActionMenu.querySelectorAll("[data-inbound-menu-action]").forEach((but
   });
 });
 
+shippingRowActionMenu?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-shipping-menu-index]");
+  if (!button) {
+    return;
+  }
+
+  event.stopPropagation();
+  const actionIndex = Number(button.dataset.shippingMenuIndex);
+  const actionConfig = state.activeShippingMenuActions[actionIndex];
+  const row = state.activeShippingMenuRow;
+  closeShippingRowActionMenu();
+
+  if (!actionConfig || !row) {
+    return;
+  }
+
+  handleShippingAction(row, actionConfig.action, button);
+});
+
 window.addEventListener("resize", () => {
   closeRowActionMenu();
   closeInboundRowActionMenu();
+  closeShippingRowActionMenu();
 });
 window.addEventListener("scroll", () => {
   closeRowActionMenu();
   closeInboundRowActionMenu();
+  closeShippingRowActionMenu();
 }, true);
 
 setCurrentInboundDate();
@@ -1834,12 +1884,10 @@ async function saveShippingInspection() {
       if (holdRequested) {
         actionCell.innerHTML = renderShippingHoldActions(defectPhotoFolderUrl, defectPhotoCount || defectFiles.length);
       } else {
-        actionCell.innerHTML = `
-          <div class="shipping-action-group">
-            <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">수정</button>
-            <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고</button>
-          </div>
-        `;
+        actionCell.innerHTML = renderShippingActionSet(
+          { action: "ship", label: "출고", variant: "primary" },
+          [{ action: "inspect", label: "수정", icon: "ti-edit" }]
+        );
       }
     }
 
@@ -1860,15 +1908,61 @@ async function saveShippingInspection() {
 }
 
 function renderShippingHoldActions(photoUrl = "", photoCount = 0) {
-  const photoButton = photoUrl
-    ? `<button class="shipping-row-button" type="button" data-shipping-action="photo" data-photo-url="${escapeAttribute(photoUrl)}" data-photo-count="${Number(photoCount) || 0}">사진</button>`
+  const secondaryActions = [
+    { action: "inspect", label: "재검수", icon: "ti-clipboard-check" }
+  ];
+
+  if (photoUrl) {
+    secondaryActions.push({
+      action: "photo",
+      label: `사진 보기${Number(photoCount) > 0 ? ` (${Number(photoCount)})` : ""}`,
+      icon: "ti-photo",
+      photoUrl,
+      photoCount: Number(photoCount) || 0
+    });
+  }
+
+  return renderShippingActionSet(
+    {
+      action: "holdGuide",
+      label: "보류 상세",
+      photoUrl,
+      photoCount: Number(photoCount) || 0
+    },
+    secondaryActions
+  );
+}
+
+function renderShippingActionSet(primaryAction, secondaryActions = []) {
+  const primaryClasses = [
+    "shipping-row-button",
+    primaryAction.variant === "primary" ? "primary" : ""
+  ].filter(Boolean).join(" ");
+  const primaryPhotoData = primaryAction.photoUrl
+    ? ` data-photo-url="${escapeAttribute(primaryAction.photoUrl)}" data-photo-count="${Number(primaryAction.photoCount) || 0}"`
+    : "";
+  const menuActions = secondaryActions.filter((action) => action?.action && action?.label);
+  const menuButton = menuActions.length
+    ? `
+      <button
+        class="shipping-action-overflow"
+        type="button"
+        aria-label="추가 출고 관리 메뉴"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        data-shipping-menu-actions="${escapeAttribute(JSON.stringify(menuActions))}"
+      >
+        <i class="ti ti-dots" aria-hidden="true"></i>
+      </button>
+    `
     : "";
 
   return `
     <div class="shipping-action-group">
-      <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">재검수</button>
-      <button class="shipping-row-button" type="button" data-shipping-action="holdGuide" data-photo-url="${escapeAttribute(photoUrl)}" data-photo-count="${Number(photoCount) || 0}">보류 상세</button>
-      ${photoButton}
+      <button class="${primaryClasses}" type="button" data-shipping-action="${escapeAttribute(primaryAction.action)}"${primaryPhotoData}>
+        ${escapeHtml(primaryAction.label)}
+      </button>
+      ${menuButton}
     </div>
   `;
 }
@@ -2836,12 +2930,10 @@ function renderShippingRowAction(item) {
   const registerActionLabel = isPartialShipping && hasRemainingBoxes ? "추가 출고" : "출고 건 수정";
 
   if (counts["출고대기"]) {
-    return `
-      <div class="shipping-action-group">
-        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">수정</button>
-        <button class="shipping-row-button primary" type="button" data-shipping-action="ship">출고</button>
-      </div>
-    `;
+    return renderShippingActionSet(
+      { action: "ship", label: "출고", variant: "primary" },
+      [{ action: "inspect", label: "수정", icon: "ti-edit" }]
+    );
   }
 
   if (isPartialShipping && hasRemainingBoxes) {
@@ -2857,12 +2949,10 @@ function renderShippingRowAction(item) {
   }
 
   if (counts["검수완료"] || isShippingInspected(item)) {
-    return `
-      <div class="shipping-action-group">
-        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">${registerActionLabel}</button>
-        <button class="shipping-row-button" type="button" data-shipping-action="queue">출고</button>
-      </div>
-    `;
+    return renderShippingActionSet(
+      { action: "queue", label: "출고", variant: "primary" },
+      [{ action: "inspect", label: registerActionLabel, icon: "ti-edit" }]
+    );
   }
 
   return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">출고대기 등록</button>';
@@ -5621,6 +5711,7 @@ function toggleRowActionMenu(button) {
 
   closeRowActionMenu();
   closeInboundRowActionMenu();
+  closeShippingRowActionMenu();
 
   if (isSameButton || !productCode) {
     return;
@@ -5641,6 +5732,7 @@ function toggleInboundRowActionMenu(button) {
 
   closeInboundRowActionMenu();
   closeRowActionMenu();
+  closeShippingRowActionMenu();
 
   if (isSameButton || !recordId) {
     return;
@@ -5655,6 +5747,66 @@ function toggleInboundRowActionMenu(button) {
   positionActionMenu(inboundRowActionMenu, button);
 }
 
+function toggleShippingRowActionMenu(button) {
+  const isSameButton = state.activeShippingMenuButton === button
+    && shippingRowActionMenu
+    && !shippingRowActionMenu.hidden;
+
+  closeShippingRowActionMenu();
+  closeRowActionMenu();
+  closeInboundRowActionMenu();
+
+  if (isSameButton || !shippingRowActionMenu) {
+    return;
+  }
+
+  let actions = [];
+  try {
+    actions = JSON.parse(button.dataset.shippingMenuActions || "[]");
+  } catch (error) {
+    actions = [];
+  }
+
+  if (!Array.isArray(actions) || actions.length === 0) {
+    return;
+  }
+
+  state.activeShippingMenuButton = button;
+  state.activeShippingMenuRow = button.closest("tr");
+  state.activeShippingMenuActions = actions;
+  button.setAttribute("aria-expanded", "true");
+  shippingRowActionMenu.innerHTML = actions.map((action, index) => {
+    const icon = action.icon || getShippingMenuActionIcon(action.action);
+    const photoData = action.photoUrl
+      ? ` data-photo-url="${escapeAttribute(action.photoUrl)}" data-photo-count="${Number(action.photoCount) || 0}"`
+      : "";
+
+    return `
+      <button class="row-menu-item" type="button" role="menuitem" data-shipping-menu-index="${index}"${photoData}>
+        <i class="ti ${escapeAttribute(icon)}" aria-hidden="true"></i>
+        <span>${escapeHtml(action.label)}</span>
+      </button>
+    `;
+  }).join("");
+  shippingRowActionMenu.hidden = false;
+  shippingRowActionMenu.style.visibility = "hidden";
+  positionActionMenu(shippingRowActionMenu, button);
+  shippingRowActionMenu.querySelector(".row-menu-item")?.focus();
+}
+
+function getShippingMenuActionIcon(action) {
+  if (action === "inspect") {
+    return "ti-edit";
+  }
+  if (action === "photo") {
+    return "ti-photo";
+  }
+  if (action === "holdGuide") {
+    return "ti-alert-circle";
+  }
+  return "ti-dots";
+}
+
 function positionActionMenu(menu, button) {
   const buttonRect = button.getBoundingClientRect();
   const menuRect = menu.getBoundingClientRect();
@@ -5666,12 +5818,12 @@ function positionActionMenu(menu, button) {
   );
   const belowTop = buttonRect.bottom + 9;
   const aboveTop = buttonRect.top - menuRect.height - 9;
-  const top = belowTop + menuRect.height > window.innerHeight - margin
-    ? Math.max(margin, aboveTop)
-    : belowTop;
+  const shouldPlaceAbove = belowTop + menuRect.height > window.innerHeight - margin;
+  const top = shouldPlaceAbove ? Math.max(margin, aboveTop) : belowTop;
 
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
+  menu.dataset.placement = shouldPlaceAbove ? "top" : "bottom";
   menu.style.visibility = "";
 }
 
@@ -5688,6 +5840,7 @@ function closeRowActionMenu() {
     rowActionMenu.style.left = "";
     rowActionMenu.style.top = "";
     rowActionMenu.style.visibility = "";
+    rowActionMenu.removeAttribute("data-placement");
   }
 }
 
@@ -5705,6 +5858,29 @@ function closeInboundRowActionMenu() {
     inboundRowActionMenu.style.left = "";
     inboundRowActionMenu.style.top = "";
     inboundRowActionMenu.style.visibility = "";
+    inboundRowActionMenu.removeAttribute("data-placement");
+  }
+}
+
+function closeShippingRowActionMenu(restoreFocus = false) {
+  const activeButton = state.activeShippingMenuButton;
+  activeButton?.setAttribute("aria-expanded", "false");
+
+  state.activeShippingMenuButton = null;
+  state.activeShippingMenuRow = null;
+  state.activeShippingMenuActions = [];
+
+  if (shippingRowActionMenu) {
+    shippingRowActionMenu.hidden = true;
+    shippingRowActionMenu.innerHTML = "";
+    shippingRowActionMenu.style.left = "";
+    shippingRowActionMenu.style.top = "";
+    shippingRowActionMenu.style.visibility = "";
+    shippingRowActionMenu.removeAttribute("data-placement");
+  }
+
+  if (restoreFocus) {
+    activeButton?.focus();
   }
 }
 

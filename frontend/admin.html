@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-42" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-43" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1236,7 +1236,9 @@
                     <td>
                       <div class="shipping-action-group">
                         <button class="shipping-row-button" type="button" data-shipping-action="holdGuide">보류 상세</button>
-                        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">재검수</button>
+                        <button class="shipping-action-overflow" type="button" aria-label="추가 출고 관리 메뉴" aria-haspopup="menu" aria-expanded="false" data-shipping-menu-actions='[{"action":"inspect","label":"재검수","icon":"ti-edit"}]'>
+                          <i class="ti ti-dots" aria-hidden="true"></i>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1328,6 +1330,8 @@
         <span>삭제</span>
       </button>
     </div>
+
+    <div class="row-action-menu shipping-row-action-menu" id="shippingRowActionMenu" role="menu" aria-label="출고 관리 메뉴" hidden></div>
 
     <div class="modal-backdrop" id="shippingInspectionModal" hidden>
       <section class="product-modal shipping-inspection-modal" role="dialog" aria-modal="true" aria-labelledby="shippingInspectionTitle">
@@ -2189,6 +2193,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260723-27"></script>
+    <script src="./admin.js?v=20260723-28"></script>
   </body>
 </html>
