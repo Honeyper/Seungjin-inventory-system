@@ -8874,4 +8874,75 @@ input {
     border: 0;
     background: transparent;
   }
+
+  .admin-main > .page-view > .management-page-heading,
+  .inventory-view > .management-page-heading,
+  .product-view > .management-page-heading,
+  .shipping-view > .management-page-heading,
+  .inbound-view > .management-page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 3.25rem;
+    margin: 0 0 0.85rem;
+    padding: 0;
+  }
+
+  .management-page-heading .management-heading-trail {
+    display: grid;
+    grid-template-columns: 4.65rem minmax(0, auto);
+    align-items: center;
+    gap: 0;
+    min-height: 2.1rem;
+  }
+
+  .management-page-heading .management-heading-trail .eyebrow,
+  .inventory-view .management-page-heading .management-heading-trail .eyebrow,
+  .product-view .management-page-heading .management-heading-trail .eyebrow,
+  .shipping-view .management-page-heading .management-heading-trail .eyebrow,
+  .inbound-view .management-page-heading .management-heading-trail .eyebrow {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    margin: 0;
+    padding: 0 0.85rem 0 0;
+    color: var(--dev-navy) !important;
+    font-size: 0.82rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    text-transform: none;
+    white-space: nowrap;
+  }
+
+  .management-page-heading .management-heading-trail h1,
+  .inventory-view .management-page-heading .management-heading-trail h1,
+  .product-view .management-page-heading .management-heading-trail h1,
+  .shipping-view .management-page-heading .management-heading-trail h1,
+  .inbound-view .management-page-heading .management-heading-trail h1 {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    margin: 0;
+    padding: 0 0 0 0.85rem;
+    color: var(--dev-navy);
+    border-left: 1px solid #cfd7e2;
+    font-size: 1.32rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.035em;
+    white-space: nowrap;
+  }
+
+  .management-page-heading > .primary-action,
+  .management-page-heading > .inventory-heading-actions {
+    align-self: center;
+    margin-top: 0;
+  }
+
+  .side-nav-item:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px rgba(23, 56, 104, 0.28);
+  }
 }
