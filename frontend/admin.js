@@ -5225,6 +5225,7 @@ function openShippingDetail(item) {
   if (editInboundFromDetailButton) {
     editInboundFromDetailButton.hidden = true;
   }
+  inboundDetailModal.classList.remove("is-editing");
   renderShippingDetail(item);
   inboundDetailModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -5959,6 +5960,7 @@ function normalizeInboundDetailRecord(inbound) {
 
 function setInboundDetailMode(mode) {
   const isEdit = mode === "edit";
+  inboundDetailModal?.classList.toggle("is-editing", isEdit);
 
   if (inboundDetailTitle) {
     inboundDetailTitle.textContent = isEdit ? "입고 수정" : "입고 상세보기";
@@ -6017,6 +6019,17 @@ function getProductByCode(productCode) {
 
 function renderProductDetail(product) {
   productDetailContent.innerHTML = `
+    ${renderDetailOverview({
+      label: "등록 제품",
+      title: product.productName,
+      meta: [product.clientName, product.productCode],
+      stats: [
+        { label: "박스당 수량", value: formatDetailMetric(product.boxQuantity, "ea") },
+        { label: "트레이 수량", value: formatDetailMetric(product.trayQuantity, "ea") },
+        { label: "사용 상태", value: renderUsageStatus(product.useStatus), isHtml: true }
+      ]
+    })}
+
     <section class="detail-section" aria-labelledby="detailBaseTitle">
       <h3 id="detailBaseTitle">제품 기본 정보</h3>
       <div class="detail-grid">
@@ -6057,6 +6070,17 @@ function renderInboundDetail(inbound) {
     .join(", ");
 
   inboundDetailContent.innerHTML = `
+    ${renderDetailOverview({
+      label: "입고 제품",
+      title: inbound.productName,
+      meta: [inbound.clientName, inbound.managementId],
+      stats: [
+        { label: "입고 총 수량", value: formatDetailMetric(inbound.inboundTotalQuantity, "ea") },
+        { label: "박스 총 수량", value: formatDetailMetric(inbound.boxTotalCount, "box") },
+        { label: "보관 위치", value: inbound.storage }
+      ]
+    })}
+
     <section class="detail-section" aria-labelledby="inboundDetailBaseTitle">
       <h3 id="inboundDetailBaseTitle">입고 기본 정보</h3>
       <div class="detail-grid">
@@ -6127,6 +6151,17 @@ function renderShippingDetail(item) {
     : "-";
 
   inboundDetailContent.innerHTML = `
+    ${renderDetailOverview({
+      label: "출고 제품",
+      title: item.productName,
+      meta: [item.clientName, item.managementId],
+      stats: [
+        { label: "출고 수량", value: `${formatNumber(shippedQuantity)} ea` },
+        { label: "출고 박스", value: `${formatNumber(shippedBoxes.length)} box` },
+        { label: "출고 상태", value: renderShippingStatusBadge(item), isHtml: true }
+      ]
+    })}
+
     <section class="detail-section" aria-labelledby="shippingDetailBaseTitle">
       <h3 id="shippingDetailBaseTitle">출고 기본 정보</h3>
       <div class="detail-grid">
@@ -6825,6 +6860,45 @@ function detailItem(label, value, isHtml = false, className = "") {
       <strong>${content}</strong>
     </div>
   `;
+}
+
+function renderDetailOverview({ label, title, meta = [], stats = [] }) {
+  const metaItems = meta
+    .map((item) => normalizeDisplayValue(item))
+    .filter((item) => item !== "-");
+
+  return `
+    <section class="detail-overview" aria-label="${escapeAttribute(label)} 요약">
+      <div class="detail-overview-copy">
+        <span class="detail-overview-label">${escapeHtml(label)}</span>
+        <h3>${escapeHtml(normalizeDisplayValue(title))}</h3>
+        <p>${metaItems.map((item) => escapeHtml(item)).join(" · ") || "-"}</p>
+      </div>
+      <div class="detail-overview-stats">
+        ${stats.map((stat) => {
+          const displayValue = normalizeDisplayValue(stat.value);
+          const content = stat.isHtml ? displayValue : escapeHtml(displayValue);
+
+          return `
+            <div class="detail-overview-stat">
+              <span>${escapeHtml(stat.label)}</span>
+              <strong>${content}</strong>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function formatDetailMetric(value, unit) {
+  const displayValue = normalizeDisplayValue(value);
+
+  if (displayValue === "-") {
+    return "-";
+  }
+
+  return `${formatNumber(parseShippingSettlementNumber(displayValue))} ${unit}`;
 }
 
 function renderUsageStatus(status) {
