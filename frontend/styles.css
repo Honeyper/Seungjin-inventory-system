@@ -799,6 +799,10 @@ input {
   gap: 1.2rem;
 }
 
+.admin-account-menu {
+  position: relative;
+}
+
 .icon-button,
 .row-action {
   display: inline-grid;
@@ -843,8 +847,95 @@ input {
   gap: 0.65rem;
   padding-left: 1.2rem;
   color: var(--navy-dark);
+  font: inherit;
   font-weight: 800;
   border-left: 1px solid #dbe2ec;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.admin-user-chevron {
+  color: #7c889a;
+  font-size: 1rem;
+  transition: transform 160ms ease;
+}
+
+.admin-user[aria-expanded="true"] .admin-user-chevron {
+  transform: rotate(180deg);
+}
+
+.admin-user-menu {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 0.65rem);
+  right: 0;
+  width: 15rem;
+  padding: 0.45rem;
+  border: 1px solid #dce4ee;
+  border-radius: 0.8rem;
+  background: #fff;
+  box-shadow: 0 1rem 2.5rem rgba(7, 31, 73, 0.16);
+}
+
+.admin-user-menu[hidden] {
+  display: none;
+}
+
+.admin-user-menu-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.72rem 0.68rem 0.8rem;
+  border-bottom: 1px solid #e7ebf1;
+}
+
+.admin-user-menu-profile > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.admin-user-menu-profile strong {
+  overflow: hidden;
+  color: var(--navy-dark);
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-user-menu-profile small {
+  color: #7a8799;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.admin-logout-button {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.68rem 0.72rem;
+  color: #c63333;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-align: left;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.admin-logout-button i {
+  font-size: 1.18rem;
+}
+
+.admin-logout-button:hover {
+  background: #fff1f1;
 }
 
 .user-avatar {

@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-30" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-31" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -31,14 +31,42 @@
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
           </button>
-          <div class="admin-user">
-            <span class="user-avatar" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M20 21a8 8 0 0 0-16 0" />
-                <circle cx="12" cy="8" r="4" />
-              </svg>
-            </span>
-            <span id="adminUserName">관리자</span>
+          <div class="admin-account-menu" id="adminAccountMenu">
+            <button
+              class="admin-user"
+              id="adminUserMenuButton"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="adminUserMenu"
+            >
+              <span class="user-avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 21a8 8 0 0 0-16 0" />
+                  <circle cx="12" cy="8" r="4" />
+                </svg>
+              </span>
+              <span id="adminUserName">관리자</span>
+              <i class="ti ti-chevron-down admin-user-chevron" aria-hidden="true"></i>
+            </button>
+            <div class="admin-user-menu" id="adminUserMenu" role="menu" hidden>
+              <div class="admin-user-menu-profile">
+                <span class="user-avatar" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M20 21a8 8 0 0 0-16 0" />
+                    <circle cx="12" cy="8" r="4" />
+                  </svg>
+                </span>
+                <span>
+                  <strong id="adminUserMenuName">관리자</strong>
+                  <small>관리자 계정</small>
+                </span>
+              </div>
+              <button class="admin-logout-button" id="adminLogoutButton" type="button" role="menuitem">
+                <i class="ti ti-logout-2" aria-hidden="true"></i>
+                로그아웃
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -2097,6 +2125,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260723-22"></script>
+    <script src="./admin.js?v=20260723-23"></script>
   </body>
 </html>

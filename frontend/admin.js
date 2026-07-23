@@ -120,6 +120,11 @@ const state = {
 };
 
 const adminUserName = document.querySelector("#adminUserName");
+const adminAccountMenu = document.querySelector("#adminAccountMenu");
+const adminUserMenuButton = document.querySelector("#adminUserMenuButton");
+const adminUserMenu = document.querySelector("#adminUserMenu");
+const adminUserMenuName = document.querySelector("#adminUserMenuName");
+const adminLogoutButton = document.querySelector("#adminLogoutButton");
 const productTotal = document.querySelector("#productTotal");
 const clientTotal = document.querySelector("#clientTotal");
 const recentDate = document.querySelector("#recentDate");
@@ -371,11 +376,45 @@ const inboundNumberInputs = [
   output: document.querySelector(outputSelector)
 }));
 
-adminUserName.textContent = session?.name || "관리자";
+const signedInAdminName = session?.name || "관리자";
+adminUserName.textContent = signedInAdminName;
+adminUserMenuName.textContent = signedInAdminName;
 inboundRegistrant.value = session?.name || "Admin";
 if (existingStockRegistrant) {
   existingStockRegistrant.value = session?.name || "Admin";
 }
+
+adminUserMenuButton?.addEventListener("click", () => {
+  const shouldOpen = adminUserMenuButton.getAttribute("aria-expanded") !== "true";
+  adminUserMenuButton.setAttribute("aria-expanded", String(shouldOpen));
+  adminUserMenu.hidden = !shouldOpen;
+  if (shouldOpen) {
+    adminLogoutButton?.focus();
+  }
+});
+
+adminLogoutButton?.addEventListener("click", () => {
+  sessionStorage.removeItem("seungjinAdminSession");
+  sessionStorage.removeItem(SHIPPING_BOX_DRAFTS_STORAGE_KEY);
+  location.replace("./index.html");
+});
+
+document.addEventListener("click", (event) => {
+  if (adminUserMenu.hidden || adminAccountMenu?.contains(event.target)) {
+    return;
+  }
+  adminUserMenu.hidden = true;
+  adminUserMenuButton?.setAttribute("aria-expanded", "false");
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || adminUserMenu.hidden) {
+    return;
+  }
+  adminUserMenu.hidden = true;
+  adminUserMenuButton?.setAttribute("aria-expanded", "false");
+  adminUserMenuButton?.focus();
+});
 
 document.querySelector("#newProductButton").addEventListener("click", () => {
   openProductModal();
