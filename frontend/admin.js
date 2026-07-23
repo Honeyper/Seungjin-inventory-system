@@ -1119,7 +1119,7 @@ async function openShippingInspectionModal(row) {
   renderShippingInspectionSavedPhotoPreview(row);
   setShippingInspectionDefectReasons(row.dataset.defectReason || "양호");
   if (shippingInspectionHoldStatus) {
-    shippingInspectionHoldStatus.checked = row.children[12]?.textContent.trim() === "출고 보류";
+    shippingInspectionHoldStatus.checked = row.children[14]?.textContent.trim() === "출고 보류";
   }
 
   if (shippingInspectorName) {
@@ -1843,10 +1843,10 @@ async function saveShippingInspection() {
       defectPhotoCount
     });
 
-    const inspectionCell = row.children[9];
-    const anomalyCell = row.children[10];
-    const statusCell = row.children[12];
-    const actionCell = row.children[13];
+    const inspectionCell = row.children[11];
+    const anomalyCell = row.children[12];
+    const statusCell = row.children[14];
+    const actionCell = row.children[15];
     const anomalyStatus = saveResult?.anomalyStatus || (hasGoodReason ? "정상" : "이상");
     row.dataset.inspectionQuantity = String(inspectionQuantity);
     row.dataset.defectQuantity = String(defectQuantity);
@@ -1975,7 +1975,7 @@ function showShippingHoldGuide(row, button) {
   const recordId = row.children[1]?.textContent.trim() || "-";
   const clientName = row.children[2]?.textContent.trim() || "-";
   const productName = row.children[3]?.textContent.trim() || "선택 제품";
-  const anomalyStatus = row.children[10]?.textContent.trim() || "이상";
+  const anomalyStatus = row.children[12]?.textContent.trim() || "이상";
   const photoCount = Number(button?.dataset.photoCount || 0);
   const photoUrl = button?.dataset.photoUrl || "";
 
@@ -2454,7 +2454,7 @@ function renderShippingLoading() {
   if (shippingTableBody) {
     shippingTableBody.innerHTML = `
       <tr>
-        <td colspan="14" class="empty-cell">출고 목록을 불러오는 중입니다.</td>
+        <td colspan="16" class="empty-cell">출고 목록을 불러오는 중입니다.</td>
       </tr>
     `;
   }
@@ -2480,7 +2480,7 @@ function renderShippingTable(message = "") {
   if (message || !rows.length) {
     shippingTableBody.innerHTML = `
       <tr>
-        <td colspan="14" class="empty-cell">${escapeHtml(message || "출고 목록이 없습니다.")}</td>
+        <td colspan="16" class="empty-cell">${escapeHtml(message || "출고 목록이 없습니다.")}</td>
       </tr>
     `;
     updateShippingSummaryCards([]);
@@ -2505,6 +2505,12 @@ function renderShippingTable(message = "") {
     const inspectionQuantity = parseShippingSettlementNumber(item.shippingInspectionQuantity);
     const defectQuantity = parseShippingSettlementNumber(item.shippingDefectQuantity);
     const defectRate = parseShippingSettlementNumber(item.shippingDefectRate);
+    const shippedBoxes = getShippedShippingBoxes(item);
+    const shippedBoxCount = shippedBoxes.length;
+    const shippedQuantity = shippedBoxes.reduce(
+      (sum, box) => sum + parseShippingSettlementNumber(box.quantity),
+      0
+    );
 
     return `
       <tr
@@ -2533,6 +2539,8 @@ function renderShippingTable(message = "") {
         <td>${escapeHtml(item.storage || "-")}</td>
         <td>${escapeHtml(item.currentBoxCount || "-")}</td>
         <td>${escapeHtml(item.currentTotalQuantity || "-")}</td>
+        <td class="shipping-shipped-value">${formatNumber(shippedBoxCount)} box</td>
+        <td class="shipping-shipped-value">${formatNumber(shippedQuantity)} ea</td>
         <td>${renderShippingInspectionBadge(item)}</td>
         <td>${renderShippingAnomalyText(item)}</td>
         <td>${renderInventoryDueBadge(item)}</td>
@@ -2854,6 +2862,19 @@ function getShippingBoxStatusCounts(item) {
     counts[status] = (counts[status] || 0) + 1;
   });
   return counts;
+}
+
+function getShippedShippingBoxes(item) {
+  const explicitBoxes = Array.isArray(item?.shippedShippingBoxes)
+    ? item.shippedShippingBoxes
+    : [];
+
+  if (explicitBoxes.length) {
+    return explicitBoxes;
+  }
+
+  return (Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : [])
+    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료");
 }
 
 function renderShippingInspectionBadge(item) {

@@ -3505,7 +3505,7 @@ input {
 }
 
 .shipping-table {
-  min-width: 92rem;
+  min-width: 104rem;
   font-size: 0.78rem;
 }
 
@@ -3533,6 +3533,18 @@ input {
 .shipping-table td:nth-child(4) {
   color: var(--navy-dark);
   font-weight: 900;
+}
+
+.shipping-table th:nth-child(10),
+.shipping-table th:nth-child(11),
+.shipping-table td:nth-child(10),
+.shipping-table td:nth-child(11) {
+  white-space: nowrap;
+}
+
+.shipping-table .shipping-shipped-value {
+  color: #53647a;
+  font-weight: 800;
 }
 
 .shipping-badge,
