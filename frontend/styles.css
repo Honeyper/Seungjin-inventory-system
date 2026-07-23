@@ -7931,17 +7931,6 @@ input {
     overflow: hidden;
   }
 
-  .inventory-summary-card::after {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    height: 0.17rem;
-    background: currentColor;
-    opacity: 0.55;
-    content: "";
-  }
-
   .inventory-stat-icon,
   .inventory-stat-icon img {
     width: 2.65rem;
@@ -8262,11 +8251,6 @@ input {
   .inventory-summary-card.amber .inventory-stat-icon,
   .inventory-summary-card.violet .inventory-stat-icon {
     background: transparent;
-  }
-
-  .inventory-summary-card::after {
-    height: 0.12rem;
-    opacity: 0.35;
   }
 
   .attention-icon {
