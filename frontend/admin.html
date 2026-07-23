@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-19" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-20" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1947,27 +1947,27 @@
     </div>
 
     <div class="modal-backdrop" id="inboundProductPickerModal" hidden>
-      <section class="product-modal picker-modal" role="dialog" aria-modal="true" aria-labelledby="inboundProductPickerTitle">
+      <section class="product-modal picker-modal product-picker-modal" role="dialog" aria-modal="true" aria-labelledby="inboundProductPickerTitle">
         <header class="modal-header">
           <div>
             <h2 id="inboundProductPickerTitle">제품 선택</h2>
             <p>제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.</p>
           </div>
           <button class="modal-close" type="button" id="closeInboundProductPicker" aria-label="닫기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
+            <i class="ti ti-x" aria-hidden="true"></i>
           </button>
         </header>
 
         <div class="picker-body">
           <label class="search-field picker-search">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m16 16 4 4" />
-            </svg>
+            <i class="ti ti-search" aria-hidden="true"></i>
             <input id="inboundProductPickerSearch" type="search" placeholder="제품명, 제품코드, 거래처명 검색" />
           </label>
+
+          <div class="picker-result-summary">
+            <p><strong id="inboundProductPickerCount">0</strong>개의 제품</p>
+            <span>선택하면 입고 정보에 자동으로 반영됩니다.</span>
+          </div>
 
           <div class="picker-list" id="inboundProductPickerList"></div>
           <p class="picker-empty" id="inboundProductPickerEmpty" hidden>선택할 제품이 없습니다.</p>
@@ -2026,6 +2026,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260723-17"></script>
+    <script src="./admin.js?v=20260723-18"></script>
   </body>
 </html>

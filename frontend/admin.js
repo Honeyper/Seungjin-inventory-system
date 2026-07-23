@@ -204,6 +204,7 @@ const inboundListEndDate = document.querySelector("#inboundListEndDate");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
 const inboundProductPickerModal = document.querySelector("#inboundProductPickerModal");
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
+const inboundProductPickerCount = document.querySelector("#inboundProductPickerCount");
 const inboundProductPickerList = document.querySelector("#inboundProductPickerList");
 const inboundProductPickerEmpty = document.querySelector("#inboundProductPickerEmpty");
 const inboundInvoiceFile = document.querySelector("#inboundInvoiceFile");
@@ -3860,18 +3861,26 @@ function renderInboundProductPicker() {
     ].some((value) => String(value || "").toLowerCase().includes(query));
   });
 
+  inboundProductPickerCount.textContent = products.length.toLocaleString("ko-KR");
+
   inboundProductPickerList.innerHTML = products.map((product) => `
     <button class="picker-product" type="button" data-product="${escapeHtml(product.productCode)}">
+      <span class="picker-product-icon" aria-hidden="true">
+        <i class="ti ti-package"></i>
+      </span>
       <span class="picker-product-main">
         <strong>${escapeHtml(product.productName)}</strong>
-        <em>${escapeHtml(product.productCode)}</em>
+        <span class="picker-product-meta">
+          <span>${escapeHtml(product.clientName)}</span>
+          <span>${renderColor(product.color)}</span>
+        </span>
       </span>
-      <span class="picker-product-meta">
-        <span>${escapeHtml(product.clientName)}</span>
-        <span>${renderColor(product.color)}</span>
-        <span>박스당 ${escapeHtml(product.boxQuantity || "-")}</span>
-        <span>트레이 ${escapeHtml(product.trayQuantity || "-")}</span>
+      <span class="picker-product-spec">
+        <span><small>박스당</small><b>${escapeHtml(product.boxQuantity || "-")} <i>EA</i></b></span>
+        <span><small>트레이</small><b>${escapeHtml(product.trayQuantity || "-")} <i>EA</i></b></span>
       </span>
+      <em class="picker-product-code">${escapeHtml(product.productCode)}</em>
+      <i class="ti ti-chevron-right picker-product-chevron" aria-hidden="true"></i>
     </button>
   `).join("");
 
