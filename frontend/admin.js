@@ -2456,11 +2456,16 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
 function syncShippingFilterState() {
   state.shippingFilters = {
     query: shippingSearchInput?.value.trim().toLowerCase() || "",
-    client: shippingClientFilter?.value || "",
-    storage: shippingStorageFilter?.value || "",
-    inspection: shippingInspectionFilter?.value || "",
-    status: shippingStatusFilter?.value || ""
+    client: getShippingFilterValue(shippingClientFilter),
+    storage: getShippingFilterValue(shippingStorageFilter),
+    inspection: getShippingFilterValue(shippingInspectionFilter),
+    status: getShippingFilterValue(shippingStatusFilter)
   };
+}
+
+function getShippingFilterValue(select) {
+  const value = select?.value || "";
+  return value === "전체" ? "" : value;
 }
 
 function resetShippingFilters() {
