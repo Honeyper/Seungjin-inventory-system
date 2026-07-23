@@ -802,7 +802,7 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 0.85rem;
-  margin-bottom: clamp(4rem, 8vh, 6rem);
+  margin-bottom: clamp(3rem, 6vh, 4.5rem);
 }
 
 .brand-signature > img {
@@ -837,42 +837,20 @@ input {
   max-width: 33rem;
 }
 
-.brand-kicker {
-  margin: 0 0 1.1rem;
-  color: #dfb75e;
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-}
-
 .brand-heading h1 {
   margin: 0;
   color: #fff;
-  font-size: clamp(2.75rem, 4vw, 4.5rem);
-  font-weight: 700;
-  letter-spacing: -0.055em;
-  line-height: 1.14;
-}
-
-.brand-heading h1 strong {
-  color: #fff;
+  font-size: clamp(3rem, 4.4vw, 4.85rem);
   font-weight: 900;
-}
-
-.tagline {
-  max-width: 29rem;
-  margin: 1.5rem 0 0;
-  color: rgba(255, 255, 255, 0.67);
-  font-size: 1.02rem;
-  font-weight: 500;
-  line-height: 1.75;
+  letter-spacing: -0.055em;
+  line-height: 1.08;
 }
 
 .login-feature-list {
   display: grid;
   gap: 0.65rem;
   max-width: 31rem;
-  margin: clamp(2.6rem, 5vh, 4rem) 0 0;
+  margin: clamp(2.4rem, 4.5vh, 3.5rem) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -915,24 +893,6 @@ input {
   color: rgba(255, 255, 255, 0.57);
   font-size: 0.75rem;
   font-weight: 500;
-}
-
-.system-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 2rem 0 0;
-  color: rgba(255, 255, 255, 0.54);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.system-status i {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: #47c69b;
-  box-shadow: 0 0 0 0.22rem rgba(71, 198, 155, 0.14);
 }
 
 .login-panel {
@@ -1404,13 +1364,7 @@ input {
     font-size: 2.35rem;
   }
 
-  .tagline {
-    margin-top: 0.9rem;
-    font-size: 0.88rem;
-  }
-
-  .login-feature-list,
-  .system-status {
+  .login-feature-list {
     display: none;
   }
 
@@ -1440,10 +1394,6 @@ input {
 
   .brand-heading h1 {
     font-size: 2rem;
-  }
-
-  .tagline {
-    line-height: 1.6;
   }
 
   .login-panel {
@@ -1478,18 +1428,8 @@ input {
     height: 2.75rem;
   }
 
-  .brand-kicker {
-    margin-bottom: 0.72rem;
-  }
-
   .brand-heading h1 {
     font-size: clamp(2.55rem, 3.35vw, 3.45rem);
-  }
-
-  .tagline {
-    margin-top: 0.85rem;
-    font-size: 0.88rem;
-    line-height: 1.6;
   }
 
   .login-feature-list {
@@ -1506,10 +1446,6 @@ input {
     width: 2.15rem;
     height: 2.15rem;
     font-size: 1.15rem;
-  }
-
-  .system-status {
-    margin-top: 1rem;
   }
 
   .login-panel {
