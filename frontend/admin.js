@@ -5512,6 +5512,8 @@ function setInboundRefreshButtonLoading(isLoading) {
   }
 
   refreshInboundListButton.disabled = isLoading;
+  refreshInboundListButton.classList.toggle("is-loading", isLoading);
+  refreshInboundListButton.setAttribute("aria-busy", String(isLoading));
   const label = refreshInboundListButton.querySelector("span:last-child");
   if (label) {
     label.textContent = isLoading ? "새로고침 중" : "새로고침";
