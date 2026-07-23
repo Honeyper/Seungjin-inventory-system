@@ -8797,7 +8797,8 @@ input {
 .shipping-settlement-summary .shipping-summary-icon .ti {
   width: 100%;
   height: 100%;
-  font-size: 1.5rem;
+  color: #183968;
+  font-size: 1.7rem;
 }
 
 .row-menu-item > .ti {
@@ -8867,14 +8868,22 @@ input {
 
   .shipping-settlement-summary .shipping-summary-icon,
   .shipping-settlement-summary .shipping-summary-icon img {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.5rem;
+    height: 2.5rem;
   }
 
   .shipping-summary-icon {
+    color: #183968;
     border: 0;
     background: transparent;
     box-shadow: none;
+  }
+
+  .shipping-summary-card.amber .shipping-summary-icon,
+  .shipping-summary-card.green .shipping-summary-icon,
+  .shipping-summary-card.red .shipping-summary-icon,
+  .shipping-summary-card.blue .shipping-summary-icon {
+    color: #183968;
   }
 
   .product-view .product-hero-visual {
