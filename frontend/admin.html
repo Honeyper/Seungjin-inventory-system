@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-34" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-35" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1096,7 +1096,34 @@
                 </label>
               </div>
               <div class="shipping-filter-actions">
-                <button class="secondary-action" type="button">
+                <div class="shipping-sort-controls" aria-label="출고 목록 정렬">
+                  <label class="shipping-sort-field">
+                    <span>정렬</span>
+                    <select id="shippingSortKey">
+                      <option value="recent">최근 출고 변경순</option>
+                      <option value="productName">제품명순</option>
+                      <option value="clientName">거래처명순</option>
+                      <option value="inboundDate">입고일순</option>
+                    </select>
+                  </label>
+                  <button
+                    class="secondary-action shipping-sort-direction"
+                    id="shippingSortDirection"
+                    type="button"
+                    data-direction="desc"
+                    aria-label="현재 내림차순, 오름차순으로 변경"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M8 7h8" />
+                      <path d="M8 12h5" />
+                      <path d="M8 17h2" />
+                      <path d="m16 14 3 3 3-3" />
+                      <path d="M19 7v10" />
+                    </svg>
+                    <span>내림차순</span>
+                  </button>
+                </div>
+                <button class="secondary-action" id="shippingFilterReset" type="button">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M19 12a7 7 0 1 1-2.05-4.95" />
                     <path d="M19 5v5h-5" />
@@ -1734,29 +1761,41 @@
               </label>
 
               <div class="product-treatment-grid full-span" aria-label="제품 공정 옵션">
-                <fieldset class="form-field usage-field">
-                  <legend>박가루 제거 유무</legend>
-                  <label>
-                    <input type="radio" name="productDustRemoval" value="유" />
-                    <span>유</span>
-                  </label>
-                  <label>
-                    <input type="radio" name="productDustRemoval" value="무" checked />
-                    <span>무</span>
-                  </label>
-                </fieldset>
+                <div
+                  class="form-field usage-field product-treatment-card"
+                  role="group"
+                  aria-labelledby="productDustRemovalLabel"
+                >
+                  <span class="product-treatment-title" id="productDustRemovalLabel">박가루 제거</span>
+                  <div class="product-treatment-options">
+                    <label>
+                      <input type="radio" name="productDustRemoval" value="유" />
+                      <span>유</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="productDustRemoval" value="무" checked />
+                      <span>무</span>
+                    </label>
+                  </div>
+                </div>
 
-                <fieldset class="form-field usage-field">
-                  <legend>화염처리 유무</legend>
-                  <label>
-                    <input type="radio" name="productFlameTreatment" value="유" />
-                    <span>유</span>
-                  </label>
-                  <label>
-                    <input type="radio" name="productFlameTreatment" value="무" checked />
-                    <span>무</span>
-                  </label>
-                </fieldset>
+                <div
+                  class="form-field usage-field product-treatment-card"
+                  role="group"
+                  aria-labelledby="productFlameTreatmentLabel"
+                >
+                  <span class="product-treatment-title" id="productFlameTreatmentLabel">화염처리</span>
+                  <div class="product-treatment-options">
+                    <label>
+                      <input type="radio" name="productFlameTreatment" value="유" />
+                      <span>유</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="productFlameTreatment" value="무" checked />
+                      <span>무</span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <fieldset class="form-field usage-field full-span">
@@ -2125,6 +2164,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260723-23"></script>
+    <script src="./admin.js?v=20260723-24"></script>
   </body>
 </html>

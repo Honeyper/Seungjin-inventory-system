@@ -3207,8 +3207,55 @@ input {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.6rem;
   margin-top: 0.9rem;
+}
+
+.shipping-sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+}
+
+.shipping-sort-field {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--navy-dark);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.shipping-sort-field select {
+  appearance: none;
+  width: 11.5rem;
+  height: 2.55rem;
+  padding: 0 2.4rem 0 0.8rem;
+  color: var(--navy-dark);
+  font: inherit;
+  border: 1px solid #dce5f0;
+  border-radius: 0.42rem;
+  outline: none;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m6 9 6 6 6-6' fill='none' stroke='%2308204a' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 0.9rem;
+}
+
+.shipping-sort-field select:focus {
+  border-color: rgba(8, 42, 98, 0.55);
+  box-shadow: 0 0 0 0.18rem rgba(8, 42, 98, 0.08);
+}
+
+.shipping-sort-direction {
+  min-width: 7.25rem;
+}
+
+.shipping-sort-direction[data-direction="asc"] svg {
+  transform: rotate(180deg);
 }
 
 .shipping-filter-page-size {
@@ -5062,6 +5109,10 @@ input {
   row-gap: 0.72rem;
 }
 
+.product-create-form .form-grid > .full-span {
+  grid-column: 1 / -1;
+}
+
 .product-create-form .form-field,
 .product-create-form .usage-field {
   font-size: 0.78rem;
@@ -5110,9 +5161,48 @@ input {
   gap: 0.75rem;
 }
 
-.product-treatment-grid .usage-field {
+.product-treatment-grid .product-treatment-card {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
   min-width: 0;
-  padding: 0.72rem 0.85rem;
+  min-height: 3.4rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.product-treatment-card > .product-treatment-title {
+  min-width: 0;
+  margin: 0;
+  color: var(--navy-dark);
+  font-weight: 900;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.product-treatment-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(4rem, 1fr));
+  gap: 0.45rem;
+}
+
+.product-treatment-grid .product-treatment-options label {
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.1rem;
+  margin: 0;
+  padding: 0 0.65rem;
+  border: 1px solid #dce3ec;
+  border-radius: 0.38rem;
+  background: #fff;
+  white-space: nowrap;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.product-treatment-grid .product-treatment-options label:has(input:checked) {
+  border-color: rgba(208, 161, 75, 0.72);
+  background: #fffaf0;
+  box-shadow: 0 0 0 0.1rem rgba(208, 161, 75, 0.08);
 }
 
 .common-container-toggle {

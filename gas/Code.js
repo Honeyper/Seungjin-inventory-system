@@ -526,6 +526,7 @@ function setupSheets() {
       '출고일',
       '출고시간',
       '출고자',
+      '출고 수정일시',
       '검수일',
       '검수시간',
       '검수자',
@@ -876,6 +877,7 @@ function getInventoryDashboard() {
       defectPhotoCount: boxSummary.defectPhotoCount || 0,
       shippingInspectionDate: boxSummary.shippingInspectionDate || '',
       shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
+      shippingUpdatedAt: boxSummary.shippingUpdatedAt || '',
       allShippingBoxes: boxSummary.allShippingBoxes || [],
       activeShippingBoxes: boxSummary.activeShippingBoxes || [],
       shippedShippingBoxes: boxSummary.shippedShippingBoxes || [],
@@ -1876,7 +1878,7 @@ function ensureBoxDbShippingInspectionHeaders_(sheet) {
     return;
   }
 
-  const requiredHeaders = ['불량 수량', '불량 사유', '불량 사진'];
+  const requiredHeaders = ['불량 수량', '불량 사유', '불량 사진', '출고 수정일시'];
   const existingHeaders = headerInfo.headers.map((header) => String(header || '').trim());
   let nextColumn = existingHeaders.length + 1;
 
@@ -2686,6 +2688,7 @@ function saveShippingInspection(payload) {
   const defectReason = defectReasons.join(', ');
   const defectPhotoFolderUrl = String(payload.defectPhotoFolderUrl || '').trim();
   const memo = String(payload.memo || payload.note || '').trim();
+  const shippingUpdatedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
 
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
@@ -2709,6 +2712,7 @@ function saveShippingInspection(payload) {
     status: stockStatus,
     selectedBoxes: Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [],
     boxQuantities: payload.boxQuantities || payload.selectedBoxQuantities || {},
+    shippingUpdatedAt,
     note: memo || '-'
   });
   const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, stockStatus, payload);
@@ -2893,6 +2897,7 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], '-');
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], '-');
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], '보관');
+        setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 수정일시', '출고수정일시'], data.shippingUpdatedAt);
         updatedRows += 1;
       }
       continue;
@@ -2919,6 +2924,7 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], defectRate);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.status);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 수정일시', '출고수정일시'], data.shippingUpdatedAt);
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['비고'], data.note);
     updatedRows += 1;
     wroteInspectionMetric = true;
@@ -2948,10 +2954,12 @@ function updateShippingStatus(payload) {
   const now = new Date();
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  ensureBoxDbShippingInspectionHeaders_(boxSheet);
   const shippingDate = dash_(payload.shippingDate || Utilities.formatDate(now, timezone, 'yyyy-MM-dd'));
   const shippingTime = dash_(payload.shippingTime || Utilities.formatDate(now, timezone, 'HH:mm'));
   const shippingType = dash_(payload.shippingType || payload['출고유형'] || payload['출고 유형'] || '정상출고');
   const shipper = dash_(payload.shipper || payload.userName || 'Admin');
+  const shippingUpdatedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
   const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
   const boxUpdateResult = updateShippingStatusBoxRows_(boxSheet, managementId, {
     productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
@@ -2965,6 +2973,7 @@ function updateShippingStatus(payload) {
     shippingDate,
     shippingTime,
     shipper,
+    shippingUpdatedAt,
     selectedBoxes
   });
   const finalStatus = status === '출고완료' && boxUpdateResult.remainingActiveRows > 0
@@ -3045,6 +3054,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     if (shouldUpdate) {
       rowStatus = data.status;
       setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.status);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 수정일시', '출고수정일시'], data.shippingUpdatedAt);
 
       if (data.status === '출고완료') {
         sheet.getRange(rowIndex + 1, shippingTypeIndex + 1).setValue(data.shippingType);
@@ -3514,6 +3524,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
         defectPhotoUrlCounts: {},
         shippingInspectionDateCounts: {},
         shippingDateCounts: {},
+        shippingUpdatedAt: '',
         statusCounts: {},
         storageCounts: {},
         allShippingBoxes: [],
@@ -3534,6 +3545,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const shippingInspectionDate = normalizeDateKey_(getObjectCell_(row, ['출고 검수일', '검수일']));
     const shippingInspectionTime = getObjectCell_(row, ['출고 검수시간', '검수시간']);
     const shippingDate = normalizeDateKey_(getObjectCell_(row, ['출고일']));
+    const shippingUpdatedAt = getObjectCell_(row, ['출고 수정일시', '출고수정일시']);
     const shippingType = getObjectCell_(row, ['출고유형', '출고 유형', '출고타입', '출고 타입', '출고구분', '출고 구분']);
     const boxNote = getObjectCell_(row, ['비고', '메모', '참고']);
     const transferCompanyCell = getObjectCell_(row, ['이관업체', '이관 업체', '출고 이관 업체', '출고이관업체']);
@@ -3554,6 +3566,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       defectRate: shippingDefectRate,
       defectReason: shippingDefectReason,
       defectPhotoFolderUrl,
+      shippingUpdatedAt,
       shippingDate: getObjectCell_(row, ['출고일']),
       shippingTime: getObjectCell_(row, ['출고시간']),
       shippingType,
@@ -3607,6 +3620,10 @@ function buildInventoryBoxSummaryMap_(boxRows) {
 
     if (shippingDate) {
       summary.shippingDateCounts[shippingDate] = (summary.shippingDateCounts[shippingDate] || 0) + 1;
+    }
+
+    if (shippingUpdatedAt && shippingUpdatedAt > summary.shippingUpdatedAt) {
+      summary.shippingUpdatedAt = shippingUpdatedAt;
     }
 
     summary.boxes.push(boxInfo);

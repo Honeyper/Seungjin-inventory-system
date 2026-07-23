@@ -72,6 +72,10 @@ const state = {
     inspection: "",
     status: ""
   },
+  shippingSort: {
+    key: "recent",
+    direction: "desc"
+  },
   inboundPageSize: 10,
   query: "",
   clientFilter: "",
@@ -273,7 +277,9 @@ const shippingClientFilter = shippingFilterSelects[0] || null;
 const shippingStorageFilter = shippingFilterSelects[1] || null;
 const shippingInspectionFilter = shippingFilterSelects[2] || null;
 const shippingStatusFilter = shippingFilterSelects[3] || null;
-const shippingFilterResetButton = shippingFilterPanel?.querySelector(".shipping-filter-actions .secondary-action") || null;
+const shippingSortKey = document.querySelector("#shippingSortKey");
+const shippingSortDirection = document.querySelector("#shippingSortDirection");
+const shippingFilterResetButton = document.querySelector("#shippingFilterReset");
 const shippingInspectionModal = document.querySelector("#shippingInspectionModal");
 const shippingInspectionForm = document.querySelector("#shippingInspectionForm");
 const shippingInspectionMessage = document.querySelector("#shippingInspectionMessage");
@@ -777,6 +783,19 @@ shippingSearchInput?.addEventListener("input", (event) => {
     state.shippingPage = 1;
     renderShippingTable();
   });
+});
+shippingSortKey?.addEventListener("change", () => {
+  state.shippingSort.key = shippingSortKey.value || "recent";
+  state.shippingSort.direction = ["recent", "inboundDate"].includes(state.shippingSort.key) ? "desc" : "asc";
+  syncShippingSortControls();
+  state.shippingPage = 1;
+  renderShippingTable();
+});
+shippingSortDirection?.addEventListener("click", () => {
+  state.shippingSort.direction = state.shippingSort.direction === "asc" ? "desc" : "asc";
+  syncShippingSortControls();
+  state.shippingPage = 1;
+  renderShippingTable();
 });
 shippingFilterResetButton?.addEventListener("click", () => {
   resetShippingFilters();
@@ -2467,7 +2486,7 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
   syncShippingFilterState();
   const filters = state.shippingFilters;
 
-  return sourceRows.filter((item) => {
+  const filteredRows = sourceRows.filter((item) => {
     const effectiveStatus = getEffectiveShippingStatus(item);
 
     if (filters.client && item.clientName !== filters.client) {
@@ -2504,6 +2523,101 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
       isShippingInspected(item) ? SHIPPING_READY_STATUS_LABEL : "검수 전"
     ].some((value) => String(value || "").toLowerCase().includes(filters.query));
   });
+
+  const shippingDrafts = readShippingBoxDrafts();
+  return filteredRows.sort((left, right) => compareShippingRows(left, right, shippingDrafts));
+}
+
+function compareShippingRows(left, right, shippingDrafts = {}) {
+  const key = state.shippingSort.key || "recent";
+  const direction = state.shippingSort.direction === "asc" ? 1 : -1;
+  let result = 0;
+
+  if (key === "recent") {
+    result = getShippingRecentActivityTimestamp(left, shippingDrafts)
+      - getShippingRecentActivityTimestamp(right, shippingDrafts);
+  } else if (key === "inboundDate") {
+    result = getShippingDateTimeTimestamp(left.inboundDate, left.inboundTime)
+      - getShippingDateTimeTimestamp(right.inboundDate, right.inboundTime);
+  } else {
+    result = String(left[key] || "").localeCompare(String(right[key] || ""), "ko-KR", {
+      numeric: true,
+      sensitivity: "base"
+    });
+  }
+
+  if (result === 0) {
+    result = String(left.managementId || "").localeCompare(String(right.managementId || ""), "ko-KR", {
+      numeric: true,
+      sensitivity: "base"
+    });
+  }
+
+  return result * direction;
+}
+
+function getShippingRecentActivityTimestamp(item, shippingDrafts = {}) {
+  const boxes = Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : [];
+  const draftKey = getShippingDraftKeyFromItem(item);
+  const draftUpdatedAt = Number(shippingDrafts[draftKey]?.updatedAt) || 0;
+  const activityTimestamps = [
+    draftUpdatedAt,
+    getShippingDateTimeTimestamp(item?.shippingUpdatedAt),
+    getShippingDateTimeTimestamp(item?.shippingDate),
+    getShippingDateTimeTimestamp(item?.shippingInspectionDate),
+    ...boxes.flatMap((box) => [
+      getShippingDateTimeTimestamp(box.shippingUpdatedAt),
+      getShippingDateTimeTimestamp(box.shippingDate, box.shippingTime),
+      getShippingDateTimeTimestamp(box.inspectionDate, box.inspectionTime)
+    ])
+  ].filter((value) => Number.isFinite(value) && value > 0);
+
+  if (activityTimestamps.length) {
+    return Math.max(...activityTimestamps);
+  }
+
+  return getShippingDateTimeTimestamp(item?.inboundDate, item?.inboundTime)
+    || getShippingDateTimeTimestamp(item?.registeredAt)
+    || 0;
+}
+
+function getShippingDateTimeTimestamp(dateValue, timeValue = "") {
+  const date = toDateInputValue(dateValue);
+
+  if (!date) {
+    return 0;
+  }
+
+  const sourceTime = timeValue || dateValue;
+  const time = toTimeInputValue(sourceTime) || "00:00";
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const secondMatch = String(sourceTime || "").match(/:\d{2}:(\d{2})/);
+  const second = secondMatch ? Number(secondMatch[1]) : 0;
+  const parsed = new Date(year, month - 1, day, hour, minute, second);
+  const timestamp = parsed.getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function syncShippingSortControls() {
+  if (shippingSortKey) {
+    shippingSortKey.value = state.shippingSort.key || "recent";
+  }
+
+  if (!shippingSortDirection) {
+    return;
+  }
+
+  const isAscending = state.shippingSort.direction === "asc";
+  shippingSortDirection.dataset.direction = isAscending ? "asc" : "desc";
+  shippingSortDirection.setAttribute(
+    "aria-label",
+    isAscending ? "현재 오름차순, 내림차순으로 변경" : "현재 내림차순, 오름차순으로 변경"
+  );
+  const label = shippingSortDirection.querySelector("span");
+  if (label) {
+    label.textContent = isAscending ? "오름차순" : "내림차순";
+  }
 }
 
 function syncShippingFilterState() {
@@ -2532,6 +2646,11 @@ function resetShippingFilters() {
     }
   });
 
+  state.shippingSort = {
+    key: "recent",
+    direction: "desc"
+  };
+  syncShippingSortControls();
   state.shippingPage = 1;
   syncShippingFilterState();
 }
