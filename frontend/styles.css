@@ -5618,6 +5618,18 @@ input {
   padding: 1.35rem 2.1rem 1.75rem;
 }
 
+/* Fixed-shell forms already manage their own scroll body and footer spacing. */
+.product-form.product-create-form,
+.product-form.existing-stock-create-form {
+  padding: 0;
+}
+
+.product-create-form > .modal-actions,
+.existing-stock-create-form > .modal-actions {
+  border-top-color: #e2e7ee;
+  background: #f7f9fc;
+}
+
 .detail-modal {
   width: min(58.5rem, calc(100vw - 2.5rem));
   max-height: none;
