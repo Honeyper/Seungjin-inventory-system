@@ -2937,7 +2937,10 @@ function renderShippingRowAction(item) {
   }
 
   if (isPartialShipping && hasRemainingBoxes) {
-    return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">추가 출고</button>';
+    return renderShippingActionSet(
+      { action: "inspect", label: "추가 출고" },
+      [{ action: "detail", label: "상세보기", icon: "ti-eye" }]
+    );
   }
 
   if (status === "출고완료") {
@@ -5797,6 +5800,9 @@ function toggleShippingRowActionMenu(button) {
 function getShippingMenuActionIcon(action) {
   if (action === "inspect") {
     return "ti-edit";
+  }
+  if (action === "detail") {
+    return "ti-eye";
   }
   if (action === "photo") {
     return "ti-photo";
