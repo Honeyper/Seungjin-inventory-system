@@ -76,6 +76,7 @@ const state = {
     key: "recent",
     direction: "desc"
   },
+  shippingListPeriodOnly: false,
   inboundPageSize: 10,
   query: "",
   clientFilter: "",
@@ -349,6 +350,7 @@ const reinspectFromHoldGuideButton = document.querySelector("#reinspectFromHoldG
 const shippingSettlementStartDate = document.querySelector("#shippingSettlementStartDate");
 const shippingSettlementEndDate = document.querySelector("#shippingSettlementEndDate");
 const shippingSettlementTodayButton = document.querySelector("#shippingSettlementTodayButton");
+const shippingPeriodListOnly = document.querySelector("#shippingPeriodListOnly");
 const shippingSettlementFields = {
   totalQuantity: document.querySelector("#shippingSettlementTotalQuantity"),
   totalBoxes: document.querySelector("#shippingSettlementTotalBoxes"),
@@ -577,11 +579,13 @@ shippingSettlementStartDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("start");
   updateShippingSummaryCards(getShippingSettlementItems());
   updateShippingSettlementSummary();
+  refreshShippingListForSettlementPeriod();
 });
 shippingSettlementEndDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("end");
   updateShippingSummaryCards(getShippingSettlementItems());
   updateShippingSettlementSummary();
+  refreshShippingListForSettlementPeriod();
 });
 shippingSettlementTodayButton?.addEventListener("click", () => {
   const today = getLocalDateInputValue();
@@ -593,6 +597,12 @@ shippingSettlementTodayButton?.addEventListener("click", () => {
   }
   updateShippingSummaryCards(getShippingSettlementItems());
   updateShippingSettlementSummary();
+  refreshShippingListForSettlementPeriod();
+});
+shippingPeriodListOnly?.addEventListener("change", () => {
+  state.shippingListPeriodOnly = Boolean(shippingPeriodListOnly.checked);
+  state.shippingPage = 1;
+  renderShippingTable();
 });
 editShippingInspectorButton?.addEventListener("click", () => {
   setInboundLockedFieldEditable(
@@ -2601,6 +2611,10 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
   const filteredRows = sourceRows.filter((item) => {
     const effectiveStatus = getEffectiveShippingStatus(item);
 
+    if (state.shippingListPeriodOnly && !isShippingSettlementDateMatch(item)) {
+      return false;
+    }
+
     if (filters.client && item.clientName !== filters.client) {
       return false;
     }
@@ -2762,9 +2776,22 @@ function resetShippingFilters() {
     key: "recent",
     direction: "desc"
   };
+  state.shippingListPeriodOnly = false;
+  if (shippingPeriodListOnly) {
+    shippingPeriodListOnly.checked = false;
+  }
   syncShippingSortControls();
   state.shippingPage = 1;
   syncShippingFilterState();
+}
+
+function refreshShippingListForSettlementPeriod() {
+  if (!state.shippingListPeriodOnly) {
+    return;
+  }
+
+  state.shippingPage = 1;
+  renderShippingTable();
 }
 
 function getShippingInspectionFilterValue(item) {

@@ -3433,6 +3433,36 @@ input {
   cursor: pointer;
 }
 
+.shipping-settlement-date-tools .shipping-settlement-list-scope {
+  min-width: auto;
+  padding: 0 0.82rem;
+  color: var(--navy-dark);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.shipping-settlement-date-tools .shipping-settlement-list-scope input {
+  appearance: auto;
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  accent-color: #c89434;
+}
+
+.shipping-settlement-date-tools .shipping-settlement-list-scope span {
+  color: var(--navy-dark);
+  font-size: 0.82rem;
+}
+
+.shipping-settlement-date-tools .shipping-settlement-list-scope:has(input:checked) {
+  border-color: #dfb65f;
+  background: #fff9eb;
+}
+
 .shipping-settlement-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10.6rem, 1fr));
