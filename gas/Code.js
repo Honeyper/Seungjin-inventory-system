@@ -361,6 +361,71 @@ function isChecked_(value) {
   return ['true', '1', 'yes', 'y', 'on', 'checked', '활성', '사용', '사용함', '예', 'o', '✓', '✔'].includes(normalized);
 }
 
+function isCommonContainerProduct_(value) {
+  if (value === true) {
+    return true;
+  }
+
+  return ['유', '예', 'true', '1', 'yes', 'y', 'on', 'checked'].includes(String(value || '').trim().toLowerCase());
+}
+
+function normalizeCommonContainerProductNames_(value) {
+  let names = value;
+
+  if (!Array.isArray(names)) {
+    const normalized = String(value || '').trim();
+    if (!normalized || normalized === '-') {
+      return [];
+    }
+
+    if (normalized.charAt(0) === '[') {
+      try {
+        names = JSON.parse(normalized);
+      } catch (error) {
+        names = normalized.split(/\r?\n|\|/);
+      }
+    } else {
+      names = normalized.split(/\r?\n|\|/);
+    }
+  }
+
+  if (!Array.isArray(names)) {
+    return [];
+  }
+
+  return names.map((name) => String(name || '').trim()).filter(Boolean);
+}
+
+function getCommonContainerProductPayload_(payload) {
+  const isCommonContainer = isCommonContainerProduct_(
+    payload['공용용기 제품'] || payload.commonContainerProduct || payload.isCommonContainer
+  );
+  const shippingProductNames = isCommonContainer
+    ? normalizeCommonContainerProductNames_(payload['출고시 제품명 목록'] || payload.shippingProductNames)
+    : [];
+  const requestedCount = Number(
+    payload['출고시 제품 종류 수'] || payload.shippingProductTypeCount || shippingProductNames.length || 0
+  );
+
+  if (isCommonContainer) {
+    if (!Number.isInteger(requestedCount) || requestedCount < 1) {
+      throw new Error('출고 시 제품 종류 수를 선택해주세요.');
+    }
+    if (shippingProductNames.length !== requestedCount) {
+      throw new Error('출고 시 제품 종류 수만큼 제품명을 모두 입력해주세요.');
+    }
+    if (new Set(shippingProductNames).size !== shippingProductNames.length) {
+      throw new Error('출고 시 제품명은 서로 다르게 입력해주세요.');
+    }
+  }
+
+  return {
+    isCommonContainer,
+    shippingProductTypeCount: isCommonContainer ? requestedCount : 0,
+    shippingProductNames
+  };
+}
+
 function findCell_(values, target) {
   for (let row = 0; row < values.length; row += 1) {
     for (let col = 0; col < values[row].length; col += 1) {
@@ -375,11 +440,16 @@ function findCell_(values, target) {
 function setupSheets() {
   const headers = {
     [CONFIG.SHEETS.PRODUCTS]: [
-      '제품ID',
+      '제품 ID',
       '업체명',
       '제품명',
+      '공용용기 제품',
+      '출고시 제품 종류 수',
+      '출고시 제품명 목록',
       '기본 차수',
       '최종공정',
+      '박가루제거 유무',
+      '화염처리 유무',
       '박스당 수량',
       '사용 여부',
       '비고',
@@ -583,14 +653,44 @@ function setupSheets() {
       sheet.setFrozenRows(1);
     }
   });
+  ensureProductOptionHeaders_(getProductSheet_());
 
   return {
     createdOrCheckedSheets: Object.keys(headers)
   };
 }
 
+function ensureProductOptionHeaders_(sheet) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    return;
+  }
+
+  const requiredHeaders = [
+    '공용용기 제품',
+    '출고시 제품 종류 수',
+    '출고시 제품명 목록',
+    '박가루제거 유무',
+    '화염처리 유무'
+  ];
+  const existingHeaders = new Set(headerInfo.headers.map((header) => normalizeHeaderKey_(header)));
+  const missingHeaders = requiredHeaders.filter((header) => !existingHeaders.has(normalizeHeaderKey_(header)));
+
+  if (!missingHeaders.length) {
+    return;
+  }
+
+  const startColumn = Math.max(sheet.getLastColumn(), headerInfo.headers.length) + 1;
+  const headerRowNumber = headerInfo.rowIndex + 1;
+  sheet.getRange(headerRowNumber, startColumn, 1, missingHeaders.length).setValues([missingHeaders]);
+  sheet.setColumnWidths(startColumn, missingHeaders.length, 170);
+}
+
 function getProducts() {
   const sheet = getProductSheet_();
+  ensureProductOptionHeaders_(sheet);
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
 
@@ -608,6 +708,16 @@ function getProducts() {
     .map((row) => {
       const productCode = pickCell_(row, indexes, ['제품 ID', '제품ID']);
       const registeredAt = pickCell_(row, indexes, ['등록일']);
+      const shippingProductNames = normalizeCommonContainerProductNames_(
+        pickCell_(row, indexes, ['출고시 제품명 목록', '출고 시 제품명 목록'])
+      );
+      const isCommonContainer = isCommonContainerProduct_(
+        pickCell_(row, indexes, ['공용용기 제품', '공용 용기 제품'])
+      ) || shippingProductNames.length > 0;
+      const storedShippingProductTypeCount = Number.parseInt(
+        String(pickCell_(row, indexes, ['출고시 제품 종류 수', '출고 시 제품 종류 수']) || '').replace(/[^0-9]/g, ''),
+        10
+      ) || 0;
 
       return {
         registeredAt,
@@ -617,7 +727,15 @@ function getProducts() {
         productCode,
         clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
         productName: pickCell_(row, indexes, ['제품명']),
+        isCommonContainer,
+        commonContainerProduct: isCommonContainer ? '유' : '무',
+        shippingProductTypeCount: isCommonContainer
+          ? Math.max(storedShippingProductTypeCount, shippingProductNames.length)
+          : 0,
+        shippingProductNames: isCommonContainer ? shippingProductNames : [],
         color: pickCell_(row, indexes, ['색상']),
+        dustRemovalStatus: pickCell_(row, indexes, ['박가루제거 유무', '박가루 제거 유무']) || '무',
+        flameTreatmentStatus: pickCell_(row, indexes, ['화염처리 유무', '화염 처리 유무']) || '무',
         useStatus: pickCell_(row, indexes, ['사용 여부', '사용여부']),
         finalProcess: pickCell_(row, indexes, ['최종공정', '최종 공정']),
         orderQuantity: pickCell_(row, indexes, ['발주량', '주문량']),
@@ -874,14 +992,16 @@ function syncStockStatusesFromBoxSummary_(sheet, boxSummaryMap) {
 }
 
 function createProduct(payload) {
-  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '최종공정', '박스당 수량', '트레이 수량'];
   required.forEach((field) => {
     if (!payload[field]) {
       throw new Error(`${field} 값이 필요합니다.`);
     }
   });
 
+  const commonContainerProduct = getCommonContainerProductPayload_(payload);
   const sheet = getProductSheet_();
+  ensureProductOptionHeaders_(sheet);
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
 
@@ -903,7 +1023,12 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['제품 ID', '제품ID'], productId);
   setRowValue_(row, indexes, ['업체명', '거래처명'], clientName);
   setRowValue_(row, indexes, ['제품명'], payload['제품명']);
+  setRowValue_(row, indexes, ['공용용기 제품', '공용 용기 제품'], commonContainerProduct.isCommonContainer ? '유' : '무');
+  setRowValue_(row, indexes, ['출고시 제품 종류 수', '출고 시 제품 종류 수'], commonContainerProduct.shippingProductTypeCount || '');
+  setRowValue_(row, indexes, ['출고시 제품명 목록', '출고 시 제품명 목록'], JSON.stringify(commonContainerProduct.shippingProductNames));
   setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
+  setRowValue_(row, indexes, ['박가루제거 유무', '박가루 제거 유무'], payload['박가루제거 유무'] || payload['박가루 제거 유무'] || '무');
+  setRowValue_(row, indexes, ['화염처리 유무', '화염 처리 유무'], payload['화염처리 유무'] || payload['화염 처리 유무'] || '무');
   setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
   setRowValue_(row, indexes, ['최종공정', '최종 공정'], payload['최종공정'] || payload['최종 공정'] || '');
   setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
@@ -1120,7 +1245,7 @@ function getInboundBoxQrs(payload) {
 
 function updateProduct(payload) {
   const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
-  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
+  const required = ['업체명', '제품명', '최종공정', '박스당 수량', '트레이 수량'];
 
   if (!productId) {
     throw new Error('수정할 제품 ID가 필요합니다.');
@@ -1132,7 +1257,9 @@ function updateProduct(payload) {
     }
   });
 
+  const commonContainerProduct = getCommonContainerProductPayload_(payload);
   const sheet = getProductSheet_();
+  ensureProductOptionHeaders_(sheet);
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
 
@@ -1158,7 +1285,13 @@ function updateProduct(payload) {
 
       setRowValue_(row, indexes, ['업체명', '거래처명'], payload['업체명']);
       setRowValue_(row, indexes, ['제품명'], payload['제품명']);
+      setRowValue_(row, indexes, ['공용용기 제품', '공용 용기 제품'], commonContainerProduct.isCommonContainer ? '유' : '무');
+      setRowValue_(row, indexes, ['출고시 제품 종류 수', '출고 시 제품 종류 수'], commonContainerProduct.shippingProductTypeCount || '');
+      setRowValue_(row, indexes, ['출고시 제품명 목록', '출고 시 제품명 목록'], JSON.stringify(commonContainerProduct.shippingProductNames));
       setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
+      setRowValue_(row, indexes, ['최종공정', '최종 공정'], payload['최종공정'] || payload['최종 공정'] || '');
+      setRowValue_(row, indexes, ['박가루제거 유무', '박가루 제거 유무'], payload['박가루제거 유무'] || payload['박가루 제거 유무'] || '무');
+      setRowValue_(row, indexes, ['화염처리 유무', '화염 처리 유무'], payload['화염처리 유무'] || payload['화염 처리 유무'] || '무');
       setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
       setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
       setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');

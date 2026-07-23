@@ -139,6 +139,11 @@ const productCodePreview = document.querySelector("#productCodePreview");
 const productClientName = document.querySelector("#productClientName");
 const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
+const productFinalProcess = document.querySelector("#productFinalProcess");
+const productCommonContainer = document.querySelector("#productCommonContainer");
+const productCommonContainerFields = document.querySelector("#productCommonContainerFields");
+const productShippingProductCount = document.querySelector("#productShippingProductCount");
+const productShippingProductNames = document.querySelector("#productShippingProductNames");
 const productOrderQuantity = document.querySelector("#productOrderQuantity");
 const productDueDate = document.querySelector("#productDueDate");
 const productBoxQuantity = document.querySelector("#productBoxQuantity");
@@ -710,6 +715,11 @@ pageSizeSelect.addEventListener("change", (event) => {
   state.pageSize = Number(event.target.value);
   state.page = 1;
   renderProducts();
+});
+
+productCommonContainer?.addEventListener("change", syncCommonContainerFields);
+productShippingProductCount?.addEventListener("change", () => {
+  renderCommonContainerProductNameFields(Number(productShippingProductCount.value) || 1);
 });
 
 shippingPageSizeSelect?.addEventListener("change", (event) => {
@@ -6038,6 +6048,13 @@ function getProductByCode(productCode) {
 }
 
 function renderProductDetail(product) {
+  const commonContainerProductNames = normalizeCommonContainerProductNames(product.shippingProductNames);
+  const isCommonContainer = isCommonContainerProduct(product.isCommonContainer ?? product.commonContainerProduct)
+    || commonContainerProductNames.length > 0;
+  const commonContainerProductCount = isCommonContainer
+    ? Math.max(Number(product.shippingProductTypeCount) || 0, commonContainerProductNames.length)
+    : 0;
+
   productDetailContent.innerHTML = `
     ${renderDetailOverview({
       label: "등록 제품",
@@ -6057,6 +6074,12 @@ function renderProductDetail(product) {
         ${detailItem("거래처명", product.clientName)}
         ${detailItem("제품명", product.productName)}
         ${detailItem("색상", renderColor(product.color), true)}
+        ${detailItem("최종공정", product.finalProcess)}
+        ${detailItem("박가루 제거 유무", normalizeBinaryOption(product.dustRemovalStatus))}
+        ${detailItem("화염처리 유무", normalizeBinaryOption(product.flameTreatmentStatus))}
+        ${detailItem("공용용기 제품", isCommonContainer ? "예" : "아니오")}
+        ${isCommonContainer ? detailItem("출고 시 제품 종류", `${commonContainerProductCount}개`) : ""}
+        ${isCommonContainer ? detailItem("출고 시 제품명", commonContainerProductNames.join(" / ") || "-", false, "full-span") : ""}
         ${detailItem("사용 여부", renderUsageStatus(product.useStatus), true, "full-span")}
       </div>
     </section>
@@ -6975,6 +6998,9 @@ function openProductModal(mode = "create", product = null) {
   state.editingProductCode = mode === "edit" ? product?.productCode || "" : "";
 
   productForm.reset();
+  ensureCommonContainerCountOption(1);
+  renderCommonContainerProductNameFields(1, []);
+  syncCommonContainerFields();
   productFormMessage.textContent = "";
   productFormMessage.classList.remove("success");
   productModalTitle.textContent = mode === "edit" ? "제품 정보 수정" : "신규 제품 등록";
@@ -6990,7 +7016,20 @@ function openProductModal(mode = "create", product = null) {
     setSelectValue(productClientName, product.clientName);
     productNameInput.value = normalizeEditableValue(product.productName);
     setSelectValue(productColor, normalizeEditableValue(product.color));
+    setSelectValue(productFinalProcess, product.finalProcess);
+    productForm.querySelector(`input[name="productDustRemoval"][value="${normalizeBinaryOption(product.dustRemovalStatus)}"]`)?.click();
+    productForm.querySelector(`input[name="productFlameTreatment"][value="${normalizeBinaryOption(product.flameTreatmentStatus)}"]`)?.click();
     productForm.querySelector(`input[name="productUsage"][value="${normalizeUsageStatus(product.useStatus)}"]`)?.click();
+    const shippingProductNames = normalizeCommonContainerProductNames(product.shippingProductNames);
+    const isCommonContainer = isCommonContainerProduct(product.isCommonContainer ?? product.commonContainerProduct)
+      || shippingProductNames.length > 0;
+    const shippingProductTypeCount = Math.max(
+      1,
+      Number(product.shippingProductTypeCount) || shippingProductNames.length || 1
+    );
+    productCommonContainer.checked = isCommonContainer;
+    renderCommonContainerProductNameFields(shippingProductTypeCount, shippingProductNames);
+    syncCommonContainerFields();
     productOrderQuantity.value = extractQuantityNumber(product.orderQuantity);
     productDueDate.value = toDateInputValue(product.dueDate);
     productBoxQuantity.value = extractQuantityNumber(product.boxQuantity);
@@ -7079,6 +7118,85 @@ function normalizeEditableValue(value) {
   return normalized === "-" ? "" : normalized;
 }
 
+function isCommonContainerProduct(value) {
+  if (value === true) {
+    return true;
+  }
+
+  return ["유", "예", "true", "1", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function normalizeCommonContainerProductNames(value) {
+  if (Array.isArray(value)) {
+    return value.map((name) => String(name ?? "").trim()).filter(Boolean);
+  }
+
+  const normalized = normalizeEditableValue(value);
+  if (!normalized) {
+    return [];
+  }
+
+  if (normalized.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(normalized);
+      if (Array.isArray(parsed)) {
+        return parsed.map((name) => String(name ?? "").trim()).filter(Boolean);
+      }
+    } catch (error) {
+      // 이전 데이터의 구분자 저장 형식은 아래 처리로 다시 읽습니다.
+    }
+  }
+
+  return normalized.split(/\r?\n|\|/).map((name) => name.trim()).filter(Boolean);
+}
+
+function ensureCommonContainerCountOption(count) {
+  const normalizedCount = Math.max(1, Number(count) || 1);
+  const hasOption = Array.from(productShippingProductCount.options)
+    .some((option) => Number(option.value) === normalizedCount);
+
+  if (!hasOption) {
+    productShippingProductCount.insertAdjacentHTML(
+      "beforeend",
+      `<option value="${normalizedCount}">${normalizedCount}개</option>`
+    );
+  }
+
+  productShippingProductCount.value = String(normalizedCount);
+}
+
+function getCommonContainerProductNameValues() {
+  return Array.from(productShippingProductNames.querySelectorAll("input"))
+    .map((input) => input.value.trim());
+}
+
+function renderCommonContainerProductNameFields(count, values = null) {
+  const previousValues = Array.isArray(values) ? values : getCommonContainerProductNameValues();
+  const normalizedCount = Math.max(1, Number(count) || 1);
+  ensureCommonContainerCountOption(normalizedCount);
+  productShippingProductNames.innerHTML = Array.from({ length: normalizedCount }, (_, index) => `
+    <label class="form-field">
+      <span>출고 시 제품명 ${index + 1} <b>*</b></span>
+      <input
+        type="text"
+        data-common-container-product-name="${index}"
+        value="${escapeHtml(previousValues[index] || "")}"
+        placeholder="출고할 제품명을 입력하세요."
+        autocomplete="off"
+      />
+    </label>
+  `).join("");
+}
+
+function syncCommonContainerFields() {
+  const isEnabled = Boolean(productCommonContainer?.checked);
+  productCommonContainerFields.hidden = !isEnabled;
+  productShippingProductCount.disabled = !isEnabled || state.isSavingProduct;
+  productShippingProductNames.querySelectorAll("input").forEach((input) => {
+    input.disabled = !isEnabled || state.isSavingProduct;
+  });
+}
+
 function extractQuantityNumber(value) {
   const matched = String(value ?? "").match(/\d[\d,]*/);
   return matched ? matched[0].replaceAll(",", "") : "";
@@ -7129,13 +7247,24 @@ function getProductFormPayload() {
   const orderQuantity = productOrderQuantity.value.trim();
   const boxQuantity = productBoxQuantity.value.trim();
   const trayQuantity = productTrayQuantity.value.trim();
+  const dustRemoval = productForm.querySelector('input[name="productDustRemoval"]:checked')?.value || "무";
+  const flameTreatment = productForm.querySelector('input[name="productFlameTreatment"]:checked')?.value || "무";
   const usage = productForm.querySelector('input[name="productUsage"]:checked')?.value || "사용중";
+  const isCommonContainer = Boolean(productCommonContainer?.checked);
+  const shippingProductTypeCount = Math.max(1, Number(productShippingProductCount?.value) || 1);
+  const shippingProductNames = getCommonContainerProductNameValues();
 
   return {
     "등록자": session?.name || "Admin",
     "업체명": productClientName.value.trim(),
     "제품명": productNameInput.value.trim(),
     "색상": productColor.value.trim(),
+    "최종공정": productFinalProcess.value.trim(),
+    "박가루제거 유무": dustRemoval,
+    "화염처리 유무": flameTreatment,
+    "공용용기 제품": isCommonContainer ? "유" : "무",
+    "출고시 제품 종류 수": isCommonContainer ? shippingProductTypeCount : "",
+    "출고시 제품명 목록": isCommonContainer ? JSON.stringify(shippingProductNames) : "[]",
     "사용 여부": usage,
     "발주량": orderQuantity ? `${Number(orderQuantity).toLocaleString("ko-KR")} ea` : "",
     "납기일": productDueDate.value.trim(),
@@ -7149,6 +7278,7 @@ function validateProductPayload(payload) {
   const requiredFields = [
     ["업체명", "거래처명을 선택해주세요."],
     ["제품명", "제품명을 입력해주세요."],
+    ["최종공정", "최종공정을 선택해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
     ["트레이 수량", "트레이 수량을 입력해주세요."]
@@ -7165,6 +7295,23 @@ function validateProductPayload(payload) {
     Number(productTrayQuantity.value) <= 0
   ) {
     return "수량은 1 이상의 숫자로 입력해주세요.";
+  }
+
+  if (payload["공용용기 제품"] === "유") {
+    const shippingProductTypeCount = Number(payload["출고시 제품 종류 수"]) || 0;
+    const shippingProductNames = normalizeCommonContainerProductNames(payload["출고시 제품명 목록"]);
+
+    if (!shippingProductTypeCount || shippingProductNames.length !== shippingProductTypeCount) {
+      return "출고 시 제품 종류 수만큼 제품명을 모두 입력해주세요.";
+    }
+
+    if (shippingProductNames.some((name) => !name)) {
+      return "출고 시 제품명을 모두 입력해주세요.";
+    }
+
+    if (new Set(shippingProductNames).size !== shippingProductNames.length) {
+      return "출고 시 제품명은 서로 다르게 입력해주세요.";
+    }
   }
 
   return "";
@@ -7187,6 +7334,7 @@ function setProductSaving(isSaving) {
     }
   });
   productCodePreview.disabled = true;
+  syncCommonContainerFields();
 }
 
 function setFormMessage(message, type = "error") {
@@ -7232,6 +7380,10 @@ function normalizeDisplayValue(value) {
 function normalizeUsageStatus(value) {
   const normalized = String(value ?? "").trim();
   return normalized && normalized !== "-" ? normalized : "사용중";
+}
+
+function normalizeBinaryOption(value) {
+  return String(value ?? "").trim() === "유" ? "유" : "무";
 }
 
 function getColorValue(color) {

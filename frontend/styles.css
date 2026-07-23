@@ -4207,6 +4207,136 @@ input {
   margin: 0 0.4rem 0 0;
 }
 
+.product-treatment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.product-treatment-grid .usage-field {
+  min-width: 0;
+  padding: 0.72rem 0.85rem;
+}
+
+.common-container-toggle {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.75rem;
+  padding: 0.72rem 0.85rem;
+  color: var(--navy-dark);
+  border: 1px solid #dce4ef;
+  border-radius: 0.5rem;
+  background: #fafbfd;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.common-container-toggle:hover {
+  border-color: #c6d1df;
+}
+
+.common-container-toggle:has(input:checked) {
+  border-color: rgba(208, 161, 75, 0.72);
+  background: #fffaf0;
+  box-shadow: 0 0 0 0.12rem rgba(208, 161, 75, 0.1);
+}
+
+.common-container-toggle > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.common-container-check {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  color: #fff;
+  border: 1.5px solid #9cabc0;
+  border-radius: 0.32rem;
+  background: #fff;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.common-container-check .ti {
+  font-size: 0.9rem;
+  font-weight: 900;
+  opacity: 0;
+  transform: scale(0.72);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.common-container-toggle > input:checked + .common-container-check {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+.common-container-toggle > input:checked + .common-container-check .ti {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.common-container-toggle > input:focus-visible + .common-container-check {
+  outline: 2px solid rgba(8, 42, 98, 0.2);
+  outline-offset: 3px;
+}
+
+.common-container-toggle-copy {
+  min-width: 0;
+}
+
+.common-container-toggle-copy strong,
+.common-container-toggle-copy small {
+  display: block;
+}
+
+.common-container-toggle-copy strong {
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.common-container-toggle-copy small {
+  margin-top: 0.14rem;
+  color: #728097;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.common-container-config {
+  display: grid;
+  grid-template-columns: minmax(10.5rem, 0.34fr) minmax(0, 1fr);
+  gap: 0.85rem 1rem;
+  padding: 0.85rem;
+  border: 1px solid #ead8b4;
+  border-radius: 0.5rem;
+  background: #fffdf8;
+}
+
+.common-container-config[hidden] {
+  display: none;
+}
+
+.common-container-count-field {
+  align-self: start;
+}
+
+.common-container-name-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem 0.85rem;
+}
+
+.common-container-name-grid .form-field > span {
+  font-size: 0.74rem;
+}
+
 .product-create-form .form-message {
   margin: 0.65rem 0 0;
 }
@@ -7248,6 +7378,12 @@ input {
   .form-grid {
     grid-template-columns: 1fr;
     row-gap: 0.85rem;
+  }
+
+  .product-treatment-grid,
+  .common-container-config,
+  .common-container-name-grid {
+    grid-template-columns: 1fr;
   }
 
   .detail-grid {
