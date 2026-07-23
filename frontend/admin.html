@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-22" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-23" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -64,7 +64,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item" href="#inventory" data-view-link="inventory">
               <span class="side-icon visual">
-                <i class="ti ti-packages" aria-hidden="true"></i>
+                <i class="ti ti-building-warehouse" aria-hidden="true"></i>
               </span>
               재고관리
             </a>
@@ -645,7 +645,7 @@
             </div>
             <div class="inventory-heading-actions" aria-label="재고관리 빠른 작업">
               <button class="primary-action inventory-add-stock-button" type="button" id="openExistingStockModalButton">
-                <i class="ti ti-packages" aria-hidden="true"></i>
+                <i class="ti ti-package-import" aria-hidden="true"></i>
                 기존 재고 추가
               </button>
             </div>
@@ -654,7 +654,7 @@
           <section class="inventory-summary-grid" aria-label="재고 요약">
             <article class="inventory-summary-card blue">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <i class="ti ti-list-details"></i>
+                <i class="ti ti-package"></i>
               </span>
               <div class="inventory-summary-content">
                 <span class="inventory-summary-label">전체 품목 수</span>
@@ -681,7 +681,7 @@
             </article>
             <article class="inventory-summary-card violet">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <i class="ti ti-calendar-clock"></i>
+                <i class="ti ti-calendar-exclamation"></i>
               </span>
               <div class="inventory-summary-content">
                 <span class="inventory-summary-label">납기 임박 <small>D-3 이하</small></span>
@@ -726,21 +726,21 @@
               </button>
               <button class="attention-item orange" type="button" data-inventory-attention="storage">
                 <span class="attention-icon" aria-hidden="true">
-                  <i class="ti ti-map-pin-off"></i>
+                  <i class="ti ti-map-pin-question"></i>
                 </span>
                 <span><b>미지정 보관</b><strong><span id="inventoryUnspecifiedStorage">-</span> <em>건</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
               <button class="attention-item teal" type="button" data-inventory-attention="aging">
                 <span class="attention-icon" aria-hidden="true">
-                  <i class="ti ti-clock-hour-4"></i>
+                  <i class="ti ti-history"></i>
                 </span>
                 <span><b>장기 보관</b><strong><span id="inventoryLongStorage">-</span> <em>건</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
               <button class="attention-item red" type="button" data-inventory-attention="hold">
                 <span class="attention-icon" aria-hidden="true">
-                  <i class="ti ti-alert-triangle"></i>
+                  <i class="ti ti-trash-x"></i>
                 </span>
                 <span><b>보류 / 폐기</b><strong><span id="inventoryHoldDiscard">-</span> <em>건</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>

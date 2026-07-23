@@ -8779,13 +8779,13 @@ input {
 }
 
 .inventory-stat-icon .ti {
-  color: currentColor;
-  font-size: 1.52rem;
+  color: #183968;
+  font-size: 1.62rem;
 }
 
 .attention-icon .ti {
-  color: currentColor;
-  font-size: 1.32rem;
+  color: #24476f;
+  font-size: 1.46rem;
 }
 
 .product-hero-visual .ti {
@@ -8845,15 +8845,24 @@ input {
   .inventory-summary-card.green .inventory-stat-icon,
   .inventory-summary-card.amber .inventory-stat-icon,
   .inventory-summary-card.violet .inventory-stat-icon {
+    color: #183968;
     background: transparent;
   }
 
   .attention-icon {
-    width: 2rem;
-    height: 2rem;
+    width: 2.2rem;
+    height: 2.2rem;
     border: 0;
     background: transparent;
     box-shadow: none;
+  }
+
+  .inventory-attention-card .attention-item {
+    color: #24476f;
+  }
+
+  .inventory-attention-card .attention-item > svg {
+    color: #8b9aae;
   }
 
   .shipping-settlement-summary .shipping-summary-icon,
