@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-18" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-19" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1642,22 +1642,23 @@
     </div>
 
     <div class="modal-backdrop" id="productModal" hidden>
-      <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+      <section class="product-modal product-create-modal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
         <header class="modal-header">
           <div>
             <h2 id="productModalTitle">신규 제품 등록</h2>
             <p id="productModalDescription">신규 제품 정보를 입력해주세요. * 표시는 필수 입력입니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeProductModal" aria-label="닫기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
+            <i class="ti ti-x" aria-hidden="true"></i>
           </button>
         </header>
 
-        <form class="product-form" id="productForm">
+        <form class="product-form product-create-form" id="productForm">
           <section class="form-section" aria-labelledby="productBaseTitle">
-            <h3 id="productBaseTitle">제품 기본 정보</h3>
+            <h3 id="productBaseTitle">
+              <span class="product-section-icon" aria-hidden="true"><i class="ti ti-package"></i></span>
+              <span>제품 기본 정보</span>
+            </h3>
             <div class="form-grid">
               <label class="form-field">
                 <span>제품코드 <b>*</b></span>
@@ -1692,7 +1693,7 @@
                 </select>
               </label>
 
-              <fieldset class="form-field usage-field">
+              <fieldset class="form-field usage-field full-span">
                 <legend>사용 여부 <b>*</b></legend>
                 <label>
                   <input type="radio" name="productUsage" value="사용중" checked />
@@ -1707,7 +1708,10 @@
           </section>
 
           <section class="form-section" aria-labelledby="productStandardTitle">
-            <h3 id="productStandardTitle">제품 기준 정보</h3>
+            <h3 id="productStandardTitle">
+              <span class="product-section-icon" aria-hidden="true"><i class="ti ti-ruler-measure"></i></span>
+              <span>제품 기준 정보</span>
+            </h3>
             <div class="form-grid">
               <label class="form-field">
                 <span>발주량</span>
@@ -1749,7 +1753,10 @@
 
           <div class="modal-actions">
             <button class="secondary-modal-action" type="button" id="cancelProductModal">취소</button>
-            <button class="primary-modal-action" type="submit" id="saveProductButton">저장</button>
+            <button class="primary-modal-action" type="submit" id="saveProductButton">
+              <i class="ti ti-device-floppy" aria-hidden="true"></i>
+              <span>저장</span>
+            </button>
           </div>
         </form>
       </section>
