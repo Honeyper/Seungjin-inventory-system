@@ -9018,10 +9018,12 @@ input {
 
   .inbound-summary-card dl div {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
+    gap: 0.32rem;
     min-height: 2.55rem;
     padding: 0.45rem 0.65rem;
+    text-align: center;
     border-right: 1px solid #e4e9f0;
     border-bottom: 0;
   }
