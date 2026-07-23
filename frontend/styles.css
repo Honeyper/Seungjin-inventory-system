@@ -8577,9 +8577,10 @@ input {
 }
 
 .multiple-remainder-panel > .remainder-input-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(16rem, 23rem));
   gap: 0.62rem;
-  width: min(100%, 72rem);
+  width: fit-content;
+  max-width: 100%;
 }
 
 .multiple-remainder-panel > .add-remainder-button {
@@ -8611,8 +8612,9 @@ input {
 }
 
 #inboundEditMultipleRemainderPanel > .remainder-input-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: min(100%, 48rem);
+  grid-template-columns: repeat(2, minmax(16rem, 23rem));
+  width: fit-content;
+  max-width: 100%;
 }
 
 @media (min-width: 1101px) {
