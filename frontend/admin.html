@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260723-36" />
+    <link rel="stylesheet" href="./styles.css?v=20260723-37" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1735,18 +1735,32 @@
 
               <label class="form-field">
                 <span>색상</span>
-                <select id="productColor">
-                  <option value="">선택하세요</option>
-                  <option value="투명">투명</option>
-                  <option value="아이보리">아이보리</option>
-                  <option value="화이트">화이트</option>
-                  <option value="블랙">블랙</option>
-                  <option value="베이지">베이지</option>
-                  <option value="연두">연두</option>
-                  <option value="크라프트">크라프트</option>
-                  <option value="네이비">네이비</option>
-                  <option value="레드">레드</option>
-                </select>
+                <span class="product-color-input-wrap">
+                  <input
+                    id="productColor"
+                    type="text"
+                    list="productColorSuggestions"
+                    placeholder="색상을 직접 입력하세요."
+                    autocomplete="off"
+                  />
+                  <i
+                    class="product-color-preview"
+                    id="productColorPreview"
+                    role="img"
+                    aria-label="색상 미리보기"
+                  ></i>
+                </span>
+                <datalist id="productColorSuggestions">
+                  <option value="투명"></option>
+                  <option value="아이보리"></option>
+                  <option value="화이트"></option>
+                  <option value="블랙"></option>
+                  <option value="베이지"></option>
+                  <option value="연두"></option>
+                  <option value="크라프트"></option>
+                  <option value="네이비"></option>
+                  <option value="레드"></option>
+                </datalist>
               </label>
 
               <label class="form-field">
@@ -2164,6 +2178,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260723-24"></script>
+    <script src="./admin.js?v=20260723-25"></script>
   </body>
 </html>

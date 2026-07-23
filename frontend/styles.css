@@ -5139,6 +5139,35 @@ input {
   padding-top: 0.68rem;
 }
 
+.product-color-input-wrap {
+  position: relative;
+  display: block;
+  margin: 0 !important;
+}
+
+.product-create-form .product-color-input-wrap input {
+  padding-right: 3.25rem;
+}
+
+.product-color-preview {
+  position: absolute;
+  top: 50%;
+  right: 0.9rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid rgba(8, 42, 98, 0.22);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 0.18rem #fff,
+    0 0.08rem 0.22rem rgba(8, 42, 98, 0.16);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.product-color-preview.is-empty {
+  opacity: 0.58;
+}
+
 .product-create-form .usage-field {
   display: flex;
   align-items: center;

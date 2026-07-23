@@ -148,6 +148,7 @@ const productCodePreview = document.querySelector("#productCodePreview");
 const productClientName = document.querySelector("#productClientName");
 const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
+const productColorPreview = document.querySelector("#productColorPreview");
 const productFinalProcess = document.querySelector("#productFinalProcess");
 const productCommonContainer = document.querySelector("#productCommonContainer");
 const productCommonContainerFields = document.querySelector("#productCommonContainerFields");
@@ -947,6 +948,8 @@ productForm.addEventListener("submit", (event) => {
   event.preventDefault();
   saveProduct();
 });
+
+productColor?.addEventListener("input", updateProductColorPreview);
 
 rowActionMenu.querySelector('[data-menu-action="delete"]').addEventListener("click", (event) => {
   event.stopPropagation();
@@ -7173,7 +7176,7 @@ function openProductModal(mode = "create", product = null) {
     productCodePreview.value = product.productCode || "";
     setSelectValue(productClientName, product.clientName);
     productNameInput.value = normalizeEditableValue(product.productName);
-    setSelectValue(productColor, normalizeEditableValue(product.color));
+    productColor.value = normalizeEditableValue(product.color);
     setSelectValue(productFinalProcess, product.finalProcess);
     productForm.querySelector(`input[name="productDustRemoval"][value="${normalizeBinaryOption(product.dustRemovalStatus)}"]`)?.click();
     productForm.querySelector(`input[name="productFlameTreatment"][value="${normalizeBinaryOption(product.flameTreatmentStatus)}"]`)?.click();
@@ -7195,6 +7198,7 @@ function openProductModal(mode = "create", product = null) {
     productNote.value = normalizeEditableValue(product.note);
   }
 
+  updateProductColorPreview();
   setProductSaving(false);
   productModal.hidden = false;
   resetModalScrollPosition(productModal);
@@ -7527,7 +7531,7 @@ function renderColor(color) {
     return "-";
   }
 
-  return `<span class="color-chip"><i style="background:${getColorValue(value)}"></i>${escapeHtml(value)}</span>`;
+  return `<span class="color-chip"><i style="background:${escapeAttribute(getColorValue(value))}"></i>${escapeHtml(value)}</span>`;
 }
 
 function normalizeDisplayValue(value) {
@@ -7545,7 +7549,7 @@ function normalizeBinaryOption(value) {
 }
 
 function getColorValue(color) {
-  const normalized = color.replace(/\s+/g, "");
+  const normalized = String(color || "").replace(/\s+/g, "");
   const map = {
     투명: "linear-gradient(135deg, #ffffff 0 45%, #dbe4ef 45% 55%, #ffffff 55% 100%)",
     아이보리: "#eee6cf",
@@ -7558,10 +7562,61 @@ function getColorValue(color) {
     크라프트: "#c99254",
     네이비: "#082a62",
     레드: "#c91818",
-    빨강: "#c91818"
+    빨강: "#c91818",
+    핑크: "#ef7fa8",
+    분홍: "#ef7fa8",
+    오렌지: "#f28c28",
+    주황: "#f28c28",
+    옐로: "#f0cf43",
+    노랑: "#f0cf43",
+    그린: "#31905d",
+    초록: "#31905d",
+    녹색: "#31905d",
+    블루: "#3575d3",
+    파랑: "#3575d3",
+    청색: "#3575d3",
+    퍼플: "#7957b8",
+    보라: "#7957b8",
+    브라운: "#875b3b",
+    갈색: "#875b3b",
+    그레이: "#8b95a5",
+    회색: "#8b95a5",
+    실버: "linear-gradient(135deg, #f7f8fa, #aeb7c4)",
+    은색: "linear-gradient(135deg, #f7f8fa, #aeb7c4)",
+    골드: "linear-gradient(135deg, #f5dfa2, #bd8a2f)",
+    금색: "linear-gradient(135deg, #f5dfa2, #bd8a2f)"
   };
 
-  return map[normalized] || "#d8e1ee";
+  if (map[normalized]) {
+    return map[normalized];
+  }
+
+  const partialMatch = Object.keys(map)
+    .sort((left, right) => right.length - left.length)
+    .find((name) => normalized.includes(name));
+
+  if (partialMatch) {
+    return map[partialMatch];
+  }
+
+  if (globalThis.CSS?.supports?.("color", normalized)) {
+    return normalized;
+  }
+
+  return "#d8e1ee";
+}
+
+function updateProductColorPreview() {
+  if (!productColorPreview) {
+    return;
+  }
+
+  const value = String(productColor?.value || "").trim();
+  productColorPreview.style.background = value
+    ? getColorValue(value)
+    : "linear-gradient(135deg, #ffffff 0 45%, #e2e8f0 45% 55%, #ffffff 55% 100%)";
+  productColorPreview.classList.toggle("is-empty", !value);
+  productColorPreview.setAttribute("aria-label", value ? `${value} 색상 미리보기` : "색상 미리보기");
 }
 
 function setStatus(message, type = "info") {
