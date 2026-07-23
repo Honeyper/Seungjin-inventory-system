@@ -3105,7 +3105,7 @@ function createRemainderInputRow(value, index, inputAttribute, removeAttribute) 
         </span>
       </label>
       <button class="remove-remainder-button" type="button" ${removeAttribute} aria-label="${index + 1}번 잔량 박스 삭제">
-        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+        <i class="ti ti-trash" aria-hidden="true"></i>
       </button>
     </div>
   `;
@@ -6353,7 +6353,7 @@ function renderInboundEditForm(inbound) {
               ${editRemainderValues.map((value, index) => createRemainderInputRow(value, index, "data-inbound-edit-remainder-input", "data-remove-inbound-edit-remainder")).join("")}
             </div>
             <button class="add-remainder-button" id="addInboundEditRemainderButton" type="button">
-              <span class="material-symbols-outlined" aria-hidden="true">add</span>
+              <i class="ti ti-plus" aria-hidden="true"></i>
               <span>잔량 박스 추가</span>
             </button>
           </div>

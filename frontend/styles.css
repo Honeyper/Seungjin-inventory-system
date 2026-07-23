@@ -8164,3 +8164,135 @@ input {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* DEV icon system — Tabler's precise 24px line language */
+.ti {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: currentColor;
+  font-size: 1.2rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.side-icon .ti {
+  width: 100%;
+  height: 100%;
+  font-size: 1.42rem;
+}
+
+.upload-tile-icon.ti {
+  width: 1.7rem;
+  height: 1.7rem;
+  color: #173868;
+  font-size: 1.42rem;
+}
+
+.summary-icon .ti {
+  color: #173868;
+  font-size: 1.28rem;
+}
+
+.inventory-stat-icon .ti {
+  color: currentColor;
+  font-size: 1.52rem;
+}
+
+.attention-icon .ti {
+  color: currentColor;
+  font-size: 1.32rem;
+}
+
+.product-hero-visual .ti {
+  color: #173868;
+  font-size: 1.62rem;
+}
+
+.shipping-summary-icon .ti,
+.shipping-settlement-summary .shipping-summary-icon .ti {
+  width: 100%;
+  height: 100%;
+  font-size: 1.5rem;
+}
+
+.row-menu-item > .ti {
+  width: 1.45rem;
+  height: 1.45rem;
+  font-size: 1.22rem;
+}
+
+.remove-remainder-button .ti,
+.add-remainder-button .ti {
+  font-size: 1.08rem;
+}
+
+.primary-action .ti,
+.secondary-action .ti,
+.inbound-submit .ti {
+  font-size: 1.18rem;
+}
+
+@media (min-width: 1101px) {
+  .side-icon,
+  .side-icon.visual,
+  .side-icon.product {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+
+  .side-nav-item.active .side-icon {
+    color: #b88322;
+  }
+
+  .inventory-stat-icon,
+  .inventory-stat-icon img {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .inventory-stat-icon {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .inventory-summary-card.blue .inventory-stat-icon,
+  .inventory-summary-card.green .inventory-stat-icon,
+  .inventory-summary-card.amber .inventory-stat-icon,
+  .inventory-summary-card.violet .inventory-stat-icon {
+    background: transparent;
+  }
+
+  .inventory-summary-card::after {
+    height: 0.12rem;
+    opacity: 0.35;
+  }
+
+  .attention-icon {
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .shipping-settlement-summary .shipping-summary-icon,
+  .shipping-settlement-summary .shipping-summary-icon img {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .shipping-summary-icon {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .product-view .product-hero-visual {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 0;
+    background: transparent;
+  }
+}
