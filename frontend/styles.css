@@ -5128,10 +5128,16 @@ input {
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
 }
 
-.product-treatment-grid .product-treatment-options label:has(input:checked) {
+.product-treatment-grid .product-treatment-options label:has(input[value="유"]:checked) {
   border-color: rgba(208, 161, 75, 0.72);
   background: #fffaf0;
   box-shadow: 0 0 0 0.1rem rgba(208, 161, 75, 0.08);
+}
+
+.product-create-form fieldset.usage-field:has(input[name="productUsage"][value="사용중"]:checked) {
+  border-color: rgba(208, 161, 75, 0.72);
+  background: #fffaf0;
+  box-shadow: 0 0 0 0.12rem rgba(208, 161, 75, 0.1);
 }
 
 .common-container-toggle {
