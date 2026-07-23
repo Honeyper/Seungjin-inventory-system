@@ -9002,15 +9002,40 @@ input {
     color: var(--dev-navy);
   }
 
+  .summary-total {
+    grid-template-columns: minmax(0, 1fr) 8.25rem;
+    align-items: center;
+    min-height: 2.15rem;
+  }
+
   .summary-total > span {
+    align-self: center;
+    padding-left: 0;
     color: #526078;
     font-size: 0.74rem;
     font-weight: 800;
+    line-height: 1.25;
   }
 
   .summary-total strong {
+    display: grid;
+    grid-template-columns: minmax(4.6rem, 1fr) 2.35rem;
+    align-items: baseline;
+    gap: 0.3rem;
+    padding-right: 0;
     color: #c99735;
     font-size: 1rem;
+    line-height: 1;
+  }
+
+  .summary-total strong span {
+    text-align: right;
+    line-height: 1;
+  }
+
+  .summary-total strong em {
+    text-align: left;
+    line-height: 1;
   }
 
   .inbound-submit {
