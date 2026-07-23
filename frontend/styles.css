@@ -9341,12 +9341,18 @@ input {
   }
 
   .row-action,
-  .shipping-row-button,
-  .shipping-action-complete,
   .editable-lock-input button,
   .icon-button {
     min-width: 2.5rem;
     min-height: 2.5rem;
+  }
+
+  .shipping-table td:last-child .shipping-row-button,
+  .shipping-table td:last-child .shipping-action-complete,
+  .shipping-table td:last-child .shipping-action-overflow {
+    box-sizing: border-box;
+    height: 1.95rem;
+    min-height: 1.95rem;
   }
 
   button:focus-visible,
