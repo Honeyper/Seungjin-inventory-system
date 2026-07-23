@@ -9328,13 +9328,84 @@ input {
     background: #fff;
   }
 
+  .shipping-list-filter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 0.6rem;
+    padding: 0.68rem 0.95rem 0.72rem;
+  }
+
   .shipping-filter-grid,
   .inventory-filter-grid {
     gap: 0.62rem;
   }
 
-  .shipping-filter-actions {
-    margin-top: 0.65rem;
+  .shipping-list-filter .shipping-filter-grid {
+    grid-template-columns: minmax(12rem, 1.2fr) repeat(4, minmax(7.6rem, 1fr));
+    gap: 0.52rem;
+  }
+
+  .shipping-list-filter .shipping-filter-field {
+    gap: 0.28rem;
+  }
+
+  .shipping-list-filter .shipping-filter-field > span {
+    font-size: 0.72rem;
+  }
+
+  .shipping-list-filter .shipping-filter-field input,
+  .shipping-list-filter .shipping-filter-field select {
+    height: 2.28rem;
+    padding-right: 2.2rem;
+    font-size: 0.76rem;
+  }
+
+  .shipping-list-filter .shipping-search-input svg {
+    right: 0.72rem;
+    width: 0.96rem;
+    height: 0.96rem;
+  }
+
+  .shipping-list-filter .shipping-filter-actions {
+    flex-wrap: nowrap;
+    gap: 0.42rem;
+    margin-top: 0;
+  }
+
+  .shipping-list-filter .shipping-sort-controls {
+    gap: 0.42rem;
+    margin-right: 0;
+  }
+
+  .shipping-list-filter .shipping-sort-field {
+    gap: 0.38rem;
+    font-size: 0.72rem;
+  }
+
+  .shipping-list-filter .shipping-sort-field select {
+    width: 9.8rem;
+    height: 2.28rem;
+    font-size: 0.76rem;
+  }
+
+  .shipping-list-filter .shipping-sort-direction {
+    min-width: 6.35rem;
+  }
+
+  .shipping-list-filter .secondary-action,
+  .shipping-list-filter .shipping-filter-page-size select {
+    min-height: 2.28rem;
+    height: 2.28rem;
+    font-size: 0.76rem;
+  }
+
+  .shipping-list-filter .secondary-action {
+    padding: 0 0.72rem;
+  }
+
+  .shipping-list-filter .shipping-filter-page-size select {
+    min-width: 7.5rem;
   }
 
   .row-action,
@@ -9982,6 +10053,14 @@ input {
 }
 
 @media (min-width: 1101px) and (max-width: 1360px) {
+  .shipping-list-filter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shipping-list-filter .shipping-filter-actions {
+    justify-content: flex-end;
+  }
+
   .quantity-grid {
     grid-template-areas:
       "box box-count remain"
