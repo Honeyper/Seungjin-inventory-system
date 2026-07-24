@@ -695,6 +695,11 @@ function handleShippingAction(row, action, button) {
     return;
   }
 
+  if (action === "cancelShip") {
+    cancelCompletedShipping(row, button);
+    return;
+  }
+
   if (action === "cancelQueue") {
     cancelShippingWaiting(row);
     return;
@@ -2239,6 +2244,53 @@ async function cancelShippingWaiting(row) {
   }
 }
 
+async function cancelCompletedShipping(row, button) {
+  if (!row || button?.disabled) {
+    return;
+  }
+
+  const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes")
+    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료")
+    .map((box) => ({
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+
+  if (!shippedBoxes.length) {
+    showToast("출고 취소할 박스를 찾을 수 없습니다.");
+    return;
+  }
+
+  const totalQuantity = shippedBoxes.reduce((sum, box) => sum + box.quantity, 0);
+  const confirmed = window.confirm(
+    `출고완료 ${formatNumber(shippedBoxes.length)}개 박스(${formatNumber(totalQuantity)}ea)를 취소하고 보관 상태로 되돌릴까요?`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  const previousText = button?.textContent || "출고 취소";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "취소 중";
+  }
+
+  try {
+    await updateShippingStatus(row, "보관", {
+      selectedBoxes: shippedBoxes.map((box) => box.number),
+      allowCancelCompleted: true
+    });
+    showToast("출고를 취소하고 해당 박스를 보관 상태로 변경했습니다.");
+  } catch (error) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+    showToast(error.message || "출고 취소 중 문제가 발생했습니다.");
+  }
+}
+
 async function completeShipping(row) {
   if (!row) {
     return;
@@ -2983,13 +3035,17 @@ function renderShippingRowAction(item) {
   const hasRemainingBoxes = activeBoxes.some((box) => normalizeInventoryStockStatus(box.status) === "보관");
   const isPartialShipping = status === "일부 출고" || (activeBoxes.length > 0 && shippedBoxes.length > 0);
   const registerActionLabel = isPartialShipping && hasRemainingBoxes ? "추가 출고" : "출고 건 수정";
+  const cancelShippingAction = shippedBoxes.length
+    ? [{ action: "cancelShip", label: "출고 취소", icon: "ti-arrow-back-up" }]
+    : [];
 
   if (counts["출고대기"]) {
     return renderShippingActionSet(
       { action: "ship", label: "출고", variant: "primary" },
       [
         { action: "inspect", label: "출고 건 수정", icon: "ti-edit" },
-        { action: "detail", label: "상세보기", icon: "ti-eye" }
+        { action: "detail", label: "상세보기", icon: "ti-eye" },
+        ...cancelShippingAction
       ]
     );
   }
@@ -2997,12 +3053,18 @@ function renderShippingRowAction(item) {
   if (isPartialShipping && hasRemainingBoxes) {
     return renderShippingActionSet(
       { action: "inspect", label: "추가 출고" },
-      [{ action: "detail", label: "상세보기", icon: "ti-eye" }]
+      [
+        { action: "detail", label: "상세보기", icon: "ti-eye" },
+        ...cancelShippingAction
+      ]
     );
   }
 
   if (status === "출고완료") {
-    return '<button class="shipping-action-complete" type="button" data-shipping-action="detail">상세</button>';
+    return renderShippingActionSet(
+      { action: "detail", label: "상세" },
+      cancelShippingAction
+    );
   }
 
   if (counts["보류"]) {
@@ -3014,7 +3076,8 @@ function renderShippingRowAction(item) {
       { action: "queue", label: "출고", variant: "primary" },
       [
         { action: "inspect", label: registerActionLabel, icon: "ti-edit" },
-        { action: "detail", label: "상세보기", icon: "ti-eye" }
+        { action: "detail", label: "상세보기", icon: "ti-eye" },
+        ...cancelShippingAction
       ]
     );
   }
@@ -5871,6 +5934,9 @@ function getShippingMenuActionIcon(action) {
   }
   if (action === "holdGuide") {
     return "ti-alert-circle";
+  }
+  if (action === "cancelShip") {
+    return "ti-arrow-back-up";
   }
   return "ti-dots";
 }

@@ -2940,7 +2940,7 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
 function updateShippingStatus(payload) {
   const managementId = String(payload.managementId || '').trim();
   const status = String(payload.status || '').trim();
-  const allowedStatuses = ['검수완료', '보류', '출고대기', '출고대기(검수완료)', '출고완료'];
+  const allowedStatuses = ['보관', '검수완료', '보류', '출고대기', '출고대기(검수완료)', '출고완료'];
 
   if (!managementId) {
     throw new Error('관리 ID가 없습니다.');
@@ -2974,11 +2974,20 @@ function updateShippingStatus(payload) {
     shippingTime,
     shipper,
     shippingUpdatedAt,
-    selectedBoxes
+    selectedBoxes,
+    allowCancelCompleted: payload.allowCancelCompleted === true || String(payload.allowCancelCompleted || '').toLowerCase() === 'true'
   });
-  const finalStatus = status === '출고완료' && boxUpdateResult.remainingActiveRows > 0
+  let finalStatus = status === '출고완료' && boxUpdateResult.remainingActiveRows > 0
     ? '일부 출고'
     : status;
+  if (status === '보관') {
+    const remainingCounts = boxUpdateResult.remainingStatusCounts || {};
+    finalStatus = remainingCounts['출고대기'] || remainingCounts['출고대기(검수완료)'] || remainingCounts['검수완료']
+      ? '출고대기'
+      : remainingCounts['보류']
+        ? '보류'
+        : '보관';
+  }
   const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, finalStatus, payload);
   SpreadsheetApp.flush();
 
@@ -3013,7 +3022,8 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       .map((value) => Number(value))
       .filter((value) => Number.isFinite(value) && value > 0)
   );
-  const requiresSelectedBoxes = ['출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status);
+  const requiresSelectedBoxes = ['출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status)
+    || (data.status === '보관' && data.allowCancelCompleted === true);
 
   if (managementIndex < 0) {
     throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
@@ -3043,12 +3053,16 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     let rowStatus = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
     const isAlreadyShipped = /출고완료/.test(rowStatus);
     const isSelectedBox = selectedBoxNumbers.has(sequence);
+    const canCancelCompleted = data.status === '보관'
+      && data.allowCancelCompleted === true
+      && isSelectedBox
+      && isAlreadyShipped;
     const canCompleteShipping = data.status === '출고완료'
       && isSelectedBox
       && isShippingCompletionReadyBoxRow_(values[rowIndex], indexes, rawRowStatus);
     const shouldUpdate = data.status === '출고완료'
       ? canCompleteShipping
-      : isSelectedBox && !isAlreadyShipped;
+      : isSelectedBox && (!isAlreadyShipped || canCancelCompleted);
     const currentQuantity = currentQuantityIndex >= 0 ? displayQuantityToNumber_(values[rowIndex][currentQuantityIndex]) : 0;
 
     if (shouldUpdate) {
@@ -3061,13 +3075,23 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], data.shippingDate);
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], data.shippingTime);
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], data.shipper);
-      } else if (data.status === '검수완료') {
+      } else if (data.status === '검수완료' || data.status === '보관') {
         if (shippingTypeIndex >= 0) {
           sheet.getRange(rowIndex + 1, shippingTypeIndex + 1).setValue('');
         }
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], '');
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], '');
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], '');
+        if (data.status === '보관') {
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], '');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수시간', '검수시간'], '');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수자', '검수자'], '');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], '');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], '');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], '');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], '');
+          setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], '');
+        }
       }
 
       updatedRows += 1;
