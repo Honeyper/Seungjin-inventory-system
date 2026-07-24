@@ -107,6 +107,8 @@ const state = {
   hardwareScannerLastInputAt: 0,
   hardwareScannerSubmitTimer: null,
   hardwareScannerStatusTimer: null,
+  hardwareScannerQueue: [],
+  hardwareScannerQueueProcessing: false,
   scannerLastValue: "",
   isProcessingScan: false,
   clockTimer: null,
@@ -3414,13 +3416,56 @@ async function submitHardwareScannerValue(rawValue) {
     state.hardwareScannerStatusTimer = null;
   }
 
-  setHardwareScannerStatus("QR 인식 완료. 제품 정보를 확인하고 있습니다…", "success");
-  await handleQrValue(value);
-  setHardwareScannerStatus("입력 처리 완료. 다음 QR을 스캔할 수 있습니다.", "success");
-  state.hardwareScannerStatusTimer = window.setTimeout(() => {
-    setHardwareScannerStatus("스캐너 입력을 기다리고 있습니다.");
-    state.hardwareScannerStatusTimer = null;
-  }, 1200);
+  state.hardwareScannerQueue.push(value);
+  const pendingCount = state.hardwareScannerQueue.length;
+  setHardwareScannerStatus(
+    pendingCount > 1
+      ? `QR 인식 완료. ${pendingCount}건을 순서대로 처리합니다.`
+      : "QR 인식 완료. 제품 정보를 확인하고 있습니다…",
+    "success"
+  );
+  void processHardwareScannerQueue();
+}
+
+async function waitForScannerProcessingToFinish() {
+  while (state.isProcessingScan) {
+    await new Promise((resolve) => window.setTimeout(resolve, 10));
+  }
+}
+
+async function processHardwareScannerQueue() {
+  if (state.hardwareScannerQueueProcessing) {
+    return;
+  }
+
+  state.hardwareScannerQueueProcessing = true;
+
+  try {
+    while (state.hardwareScannerQueue.length) {
+      const value = state.hardwareScannerQueue.shift();
+      const remainingCount = state.hardwareScannerQueue.length;
+      setHardwareScannerStatus(
+        remainingCount
+          ? `QR 처리 중… ${remainingCount}건이 대기 중입니다.`
+          : "QR 처리 중… 제품 정보를 확인하고 있습니다.",
+        "success"
+      );
+      await waitForScannerProcessingToFinish();
+      await handleQrValue(value);
+      await waitForScannerProcessingToFinish();
+    }
+
+    setHardwareScannerStatus("입력 처리 완료. 다음 QR을 스캔할 수 있습니다.", "success");
+    state.hardwareScannerStatusTimer = window.setTimeout(() => {
+      setHardwareScannerStatus("스캐너 입력을 기다리고 있습니다.");
+      state.hardwareScannerStatusTimer = null;
+    }, 1200);
+  } finally {
+    state.hardwareScannerQueueProcessing = false;
+    if (state.hardwareScannerQueue.length) {
+      void processHardwareScannerQueue();
+    }
+  }
 }
 
 async function handleQrValue(rawValue) {
