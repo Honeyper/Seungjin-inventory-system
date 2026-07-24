@@ -26,7 +26,7 @@ const JSQR_NATIVE_FALLBACK_INTERVAL = 1;
 const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
-const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 320;
+const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 100;
 const KOREAN_SCANNER_INITIAL_KEYS = ["r", "R", "s", "e", "E", "f", "a", "q", "Q", "t", "T", "d", "w", "W", "c", "z", "x", "v", "g"];
 const KOREAN_SCANNER_MEDIAL_KEYS = ["k", "o", "i", "O", "j", "p", "u", "P", "h", "hk", "ho", "hl", "y", "n", "nj", "np", "nl", "b", "m", "ml", "l"];
 const KOREAN_SCANNER_FINAL_KEYS = ["", "r", "R", "rt", "s", "sw", "sg", "e", "f", "fr", "fa", "fq", "ft", "fx", "fv", "fg", "a", "q", "Q", "qt", "t", "T", "d", "w", "c", "z", "x", "v", "g"];
@@ -3335,6 +3335,12 @@ function handleHardwareScannerKeydown(event) {
   setHardwareScannerStatus(`QR 입력 감지 중… ${state.hardwareScannerBuffer.length}자`, "receiving");
   if (state.hardwareScannerSubmitTimer) {
     clearTimeout(state.hardwareScannerSubmitTimer);
+  }
+  const bufferedValue = state.hardwareScannerBuffer.trim();
+  if (bufferedValue.startsWith("{") && bufferedValue.endsWith("}")) {
+    void submitHardwareScannerValue(bufferedValue);
+    event.preventDefault();
+    return;
   }
   state.hardwareScannerSubmitTimer = window.setTimeout(() => {
     const bufferedValue = state.hardwareScannerBuffer;

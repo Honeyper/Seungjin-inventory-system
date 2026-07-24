@@ -1084,12 +1084,16 @@ input {
   font-weight: 500;
 }
 
-.field-valid-icon {
+.field .input-control > .field-valid-icon,
+.field .password-control > .field-valid-icon {
   position: absolute;
   z-index: 2;
   top: 50%;
+  left: auto;
   right: 0.95rem;
-  display: block;
+  display: grid;
+  width: 1.2rem;
+  place-items: center;
   color: #1c9b6c;
   font-size: 1rem;
   opacity: 0;
