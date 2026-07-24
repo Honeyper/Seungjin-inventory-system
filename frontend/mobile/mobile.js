@@ -3311,7 +3311,10 @@ function handleHardwareScannerKeydown(event) {
 
   if (event.key === "Enter" || event.key === "Tab" || event.code === "NumpadEnter") {
     event.preventDefault();
-    submitHardwareScannerValue(state.hardwareScannerBuffer);
+    const bufferedValue = state.hardwareScannerBuffer.trim();
+    if (bufferedValue) {
+      void submitHardwareScannerValue(bufferedValue);
+    }
     return;
   }
 
