@@ -2493,7 +2493,8 @@ function renderShippingTable(message = "") {
         <td colspan="16" class="empty-cell">${escapeHtml(message || "출고 목록이 없습니다.")}</td>
       </tr>
     `;
-    updateShippingSummaryCards([]);
+    updateShippingSummaryCards(getShippingSettlementItems());
+    updateShippingSettlementSummary();
     if (shippingCountLabel) {
       shippingCountLabel.textContent = "전체 0건";
     }
@@ -2561,6 +2562,7 @@ function renderShippingTable(message = "") {
   }).join("");
 
   updateShippingSummaryCards(getShippingSettlementItems());
+  updateShippingSettlementSummary();
 
   if (shippingCountLabel) {
     shippingCountLabel.textContent = `전체 ${rows.length.toLocaleString("ko-KR")}건`;
@@ -3126,7 +3128,7 @@ function getShippingSettlementItemDates(item) {
   const boxDates = [
     ...(Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : []),
     ...(Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : [])
-  ].map((box) => getShippingSettlementBoxDate(box))
+  ].map((box) => getShippingSettlementBoxDate(box, item))
     .filter(Boolean);
 
   if (boxDates.length) {
@@ -3197,13 +3199,10 @@ function getShippingSettlementItems() {
 }
 
 function getShippingSettlementFallbackDate(item) {
-  const status = getEffectiveShippingStatus(item);
-
-  if (["출고대기", "보류", "일부 출고", "출고완료"].includes(status) || isShippingInspected(item)) {
-    return getLocalDateInputValue();
-  }
-
-  return "";
+  return toDateInputValue(item?.shippingUpdatedAt)
+    || toDateInputValue(item?.shippingDate)
+    || getShippingSettlementInspectionDate(item)
+    || "";
 }
 
 function getShippingSettlementBoxDate(box, item = null) {
@@ -3215,7 +3214,8 @@ function getShippingSettlementBoxDate(box, item = null) {
 
   const status = normalizeInventoryStockStatus(box?.status);
   if (["출고대기", "보류", "출고완료"].includes(status)) {
-    return item ? getShippingSettlementFallbackDate(item) : getLocalDateInputValue();
+    return toDateInputValue(box?.shippingUpdatedAt)
+      || (item ? getShippingSettlementFallbackDate(item) : "");
   }
 
   return "";
