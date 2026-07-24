@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260724-partial-waiting-count" />
+    <link rel="stylesheet" href="./styles.css?v=20260724-product-picker-create" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -2152,7 +2152,13 @@
 
           <div class="picker-result-summary">
             <p><strong id="inboundProductPickerCount">0</strong>개의 제품</p>
-            <span>선택하면 입고 정보에 자동으로 반영됩니다.</span>
+            <div class="picker-result-actions">
+              <span>선택하면 입고 정보에 자동으로 반영됩니다.</span>
+              <button class="picker-create-product" type="button" id="createProductFromPickerButton">
+                <i class="ti ti-plus" aria-hidden="true"></i>
+                신규 제품 등록
+              </button>
+            </div>
           </div>
 
           <div class="picker-list" id="inboundProductPickerList"></div>
@@ -2212,6 +2218,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260724-partial-waiting-count"></script>
+    <script src="./admin.js?v=20260724-product-picker-create"></script>
   </body>
 </html>
