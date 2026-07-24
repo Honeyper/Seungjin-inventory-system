@@ -26,7 +26,8 @@ const JSQR_NATIVE_FALLBACK_INTERVAL = 1;
 const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
-const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 100;
+const HARDWARE_SCANNER_PROCESSING_LOCK_MS = 40;
+const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 35;
 const KOREAN_SCANNER_INITIAL_KEYS = ["r", "R", "s", "e", "E", "f", "a", "q", "Q", "t", "T", "d", "w", "W", "c", "z", "x", "v", "g"];
 const KOREAN_SCANNER_MEDIAL_KEYS = ["k", "o", "i", "O", "j", "p", "u", "P", "h", "hk", "ho", "hl", "y", "n", "nj", "np", "nl", "b", "m", "ml", "l"];
 const KOREAN_SCANNER_FINAL_KEYS = ["", "r", "R", "rt", "s", "sw", "sg", "e", "f", "fr", "fa", "fq", "ft", "fx", "fv", "fg", "a", "q", "Q", "qt", "t", "T", "d", "w", "c", "z", "x", "v", "g"];
@@ -3337,7 +3338,7 @@ function handleHardwareScannerKeydown(event) {
     clearTimeout(state.hardwareScannerSubmitTimer);
   }
   const bufferedValue = state.hardwareScannerBuffer.trim();
-  if (bufferedValue.startsWith("{") && bufferedValue.endsWith("}")) {
+  if (isCompleteHardwareScannerValue(bufferedValue)) {
     void submitHardwareScannerValue(bufferedValue);
     event.preventDefault();
     return;
@@ -3348,6 +3349,20 @@ function handleHardwareScannerKeydown(event) {
     submitHardwareScannerValue(bufferedValue);
   }, HARDWARE_SCANNER_IDLE_SUBMIT_MS);
   event.preventDefault();
+}
+
+function isCompleteHardwareScannerValue(rawValue) {
+  const value = String(rawValue || "").trim();
+  if (!value) {
+    return false;
+  }
+
+  if (value.startsWith("{") && value.endsWith("}")) {
+    return true;
+  }
+
+  const restoredValue = restoreHardwareScannerQrValue(value);
+  return /^IN-\d{6}-.+-\d{3}(?:-[A-Z0-9]+-\d{4})?-B\d{3}$/i.test(restoredValue);
 }
 
 function handleHardwareScannerPaste(event) {
@@ -3383,7 +3398,7 @@ async function submitHardwareScannerValue(rawValue) {
     state.hardwareScannerStatusTimer = null;
   }
 
-  setHardwareScannerStatus("QR을 확인하고 있습니다…", "receiving");
+  setHardwareScannerStatus("QR 인식 완료. 제품 정보를 확인하고 있습니다…", "success");
   await handleQrValue(value);
   setHardwareScannerStatus("입력 처리 완료. 다음 QR을 스캔할 수 있습니다.", "success");
   state.hardwareScannerStatusTimer = window.setTimeout(() => {
@@ -3478,10 +3493,13 @@ async function handleQrValue(rawValue) {
     setScannerHelp(error.message || "스캔한 제품 정보를 확인하지 못했습니다.");
     showToast(error.message || "제품 정보를 확인하지 못했습니다.");
   } finally {
+    const processingLockMs = state.scannerInputMode === "hardware"
+      ? HARDWARE_SCANNER_PROCESSING_LOCK_MS
+      : SCAN_PROCESSING_LOCK_MS;
     window.setTimeout(() => {
       state.scannerLastValue = "";
       state.isProcessingScan = false;
-    }, SCAN_PROCESSING_LOCK_MS);
+    }, processingLockMs);
   }
 }
 
