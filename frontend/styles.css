@@ -840,10 +840,11 @@ input {
 .brand-heading h1 {
   margin: 0;
   color: #fff;
-  font-size: clamp(3rem, 4.4vw, 4.85rem);
+  font-size: clamp(2.35rem, 3.2vw, 3.25rem);
   font-weight: 900;
   letter-spacing: -0.055em;
   line-height: 1.08;
+  white-space: nowrap;
 }
 
 .login-feature-list {
@@ -1362,6 +1363,7 @@ input {
 
   .brand-heading h1 {
     font-size: 2.35rem;
+    white-space: normal;
   }
 
   .login-feature-list {
