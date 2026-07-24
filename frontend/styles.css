@@ -7947,7 +7947,7 @@ input {
 .qr-sheet {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-auto-rows: 42mm;
+  grid-auto-rows: 42.4286mm;
   align-content: start;
   width: 210mm;
   min-height: 297mm;
@@ -7979,7 +7979,7 @@ input {
 .box-qr-label {
   box-sizing: border-box;
   min-height: 0;
-  height: 42mm;
+  height: 42.4286mm;
   overflow: hidden;
   padding: 1.25mm 1.5mm;
   border: 1px dashed #7c899b;
