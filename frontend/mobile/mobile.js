@@ -13,18 +13,28 @@ const DASHBOARD_BACKGROUND_REFRESH_MS = 45 * 1000;
 const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
 const SCANNER_DEVICE_MEMORY_GB = Number(navigator.deviceMemory) || 8;
 const IS_ANDROID_SCANNER = /Android/i.test(navigator.userAgent);
-const IS_LOW_POWER_SCANNER = SCANNER_DEVICE_CORES <= 4
+const ANDROID_VERSION_MATCH = navigator.userAgent.match(/Android\s+(\d+)/i);
+const ANDROID_MAJOR_VERSION = Number(ANDROID_VERSION_MATCH?.[1]) || 0;
+const IS_LEGACY_ANDROID_SCANNER = IS_ANDROID_SCANNER && (
+  (ANDROID_MAJOR_VERSION > 0 && ANDROID_MAJOR_VERSION <= 10)
+  || SCANNER_DEVICE_CORES <= 4
+  || SCANNER_DEVICE_MEMORY_GB <= 4
+);
+const IS_LOW_POWER_SCANNER = IS_LEGACY_ANDROID_SCANNER
+  || SCANNER_DEVICE_CORES <= 4
   || SCANNER_DEVICE_MEMORY_GB <= 3
   || (IS_ANDROID_SCANNER && SCANNER_DEVICE_MEMORY_GB <= 4);
 const BARCODE_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
 const JSQR_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
-const JSQR_FAST_MAX_EDGE = IS_LOW_POWER_SCANNER ? 840 : 960;
-const JSQR_DETAIL_MAX_EDGE = IS_LOW_POWER_SCANNER ? 1280 : 1440;
-const JSQR_DETAIL_SCAN_INTERVAL = 3;
-const JSQR_CENTER_CROP_RATIO = 0.72;
-const JSQR_NATIVE_FALLBACK_INTERVAL = 1;
+const JSQR_FAST_MAX_EDGE = IS_LOW_POWER_SCANNER ? 640 : 960;
+const JSQR_DETAIL_MAX_EDGE = IS_LOW_POWER_SCANNER ? 960 : 1440;
+const JSQR_DETAIL_SCAN_INTERVAL = IS_LOW_POWER_SCANNER ? 5 : 3;
+const JSQR_FAST_CROP_RATIO = IS_LOW_POWER_SCANNER ? 0.82 : 1;
+const JSQR_NATIVE_FALLBACK_INTERVAL = IS_LOW_POWER_SCANNER ? 3 : 2;
+const NATIVE_DETECT_TIMEOUT_MS = IS_LOW_POWER_SCANNER ? 420 : 560;
 const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
+const JSQR_TRANSIENT_ERROR_NOTICE_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
 const HARDWARE_SCANNER_PROCESSING_LOCK_MS = 40;
 const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 120;
@@ -2830,15 +2840,23 @@ async function getScannerStream() {
     return reusableStream;
   }
 
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
+  const videoConstraints = IS_LOW_POWER_SCANNER
+    ? {
+        facingMode: { ideal: "environment" },
+        width: { min: 640, ideal: 960, max: 1280 },
+        height: { min: 480, ideal: 540, max: 720 },
+        frameRate: { ideal: 20, max: 24 }
+      }
+    : {
         facingMode: { ideal: "environment" },
         width: { min: 640, ideal: 1280, max: 1920 },
         height: { min: 480, ideal: 720, max: 1080 },
         frameRate: { ideal: 24, max: 30 }
-      },
+      };
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: videoConstraints,
       audio: false
     });
   } catch (error) {
@@ -3138,7 +3156,7 @@ function startBarcodeDetection() {
     }
 
     try {
-      const codes = await detector.detect(elements.scannerVideo);
+      const codes = await detectBarcodeWithTimeout(detector, elements.scannerVideo);
       if (codes.length) {
         handleQrValue(codes[0].rawValue);
       }
@@ -3163,6 +3181,44 @@ function createBarcodeDetector() {
   }
 }
 
+function detectBarcodeWithTimeout(detector, video) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(new Error("barcode-detect-timeout"));
+    }, NATIVE_DETECT_TIMEOUT_MS);
+
+    Promise.resolve(detector.detect(video)).then(
+      (codes) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timeoutId);
+        resolve(Array.isArray(codes) ? codes : []);
+      },
+      (error) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
+}
+
+function resetScannerCanvas() {
+  state.scannerCanvas = document.createElement("canvas");
+  state.scannerCanvasContext = state.scannerCanvas.getContext("2d", { willReadFrequently: true });
+  return state.scannerCanvasContext;
+}
+
 function startJsQrDetection(detector = null) {
   if (typeof window.jsQR !== "function") {
     setScannerHelp("QR 인식 모듈을 불러오지 못했습니다. 스캐너 모드로 전환해 진행해주세요.");
@@ -3170,9 +3226,8 @@ function startJsQrDetection(detector = null) {
     return;
   }
 
-  if (!state.scannerCanvas) {
-    state.scannerCanvas = document.createElement("canvas");
-    state.scannerCanvasContext = state.scannerCanvas.getContext("2d", { willReadFrequently: true });
+  if (!state.scannerCanvas || !state.scannerCanvasContext) {
+    resetScannerCanvas();
   }
 
   setScannerHelp("QR이 흐리면 화면 가운데를 눌러 초점을 맞춰주세요.");
@@ -3180,13 +3235,14 @@ function startJsQrDetection(detector = null) {
   let nativeMissCount = 0;
   let slowNativeDetectCount = 0;
   let jsQrScanCount = 0;
+  let jsQrTransientErrorCount = 0;
   state.scannerTimer = window.setInterval(async () => {
     if (isDetectingFrame) {
       return;
     }
 
     const video = elements.scannerVideo;
-    const context = state.scannerCanvasContext;
+    const context = state.scannerCanvasContext || resetScannerCanvas();
 
     if (document.hidden || elements.scannerScreen.hidden || !video?.srcObject || !context || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
       return;
@@ -3203,7 +3259,7 @@ function startJsQrDetection(detector = null) {
     try {
       if (detector) {
         const nativeDetectStartedAt = performance.now();
-        const codes = await detector.detect(video);
+        const codes = await detectBarcodeWithTimeout(detector, video);
         const nativeDetectElapsed = performance.now() - nativeDetectStartedAt;
         if (codes.length) {
           handleQrValue(codes[0].rawValue);
@@ -3229,7 +3285,7 @@ function startJsQrDetection(detector = null) {
     jsQrScanCount += 1;
     const isDetailScan = jsQrScanCount % JSQR_DETAIL_SCAN_INTERVAL === 0;
     const maxEdge = isDetailScan ? JSQR_DETAIL_MAX_EDGE : JSQR_FAST_MAX_EDGE;
-    const cropRatio = isDetailScan ? JSQR_CENTER_CROP_RATIO : 1;
+    const cropRatio = isDetailScan ? 1 : JSQR_FAST_CROP_RATIO;
     const cropWidth = Math.max(1, Math.floor(sourceWidth * cropRatio));
     const cropHeight = Math.max(1, Math.floor(sourceHeight * cropRatio));
     const cropX = Math.floor((sourceWidth - cropWidth) / 2);
@@ -3255,14 +3311,17 @@ function startJsQrDetection(detector = null) {
       const qr = window.jsQR(imageData.data, width, height, {
         inversionAttempts: isDetailScan ? "attemptBoth" : "dontInvert"
       });
+      jsQrTransientErrorCount = 0;
       if (qr?.data) {
         handleQrValue(qr.data);
       }
     } catch (error) {
-      clearInterval(state.scannerTimer);
-      state.scannerTimer = null;
-      setScannerHelp("QR 인식 중 문제가 발생했습니다. 스캐너 모드로 전환해주세요.");
-      showToast("카메라 QR 인식이 중단되었습니다.");
+      jsQrTransientErrorCount += 1;
+      resetScannerCanvas();
+      if (jsQrTransientErrorCount >= JSQR_TRANSIENT_ERROR_NOTICE_LIMIT) {
+        jsQrTransientErrorCount = 0;
+        setScannerHelp("QR 인식을 자동으로 복구했습니다. QR을 화면 가운데에 다시 비춰주세요.");
+      }
     } finally {
       isDetectingFrame = false;
     }
