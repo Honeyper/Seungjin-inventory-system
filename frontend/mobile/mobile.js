@@ -27,7 +27,7 @@ const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
 const HARDWARE_SCANNER_PROCESSING_LOCK_MS = 40;
-const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 35;
+const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 120;
 const KOREAN_SCANNER_INITIAL_KEYS = ["r", "R", "s", "e", "E", "f", "a", "q", "Q", "t", "T", "d", "w", "W", "c", "z", "x", "v", "g"];
 const KOREAN_SCANNER_MEDIAL_KEYS = ["k", "o", "i", "O", "j", "p", "u", "P", "h", "hk", "ho", "hl", "y", "n", "nj", "np", "nl", "b", "m", "ml", "l"];
 const KOREAN_SCANNER_FINAL_KEYS = ["", "r", "R", "rt", "s", "sw", "sg", "e", "f", "fr", "fa", "fq", "ft", "fx", "fv", "fg", "a", "q", "Q", "qt", "t", "T", "d", "w", "c", "z", "x", "v", "g"];
@@ -3357,11 +3357,19 @@ function isCompleteHardwareScannerValue(rawValue) {
     return false;
   }
 
-  if (value.startsWith("{") && value.endsWith("}")) {
-    return true;
+  const restoredValue = restoreHardwareScannerQrValue(value);
+  if (restoredValue.startsWith("{") && restoredValue.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(restoredValue);
+      const boxId = parsed?.b || parsed?.boxId;
+      const managementId = parsed?.m || parsed?.managementId;
+      const productId = parsed?.p || parsed?.productId;
+      return Boolean(boxId && (managementId || productId));
+    } catch (error) {
+      return false;
+    }
   }
 
-  const restoredValue = restoreHardwareScannerQrValue(value);
   return /^IN-\d{6}-.+-\d{3}(?:-[A-Z0-9]+-\d{4})?-B\d{3}$/i.test(restoredValue);
 }
 
@@ -3390,6 +3398,11 @@ async function submitHardwareScannerValue(rawValue) {
 
   if (!value) {
     setHardwareScannerStatus("QR 입력을 인식하지 못했습니다. 다시 스캔해주세요.");
+    return;
+  }
+
+  if (!isCompleteHardwareScannerValue(value)) {
+    setHardwareScannerStatus("QR 입력이 완성되지 않았습니다. 다시 스캔해주세요.");
     return;
   }
 
@@ -3602,19 +3615,9 @@ function syncPendingShippingRowsFromDashboard() {
 
 function findShippingByQrValue(rawValue) {
   const parsed = parseQrValue(rawValue);
-  const text = normalizeScanValue(rawValue);
 
   for (const row of state.dashboard) {
     const boxes = getKnownBoxes(row);
-    const rowValues = [
-      row.managementId,
-      row.productId,
-      row.clientName,
-      row.productName,
-      row.batch,
-      row.finalProcess,
-      row.storage
-    ].map(normalizeScanValue);
 
     if (parsed.managementId && normalizeScanValue(row.managementId) !== parsed.managementId) {
       continue;
@@ -3633,9 +3636,6 @@ function findShippingByQrValue(rawValue) {
       return buildScannedBoxItem(row, createParsedBox(parsed), parsed, rawValue);
     }
 
-    if (text && rowValues.some((value) => value && value.includes(text))) {
-      return buildScannedBoxItem(row, boxes[0] || createParsedBox(parsed), parsed, rawValue);
-    }
   }
 
   return null;
@@ -3643,19 +3643,9 @@ function findShippingByQrValue(rawValue) {
 
 function findInventoryMoveByQrValue(rawValue) {
   const parsed = parseQrValue(rawValue);
-  const text = normalizeScanValue(rawValue);
 
   for (const row of state.dashboard) {
     const boxes = getMovableBoxes(row);
-    const rowValues = [
-      row.managementId,
-      row.productId,
-      row.clientName,
-      row.productName,
-      row.batch,
-      row.finalProcess,
-      row.storage
-    ].map(normalizeScanValue);
 
     if (parsed.managementId && normalizeScanValue(row.managementId) !== parsed.managementId) {
       continue;
@@ -3674,9 +3664,6 @@ function findInventoryMoveByQrValue(rawValue) {
       return buildInventoryMoveItem(row, boxes[0], parsed, rawValue);
     }
 
-    if (text && rowValues.some((value) => value && value.includes(text)) && boxes.length) {
-      return buildInventoryMoveItem(row, boxes[0], parsed, rawValue);
-    }
   }
 
   return null;
