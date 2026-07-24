@@ -10,110 +10,109 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
+    />
+    <link rel="stylesheet" href="./styles.css?v=20260724-51" />
   </head>
-  <body>
+  <body class="login-body">
     <main class="login-page" aria-labelledby="page-title">
       <section class="brand-panel" aria-label="시스템 소개">
         <div class="brand-content">
-          <div class="brand-mark" aria-hidden="true">
+          <div class="brand-signature">
             <img src="./assets/logo-generated.png" alt="" />
+            <span>
+              <strong>(주)승진</strong>
+              <small>SEUNGJIN CO., LTD.</small>
+            </span>
           </div>
 
           <div class="brand-heading">
-            <p class="company">(주)승진</p>
-            <h1 id="page-title"><span>관리</span> <strong>시스템</strong></h1>
-            <div class="title-rule" aria-hidden="true"></div>
+            <h1 id="page-title">승진 통합 관리 시스템</h1>
           </div>
 
-          <p class="tagline">
-            <span>입고부터 출고까지</span>
-            <strong>한눈에 관리하는</strong>
-            통합 업무 시스템
-          </p>
+          <ul class="login-feature-list" aria-label="주요 기능">
+            <li>
+              <i class="ti ti-package-import" aria-hidden="true"></i>
+              <span><strong>입고 관리</strong><small>등록과 검수 정보를 한 번에</small></span>
+            </li>
+            <li>
+              <i class="ti ti-building-warehouse" aria-hidden="true"></i>
+              <span><strong>재고 관리</strong><small>수량과 보관 위치를 실시간으로</small></span>
+            </li>
+            <li>
+              <i class="ti ti-truck-delivery" aria-hidden="true"></i>
+              <span><strong>출고 관리</strong><small>출고대기부터 완료까지 정확하게</small></span>
+            </li>
+          </ul>
 
-          <div class="module-list" aria-label="주요 관리 메뉴">
-            <div class="module-item">
-              <span class="module-icon">
-                <img src="./assets/icon-inbound.png" alt="" />
-              </span>
-              <span>입고 관리</span>
-            </div>
-            <div class="module-item">
-              <span class="module-icon">
-                <img src="./assets/icon-work.png" alt="" />
-              </span>
-              <span>작업 관리</span>
-            </div>
-            <div class="module-item">
-              <span class="module-icon">
-                <img src="./assets/icon-inventory.png" alt="" />
-              </span>
-              <span>재고 관리</span>
-            </div>
-            <div class="module-item">
-              <span class="module-icon">
-                <img src="./assets/icon-outbound.png" alt="" />
-              </span>
-              <span>출고 관리</span>
-            </div>
-          </div>
-
-          <div class="capability-list" aria-label="업무 범위">
-            <span><img src="./assets/check-generated.png" alt="" />실크인쇄</span>
-            <span><img src="./assets/check-generated.png" alt="" />박인쇄</span>
-            <span><img src="./assets/check-generated.png" alt="" />특수인쇄</span>
-            <span><img src="./assets/check-generated.png" alt="" />통합 관리</span>
-          </div>
         </div>
       </section>
 
       <section class="login-panel" aria-label="관리자 로그인">
         <div class="login-stack">
           <form class="login-card" id="loginForm">
-            <div class="lock-badge" aria-hidden="true">
-              <img src="./assets/login-icon-lock-line.svg?v=20260710-line-login-icons" alt="" />
+            <div class="login-secure-rail" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
 
-            <h2>관리자 로그인</h2>
-            <div class="login-rule" aria-hidden="true"></div>
-            <p class="login-help">계정 정보를 입력하여 로그인해주세요.</p>
+            <header class="login-card-header">
+              <div class="lock-badge" aria-hidden="true">
+                <i class="ti ti-shield-lock"></i>
+              </div>
+              <p><i class="ti ti-lock-check" aria-hidden="true"></i> SECURE ACCESS</p>
+              <h2>관리자 로그인</h2>
+              <span class="login-help">승진 관리 시스템 계정으로 로그인하세요.</span>
+            </header>
 
-            <label class="field">
-              <span>
-                <img src="./assets/login-icon-user.png" alt="" />
-                계정
+            <label class="field" data-login-field="accountId">
+              <span>계정 ID</span>
+              <span class="input-control">
+                <i class="ti ti-user-circle" aria-hidden="true"></i>
+                <input
+                  id="accountId"
+                  name="accountId"
+                  type="text"
+                  autocomplete="username"
+                  placeholder="계정 ID를 입력하세요"
+                  aria-describedby="accountIdHint"
+                />
+                <i class="ti ti-circle-check field-valid-icon" aria-hidden="true"></i>
               </span>
-              <input id="accountId" name="accountId" type="text" autocomplete="username" placeholder="계정ID를 입력하세요" />
+              <small class="field-hint" id="accountIdHint">계정 ID를 입력해주세요.</small>
             </label>
 
-            <label class="field">
-              <span>
-                <img src="./assets/login-icon-password.png" alt="" />
-                비밀번호
-              </span>
+            <label class="field" data-login-field="password">
+              <span>비밀번호</span>
               <span class="password-control">
+                <i class="ti ti-lock" aria-hidden="true"></i>
                 <input
                   id="password"
                   name="password"
                   type="password"
                   autocomplete="current-password"
                   placeholder="비밀번호를 입력하세요"
+                  aria-describedby="passwordHint"
                 />
+                <i class="ti ti-circle-check field-valid-icon" aria-hidden="true"></i>
                 <button class="show-password" type="button" aria-label="비밀번호 보기">
-                  <img src="./assets/login-icon-eye.png" alt="" />
+                  <i class="ti ti-eye" aria-hidden="true"></i>
                 </button>
               </span>
+              <small class="field-hint" id="passwordHint">비밀번호를 입력해주세요.</small>
             </label>
 
             <p class="login-message" id="loginMessage" role="alert" aria-live="polite"></p>
 
             <button class="login-button" type="submit">
-              <span>로그인</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 12h14m-6-6 6 6-6 6" />
-              </svg>
+              <span class="login-button-label">로그인</span>
+              <i class="ti ti-arrow-right login-button-icon" aria-hidden="true"></i>
             </button>
+
+            <p class="login-security"><i class="ti ti-shield-check" aria-hidden="true"></i> 승인된 관리자만 이용할 수 있습니다.</p>
           </form>
           <p class="copyright">© SEUNGJIN Co., Ltd. All rights reserved.</p>
         </div>
@@ -121,6 +120,6 @@
     </main>
 
     <script src="./config.js"></script>
-    <script src="./app.js"></script>
+    <script src="./app.js?v=20260723-2"></script>
   </body>
 </html>

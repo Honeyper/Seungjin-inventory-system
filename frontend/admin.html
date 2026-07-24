@@ -10,7 +10,11 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260721-qr-batch-label" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
+    />
+    <link rel="stylesheet" href="./styles.css?v=20260723-50" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -27,14 +31,42 @@
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
           </button>
-          <div class="admin-user">
-            <span class="user-avatar" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M20 21a8 8 0 0 0-16 0" />
-                <circle cx="12" cy="8" r="4" />
-              </svg>
-            </span>
-            <span id="adminUserName">관리자</span>
+          <div class="admin-account-menu" id="adminAccountMenu">
+            <button
+              class="admin-user"
+              id="adminUserMenuButton"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="adminUserMenu"
+            >
+              <span class="user-avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 21a8 8 0 0 0-16 0" />
+                  <circle cx="12" cy="8" r="4" />
+                </svg>
+              </span>
+              <span id="adminUserName">관리자</span>
+              <i class="ti ti-chevron-down admin-user-chevron" aria-hidden="true"></i>
+            </button>
+            <div class="admin-user-menu" id="adminUserMenu" role="menu" hidden>
+              <div class="admin-user-menu-profile">
+                <span class="user-avatar" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M20 21a8 8 0 0 0-16 0" />
+                    <circle cx="12" cy="8" r="4" />
+                  </svg>
+                </span>
+                <span>
+                  <strong id="adminUserMenuName">관리자</strong>
+                  <small>관리자 계정</small>
+                </span>
+              </div>
+              <button class="admin-logout-button" id="adminLogoutButton" type="button" role="menuitem">
+                <i class="ti ti-logout-2" aria-hidden="true"></i>
+                로그아웃
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -44,7 +76,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item disabled" href="#" aria-disabled="true">
               <span class="side-icon">
-                <svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" /></svg>
+                <i class="ti ti-layout-dashboard" aria-hidden="true"></i>
               </span>
               대시보드
             </a>
@@ -52,7 +84,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item" href="#inbound" data-view-link="inbound">
               <span class="side-icon visual">
-                <img src="./assets/admin-inbound-icon-generated.png" alt="" />
+                <i class="ti ti-package-import" aria-hidden="true"></i>
               </span>
               입고관리
             </a>
@@ -60,7 +92,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item" href="#inventory" data-view-link="inventory">
               <span class="side-icon visual">
-                <img src="./assets/admin-inventory-icon-generated.png" alt="" />
+                <i class="ti ti-building-warehouse" aria-hidden="true"></i>
               </span>
               재고관리
             </a>
@@ -68,7 +100,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item" href="#shipping" data-view-link="shipping">
               <span class="side-icon visual">
-                <img src="./assets/admin-shipping-icon-generated.png" alt="" />
+                <i class="ti ti-truck-delivery" aria-hidden="true"></i>
               </span>
               출고관리
             </a>
@@ -76,7 +108,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item disabled" href="#" aria-disabled="true">
               <span class="side-icon">
-                <svg viewBox="0 0 24 24"><path d="M8 4h8l1 3H7z" /><path d="M6 7h12v14H6z" /><path d="M9 12h6M9 16h6" /></svg>
+                <i class="ti ti-clipboard-check" aria-hidden="true"></i>
               </span>
               작업관리
             </a>
@@ -84,7 +116,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item" href="#products" data-view-link="products">
               <span class="side-icon product">
-                <img src="./assets/admin-product-icon-generated.png" alt="" />
+                <i class="ti ti-box" aria-hidden="true"></i>
               </span>
               제품관리
             </a>
@@ -92,7 +124,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item disabled" href="#" aria-disabled="true">
               <span class="side-icon">
-                <svg viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15" /><path d="M9 21v-7h6v7M8 9h.01M12 9h.01M16 9h.01" /></svg>
+                <i class="ti ti-building-warehouse" aria-hidden="true"></i>
               </span>
               거래처관리
             </a>
@@ -100,7 +132,7 @@
           <div class="side-nav-row">
             <a class="side-nav-item disabled" href="#" aria-disabled="true">
               <span class="side-icon">
-                <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2" /><circle cx="12" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M2 21v-2a4 4 0 0 1 3-3.87" /></svg>
+                <i class="ti ti-users" aria-hidden="true"></i>
               </span>
               직원관리
             </a>
@@ -116,11 +148,10 @@
 
       <main class="admin-main">
         <div class="page-view inbound-view" id="inboundView" data-view="inbound">
-          <section class="page-heading">
-            <div>
-              <p class="eyebrow">Inbound Registration</p>
-              <h1>입고관리</h1>
-              <p>공장에 입고된 제품과 수량 정보를 등록합니다.</p>
+          <section class="page-heading management-page-heading">
+            <div class="management-heading-trail">
+              <p class="eyebrow">입고관리</p>
+              <h1>입고 등록</h1>
             </div>
           </section>
 
@@ -134,17 +165,19 @@
                     <input id="inboundDate" type="date" />
                   </label>
                   <div class="form-field inbound-time-field">
-                    <div class="inbound-time-label">
-                      <label for="inboundTime">입고 시간 <b>*</b></label>
-                      <button class="inbound-time-now-button" type="button" id="setCurrentInboundTimeButton" title="현재 시간으로 설정">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <circle cx="12" cy="12" r="8" />
-                          <path d="M12 8v4l3 2" />
-                        </svg>
-                        <span>현재 시간</span>
+                    <label for="inboundTime">입고 시간 <b>*</b></label>
+                    <div class="inbound-time-control">
+                      <input id="inboundTime" type="time" />
+                      <button
+                        class="inbound-time-now-button"
+                        type="button"
+                        id="setCurrentInboundTimeButton"
+                        title="현재 시간으로 설정"
+                      >
+                        <i class="ti ti-clock" aria-hidden="true"></i>
+                        <span>현재시간</span>
                       </button>
                     </div>
-                    <input id="inboundTime" type="time" />
                   </div>
                   <label class="form-field">
                     <span>입고 유형 <b>*</b></span>
@@ -199,25 +232,7 @@
                   </label>
                   <label class="form-field">
                     <span>최종공정 <b>*</b></span>
-                    <span class="editable-lock-input">
-                      <select id="inboundProcess" disabled>
-                        <option value="" selected disabled>선택하세요.</option>
-                        <option>1도</option>
-                        <option>2도</option>
-                        <option>3도</option>
-                        <option>코팅</option>
-                      </select>
-                      <button id="editInboundProcessButton" type="button" aria-label="최종공정 수정" title="수정" aria-pressed="false">
-                        <svg class="edit-icon" viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20z" />
-                          <path d="m13.5 7.5 3 3" />
-                        </svg>
-                        <svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true">
-                          <rect x="5" y="10" width="14" height="10" rx="2" />
-                          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-                        </svg>
-                      </button>
-                    </span>
+                    <input id="inboundProcess" type="text" placeholder="제품 선택 시 자동 입력" disabled />
                   </label>
                   <label class="form-field">
                     <span>보관위치 <b>*</b></span>
@@ -262,7 +277,7 @@
               </section>
 
               <section class="inbound-card inbound-quantity-card" aria-labelledby="inboundQuantityTitle">
-                <h2 id="inboundQuantityTitle">수량 정보</h2>
+                <h2 id="inboundQuantityTitle">수량 · 첨부</h2>
                 <div class="inbound-form-grid quantity-grid">
                   <label class="form-field quantity-box">
                     <span>박스당 수량 (EA) <b>*</b></span>
@@ -300,10 +315,6 @@
                       <input id="inboundRemainQty" type="number" min="0" />
                       <i>ea</i>
                     </span>
-                    <div class="multiple-remainder-panel" id="inboundMultipleRemainderPanel" hidden>
-                      <div class="remainder-input-list" id="inboundRemainderList"></div>
-                      <button class="add-remainder-button" id="addInboundRemainderButton" type="button">+  잔량 박스 추가</button>
-                    </div>
                   </div>
                   <label class="form-field quantity-tray">
                     <span>검수 수량 (EA) <b>*</b></span>
@@ -375,13 +386,27 @@
                       <input id="inboundDefectReason" type="hidden" />
                     </div>
                   </label>
+                  <section class="multiple-remainder-panel" id="inboundMultipleRemainderPanel" aria-label="잔량 박스별 수량" hidden>
+                    <header class="multiple-remainder-header">
+                      <div>
+                        <strong>잔량 박스별 수량</strong>
+                        <span>박스마다 실제 잔량을 각각 입력하세요.</span>
+                      </div>
+                      <output id="inboundRemainderSummary">2박스 · 합계 0 ea</output>
+                    </header>
+                    <div class="remainder-input-list" id="inboundRemainderList"></div>
+                    <button class="add-remainder-button" id="addInboundRemainderButton" type="button">
+                      <i class="ti ti-plus" aria-hidden="true"></i>
+                      <span>잔량 박스 추가</span>
+                    </button>
+                  </section>
                   <div class="inbound-file-actions quantity-file-actions">
                     <div class="upload-field">
                       <input class="visually-hidden" id="inboundInvoiceFile" type="file" accept="image/*" />
                       <button class="secondary-action upload-tile" type="button" id="inboundInvoiceUploadButton">
                         <img id="inboundInvoicePreview" alt="거래명세서 미리보기" hidden />
                         <span class="upload-tile-content">
-                          <img class="upload-tile-icon" src="./assets/inbound-invoice-upload-icon-generated.svg" alt="" aria-hidden="true" />
+                          <i class="ti ti-file-invoice upload-tile-icon" aria-hidden="true"></i>
                           <span>거래명세서 등록</span>
                         </span>
                       </button>
@@ -392,7 +417,7 @@
                         <img id="inboundDefectPreview" alt="불량 사진 대표 미리보기" hidden />
                         <span class="upload-preview-badge" id="inboundDefectCount" hidden>대표</span>
                         <span class="upload-tile-content">
-                          <img class="upload-tile-icon" src="./assets/inbound-defect-photo-icon-generated.svg" alt="" aria-hidden="true" />
+                          <i class="ti ti-camera upload-tile-icon" aria-hidden="true"></i>
                           <span>불량 사진 등록</span>
                         </span>
                       </button>
@@ -405,7 +430,7 @@
             <aside class="inbound-summary-card" aria-label="입고 정보">
               <h2>
                 <span class="summary-icon" aria-hidden="true">
-                  <img src="./assets/inbound-calculator-icon-generated.svg" alt="" />
+                  <i class="ti ti-calculator"></i>
                 </span>
                 입고 정보
               </h2>
@@ -443,7 +468,10 @@
                   <strong><span id="calcTotalQty">-</span> <em>ea</em></strong>
                 </div>
               </div>
-              <button class="primary-action inbound-submit" type="button" id="inboundSubmitButton">등록</button>
+              <button class="primary-action inbound-submit" type="button" id="inboundSubmitButton">
+                <i class="ti ti-package-import inbound-submit-icon" aria-hidden="true"></i>
+                <span>등록</span>
+              </button>
             </aside>
           </div>
 
@@ -540,16 +568,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="7" aria-label="추가공정 정렬">
-                        추가공정
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path class="sort-icon-up" d="m8 10 4-4 4 4" />
-                          <path class="sort-icon-down" d="m8 14 4 4 4-4" />
-                        </svg>
-                      </button>
-                    </th>
-                    <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="8" aria-label="박스당 수량 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="7" aria-label="박스당 수량 정렬">
                         박스당 수량
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -558,7 +577,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="9" aria-label="완박스 수 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="8" aria-label="완박스 수 정렬">
                         완박스 수
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -567,7 +586,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="10" aria-label="잔량 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="9" aria-label="잔량 정렬">
                         잔량
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -576,7 +595,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="11" aria-label="입고 총 수량 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="10" aria-label="입고 총 수량 정렬">
                         입고 총 수량
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -585,7 +604,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="12" aria-label="박스 총 수량 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="11" aria-label="박스 총 수량 정렬">
                         박스 총 수량
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -594,7 +613,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="13" aria-label="검수 수량 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="12" aria-label="검수 수량 정렬">
                         검수 수량
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -603,7 +622,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="14" aria-label="불량 수량 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="13" aria-label="불량 수량 정렬">
                         불량 수량
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -612,7 +631,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="15" aria-label="불량률 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="14" aria-label="불량률 정렬">
                         불량률
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -621,7 +640,7 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="16" aria-label="등록자 정렬">
+                      <button class="sort-header-button" type="button" data-inbound-sort="15" aria-label="등록자 정렬">
                         등록자
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
@@ -658,17 +677,14 @@
         </div>
 
         <div class="page-view inventory-view" id="inventoryView" data-view="inventory" hidden>
-          <section class="page-heading inventory-heading">
-            <div>
-              <p class="eyebrow">Inventory Control</p>
-              <h1>재고관리</h1>
-              <p>현재 보유 중인 제품의 재고 현황을 확인하고 관리합니다.</p>
+          <section class="page-heading inventory-heading management-page-heading">
+            <div class="management-heading-trail">
+              <p class="eyebrow">재고관리</p>
+              <h1>재고 현황</h1>
             </div>
             <div class="inventory-heading-actions" aria-label="재고관리 빠른 작업">
               <button class="primary-action inventory-add-stock-button" type="button" id="openExistingStockModalButton">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+                <i class="ti ti-package-import" aria-hidden="true"></i>
                 기존 재고 추가
               </button>
             </div>
@@ -677,7 +693,7 @@
           <section class="inventory-summary-grid" aria-label="재고 요약">
             <article class="inventory-summary-card blue">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <img src="./assets/inventory-summary-items-generated.png" alt="" />
+                <i class="ti ti-package"></i>
               </span>
               <div class="inventory-summary-content">
                 <span class="inventory-summary-label">전체 품목 수</span>
@@ -686,7 +702,7 @@
             </article>
             <article class="inventory-summary-card green">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <img src="./assets/inventory-summary-boxes-generated.png" alt="" />
+                <i class="ti ti-box-multiple"></i>
               </span>
               <div class="inventory-summary-content">
                 <span class="inventory-summary-label">전체 박스 수</span>
@@ -695,7 +711,7 @@
             </article>
             <article class="inventory-summary-card amber">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <img src="./assets/inventory-summary-quantity-generated.png" alt="" />
+                <i class="ti ti-stack-2"></i>
               </span>
               <div class="inventory-summary-content">
                 <span class="inventory-summary-label">현재 총 수량</span>
@@ -704,7 +720,7 @@
             </article>
             <article class="inventory-summary-card violet">
               <span class="inventory-stat-icon" aria-hidden="true">
-                <img src="./assets/inventory-summary-due-generated.png" alt="" />
+                <i class="ti ti-calendar-exclamation"></i>
               </span>
               <div class="inventory-summary-content">
                 <span class="inventory-summary-label">납기 임박 <small>D-3 이하</small></span>
@@ -742,28 +758,28 @@
               <h2>관리 필요 재고</h2>
               <button class="attention-item purple" type="button" data-inventory-attention="print">
                 <span class="attention-icon" aria-hidden="true">
-                  <img src="./assets/inventory-attention-print-generated.png" alt="" />
+                  <i class="ti ti-printer"></i>
                 </span>
                 <span><b>인쇄 대기</b><strong><span id="inventoryPrintWaiting">-</span> <em>box</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
               <button class="attention-item orange" type="button" data-inventory-attention="storage">
                 <span class="attention-icon" aria-hidden="true">
-                  <img src="./assets/inventory-attention-storage-generated.png" alt="" />
+                  <i class="ti ti-map-pin-question"></i>
                 </span>
                 <span><b>미지정 보관</b><strong><span id="inventoryUnspecifiedStorage">-</span> <em>건</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
               <button class="attention-item teal" type="button" data-inventory-attention="aging">
                 <span class="attention-icon" aria-hidden="true">
-                  <img src="./assets/inventory-attention-long-storage-generated.png" alt="" />
+                  <i class="ti ti-history"></i>
                 </span>
                 <span><b>장기 보관</b><strong><span id="inventoryLongStorage">-</span> <em>건</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
               <button class="attention-item red" type="button" data-inventory-attention="hold">
                 <span class="attention-icon" aria-hidden="true">
-                  <img src="./assets/inventory-attention-hold-generated.png" alt="" />
+                  <i class="ti ti-trash-x"></i>
                 </span>
                 <span><b>보류 / 폐기</b><strong><span id="inventoryHoldDiscard">-</span> <em>건</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
@@ -850,13 +866,11 @@
                   <tr>
                     <th>QR</th>
                     <th>입고일</th>
-                    <th>최종 출고일</th>
                     <th>관리ID</th>
                     <th>거래처명</th>
                     <th>제품명</th>
                     <th>차수</th>
                     <th>최종공정</th>
-                    <th>추가공정</th>
                     <th>현재 박스 수</th>
                     <th>현재 총 수량 (EA)</th>
                     <th>보관 위치</th>
@@ -883,23 +897,20 @@
         </div>
 
         <div class="page-view product-view" id="productView" data-view="products" hidden>
-          <section class="page-heading">
-            <div>
-              <p class="eyebrow">Product Database</p>
-              <h1>제품관리</h1>
-              <p>입고, 출고, 작업에서 사용할 제품 정보를 등록하고 관리합니다.</p>
+          <section class="page-heading management-page-heading">
+            <div class="management-heading-trail">
+              <p class="eyebrow">제품관리</p>
+              <h1>제품 목록</h1>
             </div>
             <button class="primary-action" type="button" id="newProductButton">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
+              <i class="ti ti-package-import" aria-hidden="true"></i>
               신규 제품 등록
             </button>
           </section>
 
           <section class="product-hero" aria-label="제품관리 요약">
             <div class="product-hero-visual" aria-hidden="true">
-              <img src="./assets/admin-product-icon-generated.png" alt="" />
+              <i class="ti ti-box"></i>
             </div>
             <div>
               <strong id="productTotal">0</strong>
@@ -915,7 +926,7 @@
             </div>
           </section>
 
-          <section class="list-tools" aria-label="제품 검색 도구">
+          <section class="list-tools product-list-tools" aria-label="제품 검색 도구">
             <label class="search-field">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" />
@@ -931,7 +942,7 @@
             </label>
           </section>
 
-          <section class="table-panel" aria-label="제품 목록">
+          <section class="table-panel product-list-panel" aria-label="제품 목록">
             <div class="table-status" id="tableStatus">제품 정보를 불러오는 중입니다.</div>
             <div class="table-scroll">
               <table class="product-table">
@@ -941,8 +952,6 @@
                     <th>거래처명</th>
                     <th>제품코드</th>
                     <th>제품명</th>
-                    <th>최종공정</th>
-                    <th>추가공정</th>
                     <th>색상</th>
                     <th>박스당수량</th>
                     <th>검수 수량</th>
@@ -970,11 +979,10 @@
         </div>
 
         <div class="page-view shipping-view" id="shippingView" data-view="shipping" hidden>
-          <section class="page-heading shipping-heading">
-            <div>
-              <p class="eyebrow">Shipping Control</p>
-              <h1>출고관리</h1>
-              <p>출고 가능한 제품을 검수하고 이상 여부를 확인한 후 출고 처리합니다.</p>
+          <section class="page-heading shipping-heading management-page-heading">
+            <div class="management-heading-trail">
+              <p class="eyebrow">출고관리</p>
+              <h1>출고 현황</h1>
             </div>
           </section>
 
@@ -996,12 +1004,16 @@
                   <input id="shippingSettlementEndDate" type="date" />
                 </label>
                 <button id="shippingSettlementTodayButton" type="button">오늘</button>
+                <label class="shipping-settlement-list-scope">
+                  <input id="shippingPeriodListOnly" type="checkbox" />
+                  <span>해당 조회기간만 조회</span>
+                </label>
               </div>
             </div>
             <div class="shipping-summary-grid shipping-settlement-summary" aria-label="출고 상태 요약">
               <article class="shipping-summary-card amber">
                 <span class="shipping-summary-icon" aria-hidden="true">
-                  <img src="./assets/shipping-summary-wait-generated.png" alt="" />
+                  <i class="ti ti-clipboard-check"></i>
                 </span>
                 <div>
                   <span>출고대기(검수완료)</span>
@@ -1010,7 +1022,7 @@
               </article>
               <article class="shipping-summary-card red">
                 <span class="shipping-summary-icon" aria-hidden="true">
-                  <img src="./assets/shipping-summary-issue-generated.png" alt="" />
+                  <i class="ti ti-shield-exclamation"></i>
                 </span>
                 <div>
                   <span>이상 발견</span>
@@ -1019,7 +1031,7 @@
               </article>
               <article class="shipping-summary-card blue">
                 <span class="shipping-summary-icon" aria-hidden="true">
-                  <img src="./assets/shipping-summary-complete-generated.png" alt="" />
+                  <i class="ti ti-truck-delivery"></i>
                 </span>
                 <div>
                   <span>출고 완료</span>
@@ -1097,50 +1109,51 @@
                     <option>출고 완료</option>
                   </select>
                 </label>
-                <div class="shipping-filter-actions">
-                  <button class="secondary-action" type="button">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M19 12a7 7 0 1 1-2.05-4.95" />
-                      <path d="M19 5v5h-5" />
-                    </svg>
-                    초기화
-                  </button>
-                  <label class="page-size shipping-filter-page-size">
-                    <select id="shippingPageSizeSelect">
-                      <option value="10">10개씩 보기</option>
-                      <option value="20">20개씩 보기</option>
-                      <option value="30">30개씩 보기</option>
+              </div>
+              <div class="shipping-filter-actions">
+                <div class="shipping-sort-controls" aria-label="출고 목록 정렬">
+                  <label class="shipping-sort-field">
+                    <span>정렬</span>
+                    <select id="shippingSortKey">
+                      <option value="recent">최근 출고 변경순</option>
+                      <option value="productName">제품명순</option>
+                      <option value="clientName">거래처명순</option>
+                      <option value="inboundDate">입고일순</option>
                     </select>
                   </label>
+                  <button
+                    class="secondary-action shipping-sort-direction"
+                    id="shippingSortDirection"
+                    type="button"
+                    data-direction="desc"
+                    aria-label="현재 내림차순, 오름차순으로 변경"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M8 7h8" />
+                      <path d="M8 12h5" />
+                      <path d="M8 17h2" />
+                      <path d="m16 14 3 3 3-3" />
+                      <path d="M19 7v10" />
+                    </svg>
+                    <span>내림차순</span>
+                  </button>
                 </div>
+                <button class="secondary-action" id="shippingFilterReset" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+                    <path d="M19 5v5h-5" />
+                  </svg>
+                  초기화
+                </button>
+                <label class="page-size shipping-filter-page-size">
+                  <select id="shippingPageSizeSelect">
+                    <option value="10">10개씩 보기</option>
+                    <option value="20">20개씩 보기</option>
+                    <option value="30">30개씩 보기</option>
+                  </select>
+                </label>
               </div>
             </div>
-            <section class="shipping-search-summary" id="shippingSearchSummary" aria-live="polite" hidden>
-              <div class="shipping-search-summary-heading">
-                <div>
-                  <span>검색 제품 출고 현황</span>
-                  <strong id="shippingSearchSummaryTitle">-</strong>
-                </div>
-                <p id="shippingSearchSummaryCaption">제품명을 검색하면 발주량 대비 출고 현황을 확인할 수 있습니다.</p>
-              </div>
-              <div class="shipping-search-summary-metrics">
-                <div>
-                  <span>발주량</span>
-                  <strong><b id="shippingSearchOrderQuantity">0</b><em>ea</em></strong>
-                </div>
-                <div>
-                  <span>출고량</span>
-                  <strong><b id="shippingSearchShippedQuantity">0</b><em>ea</em></strong>
-                </div>
-                <div class="shipping-search-summary-rate">
-                  <span>발주량 대비 출고량</span>
-                  <strong><b id="shippingSearchShippingRate">0</b><em>%</em></strong>
-                </div>
-              </div>
-              <div class="shipping-search-progress" aria-hidden="true">
-                <span id="shippingSearchProgressBar"></span>
-              </div>
-            </section>
             <div class="table-scroll">
               <table class="product-table shipping-table">
                 <thead>
@@ -1154,6 +1167,8 @@
                     <th>보관 위치</th>
                     <th>출고 가능 박스</th>
                     <th>출고 가능 수량 (EA)</th>
+                    <th>출고한 박스</th>
+                    <th>출고한 수량 (EA)</th>
                     <th>출고 검수 여부</th>
                     <th>이상 여부</th>
                     <th>납기일</th>
@@ -1172,6 +1187,8 @@
                     <td>B-2</td>
                     <td>13 box</td>
                     <td>3,800 ea</td>
+                    <td>0 box</td>
+                    <td>0 ea</td>
                     <td><span class="shipping-badge muted">보관</span></td>
                     <td>-</td>
                     <td><span class="due-badge warning">D-2</span></td>
@@ -1188,6 +1205,8 @@
                     <td>B-2</td>
                     <td>10 box</td>
                     <td>2,400 ea</td>
+                    <td>0 box</td>
+                    <td>0 ea</td>
                     <td><span class="shipping-badge done">검수 완료</span></td>
                     <td>정상</td>
                     <td><span class="due-badge warning">D-5</span></td>
@@ -1204,6 +1223,8 @@
                     <td>A-1</td>
                     <td>18 box</td>
                     <td>3,600 ea</td>
+                    <td>0 box</td>
+                    <td>0 ea</td>
                     <td><span class="shipping-badge done">검수 완료</span></td>
                     <td>정상</td>
                     <td><span class="due-badge today">오늘</span></td>
@@ -1220,6 +1241,8 @@
                     <td>B-1</td>
                     <td>15 box</td>
                     <td>1,500 ea</td>
+                    <td>0 box</td>
+                    <td>0 ea</td>
                     <td><span class="shipping-badge done">검수 완료</span></td>
                     <td>이상</td>
                     <td><span class="due-badge danger">D-1</span></td>
@@ -1227,7 +1250,9 @@
                     <td>
                       <div class="shipping-action-group">
                         <button class="shipping-row-button" type="button" data-shipping-action="holdGuide">보류 상세</button>
-                        <button class="shipping-row-button secondary" type="button" data-shipping-action="inspect">재검수</button>
+                        <button class="shipping-action-overflow" type="button" aria-label="추가 출고 관리 메뉴" aria-haspopup="menu" aria-expanded="false" data-shipping-menu-actions='[{"action":"inspect","label":"재검수","icon":"ti-edit"}]'>
+                          <i class="ti ti-dots" aria-hidden="true"></i>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1241,6 +1266,8 @@
                     <td>A-2</td>
                     <td>10 box</td>
                     <td>1,000 ea</td>
+                    <td>0 box</td>
+                    <td>0 ea</td>
                     <td><span class="shipping-badge muted">검수 전</span></td>
                     <td>-</td>
                     <td><span class="due-badge warning">D-3</span></td>
@@ -1257,6 +1284,8 @@
                     <td>B-2</td>
                     <td>8 box</td>
                     <td>800 ea</td>
+                    <td>0 box</td>
+                    <td>0 ea</td>
                     <td><span class="shipping-badge done">검수 완료</span></td>
                     <td>정상</td>
                     <td><span class="due-badge safe">D-7</span></td>
@@ -1292,33 +1321,35 @@
 
     <div class="row-action-menu" id="rowActionMenu" role="menu" aria-label="제품 관리 메뉴" hidden>
       <button class="row-menu-item" type="button" role="menuitem" data-menu-action="view">
-        <img src="./assets/menu-icon-view-generated.png" alt="" />
+        <i class="ti ti-eye" aria-hidden="true"></i>
         <span>상세보기</span>
       </button>
       <button class="row-menu-item" type="button" role="menuitem" data-menu-action="edit">
-        <img src="./assets/menu-icon-edit-generated.png" alt="" />
+        <i class="ti ti-edit" aria-hidden="true"></i>
         <span>수정</span>
       </button>
       <button class="row-menu-item danger" type="button" role="menuitem" data-menu-action="delete">
-        <img src="./assets/menu-icon-delete-generated.png" alt="" />
+        <i class="ti ti-trash" aria-hidden="true"></i>
         <span>삭제</span>
       </button>
     </div>
 
     <div class="row-action-menu" id="inboundRowActionMenu" role="menu" aria-label="입고 관리 메뉴" hidden>
       <button class="row-menu-item" type="button" role="menuitem" data-inbound-menu-action="view">
-        <img src="./assets/menu-icon-view-generated.png" alt="" />
+        <i class="ti ti-eye" aria-hidden="true"></i>
         <span>상세보기</span>
       </button>
       <button class="row-menu-item" type="button" role="menuitem" data-inbound-menu-action="edit">
-        <img src="./assets/menu-icon-edit-generated.png" alt="" />
+        <i class="ti ti-edit" aria-hidden="true"></i>
         <span>수정</span>
       </button>
       <button class="row-menu-item danger" type="button" role="menuitem" data-inbound-menu-action="delete">
-        <img src="./assets/menu-icon-delete-generated.png" alt="" />
+        <i class="ti ti-trash" aria-hidden="true"></i>
         <span>삭제</span>
       </button>
     </div>
+
+    <div class="row-action-menu shipping-row-action-menu" id="shippingRowActionMenu" role="menu" aria-label="출고 관리 메뉴" hidden></div>
 
     <div class="modal-backdrop" id="shippingInspectionModal" hidden>
       <section class="product-modal shipping-inspection-modal" role="dialog" aria-modal="true" aria-labelledby="shippingInspectionTitle">
@@ -1361,7 +1392,7 @@
             <div class="shipping-box-section-header">
               <div>
                 <h3 id="shippingInspectionBoxTitle">이번 출고 박스</h3>
-                <p>박스를 클릭하거나 빈 공간에서 드래그해 여러 박스를 한 번에 선택해주세요.</p>
+                <p>이번에 실제로 출고할 박스를 선택해주세요.</p>
               </div>
               <label class="shipping-box-select-all">
                 <input id="shippingInspectionSelectAllBoxes" type="checkbox" checked />
@@ -1402,7 +1433,7 @@
               <label class="form-field">
                 <span>검수 수량 (트레이 수량) <b>*</b></span>
                 <span class="unit-input editable-lock-input editable-unit-input">
-                  <input id="shippingInspectionQuantity" type="number" min="0" step="1" inputmode="numeric" disabled />
+                  <input id="shippingInspectionQuantity" type="number" min="1" step="1" inputmode="numeric" disabled />
                   <i>ea</i>
                   <button id="editShippingInspectionQuantityButton" type="button" aria-label="검수 수량 수정" title="수정" aria-pressed="false">
                     <svg class="edit-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -1444,13 +1475,6 @@
                 <span>
                   <strong>출고 보류</strong>
                   <small>체크하면 출고 상태를 보류로 전환합니다.</small>
-                </span>
-              </label>
-              <label class="shipping-hold-option shipping-discard-option full-span">
-                <input id="shippingInspectionDiscardStatus" type="checkbox" />
-                <span>
-                  <strong>박스 폐기</strong>
-                  <small>체크하면 선택한 박스를 폐기하고 출고 대상에서 제외합니다.</small>
                 </span>
               </label>
               <section class="shipping-photo-panel full-span" aria-label="출고 불량 사진 등록">
@@ -1590,60 +1614,6 @@
       </section>
     </div>
 
-    <div class="modal-backdrop" id="shippingCancelModal" hidden>
-      <section class="product-modal shipping-completion-modal shipping-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="shippingCancelTitle">
-        <header class="modal-header">
-          <div>
-            <h2 id="shippingCancelTitle">박스별 출고 취소</h2>
-            <p>출고를 취소할 박스만 선택하면 해당 박스가 보관 상태로 돌아갑니다.</p>
-          </div>
-          <button class="modal-close" type="button" id="closeShippingCancelModal" aria-label="닫기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </header>
-
-        <form class="product-form shipping-completion-form shipping-cancel-form" id="shippingCancelForm">
-          <section class="shipping-completion-summary" aria-label="출고 취소 대상 정보">
-            <div>
-              <span>관리 ID</span>
-              <strong id="shippingCancelRecordId">-</strong>
-            </div>
-            <div>
-              <span>거래처명</span>
-              <strong id="shippingCancelClient">-</strong>
-            </div>
-            <div class="shipping-cancel-product-summary">
-              <span>제품명</span>
-              <strong id="shippingCancelProduct">-</strong>
-            </div>
-          </section>
-
-          <section class="form-section shipping-completion-box-section" aria-labelledby="shippingCancelBoxTitle">
-            <div class="shipping-box-section-header">
-              <div>
-                <h3 id="shippingCancelBoxTitle">출고완료 박스</h3>
-                <p>선택한 박스만 출고 취소됩니다.</p>
-              </div>
-              <label class="shipping-box-select-all">
-                <input id="shippingCancelSelectAllBoxes" type="checkbox" />
-                <span>전체 선택</span>
-              </label>
-            </div>
-            <div class="shipping-box-check-list shipping-cancel-box-list" id="shippingCancelBoxList"></div>
-            <p class="shipping-box-summary" id="shippingCancelBoxSummary">출고 취소할 박스를 선택해주세요.</p>
-            <p class="form-message" id="shippingCancelMessage"></p>
-          </section>
-
-          <div class="modal-actions">
-            <button class="secondary-modal-action" type="button" id="cancelShippingCancelModal">닫기</button>
-            <button class="primary-modal-action shipping-cancel-confirm-action" type="submit" id="confirmShippingCancelButton" disabled>선택 박스 출고 취소</button>
-          </div>
-        </form>
-      </section>
-    </div>
-
     <div class="modal-backdrop" id="shippingWaitingConfirmModal" hidden>
       <section class="product-modal shipping-waiting-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="shippingWaitingConfirmTitle">
         <header class="modal-header shipping-waiting-confirm-header">
@@ -1760,22 +1730,24 @@
     </div>
 
     <div class="modal-backdrop" id="productModal" hidden>
-      <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+      <section class="product-modal product-create-modal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
         <header class="modal-header">
           <div>
             <h2 id="productModalTitle">신규 제품 등록</h2>
             <p id="productModalDescription">신규 제품 정보를 입력해주세요. * 표시는 필수 입력입니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeProductModal" aria-label="닫기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
+            <i class="ti ti-x" aria-hidden="true"></i>
           </button>
         </header>
 
-        <form class="product-form" id="productForm">
+        <form class="product-form product-create-form" id="productForm">
+          <div class="modal-form-scroll">
           <section class="form-section" aria-labelledby="productBaseTitle">
-            <h3 id="productBaseTitle">제품 기본 정보</h3>
+            <h3 id="productBaseTitle">
+              <span class="product-section-icon" aria-hidden="true"><i class="ti ti-package"></i></span>
+              <span>제품 기본 정보</span>
+            </h3>
             <div class="form-grid">
               <label class="form-field">
                 <span>제품코드 <b>*</b></span>
@@ -1796,10 +1768,32 @@
 
               <label class="form-field">
                 <span>색상</span>
-                <span class="color-input-preview">
-                  <input id="productColor" type="text" placeholder="색상을 입력하세요. 예: 민트" />
-                  <i id="productColorPreview" aria-hidden="true"></i>
+                <span class="product-color-input-wrap">
+                  <input
+                    id="productColor"
+                    type="text"
+                    list="productColorSuggestions"
+                    placeholder="색상을 직접 입력하세요."
+                    autocomplete="off"
+                  />
+                  <i
+                    class="product-color-preview"
+                    id="productColorPreview"
+                    role="img"
+                    aria-label="색상 미리보기"
+                  ></i>
                 </span>
+                <datalist id="productColorSuggestions">
+                  <option value="투명"></option>
+                  <option value="아이보리"></option>
+                  <option value="화이트"></option>
+                  <option value="블랙"></option>
+                  <option value="베이지"></option>
+                  <option value="연두"></option>
+                  <option value="크라프트"></option>
+                  <option value="네이비"></option>
+                  <option value="레드"></option>
+                </datalist>
               </label>
 
               <label class="form-field">
@@ -1813,29 +1807,43 @@
                 </select>
               </label>
 
-              <fieldset class="form-field usage-field full-span">
-                <legend>박가루 제거 유무</legend>
-                <label>
-                  <input type="radio" name="productDustRemoval" value="유" />
-                  <span>유</span>
-                </label>
-                <label>
-                  <input type="radio" name="productDustRemoval" value="무" checked />
-                  <span>무</span>
-                </label>
-              </fieldset>
+              <div class="product-treatment-grid full-span" aria-label="제품 공정 옵션">
+                <div
+                  class="form-field usage-field product-treatment-card"
+                  role="group"
+                  aria-labelledby="productDustRemovalLabel"
+                >
+                  <span class="product-treatment-title" id="productDustRemovalLabel">박가루 제거</span>
+                  <div class="product-treatment-options">
+                    <label>
+                      <input type="radio" name="productDustRemoval" value="유" />
+                      <span>유</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="productDustRemoval" value="무" checked />
+                      <span>무</span>
+                    </label>
+                  </div>
+                </div>
 
-              <fieldset class="form-field usage-field full-span">
-                <legend>화염처리 유무</legend>
-                <label>
-                  <input type="radio" name="productFlameTreatment" value="유" />
-                  <span>유</span>
-                </label>
-                <label>
-                  <input type="radio" name="productFlameTreatment" value="무" checked />
-                  <span>무</span>
-                </label>
-              </fieldset>
+                <div
+                  class="form-field usage-field product-treatment-card"
+                  role="group"
+                  aria-labelledby="productFlameTreatmentLabel"
+                >
+                  <span class="product-treatment-title" id="productFlameTreatmentLabel">화염처리</span>
+                  <div class="product-treatment-options">
+                    <label>
+                      <input type="radio" name="productFlameTreatment" value="유" />
+                      <span>유</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="productFlameTreatment" value="무" checked />
+                      <span>무</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
 
               <fieldset class="form-field usage-field full-span">
                 <legend>사용 여부 <b>*</b></legend>
@@ -1852,13 +1860,11 @@
               <label class="common-container-toggle full-span">
                 <input id="productCommonContainer" type="checkbox" />
                 <span class="common-container-check" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="m5 12 4 4L19 6" />
-                  </svg>
+                  <i class="ti ti-check"></i>
                 </span>
                 <span class="common-container-toggle-copy">
                   <strong>공용용기 제품</strong>
-                  <small>같은 용기를 인쇄에 따라 여러 제품명으로 출고하는 경우 체크하세요.</small>
+                  <small>같은 용기를 인쇄에 따라 여러 제품명으로 출고하는 경우 선택하세요.</small>
                 </span>
               </label>
 
@@ -1884,7 +1890,10 @@
           </section>
 
           <section class="form-section" aria-labelledby="productStandardTitle">
-            <h3 id="productStandardTitle">제품 기준 정보</h3>
+            <h3 id="productStandardTitle">
+              <span class="product-section-icon" aria-hidden="true"><i class="ti ti-ruler-measure"></i></span>
+              <span>제품 기준 정보</span>
+            </h3>
             <div class="form-grid">
               <label class="form-field">
                 <span>발주량</span>
@@ -1923,10 +1932,14 @@
           </section>
 
           <p class="form-message" id="productFormMessage" role="alert" aria-live="polite"></p>
+          </div>
 
           <div class="modal-actions">
             <button class="secondary-modal-action" type="button" id="cancelProductModal">취소</button>
-            <button class="primary-modal-action" type="submit" id="saveProductButton">저장</button>
+            <button class="primary-modal-action" type="submit" id="saveProductButton">
+              <i class="ti ti-device-floppy" aria-hidden="true"></i>
+              <span>저장</span>
+            </button>
           </div>
         </form>
       </section>
@@ -1940,9 +1953,7 @@
             <p>등록된 제품의 기본 정보와 기준 정보를 확인할 수 있습니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeProductDetailModal" aria-label="닫기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
+            <i class="ti ti-x" aria-hidden="true"></i>
           </button>
         </header>
 
@@ -1963,9 +1974,7 @@
             <p>등록된 입고 정보와 수량 정보를 확인할 수 있습니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeInboundDetailModal" aria-label="닫기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
+            <i class="ti ti-x" aria-hidden="true"></i>
           </button>
         </header>
 
@@ -1980,32 +1989,31 @@
     </div>
 
     <div class="modal-backdrop" id="existingStockModal" hidden>
-      <section class="product-modal existing-stock-modal" role="dialog" aria-modal="true" aria-labelledby="existingStockModalTitle">
+      <section class="product-modal existing-stock-modal existing-stock-create-modal" role="dialog" aria-modal="true" aria-labelledby="existingStockModalTitle">
         <header class="modal-header">
           <div>
             <h2 id="existingStockModalTitle">기존 재고 추가</h2>
             <p>창고에 보관 중인 기존 재고 정보를 등록합니다. * 표시는 필수 입력입니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeExistingStockModal" aria-label="닫기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
+            <i class="ti ti-x" aria-hidden="true"></i>
           </button>
         </header>
 
-        <form class="product-form existing-stock-form" id="existingStockForm">
+        <form class="product-form existing-stock-form existing-stock-create-form" id="existingStockForm">
+          <div class="modal-form-scroll">
           <section class="form-section" aria-labelledby="existingStockBaseTitle">
-            <h3 id="existingStockBaseTitle">재고 기본 정보</h3>
+            <h3 id="existingStockBaseTitle">
+              <span class="product-section-icon" aria-hidden="true"><i class="ti ti-building-warehouse"></i></span>
+              <span>재고 기본 정보</span>
+            </h3>
             <div class="form-grid existing-stock-grid">
               <label class="form-field stock-product-field">
                 <span>제품명 <b>*</b></span>
                 <div class="field-with-button">
                   <input id="existingStockProductName" type="text" placeholder="제품을 선택하세요." readonly required />
                   <button id="existingStockProductSearchButton" type="button" aria-label="제품 검색">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <circle cx="11" cy="11" r="7" />
-                      <path d="m16 16 4 4" />
-                    </svg>
+                    <i class="ti ti-search" aria-hidden="true"></i>
                   </button>
                 </div>
               </label>
@@ -2037,7 +2045,7 @@
 
               <label class="form-field">
                 <span>최종공정 <b>*</b></span>
-                <select id="existingStockProcess" required disabled>
+                <select id="existingStockProcess" required>
                   <option value="" selected disabled>선택하세요.</option>
                   <option>1도</option>
                   <option>2도</option>
@@ -2073,7 +2081,10 @@
           </section>
 
           <section class="form-section" aria-labelledby="existingStockQuantityTitle">
-            <h3 id="existingStockQuantityTitle">수량 정보</h3>
+            <h3 id="existingStockQuantityTitle">
+              <span class="product-section-icon" aria-hidden="true"><i class="ti ti-box-multiple"></i></span>
+              <span>수량 정보</span>
+            </h3>
             <div class="form-grid existing-stock-grid">
               <label class="form-field">
                 <span>박스당 수량 <b>*</b></span>
@@ -2107,44 +2118,40 @@
           </section>
 
           <p class="form-message" id="existingStockFormMessage" role="alert" aria-live="polite"></p>
+          </div>
 
           <div class="modal-actions">
             <button class="secondary-modal-action" type="button" id="cancelExistingStockModal">취소</button>
-            <button class="primary-modal-action" type="submit" id="saveExistingStockButton">저장</button>
+            <button class="primary-modal-action" type="submit" id="saveExistingStockButton">
+              <i class="ti ti-device-floppy" aria-hidden="true"></i>
+              <span>저장</span>
+            </button>
           </div>
         </form>
       </section>
     </div>
 
     <div class="modal-backdrop" id="inboundProductPickerModal" hidden>
-      <section class="product-modal picker-modal" role="dialog" aria-modal="true" aria-labelledby="inboundProductPickerTitle">
+      <section class="product-modal picker-modal product-picker-modal" role="dialog" aria-modal="true" aria-labelledby="inboundProductPickerTitle">
         <header class="modal-header">
           <div>
             <h2 id="inboundProductPickerTitle">제품 선택</h2>
             <p>제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.</p>
           </div>
           <button class="modal-close" type="button" id="closeInboundProductPicker" aria-label="닫기">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
+            <i class="ti ti-x" aria-hidden="true"></i>
           </button>
         </header>
 
         <div class="picker-body">
-          <div class="picker-toolbar">
-            <label class="search-field picker-search">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m16 16 4 4" />
-              </svg>
-              <input id="inboundProductPickerSearch" type="search" placeholder="제품명, 제품코드, 거래처명 검색" />
-            </label>
-            <button class="picker-create-product-button" type="button" id="createProductFromPickerButton">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span>신규 제품 등록</span>
-            </button>
+          <label class="search-field picker-search">
+            <i class="ti ti-search" aria-hidden="true"></i>
+            <input id="inboundProductPickerSearch" type="search" placeholder="제품명, 제품코드, 거래처명 검색" />
+          </label>
+
+          <div class="picker-result-summary">
+            <p><strong id="inboundProductPickerCount">0</strong>개의 제품</p>
+            <span>선택하면 입고 정보에 자동으로 반영됩니다.</span>
           </div>
 
           <div class="picker-list" id="inboundProductPickerList"></div>
@@ -2204,6 +2211,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260721-inbound-edit-note"></script>
+    <script src="./admin.js?v=20260724-32"></script>
   </body>
 </html>
