@@ -2980,7 +2980,10 @@ function renderShippingRowAction(item) {
   if (counts["출고대기"]) {
     return renderShippingActionSet(
       { action: "ship", label: "출고", variant: "primary" },
-      [{ action: "inspect", label: "수정", icon: "ti-edit" }]
+      [
+        { action: "inspect", label: "출고 건 수정", icon: "ti-edit" },
+        { action: "detail", label: "상세보기", icon: "ti-eye" }
+      ]
     );
   }
 
@@ -3002,7 +3005,10 @@ function renderShippingRowAction(item) {
   if (counts["검수완료"] || isShippingInspected(item)) {
     return renderShippingActionSet(
       { action: "queue", label: "출고", variant: "primary" },
-      [{ action: "inspect", label: registerActionLabel, icon: "ti-edit" }]
+      [
+        { action: "inspect", label: registerActionLabel, icon: "ti-edit" },
+        { action: "detail", label: "상세보기", icon: "ti-eye" }
+      ]
     );
   }
 
