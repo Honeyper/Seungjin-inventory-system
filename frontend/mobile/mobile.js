@@ -27,6 +27,20 @@ const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
 const HARDWARE_SCANNER_IDLE_SUBMIT_MS = 320;
+const KOREAN_SCANNER_INITIAL_KEYS = ["r", "R", "s", "e", "E", "f", "a", "q", "Q", "t", "T", "d", "w", "W", "c", "z", "x", "v", "g"];
+const KOREAN_SCANNER_MEDIAL_KEYS = ["k", "o", "i", "O", "j", "p", "u", "P", "h", "hk", "ho", "hl", "y", "n", "nj", "np", "nl", "b", "m", "ml", "l"];
+const KOREAN_SCANNER_FINAL_KEYS = ["", "r", "R", "rt", "s", "sw", "sg", "e", "f", "fr", "fa", "fq", "ft", "fx", "fv", "fg", "a", "q", "Q", "qt", "t", "T", "d", "w", "c", "z", "x", "v", "g"];
+const KOREAN_SCANNER_COMPATIBILITY_KEYS = new Map([
+  ["ㄱ", "r"], ["ㄲ", "R"], ["ㄳ", "rt"], ["ㄴ", "s"], ["ㄵ", "sw"], ["ㄶ", "sg"],
+  ["ㄷ", "e"], ["ㄸ", "E"], ["ㄹ", "f"], ["ㄺ", "fr"], ["ㄻ", "fa"], ["ㄼ", "fq"],
+  ["ㄽ", "ft"], ["ㄾ", "fx"], ["ㄿ", "fv"], ["ㅀ", "fg"], ["ㅁ", "a"], ["ㅂ", "q"],
+  ["ㅃ", "Q"], ["ㅄ", "qt"], ["ㅅ", "t"], ["ㅆ", "T"], ["ㅇ", "d"], ["ㅈ", "w"],
+  ["ㅉ", "W"], ["ㅊ", "c"], ["ㅋ", "z"], ["ㅌ", "x"], ["ㅍ", "v"], ["ㅎ", "g"],
+  ["ㅏ", "k"], ["ㅐ", "o"], ["ㅑ", "i"], ["ㅒ", "O"], ["ㅓ", "j"], ["ㅔ", "p"],
+  ["ㅕ", "u"], ["ㅖ", "P"], ["ㅗ", "h"], ["ㅘ", "hk"], ["ㅙ", "ho"], ["ㅚ", "hl"],
+  ["ㅛ", "y"], ["ㅜ", "n"], ["ㅝ", "nj"], ["ㅞ", "np"], ["ㅟ", "nl"], ["ㅠ", "b"],
+  ["ㅡ", "m"], ["ㅢ", "ml"], ["ㅣ", "l"]
+]);
 const SHIPPING_CLOCK_INTERVAL_MS = 10000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
@@ -3373,7 +3387,10 @@ async function submitHardwareScannerValue(rawValue) {
 }
 
 async function handleQrValue(rawValue) {
-  const value = String(rawValue || "").trim();
+  const scannedValue = String(rawValue || "").trim();
+  const value = state.scannerInputMode === "hardware"
+    ? restoreHardwareScannerQrValue(scannedValue)
+    : scannedValue;
   if (!value) {
     return;
   }
@@ -3460,6 +3477,48 @@ async function handleQrValue(rawValue) {
       state.isProcessingScan = false;
     }, SCAN_PROCESSING_LOCK_MS);
   }
+}
+
+function restoreHardwareScannerQrValue(rawValue) {
+  const text = String(rawValue || "")
+    .trim()
+    .replace(/[“”]/g, "\"")
+    .replace(/[‘’]/g, "'");
+
+  if (!/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(text)) {
+    return text;
+  }
+
+  const restored = Array.from(text).map(convertKoreanScannerCharacter).join("");
+
+  try {
+    const parsed = JSON.parse(restored);
+    const supportedKeys = ["t", "b", "m", "p", "n", "boxId", "managementId", "productId", "number"];
+    if (parsed && typeof parsed === "object" && supportedKeys.some((key) => parsed[key] !== undefined)) {
+      return restored;
+    }
+  } catch (error) {
+    // A scanner can also be configured to emit only a box or management ID.
+  }
+
+  if (/^[a-z0-9:_-]+$/i.test(restored) && /\d/.test(restored)) {
+    return restored;
+  }
+
+  return text;
+}
+
+function convertKoreanScannerCharacter(character) {
+  const codePoint = character.codePointAt(0);
+  if (codePoint >= 0xac00 && codePoint <= 0xd7a3) {
+    const syllableIndex = codePoint - 0xac00;
+    const initialIndex = Math.floor(syllableIndex / 588);
+    const medialIndex = Math.floor((syllableIndex % 588) / 28);
+    const finalIndex = syllableIndex % 28;
+    return `${KOREAN_SCANNER_INITIAL_KEYS[initialIndex]}${KOREAN_SCANNER_MEDIAL_KEYS[medialIndex]}${KOREAN_SCANNER_FINAL_KEYS[finalIndex]}`;
+  }
+
+  return KOREAN_SCANNER_COMPATIBILITY_KEYS.get(character) || character;
 }
 
 async function ensureDashboardLoaded() {
