@@ -1331,7 +1331,7 @@ function findShippingInspectionTrayQuantity(productId = "", clientName = "", pro
     return Boolean(productKey && candidateKey && (candidateKey.includes(productKey) || productKey.includes(candidateKey)));
   });
 
-  return extractQuantityNumber(matchedProduct?.trayQuantity || fallback || "");
+  return getQuantityNumberFromText(matchedProduct?.trayQuantity || fallback || "");
 }
 
 function getSelectedShippingInspectionBoxes() {
@@ -3238,7 +3238,7 @@ function getShippingSettlementBoxItems() {
     if (!boxes.length) {
       const status = getEffectiveShippingStatus(item);
       const date = getShippingSettlementItemDate(item);
-      const trayQuantity = getShippingInspectionTrayQuantityFromItem(item);
+      const trayQuantity = parseShippingSettlementNumber(getShippingInspectionTrayQuantityFromItem(item));
 
       if (!isShippingSettlementDateInRange(date)) {
         return [];
@@ -3265,7 +3265,7 @@ function getShippingSettlementBoxItems() {
       const status = rawStatus === "검수완료" ? "출고대기" : rawStatus;
       const date = getShippingSettlementBoxDate(box, item);
       const quantity = getShippingSettlementBoxQuantity(box);
-      const trayQuantity = getShippingInspectionTrayQuantityFromItem(item);
+      const trayQuantity = parseShippingSettlementNumber(getShippingInspectionTrayQuantityFromItem(item));
       const boxInspectionQuantity = parseShippingSettlementNumber(box.inspectionQuantity || "");
 
       return {
@@ -3384,28 +3384,31 @@ function updateShippingSettlementSummary() {
   });
 
   completedBoxItems.forEach((item) => {
-    totalBoxes += item.boxes;
-    totalQuantity += item.quantity;
-    if (item.inspectionQuantity > 0) {
+    totalBoxes += parseShippingSettlementNumber(item.boxes);
+    totalQuantity += parseShippingSettlementNumber(item.quantity);
+    const itemInspectionQuantity = parseShippingSettlementNumber(item.inspectionQuantity);
+    if (itemInspectionQuantity > 0) {
       const inspectionKey = item.inspectionKey || `${item.managementId || ""}|${item.date || ""}|${item.status || ""}`;
       if (!countedInspectionKeys.has(inspectionKey)) {
         countedInspectionKeys.add(inspectionKey);
-        inspectedQuantity += item.inspectionQuantity;
+        inspectedQuantity += itemInspectionQuantity;
       }
     }
-    if (item.defectQuantity > 0) {
+    const itemDefectQuantity = parseShippingSettlementNumber(item.defectQuantity);
+    if (itemDefectQuantity > 0) {
       const defectKey = item.inspectionKey || `${item.managementId || ""}|${item.date || ""}|${item.status || ""}`;
       if (!countedDefectKeys.has(defectKey)) {
         countedDefectKeys.add(defectKey);
-        defectQuantity += item.defectQuantity;
+        defectQuantity += itemDefectQuantity;
       }
     }
 
-    if (item.defectRate > 0) {
+    const itemDefectRate = parseShippingSettlementNumber(item.defectRate);
+    if (itemDefectRate > 0) {
       const defectRateKey = item.inspectionKey || `${item.managementId || ""}|${item.date || ""}|${item.status || ""}`;
       if (!countedDefectRateKeys.has(defectRateKey)) {
         countedDefectRateKeys.add(defectRateKey);
-        defectRateTotal += item.defectRate;
+        defectRateTotal += itemDefectRate;
         defectRateCount += 1;
       }
     }
