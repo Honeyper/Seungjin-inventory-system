@@ -7829,28 +7829,42 @@ input {
   border-bottom: 1px solid #dbe5f0;
 }
 
+.qr-modal-header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .qr-modal-header h2 {
+  overflow: hidden;
   margin: 0;
   color: var(--navy-dark);
   font-size: 1.2rem;
   line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qr-modal-header p {
+  overflow: hidden;
   margin: 0.3rem 0 0;
   color: #66758a;
   font-size: 0.78rem;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qr-modal-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 0.5rem;
 }
 
 .qr-layout-toggle {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.25rem;
   height: 2.15rem;
@@ -7861,6 +7875,11 @@ input {
 }
 
 .qr-layout-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 7rem;
   height: 1.72rem;
   padding: 0 0.62rem;
   color: #53647a;
@@ -7870,6 +7889,8 @@ input {
   border-radius: 0.32rem;
   background: transparent;
   cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .qr-layout-toggle button.active {
