@@ -37,9 +37,14 @@ const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
+const adminEnvironmentBadge = document.querySelector("#adminEnvironmentBadge");
 
 if (!session || session.role !== "admin") {
   location.replace("./index.html");
+}
+
+if (adminEnvironmentBadge && window.SEUNGJIN_CONFIG?.ENV === "dev") {
+  adminEnvironmentBadge.hidden = false;
 }
 
 const state = {

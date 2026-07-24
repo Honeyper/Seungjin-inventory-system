@@ -10681,3 +10681,22 @@ input {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-brand .admin-environment-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.16rem 0.48rem;
+  border: 1px solid #e6c67d;
+  border-radius: 999px;
+  color: #95640d;
+  background: #fff8e7;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.admin-brand .admin-environment-badge[hidden] {
+  display: none;
+}
