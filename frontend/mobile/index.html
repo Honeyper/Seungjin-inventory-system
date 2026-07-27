@@ -16,7 +16,11 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260721-manual-picker-keyboard" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
+    />
+    <link rel="stylesheet" href="./mobile.css?v=20260727-pc-mood-mobile-redesign-v3" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -124,7 +128,7 @@
         <div class="mobile-menu-list" aria-label="모바일 메뉴">
           <button class="mobile-menu-card" type="button" data-mobile-route="shipping">
             <span class="menu-icon scan-icon" aria-hidden="true">
-              <img src="../assets/mobile-icon-shipping-2d.png?v=20260711-home-2d-icons" alt="" />
+              <i class="ti ti-truck-delivery"></i>
             </span>
             <span class="menu-copy">
               <strong>출고 관리</strong>
@@ -136,7 +140,7 @@
 
           <button class="mobile-menu-card locked" type="button" disabled>
             <span class="menu-icon work-icon" aria-hidden="true">
-              <img src="../assets/mobile-icon-work-2d.png?v=20260711-home-2d-icons" alt="" />
+              <i class="ti ti-clipboard-check"></i>
             </span>
             <span class="menu-copy">
               <strong>작업 현황</strong>
@@ -148,7 +152,7 @@
 
           <button class="mobile-menu-card locked" type="button" disabled>
             <span class="menu-icon inventory-icon" aria-hidden="true">
-              <img src="../assets/mobile-icon-inventory-2d.png?v=20260711-home-2d-icons" alt="" />
+              <i class="ti ti-packages"></i>
             </span>
             <span class="menu-copy">
               <strong>재고 현황 조회</strong>
@@ -160,7 +164,7 @@
 
           <button class="mobile-menu-card" type="button" data-mobile-route="inventoryMove">
             <span class="menu-icon edit-icon" aria-hidden="true">
-              <img src="../assets/mobile-icon-edit-2d.png?v=20260711-home-2d-icons" alt="" />
+              <i class="ti ti-box-seam"></i>
             </span>
             <span class="menu-copy">
               <strong>재고 수정 / 예외 처리</strong>
