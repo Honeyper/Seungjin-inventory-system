@@ -7512,6 +7512,36 @@ body {
   opacity: 0.88;
 }
 
+#shippingScreen .empty-state-icon,
+#inventoryMoveScreen .empty-state-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto;
+  border: 1px solid var(--mobile-border);
+  border-radius: 16px;
+  color: var(--mobile-navy);
+  background: #f6f8fc;
+  opacity: 1;
+}
+
+#shippingScreen .empty-state-icon .ti,
+#inventoryMoveScreen .empty-state-icon .ti {
+  font-size: 30px;
+  line-height: 1;
+}
+
+#shippingScreen .empty-state-icon .ti-loader-2 {
+  animation: mobile-empty-loader-spin 0.9s linear infinite;
+}
+
+@keyframes mobile-empty-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .empty-state h2 {
   margin-top: 13px;
   color: var(--mobile-text);

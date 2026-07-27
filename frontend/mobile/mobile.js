@@ -1129,7 +1129,7 @@ function renderShippingList(rows) {
       <div class="empty-state">
         <div>
           <span class="empty-state-icon" aria-hidden="true">
-            <img src="${SHIPPING_BOX_ICON_SRC}" alt="" />
+            <i class="ti ti-package"></i>
           </span>
           <h2>${hasHiddenCompletedBoxes ? "출고할 박스가 없습니다" : "등록된 제품이 없습니다"}</h2>
           <p>${hasHiddenCompletedBoxes ? "출고완료 박스는 현재 숨겨져 있습니다." : "출고할 제품을 등록해 주세요."}</p>
@@ -1686,7 +1686,7 @@ function renderInventoryMoveList() {
       <div class="empty-state">
         <div>
           <span class="empty-state-icon" aria-hidden="true">
-            <img src="${SHIPPING_BOX_ICON_SRC}" alt="" />
+            <i class="ti ti-package-export"></i>
           </span>
           <h2>이동할 박스가 없습니다</h2>
           <p>QR 스캔으로 재고 위치를 수정할 박스를 등록해주세요.</p>
@@ -2001,7 +2001,7 @@ function renderShippingLoading() {
     <div class="empty-state">
       <div>
         <span class="empty-state-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
+          <i class="ti ti-loader-2"></i>
         </span>
         <h2>불러오는 중입니다</h2>
         <p>출고 목록을 확인하고 있습니다.</p>
@@ -2016,7 +2016,7 @@ function renderShippingError(message) {
     <div class="empty-state">
       <div>
         <span class="empty-state-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>
+          <i class="ti ti-alert-triangle"></i>
         </span>
         <h2>목록을 불러오지 못했습니다</h2>
         <p>${escapeHtml(message)}</p>
