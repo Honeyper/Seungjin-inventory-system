@@ -3117,7 +3117,8 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
 
 function isShippingCompletionReadyBoxRow_(row, indexes, rawStatus) {
   const statusText = String(rawStatus || '').replace(/\s+/g, '');
-  const hasShippingReadyStatus = statusText.includes('출고대기');
+  const hasExplicitShippingReadyStatus = statusText.includes('출고대기');
+  const isLegacyInspectedStatus = statusText.includes('검수완료');
   const inspectionDate = pickCell_(row, indexes, ['출고 검수일', '검수일']);
   const inspectionTime = pickCell_(row, indexes, ['출고 검수시간', '검수시간']);
   const inspector = pickCell_(row, indexes, ['출고 검수자', '검수자']);
@@ -3129,7 +3130,7 @@ function isShippingCompletionReadyBoxRow_(row, indexes, rawStatus) {
     || inspectionQuantity > 0
   );
 
-  return hasShippingReadyStatus && hasShippingInspection;
+  return hasExplicitShippingReadyStatus || (isLegacyInspectedStatus && hasShippingInspection);
 }
 
 function findShippingTypeHeaderIndex_(indexes) {

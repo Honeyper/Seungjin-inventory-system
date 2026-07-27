@@ -1593,14 +1593,15 @@ function getShippingCompletionTargetBoxes(row) {
 
 function isShippingCompletionReadyBox(box) {
   const rawStatus = String(box?.rawStatus || box?.status || "").replace(/\s+/g, "");
-  const hasShippingReadyStatus = rawStatus.includes("출고대기");
+  const hasExplicitShippingReadyStatus = rawStatus.includes("출고대기");
+  const isLegacyInspectedStatus = rawStatus.includes("검수완료");
   const hasShippingInspection = Boolean(
     toDateInputValue(box?.inspectionDate || "")
     || String(box?.inspectionTime || "").trim()
     || parseShippingSettlementNumber(box?.inspectionQuantity || "") > 0
   );
 
-  return hasShippingReadyStatus && hasShippingInspection;
+  return hasExplicitShippingReadyStatus || (isLegacyInspectedStatus && hasShippingInspection);
 }
 
 function syncShippingCompletionBoxState() {
