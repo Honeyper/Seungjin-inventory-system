@@ -9840,6 +9840,31 @@ input {
     grid-template-areas:
       "box box-count remain tray defect reason file-actions file-actions"
       "remainder-editor remainder-editor remainder-editor remainder-editor remainder-editor remainder-editor remainder-editor remainder-editor";
+    align-items: stretch;
+  }
+
+  .quantity-grid > .form-field {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+  }
+
+  .quantity-grid > .form-field > :first-child {
+    display: flex;
+    align-items: center;
+    min-height: 1.15rem;
+  }
+
+  .quantity-grid > .form-field > .unit-input,
+  .quantity-grid > .form-field > .multi-select {
+    width: 100%;
+    margin-top: auto;
+  }
+
+  .quantity-grid > .form-field > .unit-input input,
+  .quantity-grid .multi-select-trigger {
+    height: 2.42rem;
+    min-height: 2.42rem;
   }
 
   .quantity-grid > .multiple-remainder-panel {
