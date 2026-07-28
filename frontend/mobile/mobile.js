@@ -2057,7 +2057,7 @@ function renderShippingItem(item) {
   const completedReturnAction = isTransferred
     ? { action: "returnTransfer", label: "이관 복귀" }
     : isTakenOut
-      ? { action: "returnTakeout", label: "반출 후 재입고" }
+      ? { action: "returnTakeout", label: "재입고" }
       : { action: "cancelCompleted", label: "출고 취소" };
   const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
@@ -2211,7 +2211,7 @@ function openConfirmModal(item, action = "complete") {
   const isInventoryReturnAction = isTransferReturnAction || isTakeoutReturnAction;
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = isTakeoutReturnAction
-      ? "반출 후 재입고"
+      ? "재입고"
       : isTransferReturnAction
         ? "이관 복귀"
         : "출고 확인";
@@ -2332,7 +2332,7 @@ async function handleReturnTransferredInventory(item) {
   }
 
   const isTakeoutReturn = state.activeTransferReturnMode === "takeout";
-  const actionLabel = isTakeoutReturn ? "반출 후 재입고" : "이관 복귀";
+  const actionLabel = isTakeoutReturn ? "재입고" : "이관 복귀";
   const itemLabel = isTakeoutReturn ? "반출" : "이관";
   const resultLabel = isTakeoutReturn ? "재입고" : "복귀";
   const selectedBoxes = getSelectedMobileTransferReturnBoxes();
