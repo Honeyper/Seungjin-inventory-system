@@ -104,6 +104,7 @@ const state = {
   selectedShippingItem: null,
   selectedShippingAction: "complete",
   activeTransferReturnBoxes: [],
+  activeTransferReturnMode: "transfer",
   selectedInventoryMoveMode: "single",
   selectedConfirmMode: "item",
   isCompletingShipping: false,
@@ -199,9 +200,13 @@ const elements = {
   confirmProductName: document.querySelector("#confirmProductName"),
   confirmMetaList: document.querySelector("#confirmMetaList"),
   mobileTransferReturnControls: document.querySelector("#mobileTransferReturnControls"),
+  mobileTransferReturnHeading: document.querySelector("#mobileTransferReturnHeading"),
   mobileTransferReturnBoxList: document.querySelector("#mobileTransferReturnBoxList"),
   mobileTransferReturnBoxSummary: document.querySelector("#mobileTransferReturnBoxSummary"),
   mobileTransferReturnStorage: document.querySelector("#mobileTransferReturnStorage"),
+  mobileTransferReturnStatusLegend: document.querySelector("#mobileTransferReturnStatusLegend"),
+  mobileTransferReturnStoredLabel: document.querySelector("#mobileTransferReturnStoredLabel"),
+  mobileTransferReturnPendingHelp: document.querySelector("#mobileTransferReturnPendingHelp"),
   mobileTransferReturnMessage: document.querySelector("#mobileTransferReturnMessage"),
   cancelConfirmButton: document.querySelector("#cancelConfirmButton"),
   acceptConfirmButton: document.querySelector("#acceptConfirmButton"),
@@ -1885,7 +1890,12 @@ function isTransferredShippingBox(box) {
   return /^이관(?:\s*\(|$)/.test(String(box?.shippingType || box?.["출고유형"] || "").trim());
 }
 
-function getTransferredShippingBoxes(item) {
+function isTakenOutShippingBox(box) {
+  return /^반출(?:\s*\(|$)/.test(String(box?.shippingType || box?.["출고유형"] || "").trim());
+}
+
+function getReturnableShippingBoxes(item, returnMode = "transfer") {
+  const matchesReturnMode = returnMode === "takeout" ? isTakenOutShippingBox : isTransferredShippingBox;
   const sourceItems = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
   const results = [];
   const seen = new Set();
@@ -1897,12 +1907,12 @@ function getTransferredShippingBoxes(item) {
     const candidates = [...shippedBoxes];
     const scannedBox = getScannedBox(sourceItem);
 
-    if (scannedBox && isCompletedShippingItem(sourceItem) && isTransferredShippingBox(scannedBox)) {
+    if (scannedBox && isCompletedShippingItem(sourceItem) && matchesReturnMode(scannedBox)) {
       candidates.push(scannedBox);
     }
 
     candidates.forEach((box) => {
-      if (!isTransferredShippingBox(box)) {
+      if (!matchesReturnMode(box)) {
         return;
       }
 
@@ -1940,6 +1950,14 @@ function getTransferredShippingBoxes(item) {
   return results;
 }
 
+function getTransferredShippingBoxes(item) {
+  return getReturnableShippingBoxes(item, "transfer");
+}
+
+function getTakenOutShippingBoxes(item) {
+  return getReturnableShippingBoxes(item, "takeout");
+}
+
 function renderMobileTransferReturnStorageOptions() {
   if (!elements.mobileTransferReturnStorage) {
     return;
@@ -1951,9 +1969,26 @@ function renderMobileTransferReturnStorageOptions() {
   ].join("");
 }
 
-function renderMobileTransferReturnControls(item) {
-  const boxes = getTransferredShippingBoxes(item);
+function renderMobileTransferReturnControls(item, returnMode = "transfer") {
+  const isTakeoutReturn = returnMode === "takeout";
+  const boxes = isTakeoutReturn ? getTakenOutShippingBoxes(item) : getTransferredShippingBoxes(item);
+  state.activeTransferReturnMode = returnMode;
   state.activeTransferReturnBoxes = boxes;
+
+  if (elements.mobileTransferReturnHeading) {
+    elements.mobileTransferReturnHeading.textContent = isTakeoutReturn ? "재입고할 반출 박스" : "복귀할 이관 박스";
+  }
+  if (elements.mobileTransferReturnStatusLegend) {
+    elements.mobileTransferReturnStatusLegend.textContent = isTakeoutReturn ? "재입고 후 상태" : "복귀 후 상태";
+  }
+  if (elements.mobileTransferReturnStoredLabel) {
+    elements.mobileTransferReturnStoredLabel.textContent = isTakeoutReturn ? "보관으로 재입고" : "보관으로 복귀";
+  }
+  if (elements.mobileTransferReturnPendingHelp) {
+    elements.mobileTransferReturnPendingHelp.textContent = isTakeoutReturn
+      ? "재입고 후 곧바로 출고대기로 등록합니다."
+      : "복귀 후 곧바로 출고대기로 등록합니다.";
+  }
 
   if (elements.mobileTransferReturnBoxList) {
     elements.mobileTransferReturnBoxList.innerHTML = boxes.map((box, index) => `
@@ -2018,6 +2053,12 @@ function renderShippingItem(item) {
   const isPending = isShippingItemPending(item);
   const isCompleted = isShippingItemCompleted(item);
   const isTransferred = getTransferredShippingBoxes(item).length > 0;
+  const isTakenOut = getTakenOutShippingBoxes(item).length > 0;
+  const completedReturnAction = isTransferred
+    ? { action: "returnTransfer", label: "이관 복귀" }
+    : isTakenOut
+      ? { action: "returnTakeout", label: "반출 후 재입고" }
+      : { action: "cancelCompleted", label: "출고 취소" };
   const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
   const registeredAt = formatRegistrationDate(item.registeredAt);
@@ -2057,7 +2098,7 @@ function renderShippingItem(item) {
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}" ${isCompleted ? "disabled" : ""}>등록 취소</button>
           ${isCompleted
             ? `<button class="ship-pending-button" type="button" disabled>출고대기 등록</button>
-              <button class="ship-now-button shipping-cancel-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isTransferred ? "returnTransfer" : "cancelCompleted"}">${isTransferred ? "이관 복귀" : "출고 취소"}</button>`
+              <button class="ship-now-button shipping-cancel-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${completedReturnAction.action}">${completedReturnAction.label}</button>`
             : `
               <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}">${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
               <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
@@ -2166,12 +2207,20 @@ function openConfirmModal(item, action = "complete") {
   const isCancelPendingAction = action === "cancelPending";
   const isCancelCompletedAction = action === "cancelCompleted";
   const isTransferReturnAction = action === "returnTransfer";
+  const isTakeoutReturnAction = action === "returnTakeout";
+  const isInventoryReturnAction = isTransferReturnAction || isTakeoutReturnAction;
   if (elements.confirmTitle) {
-    elements.confirmTitle.textContent = isTransferReturnAction ? "이관 복귀" : "출고 확인";
+    elements.confirmTitle.textContent = isTakeoutReturnAction
+      ? "반출 후 재입고"
+      : isTransferReturnAction
+        ? "이관 복귀"
+        : "출고 확인";
   }
   if (elements.confirmMessage) {
-    elements.confirmMessage.textContent = isTransferReturnAction
-      ? "돌아온 이관 박스와 보관 위치를 확인해주세요."
+    elements.confirmMessage.textContent = isTakeoutReturnAction
+      ? "다시 들어온 반출 박스와 보관 위치를 확인해주세요."
+      : isTransferReturnAction
+        ? "돌아온 이관 박스와 보관 위치를 확인해주세요."
       : isCancelCompletedAction
       ? "해당 박스의 출고를 취소하고 보관 상태로 변경하시겠습니까?"
       : isCancelPendingAction
@@ -2180,18 +2229,22 @@ function openConfirmModal(item, action = "complete") {
         ? "해당 제품을 출고대기로 등록하시겠습니까?"
         : "해당 제품을 출고 처리하시겠습니까?";
   }
-  elements.acceptConfirmButton.textContent = isTransferReturnAction ? "복귀 처리" : isCancelCompletedAction ? "출고 취소" : isCancelPendingAction ? "출고대기 취소" : isPendingAction ? "출고대기 등록" : "출고";
+  elements.acceptConfirmButton.textContent = isTakeoutReturnAction
+    ? "재입고 처리"
+    : isTransferReturnAction
+      ? "복귀 처리"
+      : isCancelCompletedAction ? "출고 취소" : isCancelPendingAction ? "출고대기 취소" : isPendingAction ? "출고대기 등록" : "출고";
   elements.confirmProductName.textContent = normalizeDisplay(item.productName);
-  if (isTransferReturnAction) {
+  if (isInventoryReturnAction) {
     const transferBoxes = getTransferredShippingBoxes(item);
     const companies = [...new Set(transferBoxes.map((box) => box.transferCompany).filter(Boolean))];
     renderConfirmMeta([...metaParts, ...(companies.length ? [`이관처 ${companies.join(", ")}`] : [])]);
-    renderMobileTransferReturnControls(item);
+    renderMobileTransferReturnControls(item, isTakeoutReturnAction ? "takeout" : "transfer");
   } else {
     renderConfirmMeta(metaParts);
   }
   if (elements.mobileTransferReturnControls) {
-    elements.mobileTransferReturnControls.hidden = !isTransferReturnAction;
+    elements.mobileTransferReturnControls.hidden = !isInventoryReturnAction;
   }
   elements.confirmModal.hidden = false;
 }
@@ -2249,6 +2302,7 @@ function closeConfirmModal() {
   state.selectedShippingItem = null;
   state.selectedShippingAction = "complete";
   state.activeTransferReturnBoxes = [];
+  state.activeTransferReturnMode = "transfer";
   state.selectedInventoryMoveMode = "single";
   state.selectedConfirmMode = "item";
   if (elements.confirmTitle) {
@@ -2277,19 +2331,23 @@ async function handleReturnTransferredInventory(item) {
     return;
   }
 
+  const isTakeoutReturn = state.activeTransferReturnMode === "takeout";
+  const actionLabel = isTakeoutReturn ? "반출 후 재입고" : "이관 복귀";
+  const itemLabel = isTakeoutReturn ? "반출" : "이관";
+  const resultLabel = isTakeoutReturn ? "재입고" : "복귀";
   const selectedBoxes = getSelectedMobileTransferReturnBoxes();
   const storage = elements.mobileTransferReturnStorage?.value || "";
   const targetStatus = document.querySelector('input[name="mobileTransferReturnStatus"]:checked')?.value || "보관";
 
   if (!selectedBoxes.length) {
     if (elements.mobileTransferReturnMessage) {
-      elements.mobileTransferReturnMessage.textContent = "복귀할 이관 박스를 선택해주세요.";
+      elements.mobileTransferReturnMessage.textContent = `${resultLabel}할 ${itemLabel} 박스를 선택해주세요.`;
     }
     return;
   }
   if (!storage) {
     if (elements.mobileTransferReturnMessage) {
-      elements.mobileTransferReturnMessage.textContent = "복귀할 보관 위치를 선택해주세요.";
+      elements.mobileTransferReturnMessage.textContent = `${resultLabel}할 보관 위치를 선택해주세요.`;
     }
     elements.mobileTransferReturnStorage?.focus();
     return;
@@ -2316,7 +2374,7 @@ async function handleReturnTransferredInventory(item) {
   try {
     const results = await mapWithConcurrency(Array.from(groups.values()), SHIPPING_ACTION_CONCURRENCY, async (group) => {
       try {
-        const response = await requestApi("returnTransferredInventory", {
+        const response = await requestApi(isTakeoutReturn ? "returnTakenOutInventory" : "returnTransferredInventory", {
           managementId: group.managementId,
           productId: group.productId,
           productName: group.productName,
@@ -2333,31 +2391,31 @@ async function handleReturnTransferredInventory(item) {
           error: ""
         };
       } catch (error) {
-        return { count: 0, error: error?.message || "이관 복귀 처리 중 문제가 발생했습니다." };
+        return { count: 0, error: error?.message || `${actionLabel} 처리 중 문제가 발생했습니다.` };
       }
     });
     const returnedCount = results.reduce((sum, result) => sum + result.count, 0);
     const error = results.find((result) => result.error)?.error || "";
 
     if (returnedCount <= 0) {
-      throw new Error(error || "복귀 처리된 이관 박스가 없습니다.");
+      throw new Error(error || `${resultLabel} 처리된 ${itemLabel} 박스가 없습니다.`);
     }
 
     closeConfirmModal();
     await loadShippingDashboard({ silent: true });
     showToast(error
-      ? `${formatNumber(returnedCount)}개 박스 복귀 완료 · ${error}`
+      ? `${formatNumber(returnedCount)}개 박스 ${resultLabel} 완료 · ${error}`
       : targetStatus === "출고대기"
-        ? `${formatNumber(returnedCount)}개 박스를 복귀하고 출고대기로 등록했습니다.`
-        : `${formatNumber(returnedCount)}개 박스를 보관 재고로 복귀했습니다.`);
+        ? `${formatNumber(returnedCount)}개 박스를 ${resultLabel}하고 출고대기로 등록했습니다.`
+        : `${formatNumber(returnedCount)}개 박스를 보관 재고로 ${resultLabel}했습니다.`);
   } catch (error) {
     if (elements.mobileTransferReturnMessage) {
-      elements.mobileTransferReturnMessage.textContent = error.message || "이관 복귀 처리 중 문제가 발생했습니다.";
+      elements.mobileTransferReturnMessage.textContent = error.message || `${actionLabel} 처리 중 문제가 발생했습니다.`;
     }
   } finally {
     state.isCompletingShipping = false;
     elements.acceptConfirmButton.disabled = false;
-    elements.acceptConfirmButton.textContent = "복귀 처리";
+    elements.acceptConfirmButton.textContent = isTakeoutReturn ? "재입고 처리" : "복귀 처리";
   }
 }
 
@@ -2403,7 +2461,7 @@ async function handleConfirmShipping() {
 
   const item = state.selectedShippingItem;
   const action = state.selectedShippingAction || "complete";
-  if (action === "returnTransfer") {
+  if (action === "returnTransfer" || action === "returnTakeout") {
     await handleReturnTransferredInventory(item);
     return;
   }

@@ -1621,9 +1621,9 @@
       <section class="product-modal transfer-return-modal" role="dialog" aria-modal="true" aria-labelledby="transferReturnTitle">
         <header class="modal-header">
           <div>
-            <span class="modal-kicker">이관 재고</span>
+            <span class="modal-kicker" id="transferReturnKicker">이관 재고</span>
             <h2 id="transferReturnTitle">이관 복귀</h2>
-            <p>복귀한 박스와 보관 위치를 확인하고, 다음 출고 상태를 선택합니다.</p>
+            <p id="transferReturnDescription">복귀한 박스와 보관 위치를 확인하고, 다음 출고 상태를 선택합니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeTransferReturnModal" aria-label="닫기">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1646,8 +1646,8 @@
               <span>거래처명</span>
               <strong id="transferReturnClient">-</strong>
             </div>
-            <div>
-              <span>이관 업체</span>
+            <div id="transferReturnCompanyField">
+              <span id="transferReturnCompanyLabel">이관 업체</span>
               <strong id="transferReturnCompany">-</strong>
             </div>
           </section>
@@ -1655,8 +1655,8 @@
           <section class="form-section shipping-completion-box-section">
             <div class="shipping-box-section-header">
               <div>
-                <h3>복귀할 이관 박스</h3>
-                <p>실제로 돌아온 박스만 선택해주세요. 기존 이관 내역은 비고에 보존됩니다.</p>
+                <h3 id="transferReturnBoxHeading">복귀할 이관 박스</h3>
+                <p id="transferReturnBoxHelp">실제로 돌아온 박스만 선택해주세요. 기존 이관 내역은 비고에 보존됩니다.</p>
               </div>
               <label class="shipping-box-select-all">
                 <input id="transferReturnSelectAll" type="checkbox" checked />
@@ -1697,14 +1697,14 @@
                 </select>
               </label>
               <fieldset class="transfer-return-status-field">
-                <legend>복귀 후 상태 <b>*</b></legend>
+                <legend id="transferReturnStatusLegend">복귀 후 상태 <b>*</b></legend>
                 <label>
                   <input type="radio" name="transferReturnStatus" value="보관" checked />
-                  <span><strong>보관으로 복귀</strong><small>일반 재고로 되돌립니다.</small></span>
+                  <span><strong id="transferReturnStoredLabel">보관으로 복귀</strong><small>일반 재고로 되돌립니다.</small></span>
                 </label>
                 <label>
                   <input type="radio" name="transferReturnStatus" value="출고대기" />
-                  <span><strong>바로 출고대기</strong><small>복귀와 동시에 출고대기로 등록합니다.</small></span>
+                  <span><strong id="transferReturnPendingLabel">바로 출고대기</strong><small id="transferReturnPendingHelp">복귀와 동시에 출고대기로 등록합니다.</small></span>
                 </label>
               </fieldset>
             </div>
