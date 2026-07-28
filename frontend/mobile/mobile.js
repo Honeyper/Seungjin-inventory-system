@@ -103,6 +103,7 @@ const state = {
   activeWorkflow: "shipping",
   selectedShippingItem: null,
   selectedShippingAction: "complete",
+  activeTransferReturnBoxes: [],
   selectedInventoryMoveMode: "single",
   selectedConfirmMode: "item",
   isCompletingShipping: false,
@@ -197,6 +198,11 @@ const elements = {
   confirmMessage: document.querySelector("#confirmMessage"),
   confirmProductName: document.querySelector("#confirmProductName"),
   confirmMetaList: document.querySelector("#confirmMetaList"),
+  mobileTransferReturnControls: document.querySelector("#mobileTransferReturnControls"),
+  mobileTransferReturnBoxList: document.querySelector("#mobileTransferReturnBoxList"),
+  mobileTransferReturnBoxSummary: document.querySelector("#mobileTransferReturnBoxSummary"),
+  mobileTransferReturnStorage: document.querySelector("#mobileTransferReturnStorage"),
+  mobileTransferReturnMessage: document.querySelector("#mobileTransferReturnMessage"),
   cancelConfirmButton: document.querySelector("#cancelConfirmButton"),
   acceptConfirmButton: document.querySelector("#acceptConfirmButton"),
   scannerScreen: document.querySelector("#scannerScreen"),
@@ -225,6 +231,7 @@ initializeMobileApp();
 
 function initializeMobileApp() {
   renderShippingSortMenu();
+  renderMobileTransferReturnStorageOptions();
   bindEvents();
   updateShippingClock();
   const loginPreferences = restoreLoginPreferences();
@@ -295,6 +302,7 @@ function bindEvents() {
   });
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
+  elements.mobileTransferReturnBoxList?.addEventListener("change", syncMobileTransferReturnSummary);
   bindScannerSheetEvents();
   document.addEventListener("keydown", handleHardwareScannerKeydown);
   document.addEventListener("compositionend", handleHardwareScannerCompositionEnd);
@@ -1873,6 +1881,118 @@ async function handleInventoryMoveCardAction(item, mode = "single") {
   }
 }
 
+function isTransferredShippingBox(box) {
+  return /^이관(?:\s*\(|$)/.test(String(box?.shippingType || box?.["출고유형"] || "").trim());
+}
+
+function getTransferredShippingBoxes(item) {
+  const sourceItems = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+  const results = [];
+  const seen = new Set();
+
+  sourceItems.forEach((sourceItem) => {
+    const shippedBoxes = Array.isArray(sourceItem?.shippedShippingBoxes)
+      ? sourceItem.shippedShippingBoxes
+      : [];
+    const candidates = [...shippedBoxes];
+    const scannedBox = getScannedBox(sourceItem);
+
+    if (scannedBox && isCompletedShippingItem(sourceItem) && isTransferredShippingBox(scannedBox)) {
+      candidates.push(scannedBox);
+    }
+
+    candidates.forEach((box) => {
+      if (!isTransferredShippingBox(box)) {
+        return;
+      }
+
+      const number = parseNumber(box?.number || box?.sequence || sourceItem?.scannedBoxNumber);
+      if (number <= 0) {
+        return;
+      }
+
+      const managementId = normalizeScanValue(sourceItem?.managementId || item?.managementId);
+      const key = `${managementId}__${number}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+
+      const shippingType = String(box?.shippingType || box?.["출고유형"] || "").trim();
+      const companyMatch = shippingType.match(/^이관\s*\(([^)]+)\)/);
+      results.push({
+        key,
+        number,
+        quantity: parseNumber(box?.currentQuantity || box?.quantity || box?.boxQuantity || sourceItem?.boxQuantity),
+        shippingType,
+        transferCompany: box?.transferCompany || companyMatch?.[1] || "",
+        sourceItem,
+        managementId,
+        productId: sourceItem?.productId || item?.productId || "",
+        productName: sourceItem?.productName || item?.productName || "",
+        clientName: sourceItem?.clientName || item?.clientName || "",
+        batch: sourceItem?.batch || item?.batch || "",
+        finalProcess: sourceItem?.finalProcess || item?.finalProcess || ""
+      });
+    });
+  });
+
+  return results;
+}
+
+function renderMobileTransferReturnStorageOptions() {
+  if (!elements.mobileTransferReturnStorage) {
+    return;
+  }
+
+  elements.mobileTransferReturnStorage.innerHTML = [
+    '<option value="">선택하세요.</option>',
+    ...INVENTORY_STORAGE_OPTIONS.map((storage) => `<option value="${escapeHtml(storage)}">${escapeHtml(storage)}</option>`)
+  ].join("");
+}
+
+function renderMobileTransferReturnControls(item) {
+  const boxes = getTransferredShippingBoxes(item);
+  state.activeTransferReturnBoxes = boxes;
+
+  if (elements.mobileTransferReturnBoxList) {
+    elements.mobileTransferReturnBoxList.innerHTML = boxes.map((box, index) => `
+      <label>
+        <input type="checkbox" name="mobileTransferReturnBox" value="${index}" checked />
+        <span><strong>${formatNumber(box.number)}번 박스</strong><small>${formatNumber(box.quantity)} ea${box.transferCompany ? ` · ${escapeHtml(box.transferCompany)}` : ""}</small></span>
+      </label>
+    `).join("");
+  }
+
+  if (elements.mobileTransferReturnStorage) {
+    const currentStorage = normalizeDisplay(item?.storage || "");
+    elements.mobileTransferReturnStorage.value = INVENTORY_STORAGE_OPTIONS.includes(currentStorage)
+      ? currentStorage
+      : "";
+  }
+  document.querySelector('input[name="mobileTransferReturnStatus"][value="보관"]')?.click();
+  if (elements.mobileTransferReturnMessage) {
+    elements.mobileTransferReturnMessage.textContent = "";
+  }
+  syncMobileTransferReturnSummary();
+}
+
+function getSelectedMobileTransferReturnBoxes() {
+  return Array.from(elements.mobileTransferReturnBoxList?.querySelectorAll('input[name="mobileTransferReturnBox"]:checked') || [])
+    .map((input) => state.activeTransferReturnBoxes[Number(input.value)])
+    .filter(Boolean);
+}
+
+function syncMobileTransferReturnSummary() {
+  const selected = getSelectedMobileTransferReturnBoxes();
+  const quantity = selected.reduce((sum, box) => sum + box.quantity, 0);
+  if (elements.mobileTransferReturnBoxSummary) {
+    elements.mobileTransferReturnBoxSummary.textContent = selected.length
+      ? `${formatNumber(selected.length)}박스 · ${formatNumber(quantity)} ea`
+      : "박스를 선택해주세요.";
+  }
+}
+
 function renderShippingItem(item) {
   const key = getShippingKey(item);
   const scannedBox = getScannedBox(item);
@@ -1897,6 +2017,7 @@ function renderShippingItem(item) {
   const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 등록` : getScannedBoxLabel(item);
   const isPending = isShippingItemPending(item);
   const isCompleted = isShippingItemCompleted(item);
+  const isTransferred = getTransferredShippingBoxes(item).length > 0;
   const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
   const processClass = /2|3/.test(process) ? "green" : "";
   const registeredAt = formatRegistrationDate(item.registeredAt);
@@ -1936,7 +2057,7 @@ function renderShippingItem(item) {
           <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}" ${isCompleted ? "disabled" : ""}>등록 취소</button>
           ${isCompleted
             ? `<button class="ship-pending-button" type="button" disabled>출고대기 등록</button>
-              <button class="ship-now-button shipping-cancel-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="cancelCompleted">출고 취소</button>`
+              <button class="ship-now-button shipping-cancel-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isTransferred ? "returnTransfer" : "cancelCompleted"}">${isTransferred ? "이관 복귀" : "출고 취소"}</button>`
             : `
               <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}">${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
               <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
@@ -2044,8 +2165,14 @@ function openConfirmModal(item, action = "complete") {
   const isPendingAction = action === "pending";
   const isCancelPendingAction = action === "cancelPending";
   const isCancelCompletedAction = action === "cancelCompleted";
+  const isTransferReturnAction = action === "returnTransfer";
+  if (elements.confirmTitle) {
+    elements.confirmTitle.textContent = isTransferReturnAction ? "이관 복귀" : "출고 확인";
+  }
   if (elements.confirmMessage) {
-    elements.confirmMessage.textContent = isCancelCompletedAction
+    elements.confirmMessage.textContent = isTransferReturnAction
+      ? "돌아온 이관 박스와 보관 위치를 확인해주세요."
+      : isCancelCompletedAction
       ? "해당 박스의 출고를 취소하고 보관 상태로 변경하시겠습니까?"
       : isCancelPendingAction
       ? "해당 박스의 출고대기를 취소하고 보관 상태로 변경하시겠습니까?"
@@ -2053,9 +2180,19 @@ function openConfirmModal(item, action = "complete") {
         ? "해당 제품을 출고대기로 등록하시겠습니까?"
         : "해당 제품을 출고 처리하시겠습니까?";
   }
-  elements.acceptConfirmButton.textContent = isCancelCompletedAction ? "출고 취소" : isCancelPendingAction ? "출고대기 취소" : isPendingAction ? "출고대기 등록" : "출고";
+  elements.acceptConfirmButton.textContent = isTransferReturnAction ? "복귀 처리" : isCancelCompletedAction ? "출고 취소" : isCancelPendingAction ? "출고대기 취소" : isPendingAction ? "출고대기 등록" : "출고";
   elements.confirmProductName.textContent = normalizeDisplay(item.productName);
-  renderConfirmMeta(metaParts);
+  if (isTransferReturnAction) {
+    const transferBoxes = getTransferredShippingBoxes(item);
+    const companies = [...new Set(transferBoxes.map((box) => box.transferCompany).filter(Boolean))];
+    renderConfirmMeta([...metaParts, ...(companies.length ? [`이관처 ${companies.join(", ")}`] : [])]);
+    renderMobileTransferReturnControls(item);
+  } else {
+    renderConfirmMeta(metaParts);
+  }
+  if (elements.mobileTransferReturnControls) {
+    elements.mobileTransferReturnControls.hidden = !isTransferReturnAction;
+  }
   elements.confirmModal.hidden = false;
 }
 
@@ -2111,17 +2248,116 @@ function closeConfirmModal() {
     && state.scannerInputMode === "camera";
   state.selectedShippingItem = null;
   state.selectedShippingAction = "complete";
+  state.activeTransferReturnBoxes = [];
   state.selectedInventoryMoveMode = "single";
   state.selectedConfirmMode = "item";
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = "출고 확인";
   }
   renderConfirmMeta([]);
+  if (elements.mobileTransferReturnControls) {
+    elements.mobileTransferReturnControls.hidden = true;
+  }
+  if (elements.mobileTransferReturnBoxList) {
+    elements.mobileTransferReturnBoxList.innerHTML = "";
+  }
+  if (elements.mobileTransferReturnMessage) {
+    elements.mobileTransferReturnMessage.textContent = "";
+  }
   elements.confirmModal.hidden = true;
   if (shouldResumeInventoryScanner) {
     window.requestAnimationFrame(() => {
       void startScannerCamera();
     });
+  }
+}
+
+async function handleReturnTransferredInventory(item) {
+  if (state.isCompletingShipping) {
+    return;
+  }
+
+  const selectedBoxes = getSelectedMobileTransferReturnBoxes();
+  const storage = elements.mobileTransferReturnStorage?.value || "";
+  const targetStatus = document.querySelector('input[name="mobileTransferReturnStatus"]:checked')?.value || "보관";
+
+  if (!selectedBoxes.length) {
+    if (elements.mobileTransferReturnMessage) {
+      elements.mobileTransferReturnMessage.textContent = "복귀할 이관 박스를 선택해주세요.";
+    }
+    return;
+  }
+  if (!storage) {
+    if (elements.mobileTransferReturnMessage) {
+      elements.mobileTransferReturnMessage.textContent = "복귀할 보관 위치를 선택해주세요.";
+    }
+    elements.mobileTransferReturnStorage?.focus();
+    return;
+  }
+
+  const groups = new Map();
+  selectedBoxes.forEach((box) => {
+    if (!groups.has(box.managementId)) {
+      groups.set(box.managementId, {
+        ...box,
+        selectedBoxes: []
+      });
+    }
+    groups.get(box.managementId).selectedBoxes.push(box.number);
+  });
+
+  state.isCompletingShipping = true;
+  elements.acceptConfirmButton.disabled = true;
+  elements.acceptConfirmButton.textContent = "처리 중";
+  if (elements.mobileTransferReturnMessage) {
+    elements.mobileTransferReturnMessage.textContent = "";
+  }
+
+  try {
+    const results = await mapWithConcurrency(Array.from(groups.values()), SHIPPING_ACTION_CONCURRENCY, async (group) => {
+      try {
+        const response = await requestApi("returnTransferredInventory", {
+          managementId: group.managementId,
+          productId: group.productId,
+          productName: group.productName,
+          clientName: group.clientName,
+          batch: group.batch,
+          finalProcess: group.finalProcess,
+          selectedBoxes: group.selectedBoxes,
+          storage,
+          targetStatus,
+          returner: state.user?.name || "Admin"
+        });
+        return {
+          count: Array.isArray(response?.returnedBoxes) ? response.returnedBoxes.length : group.selectedBoxes.length,
+          error: ""
+        };
+      } catch (error) {
+        return { count: 0, error: error?.message || "이관 복귀 처리 중 문제가 발생했습니다." };
+      }
+    });
+    const returnedCount = results.reduce((sum, result) => sum + result.count, 0);
+    const error = results.find((result) => result.error)?.error || "";
+
+    if (returnedCount <= 0) {
+      throw new Error(error || "복귀 처리된 이관 박스가 없습니다.");
+    }
+
+    closeConfirmModal();
+    await loadShippingDashboard({ silent: true });
+    showToast(error
+      ? `${formatNumber(returnedCount)}개 박스 복귀 완료 · ${error}`
+      : targetStatus === "출고대기"
+        ? `${formatNumber(returnedCount)}개 박스를 복귀하고 출고대기로 등록했습니다.`
+        : `${formatNumber(returnedCount)}개 박스를 보관 재고로 복귀했습니다.`);
+  } catch (error) {
+    if (elements.mobileTransferReturnMessage) {
+      elements.mobileTransferReturnMessage.textContent = error.message || "이관 복귀 처리 중 문제가 발생했습니다.";
+    }
+  } finally {
+    state.isCompletingShipping = false;
+    elements.acceptConfirmButton.disabled = false;
+    elements.acceptConfirmButton.textContent = "복귀 처리";
   }
 }
 
@@ -2167,6 +2403,10 @@ async function handleConfirmShipping() {
 
   const item = state.selectedShippingItem;
   const action = state.selectedShippingAction || "complete";
+  if (action === "returnTransfer") {
+    await handleReturnTransferredInventory(item);
+    return;
+  }
   const groupedItems = Array.isArray(item.scannedItems) ? item.scannedItems : [item];
   const targetItems = groupedItems.filter((row) => {
     if (action === "cancelCompleted") {

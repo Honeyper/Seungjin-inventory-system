@@ -125,6 +125,7 @@ function doPost(e) {
       saveShippingInspection,
       cancelDiscardedBoxes,
       updateShippingStatus,
+      returnTransferredInventory,
       updateInventoryBoxMove,
       createProduct,
       updateProduct,
@@ -282,6 +283,7 @@ function isApiMutationAction_(action) {
     'saveShippingInspection',
     'cancelDiscardedBoxes',
     'updateShippingStatus',
+    'returnTransferredInventory',
     'updateInventoryBoxMove',
     'formatProductRows'
   ].includes(action);
@@ -1017,7 +1019,13 @@ function getInventoryDashboard() {
     const clientName = normalizeClientName_(getObjectCell_(stockRow, ['업체명', '거래처명']) || product.clientName);
     const productName = getObjectCell_(stockRow, ['제품명']) || product.productName;
     const stockStorage = getObjectCell_(stockRow, ['보관위치', '보관 위치']) || '미지정';
-    const boxSummary = boxSummaryMap[getInventoryIdentityKey_(managementId, productId, productName, stockStorage)] || {};
+    const boxSummary = getInventoryBoxSummaryForStock_(
+      boxSummaryMap,
+      managementId,
+      productId,
+      productName,
+      stockStorage
+    );
     const hasBoxSummary = Boolean(boxSummary.managementId);
     const dueDate = getObjectCell_(stockRow, ['납기일']) || product.dueDate || '';
     const dueStatus = getDueStatus_(dueDate, todayKey);
@@ -3749,6 +3757,299 @@ function updateInventoryMoveStockRows_(sheet, managementId, data = {}) {
   return updatedRows;
 }
 
+function returnTransferredInventory(payload) {
+  const managementId = String(payload.managementId || '').trim();
+  const targetStatus = String(payload.targetStatus || payload.status || '').trim();
+  const storage = String(payload.storage || payload.storageLocation || '').trim();
+  const returner = String(payload.returner || payload.userName || payload.shipper || 'Admin').trim() || 'Admin';
+  const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
+  const selectedBoxNumbers = new Set(
+    selectedBoxes
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  );
+
+  if (!managementId) {
+    throw new Error('관리 ID가 없습니다.');
+  }
+
+  if (!['보관', '출고대기'].includes(targetStatus)) {
+    throw new Error('이관 복귀 상태는 보관 또는 출고대기만 선택할 수 있습니다.');
+  }
+
+  if (!storage) {
+    throw new Error('복귀할 보관 위치를 선택해주세요.');
+  }
+
+  if (!selectedBoxNumbers.size) {
+    throw new Error('복귀할 이관 박스를 선택해주세요.');
+  }
+
+  const timezone = Session.getScriptTimeZone() || 'Asia/Seoul';
+  const now = new Date();
+  const returnedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  ensureBoxDbShippingInspectionHeaders_(boxSheet);
+  const result = returnTransferredInventoryBoxRows_(boxSheet, managementId, {
+    productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
+    productName: payload.productName || payload['제품명'],
+    clientName: payload.clientName || payload['업체명'] || payload['거래처명'],
+    batch: payload.batch || payload['차수'],
+    finalProcess: payload.finalProcess || payload['최종공정'] || payload['최종 공정'],
+    targetStatus,
+    storage,
+    returner,
+    returnedAt,
+    selectedBoxNumbers
+  });
+  const updatedStockRows = updateReturnedTransferStockRows_(stockSheet, managementId, result.finalStatus, storage, {
+    productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
+    productName: payload.productName || payload['제품명'],
+    clientName: payload.clientName || payload['업체명'] || payload['거래처명'],
+    batch: payload.batch || payload['차수'],
+    finalProcess: payload.finalProcess || payload['최종공정'] || payload['최종 공정'],
+    returnedAt
+  });
+  SpreadsheetApp.flush();
+
+  return {
+    managementId,
+    status: result.finalStatus,
+    returnStatus: targetStatus,
+    storage,
+    returnedAt,
+    returnedBoxes: result.returnedBoxes,
+    updatedBoxRows: result.updatedRows,
+    updatedStockRows
+  };
+}
+
+function updateReturnedTransferStockRows_(sheet, managementId, status, storage, data = {}) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '상태']) || findHeaderRow_(values, ['관리ID', '상태']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const managementIndex = findHeaderIndex_(indexes, ['관리 ID', '관리ID']);
+  const statusIndex = findHeaderIndex_(indexes, ['상태']);
+  const storageIndex = findHeaderIndex_(indexes, ['보관위치', '보관 위치', '보관 장소']);
+  const shippingUpdatedAtIndex = findHeaderIndex_(indexes, ['출고 수정일시', '출고수정일시']);
+
+  if (managementIndex < 0 || statusIndex < 0 || storageIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 관리 ID, 상태 또는 보관 위치 컬럼을 찾을 수 없습니다.`);
+  }
+
+  let updatedRows = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리 ID', '관리ID'], managementId, data)) {
+      continue;
+    }
+
+    sheet.getRange(rowIndex + 1, statusIndex + 1).setValue(status);
+    sheet.getRange(rowIndex + 1, storageIndex + 1).setValue(storage);
+    if (shippingUpdatedAtIndex >= 0 && data.returnedAt) {
+      sheet.getRange(rowIndex + 1, shippingUpdatedAtIndex + 1).setValue(data.returnedAt);
+    }
+    updatedRows += 1;
+  }
+
+  return updatedRows;
+}
+
+function returnTransferredInventoryBoxRows_(sheet, managementId, data) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const currentQuantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+  const storageIndex = findHeaderIndex_(indexes, ['보관위치', '보관 위치', '보관 장소']);
+  const noteIndex = findHeaderIndex_(indexes, ['비고', '메모', '참고']);
+  const shippingTypeIndex = findShippingTypeHeaderIndex_(indexes);
+  const shippingDateIndex = findHeaderIndex_(indexes, ['출고일']);
+  const shippingTimeIndex = findHeaderIndex_(indexes, ['출고시간']);
+  const shipperIndex = findHeaderIndex_(indexes, ['출고자']);
+
+  if (statusIndex < 0 || currentQuantityIndex < 0 || sequenceIndex < 0 || shippingTypeIndex < 0) {
+    throw new Error(`${sheet.getName()} 시트에서 이관 복귀에 필요한 컬럼을 찾을 수 없습니다.`);
+  }
+
+  let updatedRows = 0;
+  const returnedBoxes = [];
+  const selectedMatches = new Set();
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    if (!isMatchingTransferReturnRow_(values[rowIndex], indexes, managementId, data)) {
+      continue;
+    }
+
+    const sequence = displayQuantityToNumber_(values[rowIndex][sequenceIndex]);
+    if (!data.selectedBoxNumbers.has(sequence)) {
+      continue;
+    }
+
+    const rowStatus = normalizeStockStatusText_(values[rowIndex][statusIndex]);
+    const shippingType = String(values[rowIndex][shippingTypeIndex] || '').trim();
+    const currentQuantity = displayQuantityToNumber_(values[rowIndex][currentQuantityIndex]);
+
+    if (rowStatus !== '출고완료' || !/^이관(?:\s*\(|$)/.test(shippingType)) {
+      continue;
+    }
+
+    if (currentQuantity <= 0) {
+      throw new Error(`${sequence}번 박스의 현재 수량이 0이라 복귀할 수 없습니다.`);
+    }
+
+    const transferCompany = extractTransferCompanyFromShippingType_(shippingType)
+      || extractTransferCompanyFromNote_(noteIndex >= 0 ? values[rowIndex][noteIndex] : '');
+    const shippingDate = shippingDateIndex >= 0 ? String(values[rowIndex][shippingDateIndex] || '').trim() : '';
+    const shippingTime = shippingTimeIndex >= 0 ? String(values[rowIndex][shippingTimeIndex] || '').trim() : '';
+    const previousShipper = shipperIndex >= 0 ? String(values[rowIndex][shipperIndex] || '').trim() : '';
+    const previousNote = noteIndex >= 0 ? String(values[rowIndex][noteIndex] || '').trim() : '';
+    const auditNote = buildTransferReturnAuditNote_({
+      previousNote,
+      transferCompany,
+      shippingDate,
+      shippingTime,
+      previousShipper,
+      returnedAt: data.returnedAt,
+      returner: data.returner,
+      targetStatus: data.targetStatus,
+      storage: data.storage,
+      sequence
+    });
+
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.targetStatus);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['보관위치', '보관 위치', '보관 장소'], data.storage);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 수정일시', '출고수정일시'], data.returnedAt);
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고유형', '출고 유형', '출고타입', '출고 타입', '출고구분', '출고 구분'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수시간', '검수시간'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수자', '검수자'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 수량', '불량수량'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사유', '불량사유', '불량내역'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량률'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], '');
+    setSheetCellByHeader_(sheet, rowIndex, indexes, ['비고', '메모', '참고'], auditNote);
+
+    values[rowIndex][statusIndex] = data.targetStatus;
+    values[rowIndex][shippingTypeIndex] = '';
+    if (storageIndex >= 0) {
+      values[rowIndex][storageIndex] = data.storage;
+    }
+    selectedMatches.add(sequence);
+    returnedBoxes.push({
+      number: sequence,
+      quantity: currentQuantity,
+      transferCompany,
+      previousShippingDate: shippingDate,
+      previousShippingTime: shippingTime
+    });
+    updatedRows += 1;
+  }
+
+  const missingBoxes = Array.from(data.selectedBoxNumbers).filter((number) => !selectedMatches.has(number));
+  if (missingBoxes.length) {
+    throw new Error(`이관 완료 상태가 아닌 박스가 포함되어 있습니다: ${missingBoxes.join(', ')}번`);
+  }
+
+  const statusSummary = summarizeInventoryRowStatuses_(values, headerInfo, indexes, managementId, data);
+
+  return {
+    updatedRows,
+    returnedBoxes,
+    finalStatus: resolveInventoryAggregateStatus_(statusSummary)
+  };
+}
+
+function isMatchingTransferReturnRow_(row, indexes, managementId, data) {
+  return isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, {
+    productId: data.productId,
+    productName: data.productName,
+    clientName: data.clientName,
+    batch: data.batch,
+    finalProcess: data.finalProcess
+  });
+}
+
+function summarizeInventoryRowStatuses_(values, headerInfo, indexes, managementId, data) {
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const currentQuantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  const counts = {
+    active: 0,
+    shipped: 0,
+    pending: 0,
+    hold: 0,
+    stored: 0
+  };
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    if (!isMatchingTransferReturnRow_(values[rowIndex], indexes, managementId, data)) {
+      continue;
+    }
+
+    const quantity = currentQuantityIndex >= 0 ? displayQuantityToNumber_(values[rowIndex][currentQuantityIndex]) : 0;
+    const status = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
+    if (quantity <= 0 || status === '폐기') {
+      continue;
+    }
+    if (status === '출고완료') {
+      counts.shipped += 1;
+      continue;
+    }
+
+    counts.active += 1;
+    if (status === '출고대기' || status === '검수완료') {
+      counts.pending += 1;
+    } else if (status === '보류') {
+      counts.hold += 1;
+    } else {
+      counts.stored += 1;
+    }
+  }
+
+  return counts;
+}
+
+function resolveInventoryAggregateStatus_(counts) {
+  if (counts.active > 0 && counts.shipped > 0) {
+    return '일부 출고';
+  }
+  if (counts.active === 0 && counts.shipped > 0) {
+    return '출고완료';
+  }
+  if (counts.pending > 0) {
+    return '출고대기';
+  }
+  if (counts.hold > 0) {
+    return '보류';
+  }
+  return '보관';
+}
+
+function buildTransferReturnAuditNote_(data) {
+  const previousNote = String(data.previousNote || '').trim();
+  const previous = previousNote && previousNote !== '-' ? `${previousNote}\n` : '';
+  const outboundAt = [data.shippingDate, data.shippingTime].filter(Boolean).join(' ') || '-';
+  const transferCompany = data.transferCompany || '-';
+  const previousShipper = data.previousShipper || '-';
+  return `${previous}[이관 복귀 ${data.returnedAt}] ${data.sequence}번 박스 · 이관처 ${transferCompany} · 이관 ${outboundAt} · 이관자 ${previousShipper} · 복귀자 ${data.returner} · ${data.targetStatus} · 보관위치 ${data.storage}`;
+}
+
 function updateShippingStatusBoxRows_(sheet, managementId, data) {
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
@@ -4331,6 +4632,115 @@ function buildInventoryProductMap_(productRows) {
 
     return map;
   }, {});
+}
+
+function getInventoryBoxSummaryForStock_(summaryMap, managementId, productId, productName, storage) {
+  const exactKey = getInventoryIdentityKey_(managementId, productId, productName, storage);
+  const exactSummary = summaryMap[exactKey];
+  const normalizedManagementId = String(managementId || '').trim();
+  const normalizedProductId = normalizeInventoryIdentityPart_(productId);
+  const normalizedProductName = normalizeInventoryIdentityPart_(productName);
+  const matches = Object.keys(summaryMap || {})
+    .map((key) => summaryMap[key])
+    .filter((summary) => {
+      if (!summary || String(summary.managementId || '').trim() !== normalizedManagementId) {
+        return false;
+      }
+
+      const summaryProductId = normalizeInventoryIdentityPart_(summary.productId);
+      const summaryProductName = normalizeInventoryIdentityPart_(summary.productName);
+      if (normalizedProductId && summaryProductId) {
+        return normalizedProductId === summaryProductId;
+      }
+      return Boolean(normalizedProductName && summaryProductName === normalizedProductName);
+    });
+
+  if (matches.length <= 1) {
+    return exactSummary || matches[0] || {};
+  }
+
+  return mergeInventoryBoxSummaries_(matches, {
+    managementId: normalizedManagementId,
+    productId,
+    productName
+  });
+}
+
+function mergeInventoryBoxSummaries_(summaries, identity) {
+  const merged = {
+    managementId: identity.managementId,
+    productId: identity.productId,
+    productName: identity.productName,
+    boxCount: 0,
+    currentQuantity: 0,
+    qrGeneratedCount: 0,
+    shippingInspectionCount: 0,
+    shippingInspectionQuantity: 0,
+    shippingDefectQuantity: 0,
+    shippingDefectRateTotal: 0,
+    shippingDefectRateCount: 0,
+    shippingDefectReasonCounts: {},
+    defectPhotoUrlCounts: {},
+    shippingInspectionDateCounts: {},
+    shippingDateCounts: {},
+    shippingUpdatedAt: '',
+    statusCounts: {},
+    storageCounts: {},
+    allShippingBoxes: [],
+    activeShippingBoxes: [],
+    shippedShippingBoxes: [],
+    discardedShippingBoxes: [],
+    boxes: []
+  };
+
+  summaries.forEach((summary) => {
+    merged.boxCount += displayQuantityToNumber_(summary.boxCount);
+    merged.currentQuantity += displayQuantityToNumber_(summary.currentQuantity);
+    merged.qrGeneratedCount += displayQuantityToNumber_(summary.qrGeneratedCount);
+    merged.shippingInspectionCount += displayQuantityToNumber_(summary.shippingInspectionCount);
+    merged.shippingInspectionQuantity += displayQuantityToNumber_(summary.shippingInspectionQuantity);
+    merged.shippingDefectQuantity += displayQuantityToNumber_(summary.shippingDefectQuantity);
+    merged.shippingDefectRateTotal += displayQuantityToNumber_(summary.shippingDefectRateTotal);
+    merged.shippingDefectRateCount += displayQuantityToNumber_(summary.shippingDefectRateCount);
+    mergeInventoryCountMap_(merged.shippingDefectReasonCounts, summary.shippingDefectReasonCounts);
+    mergeInventoryCountMap_(merged.defectPhotoUrlCounts, summary.defectPhotoUrlCounts);
+    mergeInventoryCountMap_(merged.shippingInspectionDateCounts, summary.shippingInspectionDateCounts);
+    mergeInventoryCountMap_(merged.shippingDateCounts, summary.shippingDateCounts);
+    mergeInventoryCountMap_(merged.statusCounts, summary.statusCounts);
+    mergeInventoryCountMap_(merged.storageCounts, summary.storageCounts);
+    merged.allShippingBoxes = merged.allShippingBoxes.concat(summary.allShippingBoxes || []);
+    merged.activeShippingBoxes = merged.activeShippingBoxes.concat(summary.activeShippingBoxes || []);
+    merged.shippedShippingBoxes = merged.shippedShippingBoxes.concat(summary.shippedShippingBoxes || []);
+    merged.discardedShippingBoxes = merged.discardedShippingBoxes.concat(summary.discardedShippingBoxes || []);
+    merged.boxes = merged.boxes.concat(summary.boxes || []);
+
+    if (String(summary.shippingUpdatedAt || '') > merged.shippingUpdatedAt) {
+      merged.shippingUpdatedAt = String(summary.shippingUpdatedAt || '');
+    }
+  });
+
+  merged.primaryStorage = pickTopKey_(merged.storageCounts) || '미지정';
+  merged.status = pickTopKey_(merged.statusCounts) || '보관';
+  merged.shippingDefectRate = merged.shippingDefectRateCount
+    ? merged.shippingDefectRateTotal / merged.shippingDefectRateCount
+    : 0;
+  merged.shippingDefectReason = pickTopKey_(merged.shippingDefectReasonCounts) || '';
+  merged.defectPhotoFolderUrl = Object.keys(merged.defectPhotoUrlCounts).join(' ');
+  merged.defectPhotoCount = Object.keys(merged.defectPhotoUrlCounts).length;
+  merged.shippingInspectionDate = pickTopKey_(merged.shippingInspectionDateCounts) || '';
+  merged.shippingDate = pickTopKey_(merged.shippingDateCounts) || '';
+  merged.allShippingBoxes.sort((left, right) => left.number - right.number);
+  merged.activeShippingBoxes.sort((left, right) => left.number - right.number);
+  merged.shippedShippingBoxes.sort((left, right) => left.number - right.number);
+  merged.discardedShippingBoxes.sort((left, right) => left.number - right.number);
+  merged.boxes.sort((left, right) => left.number - right.number);
+  return merged;
+}
+
+function mergeInventoryCountMap_(target, source) {
+  Object.keys(source || {}).forEach((key) => {
+    target[key] = (target[key] || 0) + displayQuantityToNumber_(source[key]);
+  });
 }
 
 function buildInventoryBoxSummaryMap_(boxRows) {
