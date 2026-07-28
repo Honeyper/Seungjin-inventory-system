@@ -37,6 +37,8 @@ const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
+const ADMIN_CACHE_PREFIX = `seungjinAdminCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const adminEnvironmentBadge = document.querySelector("#adminEnvironmentBadge");
 
 if (!session || session.role !== "admin") {
@@ -45,6 +47,31 @@ if (!session || session.role !== "admin") {
 
 if (adminEnvironmentBadge && window.SEUNGJIN_CONFIG?.ENV === "dev") {
   adminEnvironmentBadge.hidden = false;
+}
+
+function readAdminCache(name) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(`${ADMIN_CACHE_PREFIX}:${name}`) || "null");
+
+    if (!cached || !cached.savedAt || Date.now() - Number(cached.savedAt) > ADMIN_CACHE_MAX_AGE_MS) {
+      return null;
+    }
+
+    return cached.data || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeAdminCache(name, data) {
+  try {
+    localStorage.setItem(`${ADMIN_CACHE_PREFIX}:${name}`, JSON.stringify({
+      savedAt: Date.now(),
+      data
+    }));
+  } catch (error) {
+    // Storage quota or private-mode failures must not block the page.
+  }
 }
 
 const state = {
@@ -3740,11 +3767,7 @@ async function saveInbound() {
     payload.defectFiles = await getInboundDefectFilePayloads();
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
-    await loadProducts();
-    await loadTodayInbounds();
-    if (state.inventoryLoaded) {
-      await loadInventoryDashboard(false);
-    }
+    await refreshInboundMutationData({ includeProducts: true });
     updateInboundSummary();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
   } catch (error) {
@@ -4482,9 +4505,7 @@ async function saveExistingStock() {
   try {
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
-    await loadProducts();
-    await loadTodayInbounds();
-    await loadInventoryDashboard(false);
+    await refreshInboundMutationData({ includeProducts: true, includeInventory: true });
     closeExistingStockModal();
     showToast(`기존 재고가 저장되었습니다.${managementId}`);
   } catch (error) {
@@ -4574,23 +4595,32 @@ function getInboundListDatePayload() {
 }
 
 async function loadProducts() {
-  setStatus("제품 정보를 불러오는 중입니다.");
+  const cachedResult = state.products.length ? null : readAdminCache("products");
+
+  if (cachedResult) {
+    applyProductsResult(cachedResult);
+  } else {
+    setStatus("제품 정보를 불러오는 중입니다.");
+  }
 
   try {
     const result = await requestApi("getProducts");
-    state.products = Array.isArray(result.products) ? result.products : [];
-    renderClientOptions();
-    renderClientFilterOptions();
-    renderInboundProductPicker();
-    applyFilters();
+    applyProductsResult(result);
+    writeAdminCache("products", result);
   } catch (error) {
-    state.products = [];
-    renderClientOptions();
-    renderClientFilterOptions();
-    renderInboundProductPicker();
-    applyFilters();
-    setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
+    if (!cachedResult) {
+      applyProductsResult({ products: [] });
+      setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
+    }
   }
+}
+
+function applyProductsResult(result) {
+  state.products = Array.isArray(result?.products) ? result.products : [];
+  renderClientOptions();
+  renderClientFilterOptions();
+  renderInboundProductPicker();
+  applyFilters();
 }
 
 async function ensureProductsLoaded() {
@@ -4608,16 +4638,44 @@ async function ensureProductsLoaded() {
 }
 
 async function loadTodayInbounds() {
+  const datePayload = getInboundListDatePayload();
+  const cacheName = `inbounds:${datePayload.startDate}:${datePayload.endDate}`;
+  const cachedResult = readAdminCache(cacheName);
+
+  if (cachedResult) {
+    applyTodayInboundsResult(cachedResult);
+  }
+
   try {
-    const result = await requestApi("getTodayInbounds", getInboundListDatePayload());
-    state.todayInbounds = Array.isArray(result.inbounds) ? result.inbounds : [];
-    renderTodayInbounds();
+    const result = await requestApi("getTodayInbounds", datePayload);
+    applyTodayInboundsResult(result);
+    writeAdminCache(cacheName, result);
     return true;
   } catch (error) {
-    state.todayInbounds = [];
-    renderTodayInbounds("입고 목록을 불러오지 못했습니다.");
+    if (!cachedResult) {
+      applyTodayInboundsResult({ inbounds: [] }, "입고 목록을 불러오지 못했습니다.");
+    }
     return false;
   }
+}
+
+function applyTodayInboundsResult(result, message = "") {
+  state.todayInbounds = Array.isArray(result?.inbounds) ? result.inbounds : [];
+  renderTodayInbounds(message);
+}
+
+async function refreshInboundMutationData({ includeProducts = false, includeInventory = state.inventoryLoaded } = {}) {
+  const refreshTasks = [loadTodayInbounds()];
+
+  if (includeProducts) {
+    refreshTasks.push(loadProducts());
+  }
+
+  if (includeInventory) {
+    refreshTasks.push(loadInventoryDashboard(false));
+  }
+
+  return Promise.all(refreshTasks);
 }
 
 async function refreshTodayInbounds() {
@@ -4638,27 +4696,30 @@ async function refreshTodayInbounds() {
 }
 
 async function loadInventoryDashboard(showLoadingToast = true) {
-  renderInventoryLoading();
-  renderShippingLoading();
+  const hadLoadedData = state.inventoryLoaded;
+  const cachedResult = state.inventoryLoaded ? null : readAdminCache("inventory-dashboard");
+
+  if (cachedResult) {
+    applyInventoryDashboardResult(cachedResult);
+  } else {
+    renderInventoryLoading();
+    renderShippingLoading();
+  }
 
   try {
     const result = await requestApi("getInventoryDashboard");
-    state.inventoryLoaded = true;
-    state.inventoryRows = normalizeInventoryRows(Array.isArray(result.rows) ? result.rows : []);
-    state.inventoryLocationBoxStats = Array.isArray(result.locationBoxStats) ? result.locationBoxStats : [];
-    state.inventoryLocationQuantityStats = Array.isArray(result.locationQuantityStats) ? result.locationQuantityStats : [];
-    renderInventorySummary(result.summary || {}, buildInventoryAttentionSummary(state.inventoryRows, result.attention || {}));
-    renderInventoryFilterOptions(buildInventoryFilterOptions(state.inventoryRows, result.filters || {}));
-    renderInventoryBars(inventoryLocationBoxBars, state.inventoryLocationBoxStats, "box");
-    renderInventoryBars(inventoryLocationQuantityBars, state.inventoryLocationQuantityStats, "ea");
-    applyInventoryFilters();
-    renderShippingTable();
-    updateShippingSettlementSummary();
+    applyInventoryDashboardResult(result);
+    writeAdminCache("inventory-dashboard", result);
 
     if (showLoadingToast) {
       showToast("재고 정보를 불러왔습니다.");
     }
   } catch (error) {
+    if (cachedResult || hadLoadedData) {
+      showToast("최신 데이터 갱신에 실패해 마지막으로 불러온 정보를 표시합니다.");
+      return;
+    }
+
     state.inventoryRows = [];
     state.filteredInventoryRows = [];
     state.inventoryLocationBoxStats = [];
@@ -4670,6 +4731,20 @@ async function loadInventoryDashboard(showLoadingToast = true) {
     renderShippingTable("재고 정보를 불러오지 못했습니다.");
     showToast(error.message || "재고 정보를 불러오지 못했습니다.");
   }
+}
+
+function applyInventoryDashboardResult(result) {
+  state.inventoryLoaded = true;
+  state.inventoryRows = normalizeInventoryRows(Array.isArray(result?.rows) ? result.rows : []);
+  state.inventoryLocationBoxStats = Array.isArray(result?.locationBoxStats) ? result.locationBoxStats : [];
+  state.inventoryLocationQuantityStats = Array.isArray(result?.locationQuantityStats) ? result.locationQuantityStats : [];
+  renderInventorySummary(result?.summary || {}, buildInventoryAttentionSummary(state.inventoryRows, result?.attention || {}));
+  renderInventoryFilterOptions(buildInventoryFilterOptions(state.inventoryRows, result?.filters || {}));
+  renderInventoryBars(inventoryLocationBoxBars, state.inventoryLocationBoxStats, "box");
+  renderInventoryBars(inventoryLocationQuantityBars, state.inventoryLocationQuantityStats, "ea");
+  applyInventoryFilters();
+  renderShippingTable();
+  updateShippingSettlementSummary();
 }
 
 function renderInventoryLoading() {
@@ -6103,10 +6178,7 @@ async function deleteActiveInbound(managementId = state.activeInboundMenuRecord,
 
   try {
     const result = await requestApi("deleteInbound", { managementId, productId });
-    await loadTodayInbounds();
-    if (state.inventoryLoaded) {
-      await loadInventoryDashboard(false);
-    }
+    await refreshInboundMutationData();
     const deletedBoxes = Number(result?.deletedBoxRows || 0);
     showToast(`입고 내역이 삭제되었습니다. 박스 ${deletedBoxes.toLocaleString("ko-KR")}건 삭제`);
   } catch (error) {
@@ -7207,10 +7279,7 @@ async function saveInboundEdit() {
     }
 
     await requestApi("updateInbound", payload);
-    await loadTodayInbounds();
-    if (state.inventoryLoaded) {
-      await loadInventoryDashboard(false);
-    }
+    await refreshInboundMutationData();
     state.activeDetailInboundId = payload.managementId;
     state.activeDetailInboundProductId = payload.productId || state.activeDetailInboundProductId || "";
     setInboundDetailMode("view");

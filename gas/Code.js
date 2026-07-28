@@ -16,6 +16,29 @@ const APP_ENVIRONMENTS = {
 };
 
 const CONFIG = buildRuntimeConfig_();
+const DATA_CACHE_VERSION_PROPERTY = 'DATA_CACHE_VERSION';
+const DATA_CACHE_CHUNK_SIZE = 70000;
+const DATA_CACHE_TTL_SECONDS = {
+  PRODUCTS: 60,
+  PRODUCT_DUE_DATES: 60,
+  PRODUCT_INBOUND_QUANTITIES: 60,
+  BOX_SUMMARY: 30,
+  TODAY_INBOUNDS: 20,
+  INVENTORY_DASHBOARD: 30
+};
+const DATA_MUTATION_ACTIONS = new Set([
+  'normalizeStockAttachmentLinks',
+  'setupSheets',
+  'saveShippingInspection',
+  'updateShippingStatus',
+  'createProduct',
+  'updateProduct',
+  'deleteProduct',
+  'createInbound',
+  'updateInbound',
+  'deleteInbound',
+  'formatProductRows'
+]);
 
 function buildRuntimeConfig_() {
   const env = getAppEnvironment_();
@@ -137,9 +160,15 @@ function doPost(e) {
       });
     }
 
+    const data = routes[action](payload);
+
+    if (DATA_MUTATION_ACTIONS.has(action)) {
+      invalidateDataCaches_();
+    }
+
     return jsonResponse({
       ok: true,
-      data: routes[action](payload)
+      data
     });
   } catch (error) {
     return jsonResponse({
@@ -147,6 +176,96 @@ function doPost(e) {
       error: error.name || 'ERROR',
       message: error.message
     });
+  }
+}
+
+function getDataCacheVersion_() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty(DATA_CACHE_VERSION_PROPERTY) || '1';
+  } catch (error) {
+    return '1';
+  }
+}
+
+function buildDataCacheKey_(scope, identity) {
+  return [
+    'sj',
+    CONFIG.ENV,
+    getDataCacheVersion_(),
+    String(scope || 'data').replace(/[^a-zA-Z0-9_-]/g, '-'),
+    String(identity || 'all').replace(/[^a-zA-Z0-9_.-]/g, '-')
+  ].join(':');
+}
+
+function readDataCache_(scope, identity) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const baseKey = buildDataCacheKey_(scope, identity);
+    const metaValue = cache.get(`${baseKey}:meta`);
+
+    if (!metaValue) {
+      return null;
+    }
+
+    const meta = JSON.parse(metaValue);
+    const chunkCount = Number(meta.chunkCount || 0);
+
+    if (!Number.isInteger(chunkCount) || chunkCount < 1) {
+      return null;
+    }
+
+    const chunkKeys = Array.from({ length: chunkCount }, (_, index) => `${baseKey}:${index}`);
+    const cachedChunks = cache.getAll(chunkKeys);
+
+    if (chunkKeys.some((key) => typeof cachedChunks[key] !== 'string')) {
+      return null;
+    }
+
+    const compressedText = chunkKeys.map((key) => cachedChunks[key]).join('');
+    const compressedBytes = Utilities.base64Decode(compressedText);
+    const json = Utilities.ungzip(Utilities.newBlob(compressedBytes)).getDataAsString('UTF-8');
+    return JSON.parse(json);
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeDataCache_(scope, identity, value, ttlSeconds) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const baseKey = buildDataCacheKey_(scope, identity);
+    const json = JSON.stringify(value);
+    const compressedBytes = Utilities.gzip(
+      Utilities.newBlob(json, 'application/json', `${scope || 'data'}.json`)
+    ).getBytes();
+    const compressedText = Utilities.base64Encode(compressedBytes);
+    const chunks = [];
+
+    for (let index = 0; index < compressedText.length; index += DATA_CACHE_CHUNK_SIZE) {
+      chunks.push(compressedText.slice(index, index + DATA_CACHE_CHUNK_SIZE));
+    }
+
+    const expiration = Math.max(1, Number(ttlSeconds || 60));
+    const entries = chunks.reduce((result, chunk, index) => {
+      result[`${baseKey}:${index}`] = chunk;
+      return result;
+    }, {});
+
+    cache.putAll(entries, expiration);
+    cache.put(`${baseKey}:meta`, JSON.stringify({ chunkCount: chunks.length }), expiration);
+  } catch (error) {
+    // Cache failures must never block the inventory workflow.
+  }
+
+  return value;
+}
+
+function invalidateDataCaches_() {
+  try {
+    const uniqueVersion = `${Date.now()}-${Utilities.getUuid().slice(0, 8)}`;
+    PropertiesService.getScriptProperties().setProperty(DATA_CACHE_VERSION_PROPERTY, uniqueVersion);
+  } catch (error) {
+    // Short TTLs still limit stale responses if property access is unavailable.
   }
 }
 
@@ -690,15 +809,20 @@ function ensureProductOptionHeaders_(sheet) {
 }
 
 function getProducts() {
+  const cached = readDataCache_('products', 'all');
+
+  if (cached) {
+    return cached;
+  }
+
   const sheet = getProductSheet_();
-  ensureProductOptionHeaders_(sheet);
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
 
   if (!headerInfo) {
-    return {
+    return writeDataCache_('products', 'all', {
       products: []
-    };
+    }, DATA_CACHE_TTL_SECONDS.PRODUCTS);
   }
 
   const { headers, rowIndex: headerRowIndex } = headerInfo;
@@ -750,22 +874,42 @@ function getProducts() {
       };
     });
 
-  return {
+  const result = {
     products
   };
+  const dueDateMap = products.reduce((map, product) => {
+    if (product.productId) {
+      map[product.productId] = product.dueDate || '';
+    }
+    return map;
+  }, {});
+
+  writeDataCache_('product-due-dates', 'all', dueDateMap, DATA_CACHE_TTL_SECONDS.PRODUCT_DUE_DATES);
+  return writeDataCache_('products', 'all', result, DATA_CACHE_TTL_SECONDS.PRODUCTS);
 }
 
 function getProductDueDateMap_() {
+  const cached = readDataCache_('product-due-dates', 'all');
+
+  if (cached) {
+    return cached;
+  }
+
   const sheet = getProductSheet_();
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
 
   if (!headerInfo) {
-    return {};
+    return writeDataCache_(
+      'product-due-dates',
+      'all',
+      {},
+      DATA_CACHE_TTL_SECONDS.PRODUCT_DUE_DATES
+    );
   }
 
   const indexes = indexHeaders_(headerInfo.headers);
-  return values.slice(headerInfo.rowIndex + 1).reduce((map, row) => {
+  const result = values.slice(headerInfo.rowIndex + 1).reduce((map, row) => {
     const productId = pickCell_(row, indexes, ['제품 ID', '제품ID']);
 
     if (productId) {
@@ -774,20 +918,38 @@ function getProductDueDateMap_() {
 
     return map;
   }, {});
+
+  return writeDataCache_(
+    'product-due-dates',
+    'all',
+    result,
+    DATA_CACHE_TTL_SECONDS.PRODUCT_DUE_DATES
+  );
 }
 
 function getProductInboundQuantityMap_() {
+  const cached = readDataCache_('product-inbound-quantities', 'all');
+
+  if (cached) {
+    return cached;
+  }
+
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
   const values = stockSheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['제품ID', '입고 총 수량'])
     || findHeaderRow_(values, ['제품 ID', '입고 총 수량']);
 
   if (!headerInfo) {
-    return {};
+    return writeDataCache_(
+      'product-inbound-quantities',
+      'all',
+      {},
+      DATA_CACHE_TTL_SECONDS.PRODUCT_INBOUND_QUANTITIES
+    );
   }
 
   const indexes = indexHeaders_(headerInfo.headers);
-  return values.slice(headerInfo.rowIndex + 1).reduce((map, row) => {
+  const result = values.slice(headerInfo.rowIndex + 1).reduce((map, row) => {
     const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
 
     if (productId) {
@@ -796,19 +958,28 @@ function getProductInboundQuantityMap_() {
 
     return map;
   }, {});
+
+  return writeDataCache_(
+    'product-inbound-quantities',
+    'all',
+    result,
+    DATA_CACHE_TTL_SECONDS.PRODUCT_INBOUND_QUANTITIES
+  );
 }
 
 function getInventoryDashboard() {
+  const cached = readDataCache_('inventory-dashboard', 'all');
+
+  if (cached) {
+    return cached;
+  }
+
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
-  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const productSheet = getProductSheet_();
-  ensureBoxDbShippingInspectionHeaders_(boxSheet);
   const stockInfo = readDisplayRowsByHeaders_(stockSheet, ['관리 ID', '입고일', '제품명']);
-  const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
   const productInfo = readDisplayRowsByHeaders_(productSheet, ['제품 ID', '업체명', '제품명']);
   const productMap = buildInventoryProductMap_(productInfo.rows);
-  const boxSummaryMap = buildInventoryBoxSummaryMap_(boxInfo.rows);
-  syncStockStatusesFromBoxSummary_(stockSheet, boxSummaryMap);
+  const boxSummaryMap = getInventoryBoxSummaryMap_();
   const todayKey = normalizeDateKey_(Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'));
 
   const rows = stockInfo.rows.map((stockRow) => {
@@ -912,7 +1083,7 @@ function getInventoryDashboard() {
   const unspecifiedStorageCount = activeRows.filter((row) => isUnspecifiedStorage_(row.storage)).length;
   const holdOrDiscardCount = rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ''))).length;
 
-  return {
+  return writeDataCache_('inventory-dashboard', 'all', {
     summary: {
       totalItems: uniqueProductIds.size || activeRows.length,
       totalBoxes,
@@ -933,7 +1104,7 @@ function getInventoryDashboard() {
       holdOrDiscardCount
     },
     rows: visibleRows.reverse()
-  };
+  }, DATA_CACHE_TTL_SECONDS.INVENTORY_DASHBOARD);
 }
 
 function getStockStatusFromBoxSummary_(summary) {
@@ -1055,42 +1226,55 @@ function createProduct(payload) {
 }
 
 function getTodayInbounds(payload) {
-  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
-  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
-  const dataRange = stockSheet.getDataRange();
-  const values = dataRange.getDisplayValues();
-  const richValues = dataRange.getRichTextValues();
-  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
-
-  if (!headerInfo) {
-    return {
-      inbounds: []
-    };
-  }
-
-  const { headers, rowIndex: headerRowIndex } = headerInfo;
-  const indexes = indexHeaders_(headers);
   const timezone = 'Asia/Seoul';
   const defaultDate = Utilities.formatDate(new Date(), timezone, 'yyyy-MM-dd');
   const requestedStartDate = normalizeDateKey_(payload?.startDate || payload?.date || defaultDate);
   const requestedEndDate = normalizeDateKey_(payload?.endDate || payload?.date || requestedStartDate);
   const startDate = requestedStartDate <= requestedEndDate ? requestedStartDate : requestedEndDate;
   const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
+  const cacheIdentity = `${startDate}_${endDate}`;
+  const cached = readDataCache_('today-inbounds', cacheIdentity);
+
+  if (cached) {
+    return cached;
+  }
+
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const dataRange = stockSheet.getDataRange();
+  const values = dataRange.getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
+
+  if (!headerInfo) {
+    return writeDataCache_('today-inbounds', cacheIdentity, {
+      startDate,
+      endDate,
+      inbounds: []
+    }, DATA_CACHE_TTL_SECONDS.TODAY_INBOUNDS);
+  }
+
+  const { headers, rowIndex: headerRowIndex } = headerInfo;
+  const indexes = indexHeaders_(headers);
   const productDueDateMap = getProductDueDateMap_();
-  const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
-  const boxSummaryMap = buildInventoryBoxSummaryMap_(boxInfo.rows);
-  const inbounds = values.slice(headerRowIndex + 1)
+  const boxSummaryMap = getInventoryBoxSummaryMap_();
+  const selectedRows = values.slice(headerRowIndex + 1)
     .map((row, offset) => ({
       row,
-      richRow: richValues[headerRowIndex + 1 + offset] || []
+      sheetRowNumber: headerRowIndex + 2 + offset
     }))
     .filter(({ row }) => row.some((cell) => String(cell || '').trim()))
     .filter(({ row }) => {
       const inboundDate = normalizeDateKey_(pickCell_(row, indexes, ['입고일']));
       return inboundDate >= startDate && inboundDate <= endDate;
     })
-    .filter(({ row }) => !isExistingStockInboundType_(pickCell_(row, indexes, ['입고 유형', '입고유형'])))
-    .map(({ row, richRow }) => {
+    .filter(({ row }) => !isExistingStockInboundType_(pickCell_(row, indexes, ['입고 유형', '입고유형'])));
+  const richRowsBySheetRow = readRichRowsBySheetRows_(
+    stockSheet,
+    selectedRows.map(({ sheetRowNumber }) => sheetRowNumber),
+    headers.length
+  );
+  const inbounds = selectedRows
+    .map(({ row, sheetRowNumber }) => {
+      const richRow = richRowsBySheetRow[sheetRowNumber] || [];
       const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
       const managementId = pickCell_(row, indexes, ['관리 ID', '관리ID']);
       const productName = pickCell_(row, indexes, ['제품명']);
@@ -1137,11 +1321,11 @@ function getTodayInbounds(payload) {
     })
     .reverse();
 
-  return {
+  return writeDataCache_('today-inbounds', cacheIdentity, {
     startDate,
     endDate,
     inbounds
-  };
+  }, DATA_CACHE_TTL_SECONDS.TODAY_INBOUNDS);
 }
 
 function getInboundBoxQrs(payload) {
@@ -3493,6 +3677,44 @@ function readDisplayRowsByHeaders_(sheet, requiredHeaders) {
   };
 }
 
+function readRichRowsBySheetRows_(sheet, sheetRowNumbers, columnCount) {
+  const rowNumbers = Array.from(new Set(
+    (sheetRowNumbers || [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0)
+  )).sort((left, right) => left - right);
+  const result = {};
+
+  if (!rowNumbers.length || !columnCount) {
+    return result;
+  }
+
+  const groups = [];
+  let groupStart = rowNumbers[0];
+  let previousRow = rowNumbers[0];
+
+  for (let index = 1; index < rowNumbers.length; index += 1) {
+    const currentRow = rowNumbers[index];
+
+    if (currentRow !== previousRow + 1) {
+      groups.push({ start: groupStart, end: previousRow });
+      groupStart = currentRow;
+    }
+
+    previousRow = currentRow;
+  }
+
+  groups.push({ start: groupStart, end: previousRow });
+  groups.forEach(({ start, end }) => {
+    const richRows = sheet.getRange(start, 1, end - start + 1, columnCount).getRichTextValues();
+    richRows.forEach((richRow, offset) => {
+      result[start + offset] = richRow;
+    });
+  });
+
+  return result;
+}
+
 function buildInventoryProductMap_(productRows) {
   return productRows.reduce((map, row) => {
     const productId = getObjectCell_(row, ['제품 ID', '제품ID']);
@@ -3509,6 +3731,19 @@ function buildInventoryProductMap_(productRows) {
 
     return map;
   }, {});
+}
+
+function getInventoryBoxSummaryMap_() {
+  const cached = readDataCache_('box-summary', 'all');
+
+  if (cached) {
+    return cached;
+  }
+
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
+  const result = buildInventoryBoxSummaryMap_(boxInfo.rows);
+  return writeDataCache_('box-summary', 'all', result, DATA_CACHE_TTL_SECONDS.BOX_SUMMARY);
 }
 
 function buildInventoryBoxSummaryMap_(boxRows) {
