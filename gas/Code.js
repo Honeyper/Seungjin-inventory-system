@@ -1001,6 +1001,9 @@ function getInventoryDashboard() {
     const hasOnlyShippedBoxes = hasBoxSummary
       && !(boxSummary.activeShippingBoxes || []).length
       && (boxSummary.shippedShippingBoxes || []).length > 0;
+    const completedShippingType = hasOnlyShippedBoxes
+      ? getCompletedShippingTypeLabel_(boxSummary.shippedShippingBoxes)
+      : '';
     const stockStatus = hasPartialShipping
       ? '일부 출고'
       : hasOnlyShippedBoxes
@@ -1049,6 +1052,8 @@ function getInventoryDashboard() {
       shippingInspectionDate: boxSummary.shippingInspectionDate || '',
       shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
       shippingUpdatedAt: boxSummary.shippingUpdatedAt || '',
+      completedShippingType,
+      countsAsInventory: !completedShippingType,
       allShippingBoxes: boxSummary.allShippingBoxes || [],
       activeShippingBoxes: boxSummary.activeShippingBoxes || [],
       shippedShippingBoxes: boxSummary.shippedShippingBoxes || [],
@@ -1121,6 +1126,24 @@ function getStockStatusFromBoxSummary_(summary) {
 
   if (shippedCount > 0 && activeCount === 0) {
     return '출고완료';
+  }
+
+  return '';
+}
+
+function getCompletedShippingTypeLabel_(boxes) {
+  const completedBoxes = Array.isArray(boxes) ? boxes : [];
+  const latestTypedBox = completedBoxes
+    .filter((box) => box && box.shippingType)
+    .sort((left, right) => String(right.shippingUpdatedAt || '').localeCompare(String(left.shippingUpdatedAt || '')))[0];
+  const shippingType = String(latestTypedBox && latestTypedBox.shippingType || '').replace(/\s+/g, '').trim();
+
+  if (shippingType.indexOf('반출') === 0) {
+    return '반출';
+  }
+
+  if (shippingType.indexOf('이관') === 0) {
+    return '이관';
   }
 
   return '';
