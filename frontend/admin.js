@@ -2540,7 +2540,7 @@ function openTransferReturnModal(row, returnMode = "transfer") {
     transferReturnKicker.textContent = isTakeoutReturn ? "반출 재고" : "이관 재고";
   }
   if (transferReturnTitle) {
-    transferReturnTitle.textContent = isTakeoutReturn ? "반출 후 재입고" : "이관 복귀";
+    transferReturnTitle.textContent = isTakeoutReturn ? "재입고" : "이관 복귀";
   }
   if (transferReturnDescription) {
     transferReturnDescription.textContent = isTakeoutReturn
@@ -2720,7 +2720,7 @@ async function saveTransferReturn() {
     }
     if (transferReturnMessage) {
       transferReturnMessage.textContent = error.message || (isTakeoutReturn
-        ? "반출 후 재입고 처리 중 문제가 발생했습니다."
+        ? "재입고 처리 중 문제가 발생했습니다."
         : "이관 복귀 처리 중 문제가 발생했습니다.");
     }
   }
@@ -3415,7 +3415,7 @@ function renderShippingRowAction(item) {
     ? [{ action: "returnTransfer", label: "이관 복귀", icon: "ti-arrow-back-up" }]
     : [];
   const takeoutReturnAction = takenOutBoxes.length
-    ? [{ action: "returnTakeout", label: "반출 후 재입고", icon: "ti-package-import" }]
+    ? [{ action: "returnTakeout", label: "재입고", icon: "ti-package-import" }]
     : [];
   const cancelShippingAction = normallyShippedBoxes.length
     ? [{ action: "cancelShip", label: "출고 취소", icon: "ti-arrow-back-up" }]
@@ -3459,7 +3459,7 @@ function renderShippingRowAction(item) {
     }
     if (takenOutBoxes.length) {
       return renderShippingActionSet(
-        { action: "returnTakeout", label: "반출 후 재입고" },
+        { action: "returnTakeout", label: "재입고" },
         [
           { action: "detail", label: "상세보기", icon: "ti-eye" },
           ...cancelShippingAction

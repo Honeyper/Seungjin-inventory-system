@@ -3286,7 +3286,7 @@ function returnTakenOutInventory(payload) {
 function returnCompletedOutboundInventory_(payload, returnMode) {
   const isTakeoutReturn = returnMode === 'takeout';
   const sourceLabel = isTakeoutReturn ? '반출' : '이관';
-  const actionLabel = isTakeoutReturn ? '반출 후 재입고' : '이관 복귀';
+  const actionLabel = isTakeoutReturn ? '재입고' : '이관 복귀';
   const managementId = String(payload.managementId || '').trim();
   const targetStatus = String(payload.targetStatus || payload.status || '').trim();
   const storage = String(payload.storage || payload.storageLocation || '').trim();
@@ -3584,7 +3584,7 @@ function buildTransferReturnAuditNote_(data) {
   const outboundAt = [data.shippingDate, data.shippingTime].filter(Boolean).join(' ') || '-';
   const previousShipper = data.previousShipper || '-';
   if (data.returnMode === 'takeout') {
-    return `${previous}[반출 후 재입고 ${data.returnedAt}] ${data.sequence}번 박스 · 반출 ${outboundAt} · 반출자 ${previousShipper} · 재입고자 ${data.returner} · ${data.targetStatus} · 보관위치 ${data.storage}`;
+    return `${previous}[재입고 ${data.returnedAt}] ${data.sequence}번 박스 · 반출 ${outboundAt} · 반출자 ${previousShipper} · 재입고자 ${data.returner} · ${data.targetStatus} · 보관위치 ${data.storage}`;
   }
   const transferCompany = data.transferCompany || '-';
   return `${previous}[이관 복귀 ${data.returnedAt}] ${data.sequence}번 박스 · 이관처 ${transferCompany} · 이관 ${outboundAt} · 이관자 ${previousShipper} · 복귀자 ${data.returner} · ${data.targetStatus} · 보관위치 ${data.storage}`;
