@@ -17,8 +17,9 @@ const APP_ENVIRONMENTS = {
 
 const CONFIG = buildRuntimeConfig_();
 const API_READ_CACHE_TTL_SECONDS = 45;
-const API_READ_CACHE_MAX_LENGTH = 95000;
-const API_READ_CACHE_SCHEMA_VERSION = 'v6';
+const API_READ_CACHE_CHUNK_SIZE = 70000;
+const API_READ_CACHE_SCHEMA_VERSION = 'v7';
+const API_READ_CACHE_VERSION_PROPERTY = 'API_READ_CACHE_VERSION';
 
 function buildRuntimeConfig_() {
   const env = getAppEnvironment_();
@@ -117,7 +118,7 @@ function doPost(e) {
       login,
       setupSheets,
       getProducts: getProductsCached_,
-      getTodayInbounds,
+      getTodayInbounds: getTodayInboundsCached_,
       getInventoryDashboard: getInventoryDashboardCached_,
       getInboundBoxQrs,
       uploadShippingDefectPhotos,
@@ -168,29 +169,64 @@ function getInventoryDashboardCached_() {
   return getCachedApiData_('inventory-dashboard', getInventoryDashboard);
 }
 
-function getCachedApiData_(key, loader) {
+function getTodayInboundsCached_(payload) {
+  const timezone = 'Asia/Seoul';
+  const defaultDate = Utilities.formatDate(new Date(), timezone, 'yyyy-MM-dd');
+  const requestedStartDate = normalizeDateKey_(payload?.startDate || payload?.date || defaultDate);
+  const requestedEndDate = normalizeDateKey_(payload?.endDate || payload?.date || requestedStartDate);
+  const startDate = requestedStartDate <= requestedEndDate ? requestedStartDate : requestedEndDate;
+  const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
+
+  return getCachedApiData_(
+    `today-inbounds-${startDate}-${endDate}`,
+    () => getTodayInbounds({ ...payload, startDate, endDate }),
+    20
+  );
+}
+
+function getCachedApiData_(key, loader, ttlSeconds = API_READ_CACHE_TTL_SECONDS) {
   const cached = readChunkedApiCache_(key);
   if (cached !== null) {
     return cached;
   }
 
   const data = loader();
-  writeChunkedApiCache_(key, data);
+  writeChunkedApiCache_(key, data, ttlSeconds);
   return data;
 }
 
+function getApiReadCacheVersion_() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty(API_READ_CACHE_VERSION_PROPERTY) || '1';
+  } catch (error) {
+    return '1';
+  }
+}
+
 function getApiCacheKey_(key) {
-  return `sj-${CONFIG.ENV}-${API_READ_CACHE_SCHEMA_VERSION}-${key}`;
+  return `sj-${CONFIG.ENV}-${API_READ_CACHE_SCHEMA_VERSION}-${getApiReadCacheVersion_()}-${key}`;
 }
 
 function readChunkedApiCache_(key) {
   try {
     const cache = CacheService.getScriptCache();
-    const cached = cache.get(getApiCacheKey_(key));
-    if (!cached) {
+    const baseKey = getApiCacheKey_(key);
+    const meta = JSON.parse(cache.get(`${baseKey}:meta`) || 'null');
+    const chunkCount = Number(meta?.chunkCount || 0);
+
+    if (!chunkCount) {
       return null;
     }
-    const compressed = Utilities.base64Decode(cached);
+
+    const chunkKeys = Array.from({ length: chunkCount }, (_, index) => `${baseKey}:${index}`);
+    const chunks = cache.getAll(chunkKeys);
+    const encoded = chunkKeys.map((chunkKey) => chunks[chunkKey] || '').join('');
+
+    if (!encoded) {
+      return null;
+    }
+
+    const compressed = Utilities.base64Decode(encoded);
     const serialized = Utilities.ungzip(Utilities.newBlob(compressed)).getDataAsString('UTF-8');
     return JSON.parse(serialized);
   } catch (error) {
@@ -198,32 +234,40 @@ function readChunkedApiCache_(key) {
   }
 }
 
-function writeChunkedApiCache_(key, data) {
+function writeChunkedApiCache_(key, data, ttlSeconds = API_READ_CACHE_TTL_SECONDS) {
   try {
     const cache = CacheService.getScriptCache();
     const serialized = JSON.stringify(data);
     const compressed = Utilities.gzip(Utilities.newBlob(serialized, 'application/json')).getBytes();
     const encoded = Utilities.base64Encode(compressed);
-    if (encoded.length > API_READ_CACHE_MAX_LENGTH) {
-      return;
+    const baseKey = getApiCacheKey_(key);
+    const chunkCount = Math.max(1, Math.ceil(encoded.length / API_READ_CACHE_CHUNK_SIZE));
+    const entries = {
+      [`${baseKey}:meta`]: JSON.stringify({ chunkCount })
+    };
+
+    for (let index = 0; index < chunkCount; index += 1) {
+      entries[`${baseKey}:${index}`] = encoded.slice(
+        index * API_READ_CACHE_CHUNK_SIZE,
+        (index + 1) * API_READ_CACHE_CHUNK_SIZE
+      );
     }
-    cache.put(getApiCacheKey_(key), encoded, API_READ_CACHE_TTL_SECONDS);
+
+    cache.putAll(entries, ttlSeconds);
   } catch (error) {
     // Cache failures must not block normal API responses.
   }
 }
 
-function clearChunkedApiCache_(key) {
-  try {
-    CacheService.getScriptCache().remove(getApiCacheKey_(key));
-  } catch (error) {
-    // Cache cleanup is best effort.
-  }
-}
-
 function clearApiReadCaches_() {
-  clearChunkedApiCache_('products');
-  clearChunkedApiCache_('inventory-dashboard');
+  try {
+    PropertiesService.getScriptProperties().setProperty(
+      API_READ_CACHE_VERSION_PROPERTY,
+      `${Date.now()}-${Utilities.getUuid()}`
+    );
+  } catch (error) {
+    // Cache invalidation is best effort.
+  }
 }
 
 function isApiMutationAction_(action) {
@@ -1245,7 +1289,6 @@ function getTodayInbounds(payload) {
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const dataRange = stockSheet.getDataRange();
   const values = dataRange.getDisplayValues();
-  const richValues = dataRange.getRichTextValues();
   const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
 
   if (!headerInfo) {
@@ -1266,18 +1309,25 @@ function getTodayInbounds(payload) {
   const productMap = buildInventoryProductMap_(productInfo.rows);
   const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
   const boxSummaryMap = buildInventoryBoxSummaryMap_(boxInfo.rows);
-  const inbounds = values.slice(headerRowIndex + 1)
+  const selectedRows = values.slice(headerRowIndex + 1)
     .map((row, offset) => ({
       row,
-      richRow: richValues[headerRowIndex + 1 + offset] || []
+      sheetRowNumber: headerRowIndex + 2 + offset
     }))
     .filter(({ row }) => row.some((cell) => String(cell || '').trim()))
     .filter(({ row }) => {
       const inboundDate = normalizeDateKey_(pickCell_(row, indexes, ['입고일']));
       return inboundDate >= startDate && inboundDate <= endDate;
     })
-    .filter(({ row }) => !isExistingStockInboundType_(pickCell_(row, indexes, ['입고 유형', '입고유형'])))
-    .map(({ row, richRow }) => {
+    .filter(({ row }) => !isExistingStockInboundType_(pickCell_(row, indexes, ['입고 유형', '입고유형'])));
+  const richRowsBySheetRow = readRichRowsBySheetRows_(
+    stockSheet,
+    selectedRows.map(({ sheetRowNumber }) => sheetRowNumber),
+    headers.length
+  );
+  const inbounds = selectedRows
+    .map(({ row, sheetRowNumber }) => {
+      const richRow = richRowsBySheetRow[sheetRowNumber] || [];
       const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
       const product = productMap[productId] || {};
 
@@ -4640,6 +4690,44 @@ function formatPercentNumber_(value) {
 
 function formatBox_(value) {
   return `${Number(value || 0).toLocaleString('ko-KR')} box`;
+}
+
+function readRichRowsBySheetRows_(sheet, sheetRowNumbers, columnCount) {
+  const rowNumbers = Array.from(new Set(
+    (sheetRowNumbers || [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0)
+  )).sort((left, right) => left - right);
+  const result = {};
+
+  if (!rowNumbers.length || !columnCount) {
+    return result;
+  }
+
+  const groups = [];
+  let groupStart = rowNumbers[0];
+  let previousRow = rowNumbers[0];
+
+  for (let index = 1; index < rowNumbers.length; index += 1) {
+    const currentRow = rowNumbers[index];
+
+    if (currentRow !== previousRow + 1) {
+      groups.push({ start: groupStart, end: previousRow });
+      groupStart = currentRow;
+    }
+
+    previousRow = currentRow;
+  }
+
+  groups.push({ start: groupStart, end: previousRow });
+  groups.forEach(({ start, end }) => {
+    const richRows = sheet.getRange(start, 1, end - start + 1, columnCount).getRichTextValues();
+    richRows.forEach((richRow, offset) => {
+      result[start + offset] = richRow;
+    });
+  });
+
+  return result;
 }
 
 function normalizeDateKey_(value) {
