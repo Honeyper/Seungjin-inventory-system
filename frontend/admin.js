@@ -142,10 +142,12 @@ const state = {
   activeShippingMenuActions: [],
   activeShippingInspectionRow: null,
   activeShippingCompletionRow: null,
+  activeTransferReturnRow: null,
   activeShippingWaitingRow: null,
   isSavingShippingWaiting: false,
   isSavingShippingInspection: false,
   isSavingShippingCompletion: false,
+  isSavingTransferReturn: false,
   inboundProductPickerQuery: "",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
@@ -364,6 +366,18 @@ const shippingCompletionBoxList = document.querySelector("#shippingCompletionBox
 const shippingCompletionBoxSummary = document.querySelector("#shippingCompletionBoxSummary");
 const shippingCompletionDefectPhotos = document.querySelector("#shippingCompletionDefectPhotos");
 const shippingCompletionShippedBoxes = document.querySelector("#shippingCompletionShippedBoxes");
+const transferReturnModal = document.querySelector("#transferReturnModal");
+const transferReturnForm = document.querySelector("#transferReturnForm");
+const transferReturnRecordId = document.querySelector("#transferReturnRecordId");
+const transferReturnProduct = document.querySelector("#transferReturnProduct");
+const transferReturnClient = document.querySelector("#transferReturnClient");
+const transferReturnCompany = document.querySelector("#transferReturnCompany");
+const transferReturnBoxList = document.querySelector("#transferReturnBoxList");
+const transferReturnBoxSummary = document.querySelector("#transferReturnBoxSummary");
+const transferReturnSelectAll = document.querySelector("#transferReturnSelectAll");
+const transferReturnStorage = document.querySelector("#transferReturnStorage");
+const transferReturnMessage = document.querySelector("#transferReturnMessage");
+const saveTransferReturnButton = document.querySelector("#saveTransferReturnButton");
 const shippingWaitingConfirmModal = document.querySelector("#shippingWaitingConfirmModal");
 const shippingWaitingConfirmRecordId = document.querySelector("#shippingWaitingConfirmRecordId");
 const shippingWaitingConfirmProduct = document.querySelector("#shippingWaitingConfirmProduct");
@@ -582,6 +596,8 @@ document.querySelector("#closeShippingInspectionModal")?.addEventListener("click
 document.querySelector("#cancelShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
 document.querySelector("#closeShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
 document.querySelector("#cancelShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
+document.querySelector("#closeTransferReturnModal")?.addEventListener("click", closeTransferReturnModal);
+document.querySelector("#cancelTransferReturnModal")?.addEventListener("click", closeTransferReturnModal);
 document.querySelector("#closeShippingWaitingConfirmModal")?.addEventListener("click", closeShippingWaitingConfirmModal);
 document.querySelector("#cancelShippingWaitingConfirmModal")?.addEventListener("click", closeShippingWaitingConfirmModal);
 confirmShippingWaitingButton?.addEventListener("click", confirmShippingWaiting);
@@ -609,6 +625,17 @@ shippingCompletionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingCompletion();
 });
+transferReturnForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveTransferReturn();
+});
+transferReturnSelectAll?.addEventListener("change", () => {
+  transferReturnBoxList?.querySelectorAll('input[name="transferReturnBox"]').forEach((input) => {
+    input.checked = Boolean(transferReturnSelectAll.checked);
+  });
+  syncTransferReturnBoxState();
+});
+transferReturnBoxList?.addEventListener("change", syncTransferReturnBoxState);
 shippingSettlementStartDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("start");
   updateShippingSummaryCards(getShippingSettlementItems());
@@ -726,6 +753,11 @@ function handleShippingAction(row, action, button) {
 
   if (action === "cancelShip") {
     cancelCompletedShipping(row, button);
+    return;
+  }
+
+  if (action === "returnTransfer") {
+    openTransferReturnModal(row);
     return;
   }
 
@@ -1016,6 +1048,11 @@ document.addEventListener("keydown", (event) => {
 
   if (shippingCompletionModal && !shippingCompletionModal.hidden) {
     closeShippingCompletionModal();
+    return;
+  }
+
+  if (transferReturnModal && !transferReturnModal.hidden) {
+    closeTransferReturnModal();
     return;
   }
 
@@ -2285,7 +2322,7 @@ async function cancelCompletedShipping(row, button) {
   }
 
   const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes")
-    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료")
+    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료" && !isTransferredShippingBox(box))
     .map((box) => ({
       number: Number(box.number),
       quantity: parseShippingSettlementNumber(box.quantity || "")
@@ -2324,6 +2361,21 @@ async function cancelCompletedShipping(row, button) {
     }
     showToast(error.message || "출고 취소 중 문제가 발생했습니다.");
   }
+}
+
+function isTransferredShippingBox(box) {
+  return String(box?.shippingType || "").replace(/\s+/g, "").startsWith("이관");
+}
+
+function getTransferredShippingBoxes(row) {
+  return getShippingRowBoxes(row, "shippedShippingBoxes")
+    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료" && isTransferredShippingBox(box))
+    .map((box) => ({
+      ...box,
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
 }
 
 async function completeShipping(row) {
@@ -2429,6 +2481,165 @@ function closeShippingCompletionModal() {
     shippingCompletionShippedBoxes.innerHTML = "";
   }
   document.body.classList.remove("modal-open");
+}
+
+function openTransferReturnModal(row) {
+  if (!row || !transferReturnModal) {
+    return;
+  }
+
+  const transferBoxes = getTransferredShippingBoxes(row);
+  if (!transferBoxes.length) {
+    showToast("복귀할 이관 완료 박스를 찾을 수 없습니다.");
+    return;
+  }
+
+  state.activeTransferReturnRow = row;
+  state.isSavingTransferReturn = false;
+  const companies = [...new Set(transferBoxes
+    .map((box) => box.transferCompany || String(box.shippingType || "").match(/^이관\s*\(([^)]+)\)/)?.[1] || "")
+    .filter(Boolean))];
+
+  if (transferReturnRecordId) {
+    transferReturnRecordId.textContent = row.dataset.managementId || row.children[1]?.textContent.trim() || "-";
+  }
+  if (transferReturnClient) {
+    transferReturnClient.textContent = row.children[2]?.textContent.trim() || "-";
+  }
+  if (transferReturnProduct) {
+    transferReturnProduct.textContent = row.children[3]?.textContent.trim() || "-";
+  }
+  if (transferReturnCompany) {
+    transferReturnCompany.textContent = companies.join(", ") || "-";
+  }
+  if (transferReturnStorage) {
+    const currentStorage = row.children[6]?.textContent.trim() || "";
+    transferReturnStorage.value = Array.from(transferReturnStorage.options).some((option) => option.value === currentStorage)
+      ? currentStorage
+      : "";
+  }
+  transferReturnForm?.querySelector('input[name="transferReturnStatus"][value="보관"]')?.click();
+  if (transferReturnSelectAll) {
+    transferReturnSelectAll.checked = true;
+  }
+  if (transferReturnMessage) {
+    transferReturnMessage.textContent = "";
+  }
+  if (saveTransferReturnButton) {
+    saveTransferReturnButton.disabled = false;
+    saveTransferReturnButton.textContent = "복귀 처리";
+  }
+  if (transferReturnBoxList) {
+    transferReturnBoxList.innerHTML = transferBoxes.map((box) => `
+      <label class="shipping-box-check-card">
+        <input type="checkbox" name="transferReturnBox" value="${box.number}" data-quantity="${box.quantity}" checked />
+        <span>
+          <strong>${box.number}번 박스</strong>
+          <small>${formatNumber(box.quantity)} ea${box.transferCompany ? ` · ${escapeHtml(box.transferCompany)}` : ""}</small>
+        </span>
+      </label>
+    `).join("");
+  }
+
+  syncTransferReturnBoxState();
+  transferReturnModal.hidden = false;
+  resetModalScrollPosition(transferReturnModal);
+  document.body.classList.add("modal-open");
+}
+
+function closeTransferReturnModal() {
+  if (!transferReturnModal) {
+    return;
+  }
+
+  transferReturnModal.hidden = true;
+  state.activeTransferReturnRow = null;
+  state.isSavingTransferReturn = false;
+  if (transferReturnBoxList) {
+    transferReturnBoxList.innerHTML = "";
+  }
+  document.body.classList.remove("modal-open");
+}
+
+function getSelectedTransferReturnBoxes() {
+  return Array.from(transferReturnBoxList?.querySelectorAll('input[name="transferReturnBox"]:checked') || [])
+    .map((input) => ({
+      number: Number(input.value),
+      quantity: parseShippingSettlementNumber(input.dataset.quantity || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+}
+
+function syncTransferReturnBoxState() {
+  const all = Array.from(transferReturnBoxList?.querySelectorAll('input[name="transferReturnBox"]') || []);
+  const selected = getSelectedTransferReturnBoxes();
+  const quantity = selected.reduce((sum, box) => sum + box.quantity, 0);
+
+  if (transferReturnSelectAll) {
+    transferReturnSelectAll.checked = all.length > 0 && selected.length === all.length;
+    transferReturnSelectAll.indeterminate = selected.length > 0 && selected.length < all.length;
+  }
+  if (transferReturnBoxSummary) {
+    transferReturnBoxSummary.textContent = selected.length
+      ? `복귀 대상 ${formatNumber(selected.length)}개 박스 · ${formatNumber(quantity)} ea`
+      : "복귀할 박스를 선택해주세요.";
+  }
+}
+
+async function saveTransferReturn() {
+  const row = state.activeTransferReturnRow;
+  if (!row || state.isSavingTransferReturn) {
+    return;
+  }
+
+  const selectedBoxes = getSelectedTransferReturnBoxes();
+  const storage = transferReturnStorage?.value || "";
+  const targetStatus = transferReturnForm?.querySelector('input[name="transferReturnStatus"]:checked')?.value || "보관";
+
+  if (!selectedBoxes.length) {
+    transferReturnMessage.textContent = "복귀할 이관 박스를 선택해주세요.";
+    return;
+  }
+  if (!storage) {
+    transferReturnMessage.textContent = "복귀할 보관 위치를 선택해주세요.";
+    transferReturnStorage?.focus();
+    return;
+  }
+
+  state.isSavingTransferReturn = true;
+  if (saveTransferReturnButton) {
+    saveTransferReturnButton.disabled = true;
+    saveTransferReturnButton.textContent = "처리 중";
+  }
+
+  try {
+    await requestApi("returnTransferredInventory", {
+      managementId: row.dataset.managementId || row.children[1]?.textContent.trim() || "",
+      productId: row.dataset.productId || "",
+      clientName: row.children[2]?.textContent.trim() || "",
+      productName: row.children[3]?.textContent.trim() || "",
+      batch: row.children[4]?.textContent.trim() || "",
+      finalProcess: row.children[5]?.textContent.trim() || "",
+      selectedBoxes: selectedBoxes.map((box) => box.number),
+      storage,
+      targetStatus,
+      returner: session?.name || "Admin"
+    });
+    closeTransferReturnModal();
+    await loadInventoryDashboard(false);
+    showToast(targetStatus === "출고대기"
+      ? "이관 박스를 복귀하고 바로 출고대기로 등록했습니다."
+      : "이관 박스를 보관 재고로 복귀했습니다.");
+  } catch (error) {
+    state.isSavingTransferReturn = false;
+    if (saveTransferReturnButton) {
+      saveTransferReturnButton.disabled = false;
+      saveTransferReturnButton.textContent = "복귀 처리";
+    }
+    if (transferReturnMessage) {
+      transferReturnMessage.textContent = error.message || "이관 복귀 처리 중 문제가 발생했습니다.";
+    }
+  }
 }
 
 function syncShippingTransferCompanyField() {
@@ -3110,10 +3321,15 @@ function renderShippingRowAction(item) {
   const counts = getShippingBoxStatusCounts(item);
   const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
   const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
+  const transferredBoxes = shippedBoxes.filter(isTransferredShippingBox);
+  const normallyShippedBoxes = shippedBoxes.filter((box) => !isTransferredShippingBox(box));
   const hasRemainingBoxes = activeBoxes.some((box) => normalizeInventoryStockStatus(box.status) === "보관");
   const isPartialShipping = status === "일부 출고" || (activeBoxes.length > 0 && shippedBoxes.length > 0);
   const registerActionLabel = isPartialShipping && hasRemainingBoxes ? "추가 출고" : "출고 건 수정";
-  const cancelShippingAction = shippedBoxes.length
+  const transferReturnAction = transferredBoxes.length
+    ? [{ action: "returnTransfer", label: "이관 복귀", icon: "ti-arrow-back-up" }]
+    : [];
+  const cancelShippingAction = normallyShippedBoxes.length
     ? [{ action: "cancelShip", label: "출고 취소", icon: "ti-arrow-back-up" }]
     : [];
 
@@ -3123,6 +3339,7 @@ function renderShippingRowAction(item) {
       [
         { action: "inspect", label: "출고 건 수정", icon: "ti-edit" },
         { action: "detail", label: "상세보기", icon: "ti-eye" },
+        ...transferReturnAction,
         ...cancelShippingAction
       ]
     );
@@ -3133,12 +3350,22 @@ function renderShippingRowAction(item) {
       { action: "inspect", label: "추가 출고" },
       [
         { action: "detail", label: "상세보기", icon: "ti-eye" },
+        ...transferReturnAction,
         ...cancelShippingAction
       ]
     );
   }
 
   if (status === "출고완료") {
+    if (transferredBoxes.length) {
+      return renderShippingActionSet(
+        { action: "returnTransfer", label: "이관 복귀" },
+        [
+          { action: "detail", label: "상세보기", icon: "ti-eye" },
+          ...cancelShippingAction
+        ]
+      );
+    }
     return renderShippingActionSet(
       { action: "detail", label: "상세" },
       cancelShippingAction
@@ -3155,6 +3382,7 @@ function renderShippingRowAction(item) {
       [
         { action: "inspect", label: registerActionLabel, icon: "ti-edit" },
         { action: "detail", label: "상세보기", icon: "ti-eye" },
+        ...transferReturnAction,
         ...cancelShippingAction
       ]
     );

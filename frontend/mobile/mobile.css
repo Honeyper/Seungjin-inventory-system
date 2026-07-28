@@ -7671,6 +7671,194 @@ body {
   font-size: 15px;
 }
 
+.mobile-dialog:has(.mobile-transfer-return-controls:not([hidden])) {
+  width: min(100%, 420px);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  text-align: left;
+}
+
+.mobile-dialog:has(.mobile-transfer-return-controls:not([hidden])) > h2,
+.mobile-dialog:has(.mobile-transfer-return-controls:not([hidden])) > p,
+.mobile-dialog:has(.mobile-transfer-return-controls:not([hidden])) > strong {
+  text-align: center;
+}
+
+.mobile-transfer-return-controls {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--mobile-border);
+  border-radius: 12px;
+  background: var(--mobile-panel-subtle);
+}
+
+.mobile-transfer-return-controls[hidden] {
+  display: none;
+}
+
+.mobile-transfer-return-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mobile-transfer-return-heading strong {
+  color: var(--mobile-text);
+  font-size: 13px;
+}
+
+.mobile-transfer-return-heading span {
+  color: #9b6811;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.mobile-transfer-return-box-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobile-transfer-return-box-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--mobile-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.mobile-transfer-return-box-list label:has(input:checked) {
+  border-color: rgba(213, 163, 65, 0.72);
+  background: #fff9ed;
+}
+
+.mobile-transfer-return-box-list input,
+.mobile-transfer-return-status input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  accent-color: var(--gold);
+}
+
+.mobile-transfer-return-box-list span,
+.mobile-transfer-return-box-list strong,
+.mobile-transfer-return-box-list small {
+  display: block;
+  min-width: 0;
+}
+
+.mobile-transfer-return-box-list strong {
+  color: var(--mobile-text);
+  font-size: 12px;
+}
+
+.mobile-transfer-return-box-list small {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--mobile-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-transfer-return-field {
+  display: grid;
+  gap: 6px;
+}
+
+.mobile-transfer-return-field > span,
+.mobile-transfer-return-status legend {
+  color: #526077;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.mobile-transfer-return-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--mobile-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  border: 1px solid var(--mobile-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.mobile-transfer-return-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mobile-transfer-return-status legend {
+  grid-column: 1 / -1;
+  margin-bottom: 6px;
+}
+
+.mobile-transfer-return-status label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--mobile-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.mobile-transfer-return-status label:has(input:checked) {
+  border-color: rgba(213, 163, 65, 0.72);
+  background: #fff9ed;
+}
+
+.mobile-transfer-return-status span,
+.mobile-transfer-return-status strong,
+.mobile-transfer-return-status small {
+  display: block;
+  min-width: 0;
+}
+
+.mobile-transfer-return-status strong {
+  color: var(--mobile-text);
+  font-size: 12px;
+}
+
+.mobile-transfer-return-status small {
+  margin-top: 3px;
+  color: var(--mobile-muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.mobile-transfer-return-message {
+  min-height: 1em;
+  margin: 0 !important;
+  color: #b42318 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  text-align: left !important;
+}
+
+@media (max-width: 360px) {
+  .mobile-transfer-return-box-list,
+  .mobile-transfer-return-status {
+    grid-template-columns: 1fr;
+  }
+}
+
 .box-picker-backdrop {
   background: rgba(4, 17, 39, 0.58);
 }

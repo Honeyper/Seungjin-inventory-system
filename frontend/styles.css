@@ -3762,6 +3762,145 @@ input {
   overflow: hidden;
 }
 
+.product-modal.transfer-return-modal {
+  width: min(46rem, calc(100vw - 2.5rem));
+  max-height: calc(100vh - 2.5rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.transfer-return-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1.05rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 1rem;
+}
+
+.transfer-return-modal .modal-header {
+  flex: 0 0 auto;
+}
+
+.transfer-return-modal .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0.95rem 0 0.75rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), #fff 28%);
+}
+
+.transfer-return-options {
+  margin: 0 1.45rem;
+  padding: 1.05rem;
+  border: 1px solid #dfe7f0;
+  border-radius: 0.6rem;
+  background: #fbfdff;
+}
+
+.transfer-return-grid {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(18rem, 1.2fr);
+  gap: 0.8rem;
+  align-items: stretch;
+}
+
+.transfer-return-grid .form-field {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.transfer-return-grid .form-field > span,
+.transfer-return-status-field legend {
+  margin: 0 0 0.4rem;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.transfer-return-grid .form-field select {
+  min-height: 2.75rem;
+  padding: 0 2rem 0 0.82rem;
+  color: var(--navy-dark);
+  font: inherit;
+  font-weight: 900;
+  border: 1px solid #dce5f0;
+  border-radius: 0.48rem;
+  background-color: #fff;
+}
+
+.transfer-return-status-field {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.transfer-return-status-field legend {
+  grid-column: 1 / -1;
+}
+
+.transfer-return-status-field label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.78rem;
+  border: 1px solid #dce5f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.transfer-return-status-field label:has(input:checked) {
+  border-color: rgba(213, 163, 65, 0.68);
+  background: #fff9ed;
+  box-shadow: inset 0 0 0 1px rgba(213, 163, 65, 0.12);
+}
+
+.transfer-return-status-field input {
+  margin-top: 0.13rem;
+  accent-color: var(--gold);
+}
+
+.transfer-return-status-field span,
+.transfer-return-status-field strong,
+.transfer-return-status-field small {
+  display: block;
+  min-width: 0;
+}
+
+.transfer-return-status-field strong {
+  color: var(--navy-dark);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.transfer-return-status-field small {
+  margin-top: 0.22rem;
+  color: #718096;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .transfer-return-grid,
+  .transfer-return-status-field {
+    grid-template-columns: 1fr;
+  }
+}
+
 .shipping-hold-guide-modal {
   width: min(42rem, calc(100vw - 2.5rem));
   overflow: hidden;
