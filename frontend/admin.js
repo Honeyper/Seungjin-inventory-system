@@ -4668,24 +4668,35 @@ function renderInboundProductPicker() {
   inboundProductPickerCount.textContent = products.length.toLocaleString("ko-KR");
 
   inboundProductPickerList.innerHTML = products.map((product) => `
-    <button class="picker-product" type="button" data-product="${escapeHtml(product.productCode)}">
-      <span class="picker-product-icon" aria-hidden="true">
-        <i class="ti ti-package"></i>
-      </span>
-      <span class="picker-product-main">
-        <strong>${escapeHtml(product.productName)}</strong>
-        <span class="picker-product-meta">
-          <span>${escapeHtml(product.clientName)}</span>
-          <span>${renderColor(product.color)}</span>
+    <div class="picker-product-row">
+      <button class="picker-product" type="button" data-product="${escapeHtml(product.productCode)}">
+        <span class="picker-product-icon" aria-hidden="true">
+          <i class="ti ti-package"></i>
         </span>
-      </span>
-      <span class="picker-product-spec">
-        <span><small>박스당</small><b>${escapeHtml(product.boxQuantity || "-")} <i>EA</i></b></span>
-        <span><small>트레이</small><b>${escapeHtml(product.trayQuantity || "-")} <i>EA</i></b></span>
-      </span>
-      <em class="picker-product-code">${escapeHtml(product.productCode)}</em>
-      <i class="ti ti-chevron-right picker-product-chevron" aria-hidden="true"></i>
-    </button>
+        <span class="picker-product-main">
+          <strong>${escapeHtml(product.productName)}</strong>
+          <span class="picker-product-meta">
+            <span>${escapeHtml(product.clientName)}</span>
+            <span>${renderColor(product.color)}</span>
+          </span>
+        </span>
+        <span class="picker-product-spec">
+          <span><small>박스당</small><b>${escapeHtml(product.boxQuantity || "-")} <i>EA</i></b></span>
+          <span><small>트레이</small><b>${escapeHtml(product.trayQuantity || "-")} <i>EA</i></b></span>
+        </span>
+        <em class="picker-product-code">${escapeHtml(product.productCode)}</em>
+        <i class="ti ti-chevron-right picker-product-chevron" aria-hidden="true"></i>
+      </button>
+      <button
+        class="picker-product-edit"
+        type="button"
+        data-edit-picker-product="${escapeHtml(product.productCode)}"
+        aria-label="${escapeHtml(product.productName)} 수정"
+      >
+        <i class="ti ti-pencil" aria-hidden="true"></i>
+        <span>수정</span>
+      </button>
+    </div>
   `).join("");
 
   inboundProductPickerEmpty.hidden = products.length > 0;
@@ -4700,6 +4711,20 @@ function renderInboundProductPicker() {
           selectInboundProduct(product);
         }
       }
+    });
+  });
+
+  inboundProductPickerList.querySelectorAll("[data-edit-picker-product]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const product = getProductByCode(button.dataset.editPickerProduct);
+      if (!product) {
+        showToast("수정할 제품 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      state.productFormReturnTarget = state.inboundProductPickerTarget;
+      inboundProductPickerModal.hidden = true;
+      openProductModal("edit", product);
     });
   });
 }
@@ -8331,7 +8356,7 @@ async function saveProduct() {
       } else {
         selectInboundProduct(createdProduct);
       }
-    } else if (!isEdit && returnTarget) {
+    } else if (returnTarget) {
       openInboundProductPicker(returnTarget);
     }
     showToast(isEdit ? `제품 정보가 수정되었습니다.${productId}` : `신규 제품이 등록되었습니다.${productId}`);

@@ -5937,6 +5937,13 @@ input {
   scrollbar-gutter: stable;
 }
 
+.picker-product-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.48rem;
+}
+
 .picker-product {
   display: grid;
   gap: 0.55rem;
@@ -5978,6 +5985,40 @@ input {
   background: #fffdf8;
   box-shadow: 0 0 0 0.16rem rgba(213, 163, 63, 0.1);
   transform: none;
+}
+
+.picker-product-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  min-width: 4.3rem;
+  padding: 0.7rem 0.78rem;
+  color: #315071;
+  font-size: 0.76rem;
+  font-weight: 900;
+  border: 1px solid #d8e1ec;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.picker-product-edit:hover,
+.picker-product-edit:focus-visible {
+  color: #0a2858;
+  border-color: #c79638;
+  background: #fffaf0;
+  box-shadow: 0 0 0 0.16rem rgba(213, 163, 63, 0.1);
+  outline: none;
+}
+
+.picker-product-edit .ti {
+  font-size: 1rem;
 }
 
 .picker-product-icon {
@@ -10323,6 +10364,10 @@ input {
     display: none;
   }
 
+  .picker-product-row {
+    gap: 0.35rem;
+  }
+
   .product-picker-modal .picker-product {
     grid-template-columns: 2.25rem minmax(0, 1fr) 1.25rem;
     gap: 0.65rem;
@@ -10342,6 +10387,16 @@ input {
   .picker-product-chevron {
     grid-column: 3;
     grid-row: 1;
+  }
+
+  .picker-product-edit {
+    min-width: 2.75rem;
+    padding-right: 0.6rem;
+    padding-left: 0.6rem;
+  }
+
+  .picker-product-edit span {
+    display: none;
   }
 
   .existing-stock-create-form .existing-stock-grid {
