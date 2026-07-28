@@ -126,6 +126,7 @@ function doPost(e) {
       cancelDiscardedBoxes,
       updateShippingStatus,
       returnTransferredInventory,
+      returnTakenOutInventory,
       updateInventoryBoxMove,
       createProduct,
       updateProduct,
@@ -284,6 +285,7 @@ function isApiMutationAction_(action) {
     'cancelDiscardedBoxes',
     'updateShippingStatus',
     'returnTransferredInventory',
+    'returnTakenOutInventory',
     'updateInventoryBoxMove',
     'formatProductRows'
   ].includes(action);
@@ -3758,6 +3760,17 @@ function updateInventoryMoveStockRows_(sheet, managementId, data = {}) {
 }
 
 function returnTransferredInventory(payload) {
+  return returnCompletedOutboundInventory_(payload, 'transfer');
+}
+
+function returnTakenOutInventory(payload) {
+  return returnCompletedOutboundInventory_(payload, 'takeout');
+}
+
+function returnCompletedOutboundInventory_(payload, returnMode) {
+  const isTakeoutReturn = returnMode === 'takeout';
+  const sourceLabel = isTakeoutReturn ? '반출' : '이관';
+  const actionLabel = isTakeoutReturn ? '반출 후 재입고' : '이관 복귀';
   const managementId = String(payload.managementId || '').trim();
   const targetStatus = String(payload.targetStatus || payload.status || '').trim();
   const storage = String(payload.storage || payload.storageLocation || '').trim();
@@ -3774,15 +3787,15 @@ function returnTransferredInventory(payload) {
   }
 
   if (!['보관', '출고대기'].includes(targetStatus)) {
-    throw new Error('이관 복귀 상태는 보관 또는 출고대기만 선택할 수 있습니다.');
+    throw new Error(`${actionLabel} 상태는 보관 또는 출고대기만 선택할 수 있습니다.`);
   }
 
   if (!storage) {
-    throw new Error('복귀할 보관 위치를 선택해주세요.');
+    throw new Error(`${isTakeoutReturn ? '재입고할' : '복귀할'} 보관 위치를 선택해주세요.`);
   }
 
   if (!selectedBoxNumbers.size) {
-    throw new Error('복귀할 이관 박스를 선택해주세요.');
+    throw new Error(`${isTakeoutReturn ? '재입고할 반출' : '복귀할 이관'} 박스를 선택해주세요.`);
   }
 
   const timezone = Session.getScriptTimeZone() || 'Asia/Seoul';
@@ -3801,7 +3814,10 @@ function returnTransferredInventory(payload) {
     storage,
     returner,
     returnedAt,
-    selectedBoxNumbers
+    selectedBoxNumbers,
+    returnMode,
+    sourceLabel,
+    actionLabel
   });
   const updatedStockRows = updateReturnedTransferStockRows_(stockSheet, managementId, result.finalStatus, storage, {
     productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
@@ -3817,6 +3833,7 @@ function returnTransferredInventory(payload) {
     managementId,
     status: result.finalStatus,
     returnStatus: targetStatus,
+    returnMode,
     storage,
     returnedAt,
     returnedBoxes: result.returnedBoxes,
@@ -3881,7 +3898,7 @@ function returnTransferredInventoryBoxRows_(sheet, managementId, data) {
   const shipperIndex = findHeaderIndex_(indexes, ['출고자']);
 
   if (statusIndex < 0 || currentQuantityIndex < 0 || sequenceIndex < 0 || shippingTypeIndex < 0) {
-    throw new Error(`${sheet.getName()} 시트에서 이관 복귀에 필요한 컬럼을 찾을 수 없습니다.`);
+    throw new Error(`${sheet.getName()} 시트에서 ${data.actionLabel || '이관 복귀'}에 필요한 컬럼을 찾을 수 없습니다.`);
   }
 
   let updatedRows = 0;
@@ -3902,12 +3919,15 @@ function returnTransferredInventoryBoxRows_(sheet, managementId, data) {
     const shippingType = String(values[rowIndex][shippingTypeIndex] || '').trim();
     const currentQuantity = displayQuantityToNumber_(values[rowIndex][currentQuantityIndex]);
 
-    if (rowStatus !== '출고완료' || !/^이관(?:\s*\(|$)/.test(shippingType)) {
+    const isMatchingShippingType = data.returnMode === 'takeout'
+      ? /^반출(?:\s*\(|$)/.test(shippingType)
+      : /^이관(?:\s*\(|$)/.test(shippingType);
+    if (rowStatus !== '출고완료' || !isMatchingShippingType) {
       continue;
     }
 
     if (currentQuantity <= 0) {
-      throw new Error(`${sequence}번 박스의 현재 수량이 0이라 복귀할 수 없습니다.`);
+      throw new Error(`${sequence}번 박스의 현재 수량이 0이라 ${data.returnMode === 'takeout' ? '재입고' : '복귀'}할 수 없습니다.`);
     }
 
     const transferCompany = extractTransferCompanyFromShippingType_(shippingType)
@@ -3926,7 +3946,8 @@ function returnTransferredInventoryBoxRows_(sheet, managementId, data) {
       returner: data.returner,
       targetStatus: data.targetStatus,
       storage: data.storage,
-      sequence
+      sequence,
+      returnMode: data.returnMode
     });
 
     setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태', '재고 상태'], data.targetStatus);
@@ -3964,7 +3985,7 @@ function returnTransferredInventoryBoxRows_(sheet, managementId, data) {
 
   const missingBoxes = Array.from(data.selectedBoxNumbers).filter((number) => !selectedMatches.has(number));
   if (missingBoxes.length) {
-    throw new Error(`이관 완료 상태가 아닌 박스가 포함되어 있습니다: ${missingBoxes.join(', ')}번`);
+    throw new Error(`${data.sourceLabel || '이관'} 완료 상태가 아닌 박스가 포함되어 있습니다: ${missingBoxes.join(', ')}번`);
   }
 
   const statusSummary = summarizeInventoryRowStatuses_(values, headerInfo, indexes, managementId, data);
@@ -4045,8 +4066,11 @@ function buildTransferReturnAuditNote_(data) {
   const previousNote = String(data.previousNote || '').trim();
   const previous = previousNote && previousNote !== '-' ? `${previousNote}\n` : '';
   const outboundAt = [data.shippingDate, data.shippingTime].filter(Boolean).join(' ') || '-';
-  const transferCompany = data.transferCompany || '-';
   const previousShipper = data.previousShipper || '-';
+  if (data.returnMode === 'takeout') {
+    return `${previous}[반출 후 재입고 ${data.returnedAt}] ${data.sequence}번 박스 · 반출 ${outboundAt} · 반출자 ${previousShipper} · 재입고자 ${data.returner} · ${data.targetStatus} · 보관위치 ${data.storage}`;
+  }
+  const transferCompany = data.transferCompany || '-';
   return `${previous}[이관 복귀 ${data.returnedAt}] ${data.sequence}번 박스 · 이관처 ${transferCompany} · 이관 ${outboundAt} · 이관자 ${previousShipper} · 복귀자 ${data.returner} · ${data.targetStatus} · 보관위치 ${data.storage}`;
 }
 

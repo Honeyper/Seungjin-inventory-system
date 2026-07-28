@@ -138,6 +138,7 @@ const state = {
   activeShippingInspectionRow: null,
   activeShippingCompletionRow: null,
   activeTransferReturnRow: null,
+  activeTransferReturnMode: "transfer",
   activeShippingWaitingRow: null,
   isSavingShippingWaiting: false,
   isSavingShippingInspection: false,
@@ -363,14 +364,25 @@ const shippingCompletionDefectPhotos = document.querySelector("#shippingCompleti
 const shippingCompletionShippedBoxes = document.querySelector("#shippingCompletionShippedBoxes");
 const transferReturnModal = document.querySelector("#transferReturnModal");
 const transferReturnForm = document.querySelector("#transferReturnForm");
+const transferReturnKicker = document.querySelector("#transferReturnKicker");
+const transferReturnTitle = document.querySelector("#transferReturnTitle");
+const transferReturnDescription = document.querySelector("#transferReturnDescription");
 const transferReturnRecordId = document.querySelector("#transferReturnRecordId");
 const transferReturnProduct = document.querySelector("#transferReturnProduct");
 const transferReturnClient = document.querySelector("#transferReturnClient");
+const transferReturnCompanyField = document.querySelector("#transferReturnCompanyField");
+const transferReturnCompanyLabel = document.querySelector("#transferReturnCompanyLabel");
 const transferReturnCompany = document.querySelector("#transferReturnCompany");
+const transferReturnBoxHeading = document.querySelector("#transferReturnBoxHeading");
+const transferReturnBoxHelp = document.querySelector("#transferReturnBoxHelp");
 const transferReturnBoxList = document.querySelector("#transferReturnBoxList");
 const transferReturnBoxSummary = document.querySelector("#transferReturnBoxSummary");
 const transferReturnSelectAll = document.querySelector("#transferReturnSelectAll");
 const transferReturnStorage = document.querySelector("#transferReturnStorage");
+const transferReturnStatusLegend = document.querySelector("#transferReturnStatusLegend");
+const transferReturnStoredLabel = document.querySelector("#transferReturnStoredLabel");
+const transferReturnPendingLabel = document.querySelector("#transferReturnPendingLabel");
+const transferReturnPendingHelp = document.querySelector("#transferReturnPendingHelp");
 const transferReturnMessage = document.querySelector("#transferReturnMessage");
 const saveTransferReturnButton = document.querySelector("#saveTransferReturnButton");
 const shippingWaitingConfirmModal = document.querySelector("#shippingWaitingConfirmModal");
@@ -747,7 +759,12 @@ function handleShippingAction(row, action, button) {
   }
 
   if (action === "returnTransfer") {
-    openTransferReturnModal(row);
+    openTransferReturnModal(row, "transfer");
+    return;
+  }
+
+  if (action === "returnTakeout") {
+    openTransferReturnModal(row, "takeout");
     return;
   }
 
@@ -2317,7 +2334,9 @@ async function cancelCompletedShipping(row, button) {
   }
 
   const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes")
-    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료" && !isTransferredShippingBox(box))
+    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료"
+      && !isTransferredShippingBox(box)
+      && !isTakenOutShippingBox(box))
     .map((box) => ({
       number: Number(box.number),
       quantity: parseShippingSettlementNumber(box.quantity || "")
@@ -2362,9 +2381,24 @@ function isTransferredShippingBox(box) {
   return String(box?.shippingType || "").replace(/\s+/g, "").startsWith("이관");
 }
 
+function isTakenOutShippingBox(box) {
+  return String(box?.shippingType || "").replace(/\s+/g, "").startsWith("반출");
+}
+
 function getTransferredShippingBoxes(row) {
   return getShippingRowBoxes(row, "shippedShippingBoxes")
     .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료" && isTransferredShippingBox(box))
+    .map((box) => ({
+      ...box,
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity || "")
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+}
+
+function getTakenOutShippingBoxes(row) {
+  return getShippingRowBoxes(row, "shippedShippingBoxes")
+    .filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료" && isTakenOutShippingBox(box))
     .map((box) => ({
       ...box,
       number: Number(box.number),
@@ -2478,23 +2512,64 @@ function closeShippingCompletionModal() {
   document.body.classList.remove("modal-open");
 }
 
-function openTransferReturnModal(row) {
+function openTransferReturnModal(row, returnMode = "transfer") {
   if (!row || !transferReturnModal) {
     return;
   }
 
-  const transferBoxes = getTransferredShippingBoxes(row);
+  const isTakeoutReturn = returnMode === "takeout";
+  const transferBoxes = isTakeoutReturn ? getTakenOutShippingBoxes(row) : getTransferredShippingBoxes(row);
   if (!transferBoxes.length) {
-    showToast("복귀할 이관 완료 박스를 찾을 수 없습니다.");
+    showToast(isTakeoutReturn ? "재입고할 반출 완료 박스를 찾을 수 없습니다." : "복귀할 이관 완료 박스를 찾을 수 없습니다.");
     return;
   }
 
   state.activeTransferReturnRow = row;
+  state.activeTransferReturnMode = returnMode;
   state.isSavingTransferReturn = false;
   const companies = [...new Set(transferBoxes
     .map((box) => box.transferCompany || String(box.shippingType || "").match(/^이관\s*\(([^)]+)\)/)?.[1] || "")
     .filter(Boolean))];
 
+  if (transferReturnKicker) {
+    transferReturnKicker.textContent = isTakeoutReturn ? "반출 재고" : "이관 재고";
+  }
+  if (transferReturnTitle) {
+    transferReturnTitle.textContent = isTakeoutReturn ? "반출 후 재입고" : "이관 복귀";
+  }
+  if (transferReturnDescription) {
+    transferReturnDescription.textContent = isTakeoutReturn
+      ? "다시 들어온 반출 박스와 보관 위치를 확인하고 재고로 편입합니다."
+      : "복귀한 박스와 보관 위치를 확인하고, 다음 출고 상태를 선택합니다.";
+  }
+  if (transferReturnCompanyField) {
+    transferReturnCompanyField.hidden = isTakeoutReturn;
+  }
+  if (transferReturnCompanyLabel) {
+    transferReturnCompanyLabel.textContent = "이관 업체";
+  }
+  if (transferReturnBoxHeading) {
+    transferReturnBoxHeading.textContent = isTakeoutReturn ? "재입고할 반출 박스" : "복귀할 이관 박스";
+  }
+  if (transferReturnBoxHelp) {
+    transferReturnBoxHelp.textContent = isTakeoutReturn
+      ? "실제로 다시 들어온 박스만 선택해주세요. 기존 반출 내역은 비고에 보존됩니다."
+      : "실제로 돌아온 박스만 선택해주세요. 기존 이관 내역은 비고에 보존됩니다.";
+  }
+  if (transferReturnStatusLegend) {
+    transferReturnStatusLegend.childNodes[0].nodeValue = isTakeoutReturn ? "재입고 후 상태 " : "복귀 후 상태 ";
+  }
+  if (transferReturnStoredLabel) {
+    transferReturnStoredLabel.textContent = isTakeoutReturn ? "보관으로 재입고" : "보관으로 복귀";
+  }
+  if (transferReturnPendingLabel) {
+    transferReturnPendingLabel.textContent = "바로 출고대기";
+  }
+  if (transferReturnPendingHelp) {
+    transferReturnPendingHelp.textContent = isTakeoutReturn
+      ? "재입고 후 곧바로 출고대기로 등록합니다."
+      : "복귀와 동시에 출고대기로 등록합니다.";
+  }
   if (transferReturnRecordId) {
     transferReturnRecordId.textContent = row.dataset.managementId || row.children[1]?.textContent.trim() || "-";
   }
@@ -2522,7 +2597,7 @@ function openTransferReturnModal(row) {
   }
   if (saveTransferReturnButton) {
     saveTransferReturnButton.disabled = false;
-    saveTransferReturnButton.textContent = "복귀 처리";
+    saveTransferReturnButton.textContent = isTakeoutReturn ? "재입고 처리" : "복귀 처리";
   }
   if (transferReturnBoxList) {
     transferReturnBoxList.innerHTML = transferBoxes.map((box) => `
@@ -2549,6 +2624,7 @@ function closeTransferReturnModal() {
 
   transferReturnModal.hidden = true;
   state.activeTransferReturnRow = null;
+  state.activeTransferReturnMode = "transfer";
   state.isSavingTransferReturn = false;
   if (transferReturnBoxList) {
     transferReturnBoxList.innerHTML = "";
@@ -2575,9 +2651,10 @@ function syncTransferReturnBoxState() {
     transferReturnSelectAll.indeterminate = selected.length > 0 && selected.length < all.length;
   }
   if (transferReturnBoxSummary) {
+    const isTakeoutReturn = state.activeTransferReturnMode === "takeout";
     transferReturnBoxSummary.textContent = selected.length
-      ? `복귀 대상 ${formatNumber(selected.length)}개 박스 · ${formatNumber(quantity)} ea`
-      : "복귀할 박스를 선택해주세요.";
+      ? `${isTakeoutReturn ? "재입고" : "복귀"} 대상 ${formatNumber(selected.length)}개 박스 · ${formatNumber(quantity)} ea`
+      : `${isTakeoutReturn ? "재입고할" : "복귀할"} 박스를 선택해주세요.`;
   }
 }
 
@@ -2588,15 +2665,16 @@ async function saveTransferReturn() {
   }
 
   const selectedBoxes = getSelectedTransferReturnBoxes();
+  const isTakeoutReturn = state.activeTransferReturnMode === "takeout";
   const storage = transferReturnStorage?.value || "";
   const targetStatus = transferReturnForm?.querySelector('input[name="transferReturnStatus"]:checked')?.value || "보관";
 
   if (!selectedBoxes.length) {
-    transferReturnMessage.textContent = "복귀할 이관 박스를 선택해주세요.";
+    transferReturnMessage.textContent = isTakeoutReturn ? "재입고할 반출 박스를 선택해주세요." : "복귀할 이관 박스를 선택해주세요.";
     return;
   }
   if (!storage) {
-    transferReturnMessage.textContent = "복귀할 보관 위치를 선택해주세요.";
+    transferReturnMessage.textContent = `${isTakeoutReturn ? "재입고할" : "복귀할"} 보관 위치를 선택해주세요.`;
     transferReturnStorage?.focus();
     return;
   }
@@ -2608,7 +2686,7 @@ async function saveTransferReturn() {
   }
 
   try {
-    await requestApi("returnTransferredInventory", {
+    await requestApi(isTakeoutReturn ? "returnTakenOutInventory" : "returnTransferredInventory", {
       managementId: row.dataset.managementId || row.children[1]?.textContent.trim() || "",
       productId: row.dataset.productId || "",
       clientName: row.children[2]?.textContent.trim() || "",
@@ -2623,16 +2701,22 @@ async function saveTransferReturn() {
     closeTransferReturnModal();
     await loadInventoryDashboard(false);
     showToast(targetStatus === "출고대기"
-      ? "이관 박스를 복귀하고 바로 출고대기로 등록했습니다."
-      : "이관 박스를 보관 재고로 복귀했습니다.");
+      ? isTakeoutReturn
+        ? "반출 박스를 재입고하고 바로 출고대기로 등록했습니다."
+        : "이관 박스를 복귀하고 바로 출고대기로 등록했습니다."
+      : isTakeoutReturn
+        ? "반출 박스를 보관 재고로 재입고했습니다."
+        : "이관 박스를 보관 재고로 복귀했습니다.");
   } catch (error) {
     state.isSavingTransferReturn = false;
     if (saveTransferReturnButton) {
       saveTransferReturnButton.disabled = false;
-      saveTransferReturnButton.textContent = "복귀 처리";
+      saveTransferReturnButton.textContent = isTakeoutReturn ? "재입고 처리" : "복귀 처리";
     }
     if (transferReturnMessage) {
-      transferReturnMessage.textContent = error.message || "이관 복귀 처리 중 문제가 발생했습니다.";
+      transferReturnMessage.textContent = error.message || (isTakeoutReturn
+        ? "반출 후 재입고 처리 중 문제가 발생했습니다."
+        : "이관 복귀 처리 중 문제가 발생했습니다.");
     }
   }
 }
@@ -3317,12 +3401,16 @@ function renderShippingRowAction(item) {
   const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
   const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
   const transferredBoxes = shippedBoxes.filter(isTransferredShippingBox);
-  const normallyShippedBoxes = shippedBoxes.filter((box) => !isTransferredShippingBox(box));
+  const takenOutBoxes = shippedBoxes.filter(isTakenOutShippingBox);
+  const normallyShippedBoxes = shippedBoxes.filter((box) => !isTransferredShippingBox(box) && !isTakenOutShippingBox(box));
   const hasRemainingBoxes = activeBoxes.some((box) => normalizeInventoryStockStatus(box.status) === "보관");
   const isPartialShipping = status === "일부 출고" || (activeBoxes.length > 0 && shippedBoxes.length > 0);
   const registerActionLabel = isPartialShipping && hasRemainingBoxes ? "추가 출고" : "출고 건 수정";
   const transferReturnAction = transferredBoxes.length
     ? [{ action: "returnTransfer", label: "이관 복귀", icon: "ti-arrow-back-up" }]
+    : [];
+  const takeoutReturnAction = takenOutBoxes.length
+    ? [{ action: "returnTakeout", label: "반출 후 재입고", icon: "ti-package-import" }]
     : [];
   const cancelShippingAction = normallyShippedBoxes.length
     ? [{ action: "cancelShip", label: "출고 취소", icon: "ti-arrow-back-up" }]
@@ -3335,6 +3423,7 @@ function renderShippingRowAction(item) {
         { action: "inspect", label: "출고 건 수정", icon: "ti-edit" },
         { action: "detail", label: "상세보기", icon: "ti-eye" },
         ...transferReturnAction,
+        ...takeoutReturnAction,
         ...cancelShippingAction
       ]
     );
@@ -3346,6 +3435,7 @@ function renderShippingRowAction(item) {
       [
         { action: "detail", label: "상세보기", icon: "ti-eye" },
         ...transferReturnAction,
+        ...takeoutReturnAction,
         ...cancelShippingAction
       ]
     );
@@ -3355,6 +3445,16 @@ function renderShippingRowAction(item) {
     if (transferredBoxes.length) {
       return renderShippingActionSet(
         { action: "returnTransfer", label: "이관 복귀" },
+        [
+          { action: "detail", label: "상세보기", icon: "ti-eye" },
+          ...takeoutReturnAction,
+          ...cancelShippingAction
+        ]
+      );
+    }
+    if (takenOutBoxes.length) {
+      return renderShippingActionSet(
+        { action: "returnTakeout", label: "반출 후 재입고" },
         [
           { action: "detail", label: "상세보기", icon: "ti-eye" },
           ...cancelShippingAction
@@ -3378,6 +3478,7 @@ function renderShippingRowAction(item) {
         { action: "inspect", label: registerActionLabel, icon: "ti-edit" },
         { action: "detail", label: "상세보기", icon: "ti-eye" },
         ...transferReturnAction,
+        ...takeoutReturnAction,
         ...cancelShippingAction
       ]
     );

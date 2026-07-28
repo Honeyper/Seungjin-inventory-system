@@ -353,7 +353,7 @@
           <div class="confirm-meta-list" id="confirmMetaList" aria-label="출고 상세"></div>
           <section class="mobile-transfer-return-controls" id="mobileTransferReturnControls" hidden>
             <div class="mobile-transfer-return-heading">
-              <strong>복귀할 이관 박스</strong>
+              <strong id="mobileTransferReturnHeading">복귀할 이관 박스</strong>
               <span id="mobileTransferReturnBoxSummary">-</span>
             </div>
             <div class="mobile-transfer-return-box-list" id="mobileTransferReturnBoxList"></div>
@@ -362,14 +362,14 @@
               <select id="mobileTransferReturnStorage" required></select>
             </label>
             <fieldset class="mobile-transfer-return-status">
-              <legend>복귀 후 상태</legend>
+              <legend id="mobileTransferReturnStatusLegend">복귀 후 상태</legend>
               <label>
                 <input type="radio" name="mobileTransferReturnStatus" value="보관" checked />
-                <span><strong>보관으로 복귀</strong><small>일반 재고로 되돌립니다.</small></span>
+                <span><strong id="mobileTransferReturnStoredLabel">보관으로 복귀</strong><small>일반 재고로 되돌립니다.</small></span>
               </label>
               <label>
                 <input type="radio" name="mobileTransferReturnStatus" value="출고대기" />
-                <span><strong>바로 출고대기</strong><small>복귀 후 곧바로 출고대기로 등록합니다.</small></span>
+                <span><strong>바로 출고대기</strong><small id="mobileTransferReturnPendingHelp">복귀 후 곧바로 출고대기로 등록합니다.</small></span>
               </label>
             </fieldset>
             <p class="mobile-transfer-return-message" id="mobileTransferReturnMessage"></p>
