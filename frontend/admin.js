@@ -5200,7 +5200,7 @@ function getInventoryAttentionConfig(type) {
   const configs = {
     print: {
       title: "인쇄 대기 재고",
-      description: "작업이 아직 진행되지 않은 재고 목록입니다.",
+      description: "현재 상태가 보관인 재고 목록입니다.",
       tone: "purple",
       metricLabel: "대기 박스",
       metric: (item) => normalizeDisplayValue(item.currentBoxCount),
@@ -5262,8 +5262,8 @@ function isInventoryPrintWaiting(item) {
     return false;
   }
 
-  const processStatus = normalizeDisplayValue(item.processStatus || item.stockStatus);
-  return !processStatus.includes("작업중");
+  const stockStatus = normalizeInventoryStockStatus(item.stockStatus || item.processStatus || "");
+  return stockStatus === "보관";
 }
 
 function isLongStoredInventory(item) {
