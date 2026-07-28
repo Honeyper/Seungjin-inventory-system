@@ -2837,6 +2837,11 @@ function getShippingInspectionFilterValue(item) {
 
 function getShippingStatusFilterValue(item) {
   const status = getEffectiveShippingStatus(item);
+  const completedShippingType = getCompletedShippingTypeLabel(item);
+
+  if (status === "출고완료" && completedShippingType) {
+    return completedShippingType;
+  }
 
   if (status === "출고대기") {
     return SHIPPING_READY_STATUS_LABEL;
@@ -2928,6 +2933,34 @@ function getShippingBoxStatusCounts(item) {
   return counts;
 }
 
+function getCompletedShippingTypeLabel(item) {
+  const explicitType = String(item?.completedShippingType || "").replace(/\s+/g, "").trim();
+
+  if (explicitType.startsWith("반출")) {
+    return "반출";
+  }
+
+  if (explicitType.startsWith("이관")) {
+    return "이관";
+  }
+
+  const shippedBoxes = Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
+  const latestTypedBox = shippedBoxes
+    .filter((box) => box?.shippingType)
+    .sort((left, right) => String(right.shippingUpdatedAt || "").localeCompare(String(left.shippingUpdatedAt || "")))[0];
+  const shippingType = String(latestTypedBox?.shippingType || "").replace(/\s+/g, "").trim();
+
+  if (shippingType.startsWith("반출")) {
+    return "반출";
+  }
+
+  if (shippingType.startsWith("이관")) {
+    return "이관";
+  }
+
+  return "";
+}
+
 function getShippedShippingBoxes(item) {
   const explicitBoxes = Array.isArray(item?.shippedShippingBoxes)
     ? item.shippedShippingBoxes
@@ -2968,6 +3001,7 @@ function renderShippingAnomalyText(item) {
 
 function renderShippingStatusBadge(item) {
   const status = getEffectiveShippingStatus(item);
+  const completedShippingType = getCompletedShippingTypeLabel(item);
   const counts = getShippingBoxStatusCounts(item);
   const waitingBoxCount = (counts["출고대기"] || 0) + (counts["검수완료"] || 0);
 
@@ -3000,7 +3034,7 @@ function renderShippingStatusBadge(item) {
   }
 
   if (status === "출고완료") {
-    return '<span class="shipping-badge complete">출고 완료</span>';
+    return `<span class="shipping-badge complete">${escapeHtml(completedShippingType || "출고 완료")}</span>`;
   }
 
   if (status === "보류") {
@@ -5350,6 +5384,10 @@ function applyInventoryFilters() {
   const filters = state.inventoryFilters;
 
   state.filteredInventoryRows = state.inventoryRows.filter((item) => {
+    if (item.countsAsInventory === false) {
+      return false;
+    }
+
     if (filters.client && item.clientName !== filters.client) {
       return false;
     }
