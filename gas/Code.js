@@ -968,7 +968,10 @@ function getProductDueDateMap_() {
 
 function getProductInboundQuantityMap_() {
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const values = stockSheet.getDataRange().getDisplayValues();
+  const boxInfo = readDisplayRowsByHeaders_(boxSheet, ['박스ID', '관리ID', '제품명']);
+  const boxSummaryMap = buildInventoryBoxSummaryMap_(boxInfo.rows);
   const headerInfo = findHeaderRow_(values, ['제품ID', '입고 총 수량'])
     || findHeaderRow_(values, ['제품 ID', '입고 총 수량']);
 
@@ -981,7 +984,13 @@ function getProductInboundQuantityMap_() {
     const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
 
     if (productId) {
-      map[productId] = (map[productId] || 0) + displayQuantityToNumber_(pickCell_(row, indexes, ['입고 총 수량', '입고총수량']));
+      const managementId = pickCell_(row, indexes, ['관리 ID', '관리ID']);
+      const productName = pickCell_(row, indexes, ['제품명']);
+      const storage = pickCell_(row, indexes, ['보관위치', '보관 위치']) || '미지정';
+      const summary = boxSummaryMap[getInventoryIdentityKey_(managementId, productId, productName, storage)] || {};
+      const inboundQuantity = displayQuantityToNumber_(pickCell_(row, indexes, ['입고 총 수량', '입고총수량']));
+      const excludedQuantity = getNonInventoryShippingQuantity_(summary);
+      map[productId] = (map[productId] || 0) + Math.max(0, inboundQuantity - excludedQuantity);
     }
 
     return map;
@@ -1206,6 +1215,22 @@ function getCompletedShippingTypeLabel_(boxes) {
   }
 
   return '';
+}
+
+function getNonInventoryShippingQuantity_(summary) {
+  const shippedBoxes = summary && Array.isArray(summary.shippedShippingBoxes)
+    ? summary.shippedShippingBoxes
+    : [];
+
+  return shippedBoxes.reduce((sum, box) => {
+    const shippingType = String(box && box.shippingType || '').replace(/\s+/g, '').trim();
+
+    if (shippingType.indexOf('반출') !== 0 && shippingType.indexOf('이관') !== 0) {
+      return sum;
+    }
+
+    return sum + displayQuantityToNumber_(box.quantity);
+  }, 0);
 }
 
 function syncStockStatusesFromBoxSummary_(sheet, boxSummaryMap) {
