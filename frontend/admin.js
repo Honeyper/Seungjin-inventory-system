@@ -5200,8 +5200,18 @@ function isInventoryPrintWaiting(item) {
 
 function isLongStoredInventory(item) {
   const inboundDate = parseInventoryDateValue(item.inboundDate);
+  const currentQuantity = getQuantityNumberFromText(item.currentTotalQuantity);
 
-  if (!inboundDate) {
+  if (!inboundDate || currentQuantity <= 0) {
+    return false;
+  }
+
+  const stockStatus = normalizeInventoryStockStatus(item.stockStatus || item.processStatus || "");
+  const completedShippingType = normalizeDisplayValue(item.completedShippingType || item.shippingType);
+  const statusText = `${stockStatus} ${completedShippingType}`;
+  const isTransfer = statusText.includes("이관");
+
+  if (/반출|폐기/.test(statusText) || (!isTransfer && stockStatus.includes("출고완료"))) {
     return false;
   }
 
