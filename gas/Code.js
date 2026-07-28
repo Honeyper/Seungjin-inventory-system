@@ -949,11 +949,18 @@ function getProductInboundQuantityMap_() {
   }
 
   const indexes = indexHeaders_(headerInfo.headers);
+  const boxSummaryMap = getInventoryBoxSummaryMap_();
   const result = values.slice(headerInfo.rowIndex + 1).reduce((map, row) => {
     const productId = pickCell_(row, indexes, ['제품ID', '제품 ID']);
 
     if (productId) {
-      map[productId] = (map[productId] || 0) + displayQuantityToNumber_(pickCell_(row, indexes, ['입고 총 수량', '입고총수량']));
+      const managementId = pickCell_(row, indexes, ['관리 ID', '관리ID']);
+      const productName = pickCell_(row, indexes, ['제품명']);
+      const storage = pickCell_(row, indexes, ['보관위치', '보관 위치']) || '미지정';
+      const summary = boxSummaryMap[getInventoryIdentityKey_(managementId, productId, productName, storage)] || {};
+      const inboundQuantity = displayQuantityToNumber_(pickCell_(row, indexes, ['입고 총 수량', '입고총수량']));
+      const excludedQuantity = getNonInventoryShippingQuantity_(summary);
+      map[productId] = (map[productId] || 0) + Math.max(0, inboundQuantity - excludedQuantity);
     }
 
     return map;
@@ -1147,6 +1154,22 @@ function getCompletedShippingTypeLabel_(boxes) {
   }
 
   return '';
+}
+
+function getNonInventoryShippingQuantity_(summary) {
+  const shippedBoxes = summary && Array.isArray(summary.shippedShippingBoxes)
+    ? summary.shippedShippingBoxes
+    : [];
+
+  return shippedBoxes.reduce((sum, box) => {
+    const shippingType = String(box && box.shippingType || '').replace(/\s+/g, '').trim();
+
+    if (shippingType.indexOf('반출') !== 0 && shippingType.indexOf('이관') !== 0) {
+      return sum;
+    }
+
+    return sum + displayQuantityToNumber_(box.quantity);
+  }, 0);
 }
 
 function syncStockStatusesFromBoxSummary_(sheet, boxSummaryMap) {
