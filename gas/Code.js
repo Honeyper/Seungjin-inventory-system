@@ -1472,6 +1472,12 @@ function getInboundBoxQrs(payload) {
     const currentQuantity = pickCell_(row, indexes, ['현재 수량', '현재수량']);
     const storage = pickCell_(row, indexes, ['보관 위치', '보관위치', '보관 장소']);
     const status = pickCell_(row, indexes, ['상태', '재고 상태']);
+    const note = pickCell_(row, indexes, ['비고', '메모', '참고']);
+
+    if (isInventoryEditRetiredBox_(status, note, currentQuantity)) {
+      continue;
+    }
+
     let qrData = pickCell_(row, indexes, ['QR 데이터']);
 
     if (!qrData || qrData === '-') {
@@ -2440,9 +2446,24 @@ function normalizeHeaderValue_(value) {
   return String(value || '').trim();
 }
 
+function isInventoryEditRetiredBox_(status, note, currentQuantity) {
+  const normalizedStatus = normalizeHeaderValue_(status);
+  const normalizedNote = normalizeHeaderValue_(note);
+  const quantity = displayQuantityToNumber_(currentQuantity);
+
+  return quantity <= 0
+    && normalizedStatus === '폐기'
+    && normalizedNote.indexOf('재고 수정으로 제외') >= 0;
+}
+
 function updateInboundBoxRowCells_(sheet, rowNumber, row, indexes, record) {
   const hasQrHistory = hasBoxQrHistory_(row, indexes);
   const hasOperationalHistory = hasBoxOperationalHistory_(row, indexes);
+  const wasRetiredByInventoryEdit = isInventoryEditRetiredBox_(
+    pickCell_(row, indexes, ['상태', '재고 상태']),
+    pickCell_(row, indexes, ['비고', '메모', '참고']),
+    pickCell_(row, indexes, ['현재 수량', '현재수량'])
+  );
   const changes = [
     [['관리ID', '관리 ID'], record.managementId],
     [['박스순번', '박스 순번', '박스 번호'], record.sequence],
@@ -2462,6 +2483,10 @@ function updateInboundBoxRowCells_(sheet, rowNumber, row, indexes, record) {
       [['상태', '재고 상태'], record.status || '보관'],
       [['등록 일시', '등록일시'], record.registeredDate]
     );
+
+    if (wasRetiredByInventoryEdit) {
+      changes.push([['비고', '메모', '참고'], '-']);
+    }
   }
 
   let updated = 0;
@@ -4274,6 +4299,12 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const status = normalizeStockStatusText_(rawStatus);
     const currentQuantity = displayQuantityToNumber_(getObjectCell_(row, ['현재 수량', '현재수량']));
     const originalQuantity = displayQuantityToNumber_(getObjectCell_(row, ['박스당 수량', '박스당수량', '입고 수량', '입고수량']));
+    const boxNote = getObjectCell_(row, ['비고', '메모', '참고']);
+
+    if (isInventoryEditRetiredBox_(rawStatus, boxNote, currentQuantity)) {
+      return;
+    }
+
     const isActiveBox = currentQuantity > 0 && !/출고완료|폐기/.test(status);
     const storage = getObjectCell_(row, ['보관 위치', '보관위치', '보관 장소']) || '미지정';
     const summaryKey = getInventoryIdentityKey_(managementId, productId, productName, storage);
@@ -4319,7 +4350,6 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const shippingDate = normalizeDateKey_(getObjectCell_(row, ['출고일']));
     const shippingUpdatedAt = getObjectCell_(row, ['출고 수정일시', '출고수정일시']);
     const shippingType = getObjectCell_(row, ['출고유형', '출고 유형', '출고타입', '출고 타입', '출고구분', '출고 구분']);
-    const boxNote = getObjectCell_(row, ['비고', '메모', '참고']);
     const transferCompanyCell = getObjectCell_(row, ['이관업체', '이관 업체', '출고 이관 업체', '출고이관업체']);
     const transferCompany = transferCompanyCell || extractTransferCompanyFromShippingType_(shippingType) || extractTransferCompanyFromNote_(boxNote);
     const boxInfo = {
