@@ -2559,7 +2559,7 @@ async function saveRemainingInventory() {
       saveRemainingInventoryButton.textContent = "재고 구분 저장";
     }
     if (remainingInventoryMessage) {
-      remainingInventoryMessage.textContent = error.message || "남은 재고 등록 중 문제가 발생했습니다.";
+      remainingInventoryMessage.textContent = error.message || "보관 재고 등록 중 문제가 발생했습니다.";
     }
   }
 }
@@ -3618,7 +3618,7 @@ function renderShippingStatusBadge(item) {
       : "";
     return `
       <span class="shipping-status-badges">
-        <span class="shipping-badge partial">일부 출고</span>
+        <span class="shipping-badge partial">부분출고</span>
         ${waitingBadge}
       </span>
     `;
@@ -3694,7 +3694,7 @@ function renderShippingRowAction(item) {
       { action: "inspect", label: "추가 출고" },
       [
         { action: "detail", label: "상세보기", icon: "ti-eye" },
-        { action: "classifyRemaining", label: "남은 재고 등록", icon: "ti-box" },
+        { action: "classifyRemaining", label: "보관 재고 등록", icon: "ti-box" },
         ...transferReturnAction,
         ...takeoutReturnAction,
         ...cancelShippingAction
@@ -5644,6 +5644,8 @@ function normalizeInventoryStockStatus(value) {
     "출고대기(검수완료)": "출고대기",
     출고완료: "출고완료",
     일부출고: "일부 출고",
+    부분출고: "일부 출고",
+    "부분 출고": "일부 출고",
     출고보류: "보류"
   };
 
@@ -6329,7 +6331,7 @@ function renderInventoryProcessBadge(itemOrValue) {
   const waitingCount = counts["출고대기"] || counts["검수완료"] || 0;
   const label = (() => {
     if (normalized === "일부 출고" && shippedCount > 0) {
-      return `일부 출고 ${shippedCount}box`;
+      return `부분출고 ${shippedCount}box`;
     }
     if (normalized === "출고대기" && waitingCount > 0) {
       return `출고대기 ${waitingCount}box`;
@@ -7488,7 +7490,7 @@ function renderShippingDetail(item) {
         ${detailItem("남은 수량", `${formatNumber(remainingQuantity)} ea`)}
         ${detailItem("출고된 박스", shippedBoxText, false, "full-span")}
         ${detailItem("남은 박스", remainingBoxText, false, "full-span")}
-        ${remainingInventoryCategoryText ? detailItem("남은 재고 구분", remainingInventoryCategoryText, false, "full-span") : ""}
+        ${remainingInventoryCategoryText ? detailItem("보관 재고 구분", remainingInventoryCategoryText, false, "full-span") : ""}
       </div>
     </section>
   `;
