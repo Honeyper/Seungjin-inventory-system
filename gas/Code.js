@@ -1938,7 +1938,7 @@ function updateInbound(payload) {
   const inboundTime = String(payload.inboundTime || payload['입고 시간'] || payload['입고시간'] || '').trim();
   const inboundType = String(payload.inboundType || payload['입고 유형'] || payload['입고유형'] || '').trim();
   const productProcessInfo = getProductProcessInfo_(payloadProductId, payload.productName || payload['제품명']);
-  const process = formatProductProcess_(
+  let process = formatProductProcess_(
     String(payload.process || payload['최종공정'] || '').trim(),
     productProcessInfo
   );
@@ -1977,11 +1977,11 @@ function updateInbound(payload) {
     throw new Error('불량 사유 값이 필요합니다.');
   }
 
-  const boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
+  let boxQuantity = toPositiveNumber_(payload.boxQuantity, '박스당 수량');
   const inboundBoxCount = toNonNegativeNumber_(payload.inboundBoxCount, '완박스 수');
   const remainderQuantities = normalizeRemainderQuantities_(payload);
   const remainQuantity = remainderQuantities.reduce((sum, value) => sum + value, 0);
-  const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
+  let inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
   const defectQuantity = toNumber_(payload.defectQuantity);
 
   if (remainQuantity < 0 || defectQuantity < 0) {
@@ -2011,6 +2011,21 @@ function updateInbound(payload) {
     }
 
     const row = rowInfo.rowValues.slice();
+    const storedDueDate = pickCell_(row, rowInfo.indexes, ['납기일']);
+    process = String(pickCell_(row, rowInfo.indexes, ['최종공정', '최종 공정']) || '').trim();
+    boxQuantity = toPositiveNumber_(
+      displayQuantityToNumber_(pickCell_(row, rowInfo.indexes, ['박스당 수량', '박스당수량'])),
+      '박스당 수량'
+    );
+    inspectionQuantity = toPositiveNumber_(
+      displayQuantityToNumber_(pickCell_(row, rowInfo.indexes, ['검수 수량', '검수수량', '검사 수량'])),
+      '검수 수량'
+    );
+
+    if (!process) {
+      throw new Error('제품 등록 정보에서 최종공정 값을 찾을 수 없습니다.');
+    }
+
     const totalBoxCount = inboundBoxCount + remainderQuantities.length;
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
@@ -2047,7 +2062,7 @@ function updateInbound(payload) {
     setRowValue_(row, rowInfo.indexes, ['입고일'], inboundDate);
     setRowValue_(row, rowInfo.indexes, ['입고 시간', '입고시간'], inboundTime);
     setRowValue_(row, rowInfo.indexes, ['입고 유형', '입고유형'], inboundType);
-    setRowValue_(row, rowInfo.indexes, ['납기일'], dash_(payload.dueDate));
+    setRowValue_(row, rowInfo.indexes, ['납기일'], dash_(storedDueDate));
     setRowValue_(row, rowInfo.indexes, ['제품ID', '제품 ID'], productId);
     setRowValue_(row, rowInfo.indexes, ['차수'], dash_(payload.batch));
     setRowValue_(row, rowInfo.indexes, ['최종공정'], process);
