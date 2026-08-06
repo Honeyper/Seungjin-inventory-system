@@ -1515,6 +1515,92 @@
       </section>
     </div>
 
+    <div class="modal-backdrop" id="remainingInventoryModal" hidden>
+      <section class="product-modal remaining-inventory-modal" role="dialog" aria-modal="true" aria-labelledby="remainingInventoryTitle">
+        <header class="modal-header">
+          <div>
+            <span class="modal-kicker">남은 재고</span>
+            <h2 id="remainingInventoryTitle">남은 재고 등록</h2>
+            <p>부분 출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeRemainingInventoryModal" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <form class="product-form remaining-inventory-form" id="remainingInventoryForm">
+          <section class="shipping-completion-summary" aria-label="남은 재고 대상 정보">
+            <div>
+              <span>관리 ID</span>
+              <strong id="remainingInventoryRecordId">-</strong>
+            </div>
+            <div>
+              <span>제품명</span>
+              <strong id="remainingInventoryProduct">-</strong>
+            </div>
+            <div>
+              <span>거래처명</span>
+              <strong id="remainingInventoryClient">-</strong>
+            </div>
+          </section>
+
+          <section class="form-section remaining-inventory-category-section" aria-labelledby="remainingInventoryCategoryTitle">
+            <div class="remaining-inventory-section-heading">
+              <div>
+                <h3 id="remainingInventoryCategoryTitle">재고 구분</h3>
+                <p>선택한 박스에만 구분이 저장되며, 수량과 QR 정보는 바뀌지 않습니다.</p>
+              </div>
+            </div>
+            <div class="remaining-inventory-category-grid">
+              <label class="remaining-inventory-category-card">
+                <input type="radio" name="remainingInventoryCategory" value="자사재고" checked />
+                <span class="remaining-inventory-category-icon" aria-hidden="true">
+                  <i class="ti ti-building-warehouse"></i>
+                </span>
+                <span>
+                  <strong>자사재고</strong>
+                  <small>인쇄가 완료되어 승진 소유로 남기는 재고</small>
+                </span>
+              </label>
+              <label class="remaining-inventory-category-card">
+                <input type="radio" name="remainingInventoryCategory" value="사출 보관재고" />
+                <span class="remaining-inventory-category-icon" aria-hidden="true">
+                  <i class="ti ti-package"></i>
+                </span>
+                <span>
+                  <strong>사출 보관재고</strong>
+                  <small>소유 재고가 아닌 미인쇄 용기를 보관만 하는 재고</small>
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section remaining-inventory-box-section" aria-labelledby="remainingInventoryBoxTitle">
+            <div class="shipping-box-section-header">
+              <div>
+                <h3 id="remainingInventoryBoxTitle">등록할 남은 박스</h3>
+                <p>같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.</p>
+              </div>
+              <label class="shipping-box-select-all">
+                <input id="remainingInventorySelectAll" type="checkbox" checked />
+                <span>전체 선택</span>
+              </label>
+            </div>
+            <div class="remaining-inventory-box-list" id="remainingInventoryBoxList"></div>
+            <p class="shipping-box-summary" id="remainingInventoryBoxSummary">등록할 남은 박스를 선택해주세요.</p>
+            <p class="form-message" id="remainingInventoryMessage"></p>
+          </section>
+
+          <div class="modal-actions">
+            <button class="secondary-modal-action" type="button" id="cancelRemainingInventoryModal">취소</button>
+            <button class="primary-modal-action" type="submit" id="saveRemainingInventoryButton">재고 구분 저장</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <div class="modal-backdrop" id="shippingCompletionModal" hidden>
       <section class="product-modal shipping-completion-modal" role="dialog" aria-modal="true" aria-labelledby="shippingCompletionTitle">
         <header class="modal-header">

@@ -140,7 +140,9 @@ const state = {
   activeTransferReturnRow: null,
   activeTransferReturnMode: "transfer",
   activeShippingWaitingRow: null,
+  activeRemainingInventoryRow: null,
   isSavingShippingWaiting: false,
+  isSavingRemainingInventory: false,
   isSavingShippingInspection: false,
   isSavingShippingCompletion: false,
   isSavingTransferReturn: false,
@@ -394,6 +396,16 @@ const shippingWaitingConfirmQuantity = document.querySelector("#shippingWaitingC
 const shippingWaitingConfirmBoxList = document.querySelector("#shippingWaitingConfirmBoxList");
 const shippingWaitingConfirmMessage = document.querySelector("#shippingWaitingConfirmMessage");
 const confirmShippingWaitingButton = document.querySelector("#confirmShippingWaitingButton");
+const remainingInventoryModal = document.querySelector("#remainingInventoryModal");
+const remainingInventoryForm = document.querySelector("#remainingInventoryForm");
+const remainingInventoryRecordId = document.querySelector("#remainingInventoryRecordId");
+const remainingInventoryProduct = document.querySelector("#remainingInventoryProduct");
+const remainingInventoryClient = document.querySelector("#remainingInventoryClient");
+const remainingInventoryBoxList = document.querySelector("#remainingInventoryBoxList");
+const remainingInventoryBoxSummary = document.querySelector("#remainingInventoryBoxSummary");
+const remainingInventorySelectAll = document.querySelector("#remainingInventorySelectAll");
+const remainingInventoryMessage = document.querySelector("#remainingInventoryMessage");
+const saveRemainingInventoryButton = document.querySelector("#saveRemainingInventoryButton");
 const shippingHoldGuideModal = document.querySelector("#shippingHoldGuideModal");
 const shippingHoldGuideRecordId = document.querySelector("#shippingHoldGuideRecordId");
 const shippingHoldGuideProduct = document.querySelector("#shippingHoldGuideProduct");
@@ -608,6 +620,19 @@ document.querySelector("#cancelTransferReturnModal")?.addEventListener("click", 
 document.querySelector("#closeShippingWaitingConfirmModal")?.addEventListener("click", closeShippingWaitingConfirmModal);
 document.querySelector("#cancelShippingWaitingConfirmModal")?.addEventListener("click", closeShippingWaitingConfirmModal);
 confirmShippingWaitingButton?.addEventListener("click", confirmShippingWaiting);
+document.querySelector("#closeRemainingInventoryModal")?.addEventListener("click", closeRemainingInventoryModal);
+document.querySelector("#cancelRemainingInventoryModal")?.addEventListener("click", closeRemainingInventoryModal);
+remainingInventoryForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveRemainingInventory();
+});
+remainingInventorySelectAll?.addEventListener("change", () => {
+  remainingInventoryBoxList?.querySelectorAll('input[name="remainingInventoryBox"]').forEach((input) => {
+    input.checked = Boolean(remainingInventorySelectAll.checked);
+  });
+  syncRemainingInventoryBoxState();
+});
+remainingInventoryBoxList?.addEventListener("change", syncRemainingInventoryBoxState);
 document.querySelector("#closeShippingHoldGuideModal")?.addEventListener("click", closeShippingHoldGuideModal);
 document.querySelector("#cancelShippingHoldGuideModal")?.addEventListener("click", closeShippingHoldGuideModal);
 openShippingHoldGuidePhotoButton?.addEventListener("click", () => {
@@ -755,6 +780,11 @@ function handleShippingAction(row, action, button) {
 
   if (action === "detail") {
     openShippingInventoryDetail(row);
+    return;
+  }
+
+  if (action === "classifyRemaining") {
+    openRemainingInventoryModal(row);
     return;
   }
 
@@ -1060,6 +1090,11 @@ document.addEventListener("keydown", (event) => {
 
   if (shippingCompletionModal && !shippingCompletionModal.hidden) {
     closeShippingCompletionModal();
+    return;
+  }
+
+  if (remainingInventoryModal && !remainingInventoryModal.hidden) {
+    closeRemainingInventoryModal();
     return;
   }
 
@@ -1501,7 +1536,11 @@ function getShippingRowBoxes(row, datasetKey, fallbackCount = 0, fallbackQuantit
           shippingDate: box.shippingDate || "",
           shippingTime: box.shippingTime || "",
           shippingType: box.shippingType || "",
-          shipper: box.shipper || ""
+          shipper: box.shipper || "",
+          transferCompany: box.transferCompany || "",
+          inventoryCategory: box.inventoryCategory || "",
+          inventoryClassifiedAt: box.inventoryClassifiedAt || "",
+          inventoryClassifier: box.inventoryClassifier || ""
         }))
         .sort((left, right) => left.number - right.number);
     }
@@ -2301,6 +2340,191 @@ async function confirmShippingWaiting() {
       shippingWaitingConfirmMessage.textContent = error.message || "출고 대기 등록 중 문제가 발생했습니다.";
     }
     showToast(error.message || "출고 대기 등록 중 문제가 발생했습니다.");
+  }
+}
+
+function getRemainingInventoryTargetBoxes(row) {
+  return getShippingRowBoxes(row, "activeShippingBoxes")
+    .filter((box) => {
+      const status = normalizeInventoryStockStatus(box.status);
+      return parseShippingSettlementNumber(box.quantity) > 0 && status === "보관";
+    })
+    .map((box) => ({
+      ...box,
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity)
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+}
+
+function openRemainingInventoryModal(row) {
+  if (!row || !remainingInventoryModal) {
+    return;
+  }
+
+  const targetBoxes = getRemainingInventoryTargetBoxes(row);
+  if (!targetBoxes.length) {
+    showToast("등록할 수 있는 남은 박스가 없습니다.");
+    return;
+  }
+
+  state.activeRemainingInventoryRow = row;
+  state.isSavingRemainingInventory = false;
+
+  if (remainingInventoryRecordId) {
+    remainingInventoryRecordId.textContent = row.dataset.managementId || row.children[1]?.textContent.trim() || "-";
+  }
+  if (remainingInventoryClient) {
+    remainingInventoryClient.textContent = row.children[2]?.textContent.trim() || "-";
+  }
+  if (remainingInventoryProduct) {
+    remainingInventoryProduct.textContent = row.children[3]?.textContent.trim() || "-";
+  }
+  if (remainingInventorySelectAll) {
+    remainingInventorySelectAll.checked = true;
+    remainingInventorySelectAll.indeterminate = false;
+  }
+  if (remainingInventoryMessage) {
+    remainingInventoryMessage.textContent = "";
+  }
+  if (saveRemainingInventoryButton) {
+    saveRemainingInventoryButton.disabled = false;
+    saveRemainingInventoryButton.textContent = "재고 구분 저장";
+  }
+
+  remainingInventoryForm?.querySelector('input[name="remainingInventoryCategory"][value="자사재고"]')?.click();
+
+  if (remainingInventoryBoxList) {
+    remainingInventoryBoxList.innerHTML = targetBoxes.map((box) => {
+      const category = box.inventoryCategory || "미분류";
+      const status = normalizeInventoryStockStatus(box.status) || "보관";
+      return `
+        <label class="remaining-inventory-box-card">
+          <input
+            type="checkbox"
+            name="remainingInventoryBox"
+            value="${box.number}"
+            data-box-id="${escapeAttribute(box.boxId || "")}"
+            data-quantity="${box.quantity}"
+            checked
+          />
+          <span>
+            <strong>${formatNumber(box.number)}번 박스</strong>
+            <small>${escapeHtml(status)} · ${escapeHtml(category)}</small>
+          </span>
+          <b>${formatNumber(box.quantity)} ea</b>
+        </label>
+      `;
+    }).join("");
+  }
+
+  syncRemainingInventoryBoxState();
+  remainingInventoryModal.hidden = false;
+  resetModalScrollPosition(remainingInventoryModal);
+  document.body.classList.add("modal-open");
+}
+
+function closeRemainingInventoryModal() {
+  if (!remainingInventoryModal) {
+    return;
+  }
+
+  remainingInventoryModal.hidden = true;
+  state.activeRemainingInventoryRow = null;
+  state.isSavingRemainingInventory = false;
+  if (remainingInventoryBoxList) {
+    remainingInventoryBoxList.innerHTML = "";
+  }
+  if (
+    shippingInspectionModal?.hidden !== false &&
+    shippingCompletionModal?.hidden !== false &&
+    shippingWaitingConfirmModal?.hidden !== false &&
+    shippingHoldGuideModal?.hidden !== false
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function syncRemainingInventoryBoxState() {
+  const inputs = Array.from(
+    remainingInventoryBoxList?.querySelectorAll('input[name="remainingInventoryBox"]') || []
+  );
+  const checkedInputs = inputs.filter((input) => input.checked);
+  const selectedQuantity = checkedInputs.reduce(
+    (sum, input) => sum + parseShippingSettlementNumber(input.dataset.quantity || ""),
+    0
+  );
+
+  if (remainingInventorySelectAll) {
+    remainingInventorySelectAll.checked = inputs.length > 0 && checkedInputs.length === inputs.length;
+    remainingInventorySelectAll.indeterminate = checkedInputs.length > 0 && checkedInputs.length < inputs.length;
+  }
+  if (remainingInventoryBoxSummary) {
+    remainingInventoryBoxSummary.textContent = inputs.length
+      ? `${inputs.length}개 중 ${checkedInputs.length}개 선택 · ${formatNumber(selectedQuantity)} ea`
+      : "등록할 남은 박스를 선택해주세요.";
+  }
+}
+
+async function saveRemainingInventory() {
+  const row = state.activeRemainingInventoryRow;
+  if (!row || state.isSavingRemainingInventory) {
+    return;
+  }
+
+  const selectedInputs = Array.from(
+    remainingInventoryBoxList?.querySelectorAll('input[name="remainingInventoryBox"]:checked') || []
+  );
+  const category = remainingInventoryForm
+    ?.querySelector('input[name="remainingInventoryCategory"]:checked')
+    ?.value || "";
+
+  if (!selectedInputs.length) {
+    if (remainingInventoryMessage) {
+      remainingInventoryMessage.textContent = "등록할 남은 박스를 하나 이상 선택해주세요.";
+    }
+    return;
+  }
+  if (!category) {
+    if (remainingInventoryMessage) {
+      remainingInventoryMessage.textContent = "재고 구분을 선택해주세요.";
+    }
+    return;
+  }
+
+  state.isSavingRemainingInventory = true;
+  if (saveRemainingInventoryButton) {
+    saveRemainingInventoryButton.disabled = true;
+    saveRemainingInventoryButton.textContent = "저장 중";
+  }
+  if (remainingInventoryMessage) {
+    remainingInventoryMessage.textContent = "";
+  }
+
+  try {
+    const result = await requestApi("classifyRemainingInventory", {
+      managementId: row.dataset.managementId || row.children[1]?.textContent.trim() || "",
+      productId: row.dataset.productId || "",
+      productName: row.children[3]?.textContent.trim() || "",
+      clientName: row.children[2]?.textContent.trim() || "",
+      inventoryCategory: category,
+      selectedBoxes: selectedInputs.map((input) => Number(input.value)).filter(Number.isFinite),
+      selectedBoxIds: selectedInputs.map((input) => input.dataset.boxId || "").filter(Boolean),
+      userName: signedInAdminName
+    });
+
+    closeRemainingInventoryModal();
+    await loadInventoryDashboard(false);
+    showToast(`${category}로 ${formatNumber(result?.updatedRows || selectedInputs.length)}개 박스를 등록했습니다.`);
+  } catch (error) {
+    state.isSavingRemainingInventory = false;
+    if (saveRemainingInventoryButton) {
+      saveRemainingInventoryButton.disabled = false;
+      saveRemainingInventoryButton.textContent = "재고 구분 저장";
+    }
+    if (remainingInventoryMessage) {
+      remainingInventoryMessage.textContent = error.message || "남은 재고 등록 중 문제가 발생했습니다.";
+    }
   }
 }
 
@@ -3434,6 +3658,7 @@ function renderShippingRowAction(item) {
       { action: "inspect", label: "추가 출고" },
       [
         { action: "detail", label: "상세보기", icon: "ti-eye" },
+        { action: "classifyRemaining", label: "남은 재고 등록", icon: "ti-box" },
         ...transferReturnAction,
         ...takeoutReturnAction,
         ...cancelShippingAction
@@ -7299,6 +7524,15 @@ function renderShippingDetail(item) {
   const remainingBoxText = activeBoxes.length
     ? activeBoxes.map((box) => `${box.number}번 ${normalizeInventoryStockStatus(box.status)}`).join(", ")
     : "-";
+  const remainingInventoryCategoryText = ["자사재고", "사출 보관재고"]
+    .map((category) => {
+      const categoryBoxes = activeBoxes.filter((box) => box.inventoryCategory === category);
+      return categoryBoxes.length
+        ? `${category}: ${categoryBoxes.map((box) => `${box.number}번`).join(", ")}`
+        : "";
+    })
+    .filter(Boolean)
+    .join(" · ");
 
   inboundDetailContent.innerHTML = `
     ${renderDetailOverview({
@@ -7352,6 +7586,7 @@ function renderShippingDetail(item) {
         ${detailItem("남은 수량", `${formatNumber(remainingQuantity)} ea`)}
         ${detailItem("출고된 박스", shippedBoxText, false, "full-span")}
         ${detailItem("남은 박스", remainingBoxText, false, "full-span")}
+        ${remainingInventoryCategoryText ? detailItem("남은 재고 구분", remainingInventoryCategoryText, false, "full-span") : ""}
       </div>
     </section>
   `;
