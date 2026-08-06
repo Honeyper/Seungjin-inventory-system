@@ -4730,6 +4730,24 @@ input {
   font-weight: 800;
 }
 
+.shipping-discard-option {
+  border-color: #edc8c5;
+  background: #fff5f4;
+}
+
+.shipping-discard-option input {
+  border-color: #c34b42;
+}
+
+.shipping-discard-option input:checked {
+  border-color: #a72d25;
+  background: #c83f35;
+}
+
+.shipping-discard-option strong {
+  color: #a72d25;
+}
+
 .shipping-photo-panel {
   display: grid;
   grid-template-columns: minmax(13rem, 0.78fr) minmax(18rem, 1.45fr);
@@ -8371,13 +8389,13 @@ input {
 
 @media print {
   @page {
-    margin: 0;
+    margin: 5mm;
     size: A4 portrait;
   }
 
   html,
   body {
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
     margin: 0 !important;
     padding: 0 !important;
@@ -8400,7 +8418,7 @@ input {
   #inboundQrModal {
     position: static !important;
     display: block;
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
     height: auto;
     margin: 0 !important;
@@ -8410,7 +8428,7 @@ input {
 
   .qr-modal {
     display: block;
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
     height: auto;
     margin: 0 !important;
@@ -8429,18 +8447,31 @@ input {
   .qr-print-area {
     display: block;
     overflow: visible;
-    width: 210mm;
+    width: 200mm;
     margin: 0;
     padding: 0;
     background: #fff;
   }
 
   .qr-sheet {
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
+    grid-auto-rows: 41mm;
     margin: 0;
     padding: 0;
     box-shadow: none;
+  }
+
+  .qr-sheet.qr-sheet-work {
+    grid-auto-rows: 47.8333mm;
+  }
+
+  .box-qr-label {
+    height: 41mm;
+  }
+
+  .box-qr-label.box-qr-label-work {
+    height: 47.8333mm;
   }
 }
 

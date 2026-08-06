@@ -229,6 +229,7 @@ const elements = {
   scannerModeToggleButton: document.querySelector("#scannerModeToggleButton"),
   scannerPendingButton: document.querySelector("#scannerPendingButton"),
   scannerDoneButton: document.querySelector("#scannerDoneButton"),
+  scannerInjectionButton: document.querySelector("#scannerInjectionButton"),
   toast: document.querySelector("#mobileToast")
 };
 
@@ -302,6 +303,7 @@ function bindEvents() {
   elements.scannerScannedList?.addEventListener("change", handleScannerListChange);
   elements.scannerPendingButton?.addEventListener("click", handleScannerPendingAction);
   elements.scannerDoneButton?.addEventListener("click", handleScannerDoneAction);
+  elements.scannerInjectionButton?.addEventListener("click", handleScannerInjectionAction);
   elements.toggleFlashButton?.addEventListener("click", () => {
     showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
   });
@@ -1751,6 +1753,7 @@ function renderInventoryMoveItem(item) {
           <button class="shipping-remove-button" type="button" data-inventory-move-remove="${escapeHtml(key)}">삭제</button>
           <button class="ship-pending-button" type="button" data-inventory-move-action="single" data-inventory-move-key="${escapeHtml(key)}">자리이동</button>
           <button class="ship-now-button" type="button" data-inventory-move-action="all" data-inventory-move-key="${escapeHtml(key)}">전량 이동</button>
+          <button class="inventory-stock-button" type="button" data-inventory-move-action="injection" data-inventory-move-key="${escapeHtml(key)}">사출재고 등록</button>
         </div>
       </div>
       <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(state.user?.name || item.registrant || item.inspector || "-"))}</p>
@@ -1852,27 +1855,35 @@ function handleInventoryMoveListChange(event) {
 async function handleInventoryMoveCardAction(item, mode = "single") {
   const currentStorage = getInventoryMoveCurrentStorage(item);
   const targetStorage = item.targetStorageConfirmed === true ? normalizeDisplay(item.targetStorage) : "-";
+  const isInjectionAction = mode === "injection";
   const selectedBoxes = mode === "all" ? getInventoryMoveAllBoxNumbers(item) : getSelectedBoxNumbers(item);
-  const actionLabel = mode === "all" ? "전량 이동" : "자리이동";
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "전량 이동" : "자리이동";
 
   if (!selectedBoxes.length) {
-    showToast("이동할 박스 번호가 없습니다.");
+    showToast(isInjectionAction ? "사출재고로 등록할 박스 번호가 없습니다." : "이동할 박스 번호가 없습니다.");
     return;
   }
 
-  if (!isInventoryMoveTargetReady(item)) {
+  if (!isInjectionAction && !isInventoryMoveTargetReady(item)) {
     showToast("이동할 장소를 먼저 선택해주세요.");
     return;
   }
 
-  const ok = window.confirm(`${normalizeDisplay(item.productName)}\n${normalizeDisplay(currentStorage)} → ${targetStorage}\n${formatNumber(selectedBoxes.length)}개 박스를 ${actionLabel} 처리하시겠습니까?`);
+  const confirmMessage = isInjectionAction
+    ? `${normalizeDisplay(item.productName)}\n${formatNumber(selectedBoxes.length)}개 박스를 사출재고로 등록하시겠습니까?\n현재 수량과 보관 위치는 유지됩니다.`
+    : `${normalizeDisplay(item.productName)}\n${normalizeDisplay(currentStorage)} → ${targetStorage}\n${formatNumber(selectedBoxes.length)}개 박스를 ${actionLabel} 처리하시겠습니까?`;
+  const ok = window.confirm(confirmMessage);
   if (!ok) {
     return;
   }
 
   try {
     const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
-    applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mode, result);
+    if (isInjectionAction) {
+      applyInventoryStockResultLocally(item, selectedBoxes, "사출재고");
+    } else {
+      applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mode, result);
+    }
     if (mode === "all") {
       removeMovedInventoryGroup(item);
     } else {
@@ -2426,8 +2437,9 @@ async function handleConfirmShipping() {
     }
 
     const mode = state.selectedInventoryMoveMode || "single";
+    const isInjectionAction = mode === "injection";
     elements.acceptConfirmButton.disabled = true;
-    elements.acceptConfirmButton.textContent = "이동 중";
+    elements.acceptConfirmButton.textContent = isInjectionAction ? "등록 중" : "이동 중";
     try {
       await handleCompleteScannedInventoryMove(mode);
       closeConfirmModal();
@@ -2594,6 +2606,14 @@ function handleScannerDoneAction() {
   }
 
   openScannedShippingConfirmModal("complete");
+}
+
+function handleScannerInjectionAction() {
+  if (state.activeWorkflow !== "inventoryMove") {
+    return;
+  }
+
+  openScannedInventoryMoveConfirmModal("injection");
 }
 
 async function completeShippingItems(items, action = "complete") {
@@ -2779,13 +2799,14 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
 
   const items = groupScannedInventoryMoveRows(state.scannedMoveRows);
   const scannedBoxCount = state.scannedMoveRows.length;
+  const isInjectionAction = mode === "injection";
   if (!scannedBoxCount) {
-    showToast("이동할 박스를 먼저 스캔해주세요.");
+    showToast(isInjectionAction ? "사출재고로 등록할 박스를 먼저 스캔해주세요." : "이동할 박스를 먼저 스캔해주세요.");
     return;
   }
 
-  const actionLabel = mode === "all" ? "전량 이동" : "자리이동";
-  const missingTarget = items.find((item) => !isInventoryMoveTargetReady(item));
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "전량 이동" : "자리이동";
+  const missingTarget = !isInjectionAction && items.find((item) => !isInventoryMoveTargetReady(item));
   if (missingTarget) {
     setScannerSheetExpanded(true);
     showToast("각 제품의 이동할 장소를 먼저 선택해주세요.");
@@ -2804,9 +2825,11 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
     elements.confirmTitle.textContent = `${actionLabel} 확인`;
   }
   if (elements.confirmMessage) {
-    elements.confirmMessage.textContent = mode === "all"
-      ? "현재 위치에 있는 같은 제품의 전체 박스를 이동합니다."
-      : "QR로 스캔한 박스만 이동합니다.";
+    elements.confirmMessage.textContent = isInjectionAction
+      ? "QR로 스캔한 박스만 사출재고로 등록합니다. 수량과 보관 위치는 유지됩니다."
+      : mode === "all"
+        ? "현재 위치에 있는 같은 제품의 전체 박스를 이동합니다."
+        : "QR로 스캔한 박스만 이동합니다.";
   }
   elements.confirmProductName.textContent = `${formatNumber(moveBoxCount)}개 박스 · ${formatNumber(items.length)}개 제품`;
   elements.acceptConfirmButton.textContent = actionLabel;
@@ -2822,9 +2845,10 @@ function renderInventoryMoveConfirmRoutes(items, mode) {
 
   elements.confirmMetaList.hidden = false;
   elements.confirmMetaList.classList.add("inventory-move-confirm-routes");
+  const isInjectionAction = mode === "injection";
   elements.confirmMetaList.innerHTML = items.map((item) => {
     const currentStorage = getInventoryMoveCurrentStorage(item);
-    const targetStorage = normalizeDisplay(item.targetStorage);
+    const targetStorage = isInjectionAction ? "사출재고" : normalizeDisplay(item.targetStorage);
     const selectedBoxes = mode === "all" ? getInventoryMoveAllBoxNumbers(item) : getSelectedBoxNumbers(item);
     return `
       <span>
@@ -2843,12 +2867,13 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
 
   const items = groupScannedInventoryMoveRows(state.scannedMoveRows);
   const scannedBoxCount = state.scannedMoveRows.length;
-  if (!scannedBoxCount || items.some((item) => !isInventoryMoveTargetReady(item))) {
-    showToast("이동할 박스와 장소를 다시 확인해주세요.");
+  const isInjectionAction = mode === "injection";
+  if (!scannedBoxCount || (!isInjectionAction && items.some((item) => !isInventoryMoveTargetReady(item)))) {
+    showToast(isInjectionAction ? "사출재고로 등록할 박스를 다시 확인해주세요." : "이동할 박스와 장소를 다시 확인해주세요.");
     return;
   }
 
-  const actionLabel = mode === "all" ? "전량 이동" : "자리이동";
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "전량 이동" : "자리이동";
 
   state.isCompletingShipping = true;
   if (elements.scannerPendingButton) {
@@ -2857,9 +2882,16 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
   if (elements.scannerDoneButton) {
     elements.scannerDoneButton.disabled = true;
   }
-  const activeButton = mode === "single" ? elements.scannerPendingButton : elements.scannerDoneButton;
+  if (elements.scannerInjectionButton) {
+    elements.scannerInjectionButton.disabled = true;
+  }
+  const activeButton = isInjectionAction
+    ? elements.scannerInjectionButton
+    : mode === "single"
+      ? elements.scannerPendingButton
+      : elements.scannerDoneButton;
   if (activeButton) {
-    activeButton.textContent = "이동 중";
+    activeButton.textContent = isInjectionAction ? "등록 중" : "이동 중";
   }
 
   try {
@@ -2871,13 +2903,15 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
       saveScannedMoveRows();
       renderInventoryMoveList();
       renderScannerScannedList();
-      showToast(failedItems.length ? `${completedCount}개 박스 이동 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 이동 완료`);
+      showToast(failedItems.length
+        ? `${completedCount}개 박스 ${actionLabel} 완료, ${failedItems.length}건 실패`
+        : `${completedCount}개 박스 ${actionLabel} 완료`);
       if (!failedItems.length) {
         closeScanner();
       }
       void loadShippingDashboard({ silent: true });
     } else {
-      showToast("이동 처리할 박스가 없습니다.");
+      showToast(isInjectionAction ? "사출재고로 등록된 박스가 없습니다." : "이동 처리할 박스가 없습니다.");
     }
   } finally {
     state.isCompletingShipping = false;
@@ -2886,6 +2920,9 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
     }
     if (elements.scannerDoneButton) {
       elements.scannerDoneButton.disabled = false;
+    }
+    if (elements.scannerInjectionButton) {
+      elements.scannerInjectionButton.disabled = false;
     }
     updateScannerActionLabels();
   }
@@ -2903,14 +2940,19 @@ async function completeInventoryMoveItems(items, mode = "single") {
         continue;
       }
       const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
-      applyInventoryMoveResultLocally(
-        item,
-        selectedBoxes,
-        normalizeDisplay(item.targetStorage),
-        mode,
-        result
-      );
-      completedCount += selectedBoxes.length;
+      if (mode === "injection") {
+        applyInventoryStockResultLocally(item, selectedBoxes, "사출재고");
+      } else {
+        applyInventoryMoveResultLocally(
+          item,
+          selectedBoxes,
+          normalizeDisplay(item.targetStorage),
+          mode,
+          result
+        );
+      }
+      const updatedCount = parseNumber(result?.updatedBoxRows);
+      completedCount += updatedCount > 0 ? updatedCount : selectedBoxes.length;
     } catch (error) {
       failedItems.push(item);
     }
@@ -2922,12 +2964,14 @@ async function completeInventoryMoveItems(items, mode = "single") {
 async function completeInventoryMoveItem(item, selectedBoxes, mode = "single") {
   const currentStorage = getInventoryMoveCurrentStorage(item);
   const targetStorage = item.targetStorageConfirmed === true ? normalizeDisplay(item.targetStorage) : "-";
+  const isInjectionAction = mode === "injection";
 
-  if (!isInventoryMoveTargetReady(item)) {
+  if (!isInjectionAction && !isInventoryMoveTargetReady(item)) {
     throw new Error("이동할 장소를 먼저 선택해주세요.");
   }
 
   return requestApi("updateInventoryBoxMove", {
+    inventoryAction: isInjectionAction ? "setInjectionStock" : "move",
     managementId: item.managementId,
     productId: item.productId,
     clientName: item.clientName,
@@ -2937,7 +2981,7 @@ async function completeInventoryMoveItem(item, selectedBoxes, mode = "single") {
     storage: currentStorage,
     currentStorage,
     targetStorage,
-    status: "보관",
+    status: isInjectionAction ? "사출재고" : "보관",
     userName: state.user?.name || "Admin",
     selectedBoxes,
     moveAllBoxes: mode === "all"
@@ -2974,6 +3018,31 @@ function applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mod
       row.storage = targetStorage;
       row.storageLocation = targetStorage;
     }
+  });
+}
+
+function applyInventoryStockResultLocally(item, selectedBoxes, status) {
+  const managementId = normalizeScanValue(item?.managementId);
+  const productId = normalizeScanValue(item?.productId);
+  const selectedBoxNumbers = new Set(
+    selectedBoxes.map((value) => String(value || "").trim()).filter(Boolean)
+  );
+
+  state.dashboard.forEach((row) => {
+    if (normalizeScanValue(row?.managementId) !== managementId) {
+      return;
+    }
+    if (productId && normalizeScanValue(row?.productId) !== productId) {
+      return;
+    }
+
+    getKnownBoxes(row).forEach((box) => {
+      const boxNumber = String(box?.number || box?.sequence || "").trim();
+      if (selectedBoxNumbers.has(boxNumber)) {
+        box.status = status;
+        box.rawStatus = status;
+      }
+    });
   });
 }
 
@@ -3098,7 +3167,7 @@ async function startScannerCamera() {
 }
 
 function updateScannerActionLabels() {
-  if (!elements.scannerPendingButton || !elements.scannerDoneButton) {
+  if (!elements.scannerPendingButton || !elements.scannerDoneButton || !elements.scannerInjectionButton) {
     return;
   }
 
@@ -3106,7 +3175,9 @@ function updateScannerActionLabels() {
   if (state.activeWorkflow === "inventoryMove") {
     const hasScannedMoveRows = state.scannedMoveRows.length > 0;
     elements.scannerPendingButton.hidden = false;
+    elements.scannerInjectionButton.hidden = false;
     scannerBottom?.classList.remove("single-action");
+    scannerBottom?.classList.add("three-actions");
     elements.scannerPendingButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M8 7h12"></path><path d="M8 12h12"></path><path d="M8 17h12"></path><path d="M4 7h.01"></path><path d="M4 12h.01"></path><path d="M4 17h.01"></path></svg>
       스캔 박스 이동
@@ -3115,13 +3186,20 @@ function updateScannerActionLabels() {
       <svg viewBox="0 0 24 24"><path d="M4 12h14"></path><path d="m13 5 7 7-7 7"></path></svg>
       현재 위치 전량
     `;
+    elements.scannerInjectionButton.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+      사출재고 등록
+    `;
     elements.scannerPendingButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     elements.scannerDoneButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
+    elements.scannerInjectionButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     return;
   }
 
   elements.scannerPendingButton.hidden = false;
+  elements.scannerInjectionButton.hidden = true;
   scannerBottom?.classList.remove("single-action");
+  scannerBottom?.classList.remove("three-actions");
   const scannerRows = getScannerSessionShippingRows();
   elements.scannerPendingButton.innerHTML = `
     <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>

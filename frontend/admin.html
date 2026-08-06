@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260727-quantity-control-align" />
+    <link rel="stylesheet" href="./styles.css?v=20260806-qr-print-margin-5mm" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1480,6 +1480,13 @@
                   <small>체크하면 출고 상태를 보류로 전환합니다.</small>
                 </span>
               </label>
+              <label class="shipping-hold-option shipping-discard-option full-span">
+                <input id="shippingInspectionDiscardStatus" type="checkbox" />
+                <span>
+                  <strong>박스 폐기</strong>
+                  <small>체크하면 선택한 박스를 폐기하고 출고 대상에서 제외합니다.</small>
+                </span>
+              </label>
               <section class="shipping-photo-panel full-span" aria-label="출고 불량 사진 등록">
                 <div class="shipping-photo-heading">
                   <span>출고 불량 사진</span>
@@ -2353,6 +2360,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260727-expanded-color-preview"></script>
+    <script src="./admin.js?v=20260729-shipping-edit-restore"></script>
   </body>
 </html>

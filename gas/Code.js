@@ -31,6 +31,7 @@ const DATA_MUTATION_ACTIONS = new Set([
   'setupSheets',
   'saveShippingInspection',
   'updateShippingStatus',
+  'updateInventoryBoxMove',
   'returnTransferredInventory',
   'returnTakenOutInventory',
   'createProduct',
@@ -145,6 +146,7 @@ function doPost(e) {
       uploadShippingDefectPhotos,
       saveShippingInspection,
       updateShippingStatus,
+      updateInventoryBoxMove,
       returnTransferredInventory,
       returnTakenOutInventory,
       createProduct,
@@ -2972,9 +2974,19 @@ function saveShippingInspection(payload) {
   const hasGoodReason = defectReasons.includes('양호');
   const anomalyStatus = hasGoodReason ? '정상' : '이상';
   const holdRequested = payload.holdRequested === true || String(payload.holdRequested || '').toLowerCase() === 'true';
-  const stockStatus = holdRequested ? '보류' : '출고대기(검수완료)';
-  const inspectionQuantity = toPositiveNumber_(payload.inspectionQuantity, '검수 수량');
+  const discardRequested = payload.discardRequested === true || String(payload.discardRequested || '').toLowerCase() === 'true';
+
+  if (holdRequested && discardRequested) {
+    throw new Error('출고 보류와 박스 폐기는 동시에 선택할 수 없습니다.');
+  }
+
+  const stockStatus = discardRequested ? '폐기' : holdRequested ? '보류' : '출고대기(검수완료)';
+  const inspectionQuantity = toNumber_(payload.inspectionQuantity);
   const defectQuantity = toNumber_(payload.defectQuantity);
+
+  if (inspectionQuantity < 0) {
+    throw new Error('검수 수량은 0 이상의 숫자로 입력해주세요.');
+  }
 
   if (defectQuantity < 0) {
     throw new Error('불량 갯수는 0 이상의 숫자로 입력해주세요.');
@@ -2986,6 +2998,8 @@ function saveShippingInspection(payload) {
   const defectPhotoFolderUrl = String(payload.defectPhotoFolderUrl || '').trim();
   const memo = String(payload.memo || payload.note || '').trim();
   const shippingUpdatedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
+  const clearShippingWaiting = payload.clearShippingWaiting === true
+    || String(payload.clearShippingWaiting || '').toLowerCase() === 'true';
 
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
@@ -3007,19 +3021,33 @@ function saveShippingInspection(payload) {
     defectPhotoFolderUrl,
     defectPhotoCount: toNumber_(payload.defectPhotoCount),
     status: stockStatus,
+    clearShippingWaiting,
     selectedBoxes: Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [],
     boxQuantities: payload.boxQuantities || payload.selectedBoxQuantities || {},
     shippingUpdatedAt,
     note: memo || '-'
   });
-  const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, stockStatus, payload);
+  const resolvedStockStatus = updatedBoxRows.remainingShippedRows > 0
+    ? updatedBoxRows.remainingActiveRows > 0 ? '일부 출고' : '출고완료'
+    : clearShippingWaiting
+      ? '보관'
+      : discardRequested
+        ? updatedBoxRows.remainingActiveRows > 0
+          ? updatedBoxRows.remainingStatusCounts['출고대기'] || updatedBoxRows.remainingStatusCounts['출고대기(검수완료)'] || updatedBoxRows.remainingStatusCounts['검수완료']
+            ? '출고대기'
+            : updatedBoxRows.remainingStatusCounts['보류']
+              ? '보류'
+              : '보관'
+          : '폐기'
+        : stockStatus;
+  const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, resolvedStockStatus, payload);
 
   return {
     managementId,
     inspectionStatus: '검수 완료',
     anomalyStatus,
-    stockStatus,
-    updatedBoxRows,
+    stockStatus: resolvedStockStatus,
+    updatedBoxRows: updatedBoxRows.updatedRows,
     updatedStockRows,
     defectPhotoFolderUrl,
     defectPhotoCount: toNumber_(payload.defectPhotoCount),
@@ -3161,13 +3189,14 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
       .filter((value) => Number.isFinite(value) && value > 0)
   );
   const selectedBoxQuantityMap = buildBoxQuantityMap_(data.boxQuantities || data.selectedBoxQuantities);
-  const requiresSelectedBoxes = ['출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status);
+  const requiresSelectedBoxes = ['출고대기', '출고대기(검수완료)', '검수완료', '출고완료', '폐기'].includes(data.status);
+  const clearShippingWaiting = data.clearShippingWaiting === true;
 
   if (managementIndex < 0) {
     throw new Error(`${sheet.getName()} 시트에서 관리 ID 컬럼을 찾을 수 없습니다.`);
   }
 
-  if (requiresSelectedBoxes && !selectedBoxNumbers.size) {
+  if (requiresSelectedBoxes && !selectedBoxNumbers.size && !clearShippingWaiting) {
     throw new Error('처리할 박스가 없습니다. 박스관리 DB의 박스별 상태를 확인해주세요.');
   }
 
@@ -3182,8 +3211,8 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
 
     matchedBoxNumber += 1;
     const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(values[rowIndex][sequenceIndex]) : matchedBoxNumber;
-    if (selectedBoxNumbers.size && !selectedBoxNumbers.has(sequence)) {
-      const currentStatus = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
+    const currentStatus = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
+    if (clearShippingWaiting || (selectedBoxNumbers.size && !selectedBoxNumbers.has(sequence))) {
       if (['출고대기', '보류'].includes(currentStatus)) {
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수일', '검수일'], '-');
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고 검수시간', '검수시간'], '-');
@@ -3201,11 +3230,15 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     }
 
     const changedQuantity = selectedBoxQuantityMap[sequence];
-    if (currentQuantityIndex >= 0 && Number.isFinite(changedQuantity) && changedQuantity > 0) {
-      sheet.getRange(rowIndex + 1, currentQuantityIndex + 1).setValue(formatEa_(changedQuantity));
+    if (currentQuantityIndex >= 0) {
+      if (data.status === '폐기') {
+        sheet.getRange(rowIndex + 1, currentQuantityIndex + 1).setValue(formatEa_(0));
+      } else if (Number.isFinite(changedQuantity) && changedQuantity >= 0) {
+        sheet.getRange(rowIndex + 1, currentQuantityIndex + 1).setValue(formatEa_(changedQuantity));
+      }
     }
 
-    const currentQuantity = Number.isFinite(changedQuantity) && changedQuantity > 0
+    const currentQuantity = Number.isFinite(changedQuantity) && changedQuantity >= 0
       ? formatEa_(changedQuantity)
       : currentQuantityIndex >= 0 ? dash_(values[rowIndex][currentQuantityIndex]) : '-';
     const inspectionQuantity = !wroteInspectionMetric ? (data.inspectionQuantity || currentQuantity) : '';
@@ -3231,7 +3264,49 @@ function updateShippingInspectionBoxRows_(sheet, managementId, data) {
     throw new Error(`박스관리 DB에서 관리 ID ${managementId}를 찾을 수 없습니다.`);
   }
 
-  return updatedRows;
+  SpreadsheetApp.flush();
+  const statusSummary = summarizeShippingInspectionBoxRows_(sheet, managementId, data);
+  return {
+    updatedRows,
+    remainingActiveRows: statusSummary.remainingActiveRows,
+    remainingShippedRows: statusSummary.remainingShippedRows,
+    remainingStatusCounts: statusSummary.remainingStatusCounts
+  };
+}
+
+function summarizeShippingInspectionBoxRows_(sheet, managementId, data) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리ID', '제품명'])
+    || findHeaderRow_(values, ['관리 ID', '제품명']);
+
+  if (!headerInfo) {
+    return { remainingActiveRows: 0, remainingShippedRows: 0, remainingStatusCounts: {} };
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const quantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  let remainingActiveRows = 0;
+  let remainingShippedRows = 0;
+  const remainingStatusCounts = {};
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    if (!isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, data)) {
+      continue;
+    }
+
+    const status = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
+    const quantity = quantityIndex >= 0 ? displayQuantityToNumber_(row[quantityIndex]) : 0;
+    if (/출고완료/.test(status)) {
+      remainingShippedRows += 1;
+    } else if (!/폐기/.test(status) && (quantity > 0 || ['출고대기', '검수완료', '보류'].includes(status))) {
+      remainingActiveRows += 1;
+      remainingStatusCounts[status] = (remainingStatusCounts[status] || 0) + 1;
+    }
+  }
+
+  return { remainingActiveRows, remainingShippedRows, remainingStatusCounts };
 }
 
 function updateShippingStatus(payload) {
@@ -3298,6 +3373,333 @@ function updateShippingStatus(payload) {
     shippingDate: status === '출고완료' ? shippingDate : '',
     shippingTime: status === '출고완료' ? shippingTime : ''
   };
+}
+
+function updateInventoryBoxMove(payload) {
+  const managementId = String(payload.managementId || '').trim();
+  const inventoryAction = String(payload.inventoryAction || 'move').trim() === 'setInjectionStock'
+    ? 'setInjectionStock'
+    : 'move';
+  const currentStorage = String(payload.currentStorage || payload.storage || payload.storageLocation || '').trim();
+  const targetStorage = String(payload.targetStorage || '').trim();
+  const userName = String(payload.userName || payload.worker || 'Admin').trim() || 'Admin';
+  const selectedBoxNumbers = new Set(
+    (Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  );
+
+  if (!managementId) {
+    throw new Error('관리 ID가 없습니다.');
+  }
+
+  if (!selectedBoxNumbers.size) {
+    throw new Error(inventoryAction === 'setInjectionStock'
+      ? '사출재고로 등록할 박스를 선택해주세요.'
+      : '이동할 박스를 선택해주세요.');
+  }
+
+  if (inventoryAction === 'move' && (!targetStorage || targetStorage === '-')) {
+    throw new Error('이동할 보관 위치를 선택해주세요.');
+  }
+
+  if (inventoryAction === 'move' && currentStorage && currentStorage === targetStorage) {
+    throw new Error('현재 위치와 다른 보관 위치를 선택해주세요.');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+
+  try {
+    const timezone = Session.getScriptTimeZone() || 'Asia/Seoul';
+    const now = new Date();
+    const changedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
+    const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    const values = boxSheet.getDataRange().getDisplayValues();
+    const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
+
+    if (!headerInfo) {
+      throw new Error(`${boxSheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+    }
+
+    const indexes = indexHeaders_(headerInfo.headers);
+    const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+    const boxIdIndex = findHeaderIndex_(indexes, ['박스ID', '박스 ID']);
+    const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+    const storageIndex = findHeaderIndex_(indexes, ['보관위치', '보관 위치', '보관 장소']);
+    const quantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+    const processIndex = findHeaderIndex_(indexes, ['공정 상태', '공정상태', '최종공정', '최종 공정']);
+
+    if (sequenceIndex < 0 || statusIndex < 0 || storageIndex < 0 || quantityIndex < 0) {
+      throw new Error(`${boxSheet.getName()} 시트에서 박스 상태 변경에 필요한 컬럼을 찾을 수 없습니다.`);
+    }
+
+    const identity = {
+      productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
+      productName: payload.productName || payload['제품명'],
+      clientName: payload.clientName || payload['업체명'] || payload['거래처명'],
+      batch: payload.batch || payload['차수'],
+      finalProcess: payload.finalProcess || payload['최종공정'] || payload['최종 공정'],
+      storage: currentStorage
+    };
+    const matchedTargets = [];
+    const matchedNumbers = new Set();
+
+    for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+      if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리ID', '관리 ID'], managementId, identity)) {
+        continue;
+      }
+
+      const sequence = displayQuantityToNumber_(values[rowIndex][sequenceIndex]);
+      if (!selectedBoxNumbers.has(sequence)) {
+        continue;
+      }
+
+      const status = normalizeStockStatusText_(values[rowIndex][statusIndex]);
+      const quantity = displayQuantityToNumber_(values[rowIndex][quantityIndex]);
+      if (quantity <= 0) {
+        throw new Error(`${sequence}번 박스는 현재 수량이 없어 변경할 수 없습니다.`);
+      }
+      if (status === '출고완료' || status === '폐기') {
+        throw new Error(`${sequence}번 박스는 ${status} 상태라 변경할 수 없습니다.`);
+      }
+      if (status === '출고대기' || status === '보류') {
+        throw new Error(`${sequence}번 박스는 ${status} 상태입니다. 해당 상태를 먼저 취소해주세요.`);
+      }
+
+      matchedTargets.push({
+        rowIndex,
+        sequence,
+        boxId: boxIdIndex >= 0 ? String(values[rowIndex][boxIdIndex] || '').trim() : '',
+        quantity,
+        beforeStorage: String(values[rowIndex][storageIndex] || '').trim() || '-',
+        beforeStatus: status,
+        processStatus: processIndex >= 0 ? String(values[rowIndex][processIndex] || '').trim() || '-' : '-'
+      });
+      matchedNumbers.add(sequence);
+    }
+
+    const missingNumbers = Array.from(selectedBoxNumbers).filter((number) => !matchedNumbers.has(number));
+    if (missingNumbers.length) {
+      throw new Error(`선택한 박스를 찾을 수 없습니다: ${missingNumbers.join(', ')}번`);
+    }
+
+    const changedTargets = matchedTargets.filter((target) => {
+      if (inventoryAction === 'setInjectionStock') {
+        return target.beforeStatus !== '사출재고';
+      }
+      return target.beforeStorage !== targetStorage;
+    });
+
+    if (!changedTargets.length) {
+      throw new Error(inventoryAction === 'setInjectionStock'
+        ? '선택한 박스가 이미 사출재고로 등록되어 있습니다.'
+        : '선택한 박스가 이미 해당 위치에 있습니다.');
+    }
+
+    changedTargets.forEach((target) => {
+      if (inventoryAction === 'setInjectionStock') {
+        boxSheet.getRange(target.rowIndex + 1, statusIndex + 1).setValue('사출재고');
+        values[target.rowIndex][statusIndex] = '사출재고';
+      } else {
+        boxSheet.getRange(target.rowIndex + 1, storageIndex + 1).setValue(targetStorage);
+        values[target.rowIndex][storageIndex] = targetStorage;
+      }
+    });
+
+    const summary = summarizeInventoryMoveBoxRows_(values, headerInfo, indexes, managementId, {
+      productId: identity.productId,
+      productName: identity.productName,
+      clientName: identity.clientName,
+      batch: identity.batch,
+      finalProcess: identity.finalProcess
+    }, currentStorage);
+    const updatedStockRows = updateInventoryMoveStockRows_(stockSheet, managementId, {
+      productId: identity.productId,
+      productName: identity.productName,
+      clientName: identity.clientName,
+      batch: identity.batch,
+      finalProcess: identity.finalProcess,
+      currentStorage,
+      targetStorage,
+      inventoryAction,
+      aggregateStatus: summary.aggregateStatus,
+      remainingSourceActiveRows: summary.remainingSourceActiveRows,
+      changedAt
+    });
+    appendInventoryMoveHistory_(changedTargets, {
+      managementId,
+      productId: identity.productId,
+      productName: identity.productName,
+      inventoryAction,
+      targetStorage,
+      userName,
+      changedAt
+    });
+    SpreadsheetApp.flush();
+
+    return {
+      managementId,
+      inventoryAction,
+      status: inventoryAction === 'setInjectionStock' ? '사출재고' : summary.aggregateStatus,
+      targetStorage: inventoryAction === 'move' ? targetStorage : currentStorage,
+      updatedBoxRows: changedTargets.length,
+      updatedStockRows,
+      remainingSourceActiveRows: summary.remainingSourceActiveRows
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function summarizeInventoryMoveBoxRows_(values, headerInfo, indexes, managementId, identity, currentStorage) {
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const quantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  const storageIndex = findHeaderIndex_(indexes, ['보관위치', '보관 위치', '보관 장소']);
+  let activeRows = 0;
+  let shippedRows = 0;
+  let pendingRows = 0;
+  let holdRows = 0;
+  let injectionRows = 0;
+  let remainingSourceActiveRows = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리ID', '관리 ID'], managementId, identity)) {
+      continue;
+    }
+
+    const quantity = displayQuantityToNumber_(values[rowIndex][quantityIndex]);
+    const status = normalizeStockStatusText_(values[rowIndex][statusIndex]);
+    const storage = String(values[rowIndex][storageIndex] || '').trim();
+    if (quantity <= 0 || status === '폐기') {
+      continue;
+    }
+    if (status === '출고완료') {
+      shippedRows += 1;
+      continue;
+    }
+
+    activeRows += 1;
+    if (currentStorage && storage === currentStorage) {
+      remainingSourceActiveRows += 1;
+    }
+    if (status === '출고대기') {
+      pendingRows += 1;
+    } else if (status === '보류') {
+      holdRows += 1;
+    } else if (status === '사출재고') {
+      injectionRows += 1;
+    }
+  }
+
+  let aggregateStatus = '보관';
+  if (pendingRows > 0) {
+    aggregateStatus = '출고대기';
+  } else if (activeRows > 0 && shippedRows > 0) {
+    aggregateStatus = '일부 출고';
+  } else if (activeRows === 0 && shippedRows > 0) {
+    aggregateStatus = '출고완료';
+  } else if (holdRows > 0) {
+    aggregateStatus = '보류';
+  } else if (activeRows > 0 && injectionRows === activeRows) {
+    aggregateStatus = '사출재고';
+  } else if (injectionRows > 0) {
+    aggregateStatus = '사출재고 포함';
+  }
+
+  return {
+    aggregateStatus,
+    remainingSourceActiveRows
+  };
+}
+
+function updateInventoryMoveStockRows_(sheet, managementId, data) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '상태']) || findHeaderRow_(values, ['관리ID', '상태']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const storageIndex = findHeaderIndex_(indexes, ['보관위치', '보관 위치', '보관 장소']);
+  const modifiedAtIndex = findHeaderIndex_(indexes, ['수정일', '수정 일시', '수정일시']);
+  let updatedRows = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리 ID', '관리ID'], managementId, {
+      productId: data.productId,
+      productName: data.productName,
+      clientName: data.clientName,
+      batch: data.batch,
+      finalProcess: data.finalProcess,
+      storage: data.currentStorage
+    })) {
+      continue;
+    }
+
+    if (statusIndex >= 0) {
+      sheet.getRange(rowIndex + 1, statusIndex + 1).setValue(data.aggregateStatus);
+    }
+    if (data.inventoryAction === 'move' && data.remainingSourceActiveRows === 0 && storageIndex >= 0) {
+      sheet.getRange(rowIndex + 1, storageIndex + 1).setValue(data.targetStorage);
+    }
+    if (modifiedAtIndex >= 0) {
+      sheet.getRange(rowIndex + 1, modifiedAtIndex + 1).setValue(data.changedAt);
+    }
+    updatedRows += 1;
+  }
+
+  return updatedRows;
+}
+
+function appendInventoryMoveHistory_(targets, data) {
+  const headers = [
+    '이력ID', '변경일시', '작업자', '관리ID', '박스ID', '제품ID', '제품명', '변경 유형',
+    '변경 전 수량', '변경 후 수량', '변경 전 보관 장소', '변경 후 보관 장소',
+    '변경 전 재고 상태', '변경 후 재고 상태', '변경 전 공정 상태', '변경 후 공정 상태',
+    '변경 사유', '비고'
+  ];
+  const sheet = getOrCreateSheet_(getSpreadsheet_(), CONFIG.SHEETS.INVENTORY_HISTORY);
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['이력ID', '관리ID', '변경 유형']);
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+  const indexes = indexHeaders_(headerInfo.headers);
+  const rows = targets.map((target) => {
+    const row = Array(headerInfo.headers.length).fill('');
+    const afterStorage = data.inventoryAction === 'move' ? data.targetStorage : target.beforeStorage;
+    const afterStatus = data.inventoryAction === 'setInjectionStock' ? '사출재고' : target.beforeStatus;
+    setRowValue_(row, indexes, ['이력ID'], `HIS-${Utilities.getUuid()}`);
+    setRowValue_(row, indexes, ['변경일시'], data.changedAt);
+    setRowValue_(row, indexes, ['작업자'], data.userName);
+    setRowValue_(row, indexes, ['관리ID'], data.managementId);
+    setRowValue_(row, indexes, ['박스ID'], target.boxId);
+    setRowValue_(row, indexes, ['제품ID'], data.productId);
+    setRowValue_(row, indexes, ['제품명'], data.productName);
+    setRowValue_(row, indexes, ['변경 유형'], data.inventoryAction === 'setInjectionStock' ? '사출재고 등록' : '보관 위치 이동');
+    setRowValue_(row, indexes, ['변경 전 수량'], target.quantity);
+    setRowValue_(row, indexes, ['변경 후 수량'], target.quantity);
+    setRowValue_(row, indexes, ['변경 전 보관 장소'], target.beforeStorage);
+    setRowValue_(row, indexes, ['변경 후 보관 장소'], afterStorage);
+    setRowValue_(row, indexes, ['변경 전 재고 상태'], target.beforeStatus);
+    setRowValue_(row, indexes, ['변경 후 재고 상태'], afterStatus);
+    setRowValue_(row, indexes, ['변경 전 공정 상태'], target.processStatus);
+    setRowValue_(row, indexes, ['변경 후 공정 상태'], target.processStatus);
+    setRowValue_(row, indexes, ['변경 사유'], data.inventoryAction === 'setInjectionStock' ? '모바일 QR 사출재고 등록' : '모바일 QR 자리이동');
+    setRowValue_(row, indexes, ['비고'], `${target.sequence}번 박스`);
+    return row;
+  });
+
+  if (rows.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headerInfo.headers.length).setValues(rows);
+  }
 }
 
 function returnTransferredInventory(payload) {

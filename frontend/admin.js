@@ -348,6 +348,7 @@ const shippingInspectionPhotoButton = document.querySelector("#shippingInspectio
 const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
 const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
 const shippingInspectionHoldStatus = document.querySelector("#shippingInspectionHoldStatus");
+const shippingInspectionDiscardStatus = document.querySelector("#shippingInspectionDiscardStatus");
 const shippingCompletionModal = document.querySelector("#shippingCompletionModal");
 const shippingCompletionForm = document.querySelector("#shippingCompletionForm");
 const shippingCompletionRecordId = document.querySelector("#shippingCompletionRecordId");
@@ -632,6 +633,16 @@ reinspectFromHoldGuideButton?.addEventListener("click", () => {
 shippingInspectionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingInspection();
+});
+shippingInspectionHoldStatus?.addEventListener("change", () => {
+  if (shippingInspectionHoldStatus.checked && shippingInspectionDiscardStatus) {
+    shippingInspectionDiscardStatus.checked = false;
+  }
+});
+shippingInspectionDiscardStatus?.addEventListener("change", () => {
+  if (shippingInspectionDiscardStatus.checked && shippingInspectionHoldStatus) {
+    shippingInspectionHoldStatus.checked = false;
+  }
 });
 shippingCompletionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -1229,6 +1240,9 @@ async function openShippingInspectionModal(row) {
   if (shippingInspectionHoldStatus) {
     shippingInspectionHoldStatus.checked = row.children[14]?.textContent.trim() === "출고 보류";
   }
+  if (shippingInspectionDiscardStatus) {
+    shippingInspectionDiscardStatus.checked = false;
+  }
 
   if (shippingInspectorName) {
     shippingInspectorName.value = session?.name || "Admin";
@@ -1818,14 +1832,19 @@ function updateShippingInspectionDefectRate() {
 
 async function saveShippingInspection() {
   const row = state.activeShippingInspectionRow;
+  if (!row) {
+    return;
+  }
+
   const selectedReasons = Array.from(
     shippingInspectionForm?.querySelectorAll('input[name="shippingDefectReason"]:checked') || []
   ).map((input) => input.value);
   const selectedBoxes = getSelectedShippingInspectionBoxes();
-
-  if (!row) {
-    return;
-  }
+  const discardRequested = Boolean(shippingInspectionDiscardStatus?.checked);
+  const registeredBoxes = getShippingRowBoxes(row, "activeShippingBoxes").filter((box) => (
+    ["출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status))
+  ));
+  const clearShippingWaiting = !discardRequested && selectedBoxes.length === 0 && registeredBoxes.length > 0;
 
   if (!selectedReasons.length) {
     if (shippingInspectionMessage) {
@@ -1834,17 +1853,17 @@ async function saveShippingInspection() {
     return;
   }
 
-  if (!selectedBoxes.length) {
+  if (!selectedBoxes.length && !clearShippingWaiting) {
     if (shippingInspectionMessage) {
       shippingInspectionMessage.textContent = "이번에 출고할 박스를 하나 이상 선택해주세요.";
     }
     return;
   }
 
-  const invalidBoxQuantity = selectedBoxes.find((box) => !Number.isFinite(box.quantity) || box.quantity <= 0);
+  const invalidBoxQuantity = selectedBoxes.find((box) => !Number.isFinite(box.quantity) || box.quantity < 0);
   if (invalidBoxQuantity) {
     if (shippingInspectionMessage) {
-      shippingInspectionMessage.textContent = `${invalidBoxQuantity.number}번 박스 수량을 1ea 이상 입력해주세요.`;
+      shippingInspectionMessage.textContent = `${invalidBoxQuantity.number}번 박스 수량을 0ea 이상 입력해주세요.`;
     }
     return;
   }
@@ -1853,9 +1872,9 @@ async function saveShippingInspection() {
   const defectQuantity = parseShippingSettlementNumber(shippingInspectionDefectQuantity?.value || "");
   const defectRate = getShippingInspectionRateValue();
 
-  if (inspectionQuantity <= 0) {
+  if (inspectionQuantity < 0) {
     if (shippingInspectionMessage) {
-      shippingInspectionMessage.textContent = "검수 수량을 1ea 이상 입력해주세요.";
+      shippingInspectionMessage.textContent = "검수 수량을 0ea 이상 입력해주세요.";
     }
     return;
   }
@@ -1948,9 +1967,21 @@ async function saveShippingInspection() {
       defectReasons: selectedReasons,
       memo,
       holdRequested,
+      discardRequested,
+      clearShippingWaiting,
       defectPhotoFolderUrl,
       defectPhotoCount
     });
+
+    if (clearShippingWaiting || discardRequested) {
+      clearShippingBoxDraft(getShippingDraftKeyFromRow(row));
+      closeShippingInspectionModal();
+      showToast(clearShippingWaiting
+        ? "출고대기 박스를 보관 상태로 변경했습니다."
+        : `${selectedBoxes.length}개 박스를 폐기 처리했습니다.`);
+      await loadInventoryDashboard(false);
+      return;
+    }
 
     const inspectionCell = row.children[11];
     const anomalyCell = row.children[12];
