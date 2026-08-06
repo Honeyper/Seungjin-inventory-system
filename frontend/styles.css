@@ -3726,7 +3726,11 @@ input {
 }
 
 .shipping-row-action-menu {
-  width: 9.4rem;
+  width: 11.5rem;
+}
+
+.shipping-row-action-menu .row-menu-item span {
+  white-space: nowrap;
 }
 
 .shipping-action-complete {

@@ -1106,7 +1106,7 @@
                     <option value="">전체</option>
                     <option>출고대기(검수완료)</option>
                     <option>출고 보류</option>
-                    <option>일부 출고</option>
+                    <option value="일부 출고">부분출고</option>
                     <option>출고 완료</option>
                     <option>반출</option>
                     <option>이관</option>
@@ -1519,9 +1519,9 @@
       <section class="product-modal remaining-inventory-modal" role="dialog" aria-modal="true" aria-labelledby="remainingInventoryTitle">
         <header class="modal-header">
           <div>
-            <span class="modal-kicker">남은 재고</span>
-            <h2 id="remainingInventoryTitle">남은 재고 등록</h2>
-            <p>부분 출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.</p>
+            <span class="modal-kicker">보관 재고</span>
+            <h2 id="remainingInventoryTitle">보관 재고 등록</h2>
+            <p>부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeRemainingInventoryModal" aria-label="닫기">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1531,7 +1531,7 @@
         </header>
 
         <form class="product-form remaining-inventory-form" id="remainingInventoryForm">
-          <section class="shipping-completion-summary" aria-label="남은 재고 대상 정보">
+          <section class="shipping-completion-summary" aria-label="보관 재고 대상 정보">
             <div>
               <span>관리 ID</span>
               <strong id="remainingInventoryRecordId">-</strong>
