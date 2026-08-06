@@ -6692,7 +6692,8 @@ input {
   box-shadow: 0 0 0 0.18rem rgba(8, 42, 98, 0.08);
 }
 
-.form-field input:not([type="radio"]):disabled {
+.form-field input:not([type="radio"]):disabled,
+.form-field select:disabled {
   color: #98a4b5;
   background: #f7f9fc;
 }

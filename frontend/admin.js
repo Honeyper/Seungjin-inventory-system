@@ -7211,6 +7211,7 @@ function renderShippingDetail(item) {
       <h3 id="shippingDetailBaseTitle">출고 기본 정보</h3>
       <div class="detail-grid">
         ${detailItem("관리 ID", item.managementId)}
+        ${detailItem("입고일", item.inboundDate)}
         ${detailItem("출고 상태", renderShippingStatusBadge(item), true)}
         ${detailItem("출고일", latestShippingDate)}
         ${detailItem("출고 시간", latestShippingTime)}
@@ -7395,7 +7396,7 @@ function renderInboundEditForm(inbound) {
         </label>
         <label class="form-field">
           <span>최종공정 <b>*</b></span>
-          <select id="inboundEditProcess">
+          <select id="inboundEditProcess" disabled>
             ${renderOptionList(["", "1도", "2도", "3도", "코팅"], normalizeEditableValue(inbound.process), "선택하세요.")}
           </select>
         </label>
@@ -7474,6 +7475,16 @@ function renderInboundEditForm(inbound) {
             </div>
             <input id="inboundEditDefectReason" type="hidden" value="" />
           </div>
+        </label>
+      </div>
+    </section>
+
+    <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditNoteTitle">
+      <h3 id="inboundEditNoteTitle">&#48708;&#44256;</h3>
+      <div class="inbound-edit-grid">
+        <label class="form-field full-span">
+          <span class="visually-hidden">&#48708;&#44256;</span>
+          <textarea id="inboundEditNote" rows="3" placeholder="&#48708;&#44256;&#47484; &#51077;&#47141;&#54616;&#49464;&#50836;.">${escapeHtml(normalizeEditableValue(inbound.note))}</textarea>
         </label>
       </div>
     </section>
@@ -7603,12 +7614,9 @@ function renderUnitInput(id, value, unit) {
 
 function renderEditableUnitInput(id, label, value, unit, isLocked) {
   return `
-    <span class="unit-input editable-lock-input editable-unit-input">
-      <input id="${escapeAttribute(id)}" type="number" value="${escapeAttribute(value)}" min="0" ${isLocked ? "disabled" : ""} />
+    <span class="unit-input">
+      <input id="${escapeAttribute(id)}" type="number" value="${escapeAttribute(value)}" min="0" disabled />
       <i>${escapeHtml(unit)}</i>
-      <button type="button" aria-label="${escapeAttribute(label)}" title="${isLocked ? "수정" : "잠금"}" aria-pressed="${isLocked ? "false" : "true"}" data-edit-lock-target="${escapeAttribute(id)}">
-        ${renderEditLockIcons()}
-      </button>
     </span>
   `;
 }
@@ -7768,7 +7776,8 @@ async function getInboundEditPayload() {
     multipleRemainders,
     inspectionQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditInspectionQty")),
     defectQuantity: getNumberValue(inboundDetailContent.querySelector("#inboundEditDefectQty")),
-    defectReason: inboundDetailContent.querySelector("#inboundEditDefectReason")?.value.trim() || ""
+    defectReason: inboundDetailContent.querySelector("#inboundEditDefectReason")?.value.trim() || "",
+    note: inboundDetailContent.querySelector("#inboundEditNote")?.value.trim() || ""
   };
 
   payload.invoiceFile = await getFilePayloadFromInput(inboundDetailContent.querySelector("#inboundEditInvoiceFile"), {
