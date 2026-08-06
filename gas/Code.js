@@ -30,6 +30,8 @@ const DATA_MUTATION_ACTIONS = new Set([
   'normalizeStockAttachmentLinks',
   'setupSheets',
   'saveShippingInspection',
+  'cancelDiscardedBoxes',
+  'classifyRemainingInventory',
   'updateShippingStatus',
   'updateInventoryBoxMove',
   'returnTransferredInventory',
@@ -145,6 +147,8 @@ function doPost(e) {
       getInboundBoxQrs,
       uploadShippingDefectPhotos,
       saveShippingInspection,
+      cancelDiscardedBoxes,
+      classifyRemainingInventory,
       updateShippingStatus,
       updateInventoryBoxMove,
       returnTransferredInventory,
@@ -273,6 +277,26 @@ function invalidateDataCaches_() {
   } catch (error) {
     // Short TTLs still limit stale responses if property access is unavailable.
   }
+}
+
+function isApiMutationAction_(action) {
+  return [
+    'createProduct',
+    'updateProduct',
+    'deleteProduct',
+    'createInbound',
+    'updateInbound',
+    'deleteInbound',
+    'getInboundBoxQrs',
+    'saveShippingInspection',
+    'cancelDiscardedBoxes',
+    'classifyRemainingInventory',
+    'updateShippingStatus',
+    'returnTransferredInventory',
+    'returnTakenOutInventory',
+    'updateInventoryBoxMove',
+    'formatProductRows'
+  ].includes(action);
 }
 
 function healthCheck() {
@@ -2177,7 +2201,16 @@ function ensureBoxDbShippingInspectionHeaders_(sheet) {
     return;
   }
 
-  const requiredHeaders = ['불량 수량', '불량 사유', '불량 사진', '출고 수정일시'];
+  const requiredHeaders = [
+    '불량 수량',
+    '불량 사유',
+    '불량 사진',
+    '출고 수정일시',
+    '폐기 전 수량',
+    '재고 구분',
+    '재고 구분일시',
+    '재고 구분자'
+  ];
   const existingHeaders = headerInfo.headers.map((header) => String(header || '').trim());
   let nextColumn = existingHeaders.length + 1;
 
@@ -3326,6 +3359,253 @@ function summarizeShippingInspectionBoxRows_(sheet, managementId, data) {
   }
 
   return { remainingActiveRows, remainingShippedRows, remainingStatusCounts };
+}
+
+function classifyRemainingInventory(payload) {
+  const managementId = String(payload.managementId || '').trim();
+  const inventoryCategory = String(payload.inventoryCategory || '').trim();
+  const allowedCategories = ['자사재고', '사출 보관재고'];
+  const selectedBoxes = new Set(
+    (Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  );
+  const selectedBoxIds = new Set(
+    (Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : [])
+      .map((value) => normalizeInventoryIdentityPart_(value))
+      .filter(Boolean)
+  );
+
+  if (!managementId) {
+    throw new Error('관리 ID가 없습니다.');
+  }
+  if (!allowedCategories.includes(inventoryCategory)) {
+    throw new Error('재고 구분을 선택해주세요.');
+  }
+  if (!selectedBoxes.size && !selectedBoxIds.size) {
+    throw new Error('등록할 남은 박스를 선택해주세요.');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+    ensureBoxDbShippingInspectionHeaders_(boxSheet);
+    const values = boxSheet.getDataRange().getDisplayValues();
+    const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
+
+    if (!headerInfo) {
+      throw new Error(`${boxSheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+    }
+
+    const indexes = indexHeaders_(headerInfo.headers);
+    const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+    const boxIdIndex = findHeaderIndex_(indexes, ['박스ID', '박스 ID']);
+    const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+    const quantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+    const categoryIndex = findHeaderIndex_(indexes, ['재고 구분', '재고구분']);
+    const classifiedAtIndex = findHeaderIndex_(indexes, ['재고 구분일시', '재고구분일시']);
+    const classifierIndex = findHeaderIndex_(indexes, ['재고 구분자', '재고구분자']);
+    if (categoryIndex < 0 || classifiedAtIndex < 0 || classifierIndex < 0) {
+      throw new Error('박스관리 DB의 재고 구분 저장 열을 준비하지 못했습니다.');
+    }
+    const timezone = Session.getScriptTimeZone() || 'Asia/Seoul';
+    const classifiedAt = Utilities.formatDate(new Date(), timezone, 'yyyy-MM-dd HH:mm:ss');
+    const classifier = String(payload.userName || payload.registrant || 'Admin').trim() || 'Admin';
+    let updatedRows = 0;
+    let totalQuantity = 0;
+    let matchedBoxNumber = 0;
+    const selectedRowIndexes = [];
+
+    for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+      const row = values[rowIndex].slice(0, headerInfo.headers.length);
+      const rowManagementId = String(pickCell_(row, indexes, ['관리ID', '관리 ID']) || '').trim();
+      if (rowManagementId !== managementId) {
+        continue;
+      }
+
+      matchedBoxNumber += 1;
+      const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(row[sequenceIndex]) : matchedBoxNumber;
+      const boxId = boxIdIndex >= 0 ? normalizeInventoryIdentityPart_(row[boxIdIndex]) : '';
+      const isSelected = selectedBoxIds.size > 0
+        ? selectedBoxIds.has(boxId) || (!boxId && selectedBoxes.has(sequence))
+        : selectedBoxes.has(sequence);
+      const status = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
+      const quantity = quantityIndex >= 0 ? displayQuantityToNumber_(row[quantityIndex]) : 0;
+
+      if (!isSelected || quantity <= 0 || status !== '보관') {
+        continue;
+      }
+
+      selectedRowIndexes.push(rowIndex + 1);
+      updatedRows += 1;
+      totalQuantity += quantity;
+    }
+
+    if (!updatedRows) {
+      throw new Error('등록할 수 있는 남은 박스를 찾지 못했습니다. 최신 목록을 다시 불러와주세요.');
+    }
+
+    const rowGroups = selectedRowIndexes.reduce((groups, sheetRow) => {
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup[lastGroup.length - 1] + 1 === sheetRow) {
+        lastGroup.push(sheetRow);
+      } else {
+        groups.push([sheetRow]);
+      }
+      return groups;
+    }, []);
+
+    rowGroups.forEach((group) => {
+      const startRow = group[0];
+      const rowCount = group.length;
+      boxSheet.getRange(startRow, categoryIndex + 1, rowCount, 1)
+        .setValues(Array.from({ length: rowCount }, () => [inventoryCategory]));
+      boxSheet.getRange(startRow, classifiedAtIndex + 1, rowCount, 1)
+        .setValues(Array.from({ length: rowCount }, () => [classifiedAt]));
+      boxSheet.getRange(startRow, classifierIndex + 1, rowCount, 1)
+        .setValues(Array.from({ length: rowCount }, () => [classifier]));
+    });
+
+    SpreadsheetApp.flush();
+    return {
+      managementId,
+      inventoryCategory,
+      classifiedAt,
+      classifier,
+      updatedRows,
+      totalQuantity
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function cancelDiscardedBoxes(payload) {
+  const managementId = String(payload.managementId || '').trim();
+  const selectedBoxes = new Set(
+    (Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  );
+  const selectedBoxIds = new Set(
+    (Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : [])
+      .map((value) => normalizeInventoryIdentityPart_(value))
+      .filter(Boolean)
+  );
+
+  if (!managementId) {
+    throw new Error('관리 ID가 없습니다.');
+  }
+
+  if (!selectedBoxes.size && !selectedBoxIds.size) {
+    throw new Error('폐기 취소할 박스가 없습니다.');
+  }
+
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  ensureBoxDbShippingInspectionHeaders_(boxSheet);
+  const values = boxSheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${boxSheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+  const boxIdIndex = findHeaderIndex_(indexes, ['박스ID', '박스 ID']);
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const currentQuantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  const beforeDiscardQuantityIndex = findHeaderIndex_(indexes, ['폐기 전 수량', '폐기전수량']);
+  const originalQuantityIndex = findHeaderIndex_(indexes, ['박스당 수량', '박스당수량', '입고 수량', '입고수량']);
+  const userName = String(payload.userName || payload.registrant || 'Admin').trim() || 'Admin';
+  let updatedRows = 0;
+  let restoredQuantity = 0;
+  let matchedBoxNumber = 0;
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex].slice(0, headerInfo.headers.length);
+    const rowManagementId = String(pickCell_(row, indexes, ['관리ID', '관리 ID']) || '').trim();
+    if (rowManagementId !== managementId) {
+      continue;
+    }
+
+    matchedBoxNumber += 1;
+    const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(row[sequenceIndex]) : matchedBoxNumber;
+    const boxId = boxIdIndex >= 0 ? String(row[boxIdIndex] || '').trim() : '';
+    const normalizedBoxId = normalizeInventoryIdentityPart_(boxId);
+    const isSelected = selectedBoxIds.size > 0
+      ? selectedBoxIds.has(normalizedBoxId) || (!boxId && selectedBoxes.has(sequence))
+      : selectedBoxes.has(sequence);
+    const status = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '';
+
+    if (!isSelected || !/폐기/.test(status) || !isMatchingInventoryRow_(row, indexes, ['관리ID', '관리 ID'], managementId, payload)) {
+      continue;
+    }
+
+    const beforeDiscardQuantity = beforeDiscardQuantityIndex >= 0
+      ? displayQuantityToNumber_(row[beforeDiscardQuantityIndex])
+      : 0;
+    const originalQuantity = originalQuantityIndex >= 0
+      ? displayQuantityToNumber_(row[originalQuantityIndex])
+      : 0;
+    const restoreQuantity = beforeDiscardQuantity > 0 ? beforeDiscardQuantity : originalQuantity;
+
+    if (restoreQuantity <= 0) {
+      throw new Error(`${sequence}번 박스의 복구할 수량을 확인할 수 없습니다.`);
+    }
+
+    if (currentQuantityIndex >= 0) {
+      row[currentQuantityIndex] = formatEa_(restoreQuantity);
+    }
+    setRowValue_(row, indexes, ['폐기 전 수량', '폐기전수량'], '');
+    setRowValue_(row, indexes, ['상태', '재고 상태'], '보관');
+    setRowValue_(row, indexes, ['출고유형', '출고 유형', '출고타입', '출고 타입', '출고구분', '출고 구분'], '');
+    setRowValue_(row, indexes, ['출고일'], '');
+    setRowValue_(row, indexes, ['출고시간'], '');
+    setRowValue_(row, indexes, ['출고자'], '');
+    setRowValue_(row, indexes, ['출고 검수일', '검수일'], '');
+    setRowValue_(row, indexes, ['출고 검수시간', '검수시간'], '');
+    setRowValue_(row, indexes, ['출고 검수자', '검수자'], '');
+    setRowValue_(row, indexes, ['출고 검수 수량', '출고검수수량', '검수수량'], '');
+    setRowValue_(row, indexes, ['불량 수량', '불량수량'], '');
+    setRowValue_(row, indexes, ['불량 사유', '불량사유', '불량내역'], '');
+    setRowValue_(row, indexes, ['불량률'], '');
+    setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], '');
+    setRowValue_(row, indexes, ['비고'], `폐기 취소 (${userName})`);
+    boxSheet.getRange(rowIndex + 1, 1, 1, headerInfo.headers.length).setValues([row]);
+    values[rowIndex] = row;
+    updatedRows += 1;
+    restoredQuantity += restoreQuantity;
+  }
+
+  if (!updatedRows) {
+    throw new Error('폐기 취소할 박스를 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.');
+  }
+
+  const statusSummary = summarizeShippingInspectionBoxRows_(boxSheet, managementId, payload, values, headerInfo);
+  const remainingCounts = statusSummary.remainingStatusCounts || {};
+  const stockStatus = statusSummary.remainingShippedRows > 0 && statusSummary.remainingActiveRows > 0
+    ? '일부 출고'
+    : statusSummary.remainingShippedRows > 0
+      ? '출고완료'
+      : remainingCounts['출고대기'] || remainingCounts['출고대기(검수완료)'] || remainingCounts['검수완료']
+        ? '출고대기'
+        : remainingCounts['보류']
+          ? '보류'
+          : '보관';
+  const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, stockStatus, payload);
+  SpreadsheetApp.flush();
+
+  return {
+    managementId,
+    stockStatus,
+    updatedBoxRows: updatedRows,
+    updatedStockRows,
+    restoredQuantity
+  };
 }
 
 function updateShippingStatus(payload) {
@@ -4773,6 +5053,9 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const shippingType = getObjectCell_(row, ['출고유형', '출고 유형', '출고타입', '출고 타입', '출고구분', '출고 구분']);
     const transferCompanyCell = getObjectCell_(row, ['이관업체', '이관 업체', '출고 이관 업체', '출고이관업체']);
     const transferCompany = transferCompanyCell || extractTransferCompanyFromShippingType_(shippingType) || extractTransferCompanyFromNote_(boxNote);
+    const inventoryCategory = getObjectCell_(row, ['재고 구분', '재고구분']);
+    const inventoryClassifiedAt = getObjectCell_(row, ['재고 구분일시', '재고구분일시']);
+    const inventoryClassifier = getObjectCell_(row, ['재고 구분자', '재고구분자']);
     const boxInfo = {
       number: sequence || summary.boxes.length + 1,
       boxId: getObjectCell_(row, ['박스ID', '박스 ID']),
@@ -4796,6 +5079,24 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       transferCompany,
       shipper: getObjectCell_(row, ['출고자'])
     };
+    if (inventoryCategory && inventoryCategory !== '-') boxInfo.inventoryCategory = inventoryCategory;
+    if (inventoryClassifiedAt && inventoryClassifiedAt !== '-') boxInfo.inventoryClassifiedAt = inventoryClassifiedAt;
+    if (inventoryClassifier && inventoryClassifier !== '-') boxInfo.inventoryClassifier = inventoryClassifier;
+    if (rawStatus && rawStatus !== status) boxInfo.rawStatus = rawStatus;
+    if (shippingInspectionDate) boxInfo.inspectionDate = shippingInspectionDate;
+    if (shippingInspectionTime && shippingInspectionTime !== '-') boxInfo.inspectionTime = shippingInspectionTime;
+    if (shippingInspectionQuantity > 0) boxInfo.inspectionQuantity = shippingInspectionQuantity;
+    if (shippingDefectQuantity > 0) boxInfo.defectQuantity = shippingDefectQuantity;
+    if (shippingDefectRateText && shippingDefectRateText !== '-') boxInfo.defectRate = shippingDefectRate;
+    if (shippingDefectReason && shippingDefectReason !== '-') boxInfo.defectReason = shippingDefectReason;
+    if (defectPhotoFolderUrl && defectPhotoFolderUrl !== '-') boxInfo.defectPhotoFolderUrl = defectPhotoFolderUrl;
+    if (shippingDate) boxInfo.shippingDate = getObjectCell_(row, ['출고일']);
+    const shippingTime = getObjectCell_(row, ['출고시간']);
+    if (shippingTime && shippingTime !== '-') boxInfo.shippingTime = shippingTime;
+    if (shippingType && shippingType !== '-') boxInfo.shippingType = shippingType;
+    if (transferCompany) boxInfo.transferCompany = transferCompany;
+    const shipper = getObjectCell_(row, ['출고자']);
+    if (shipper && shipper !== '-') boxInfo.shipper = shipper;
     const hasShippingInspection = Boolean(
       (shippingInspectionDate && shippingInspectionDate !== '-')
       || shippingInspectionQuantity > 0
