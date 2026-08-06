@@ -565,7 +565,7 @@ inboundDefectReasonPanel?.querySelectorAll("[data-defect-reason]").forEach((butt
 inboundSubmitButton?.addEventListener("click", saveInbound);
 refreshInboundListButton?.addEventListener("click", refreshTodayInbounds);
 inboundListSearch?.addEventListener("input", (event) => {
-  state.inboundListQuery = event.target.value.trim().toLowerCase();
+  state.inboundListQuery = normalizeSearchText(event.target.value);
   renderTodayInbounds();
 });
 inboundPageSizeSelect?.addEventListener("change", (event) => {
@@ -581,7 +581,7 @@ inboundListEndDate?.addEventListener("change", () => {
   refreshTodayInbounds();
 });
 inventorySearch?.addEventListener("input", (event) => {
-  state.inventoryFilters.query = event.target.value.trim().toLowerCase();
+  state.inventoryFilters.query = normalizeSearchText(event.target.value);
   state.inventoryPage = 1;
   applyInventoryFilters();
 });
@@ -875,12 +875,12 @@ createProductFromPickerButton?.addEventListener("click", () => {
 });
 
 inboundProductPickerSearch.addEventListener("input", (event) => {
-  state.inboundProductPickerQuery = event.target.value.trim().toLowerCase();
+  state.inboundProductPickerQuery = normalizeSearchText(event.target.value);
   renderInboundProductPicker();
 });
 
 productSearch.addEventListener("input", (event) => {
-  state.query = event.target.value.trim().toLowerCase();
+  state.query = normalizeSearchText(event.target.value);
   state.page = 1;
   applyFilters();
 });
@@ -908,7 +908,7 @@ shippingPageSizeSelect?.addEventListener("change", (event) => {
   renderShippingTable();
 });
 shippingSearchInput?.addEventListener("input", (event) => {
-  state.shippingFilters.query = event.target.value.trim().toLowerCase();
+  state.shippingFilters.query = normalizeSearchText(event.target.value);
   state.shippingPage = 1;
   renderShippingTable();
 });
@@ -3067,7 +3067,7 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
       item.currentTotalQuantity,
       renderPlainShippingStatus(effectiveStatus),
       isShippingInspected(item) ? SHIPPING_READY_STATUS_LABEL : "검수 전"
-    ].some((value) => String(value || "").toLowerCase().includes(filters.query));
+    ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(filters.query)));
   });
 
   const shippingDrafts = readShippingBoxDrafts();
@@ -3168,7 +3168,7 @@ function syncShippingSortControls() {
 
 function syncShippingFilterState() {
   state.shippingFilters = {
-    query: shippingSearchInput?.value.trim().toLowerCase() || "",
+    query: normalizeSearchText(shippingSearchInput?.value),
     client: getShippingFilterValue(shippingClientFilter),
     storage: getShippingFilterValue(shippingStorageFilter),
     inspection: getShippingFilterValue(shippingInspectionFilter),
@@ -4404,7 +4404,7 @@ function getFilteredInbounds() {
     item.registrant,
     item.defectReason,
     item.note
-  ].some((value) => String(value || "").toLowerCase().includes(query)));
+  ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query))));
 }
 
 function isQrGeneratedForItem(item) {
@@ -4698,7 +4698,7 @@ function renderInboundProductPicker() {
       product.productCode,
       product.clientName,
       product.color
-    ].some((value) => String(value || "").toLowerCase().includes(query));
+    ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query)));
   });
 
   inboundProductPickerCount.textContent = products.length.toLocaleString("ko-KR");
@@ -5239,6 +5239,13 @@ function writeShippingBoxDrafts(drafts) {
 
 function normalizeShippingDraftKeyPart(value) {
   return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\s\u200B\uFEFF]+/g, "");
 }
 
 function getShippingDraftKey(parts = {}) {
@@ -5819,7 +5826,7 @@ function getNiceInventoryAxisMax(value) {
 
 function syncInventoryFilterState() {
   state.inventoryFilters = {
-    query: inventorySearch?.value.trim().toLowerCase() || "",
+    query: normalizeSearchText(inventorySearch?.value),
     client: inventoryClientFilter?.value || "",
     storage: inventoryStorageFilter?.value || "",
     stock: inventoryStockFilter?.value || "",
@@ -5885,7 +5892,7 @@ function applyInventoryFilters() {
       item.storage,
       item.stockStatus,
       item.processStatus
-    ].some((value) => String(value || "").toLowerCase().includes(filters.query));
+    ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(filters.query)));
   });
 
   renderInventoryTable();
@@ -6293,7 +6300,7 @@ function applyFilters() {
     return [
       product.productCode,
       product.productName
-    ].some((value) => String(value || "").toLowerCase().includes(query));
+    ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query)));
   });
 
   renderSummary();
