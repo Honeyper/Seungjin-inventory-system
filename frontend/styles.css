@@ -8392,13 +8392,13 @@ input {
 
 @media print {
   @page {
-    margin: 0;
+    margin: 5mm;
     size: A4 portrait;
   }
 
   html,
   body {
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
     margin: 0 !important;
     padding: 0 !important;
@@ -8421,7 +8421,7 @@ input {
   #inboundQrModal {
     position: static !important;
     display: block;
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
     height: auto;
     margin: 0 !important;
@@ -8431,7 +8431,7 @@ input {
 
   .qr-modal {
     display: block;
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
     height: auto;
     margin: 0 !important;
@@ -8450,14 +8450,14 @@ input {
   .qr-print-area {
     display: block;
     overflow: visible;
-    width: 210mm;
+    width: 200mm;
     margin: 0;
     padding: 0;
     background: #fff;
   }
 
   .qr-sheet {
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
     margin: 0;
     padding: 0;

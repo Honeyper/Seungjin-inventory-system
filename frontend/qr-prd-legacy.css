@@ -328,17 +328,25 @@
 @media print {
   html.qr-print-work-layout,
   body.qr-print-work-layout {
-    width: 210mm;
+    width: 200mm;
   }
 
   .qr-sheet {
-    width: 210mm;
+    width: 200mm;
     min-height: 0;
+    grid-auto-rows: 57.4mm;
   }
 
   .qr-sheet.qr-sheet-work {
-    width: 210mm;
+    width: 200mm;
+    grid-auto-rows: 57.4mm;
     margin: 0;
+  }
+
+  .box-qr-label-standard,
+  .qr-sheet-work .box-qr-label-standard {
+    grid-template-rows: 26.4mm repeat(3, 7.25mm) 9.25mm;
+    height: 57.4mm;
   }
 
   .box-qr-label-standard .box-qr-standard-process.is-disabled {
