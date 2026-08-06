@@ -269,14 +269,14 @@ function bindEvents() {
   });
   elements.shippingFilterMenu?.addEventListener("click", handleShippingSortMenuClick);
   elements.shippingSearchInput?.addEventListener("input", (event) => {
-    state.query = event.target.value.trim().toLowerCase();
+    state.query = normalizeSearchText(event.target.value);
     applyShippingFilters();
   });
   elements.openScannerButton?.addEventListener("click", openScanner);
   elements.openManualShippingButton?.addEventListener("click", openManualShippingPicker);
   elements.closeManualShippingButton?.addEventListener("click", closeManualShippingPicker);
   elements.manualShippingSearchInput?.addEventListener("input", (event) => {
-    state.manualShippingQuery = event.target.value.trim().toLowerCase();
+    state.manualShippingQuery = normalizeSearchText(event.target.value);
     renderManualShippingProducts();
   });
   elements.manualShippingSearchInput?.addEventListener("focus", syncManualShippingViewport);
@@ -289,7 +289,7 @@ function bindEvents() {
   elements.openInventoryScannerButton?.addEventListener("click", openInventoryMoveScanner);
   elements.refreshInventoryMoveButton?.addEventListener("click", handleRefreshInventoryMove);
   elements.inventoryMoveSearchInput?.addEventListener("input", (event) => {
-    state.moveQuery = event.target.value.trim().toLowerCase();
+    state.moveQuery = normalizeSearchText(event.target.value);
     renderInventoryMoveList();
   });
   elements.closeScannerButton?.addEventListener("click", closeScanner);
@@ -819,7 +819,7 @@ function applyShippingFilters() {
         row.scannedBox?.boxId,
         row.scannedBox?.number,
         row.scannedBox?.status
-      ].some((value) => String(value || "").toLowerCase().includes(query));
+      ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query)));
     }));
 
   const sortedRows = sortShippingRows(rows);
@@ -1286,7 +1286,7 @@ function getManualShippingProducts() {
       if (!state.manualShippingQuery) {
         return true;
       }
-      return normalizeDisplay(row.productName || "").toLowerCase().includes(state.manualShippingQuery);
+      return normalizeSearchText(row.productName).includes(normalizeSearchText(state.manualShippingQuery));
     })
     .sort((left, right) => compareShippingText(left.productName, right.productName));
 }
@@ -1686,7 +1686,7 @@ function renderInventoryMoveList() {
       row.targetStorage,
       row.scannedBoxId,
       row.scannedBoxNumber
-    ].some((value) => String(value || "").toLowerCase().includes(query));
+    ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query)));
   });
   const rows = groupScannedInventoryMoveRows(matchedRows);
 
@@ -5477,6 +5477,13 @@ function formatRegistrationDate(value) {
 
 function normalizeScanValue(value) {
   return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\s\u200B\uFEFF]+/g, "");
 }
 
 function escapeHtml(value) {
