@@ -547,3 +547,21 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 56. 모바일 로그인 카드 리디자인
+
+- 참고 컴포넌트: `/Users/kang-kyoungmo/.codex/attachments/9c021b65-b9d9-4566-8daf-0ee2b8eede5b/pasted-text.txt`
+- 구현 캡처: `/private/tmp/seungjin-login-card-refresh-390x844.png`
+- 오류 상태 캡처: `/private/tmp/seungjin-login-card-error-local.png`
+- 검증 뷰포트: 390 × 844px, 추가 430px 모바일 앱 표시 폭 확인
+- React·shadcn·Tailwind용 회원가입 예시를 현재 vanilla HTML/CSS/JS 구조로 변환하고, 다단계 가입·아바타·비밀번호 강도 기능은 로그인 업무에 맞지 않아 제외했다.
+- 기존 다크 히어를 제거하고 로고·시스템명·흰색 로그인 카드를 수직 중앙 흐름으로 정리해 참고 화면의 간결한 구조를 반영했다.
+- 직원번호·비밀번호·계정 저장·비밀번호 저장·자동 로그인·비밀번호 보기·관리자 로그인의 기존 ID와 이벤트를 모두 유지했다.
+- 실제 작동하는 관리자 로그인을 주 버튼으로 정리하고, 기존 비활성 직원 로그인은 `직원 로그인 준비 중`으로 명확히 표시했다.
+- 카드 진입 블러·슬라이드 모션, 입력 완료 체크 팝, 빈 제출 시 필드 오류 테두리와 카드 흔들림, 로그인 중 스피너를 적용했다.
+- 빈 제출 시 두 필드에 `aria-invalid=true`가 적용되고, 두 값을 입력하면 오류 안내와 테두리가 자동으로 해제됨을 확인했다.
+- 자동 로그인을 켜면 계정 저장과 비밀번호 저장이 함께 켜지는 기존 연동, 비밀번호 보기·숨기기 전환을 확인했다.
+- `prefers-reduced-motion: reduce`에서 카드·오류·체크 모션을 제거했고, 브라우저 콘솔 오류는 없었다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

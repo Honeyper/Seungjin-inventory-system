@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260807-client-color-accents" />
+    <link rel="stylesheet" href="./mobile.css?v=20260807-login-card-refresh" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -35,9 +35,7 @@
           </div>
           <div class="hero-copy">
             <h1 id="loginTitle">재고관리 시스템</h1>
-          </div>
-          <div class="hero-visual hero-logistics-art" aria-hidden="true">
-            <img src="../assets/mobile-login-hero-reference.png" alt="" />
+            <p>안전하고 정확한 승진 업무를 시작하세요.</p>
           </div>
         </div>
 
@@ -48,28 +46,34 @@
             </div>
             <div>
               <h2>로그인</h2>
-              <p>계정 정보를 입력해주세요.</p>
+              <p>직원번호와 비밀번호를 입력해주세요.</p>
             </div>
           </div>
 
-          <label class="mobile-field">
-            <span>직원번호</span>
+          <div class="mobile-field">
+            <label for="mobileAccountId">직원번호</label>
             <span class="field-control">
               <img src="../assets/login-icon-user-line.svg?v=20260710-line-icons" alt="" />
               <input id="mobileAccountId" type="text" autocomplete="username" placeholder="직원번호를 입력하세요" />
+              <span class="field-valid" aria-hidden="true">
+                <svg viewBox="0 0 20 20"><path d="m5 10 3.1 3.1L15 6.8"></path></svg>
+              </span>
             </span>
-          </label>
+          </div>
 
-          <label class="mobile-field">
-            <span>비밀번호</span>
+          <div class="mobile-field">
+            <label for="mobilePassword">비밀번호</label>
             <span class="field-control">
               <img src="../assets/login-icon-password-line.svg?v=20260710-line-icons" alt="" />
               <input id="mobilePassword" type="password" autocomplete="current-password" placeholder="비밀번호를 입력하세요" />
+              <span class="field-valid" aria-hidden="true">
+                <svg viewBox="0 0 20 20"><path d="m5 10 3.1 3.1L15 6.8"></path></svg>
+              </span>
               <button class="ghost-icon-button" id="toggleMobilePassword" type="button" aria-label="비밀번호 보기">
                 <img src="../assets/login-icon-eye.png" alt="" />
               </button>
             </span>
-          </label>
+          </div>
 
           <div class="login-preferences" aria-label="로그인 정보 저장 설정">
             <label>
@@ -88,11 +92,11 @@
 
           <p class="form-message" id="mobileLoginMessage" role="alert" aria-live="polite"></p>
 
-          <button class="primary-action disabled-action" id="workerLoginButton" type="button" disabled>로그인</button>
-          <button class="secondary-action" id="adminLoginButton" type="submit">
+          <button class="primary-action" id="adminLoginButton" type="submit">
             <img src="../assets/login-icon-admin-shield-line.svg?v=20260710-line-login-icons" alt="" />
             관리자 로그인
           </button>
+          <button class="secondary-action disabled-action" id="workerLoginButton" type="button" disabled>직원 로그인 준비 중</button>
         </form>
       </section>
 
@@ -534,6 +538,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260807-client-color-accents"></script>
+    <script src="./mobile.js?v=20260807-login-card-refresh"></script>
   </body>
 </html>

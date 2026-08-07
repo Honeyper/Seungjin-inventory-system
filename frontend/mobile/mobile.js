@@ -255,6 +255,7 @@ function initializeMobileApp() {
   bindEvents();
   updateShippingClock();
   const loginPreferences = restoreLoginPreferences();
+  syncLoginFieldStates();
 
   const savedSession = readSavedSession(loginPreferences);
   if (savedSession) {
@@ -273,6 +274,8 @@ function bindEvents() {
   bindScrollVeils();
   elements.loginForm?.addEventListener("submit", handleAdminLogin);
   elements.togglePassword?.addEventListener("click", togglePassword);
+  elements.accountId?.addEventListener("input", syncLoginFieldStates);
+  elements.password?.addEventListener("input", syncLoginFieldStates);
   elements.saveAccount?.addEventListener("change", handleLoginPreferenceChange);
   elements.savePassword?.addEventListener("change", handleLoginPreferenceChange);
   elements.autoLogin?.addEventListener("change", handleLoginPreferenceChange);
@@ -5602,6 +5605,46 @@ function setLoginMessage(message, type = "error") {
   elements.loginMessage.textContent = message;
   elements.loginMessage.classList.toggle("success", type === "success");
   elements.loginMessage.classList.toggle("info", type === "info");
+  elements.loginMessage.classList.toggle("error", Boolean(message) && type === "error");
+
+  if (!message || type !== "error") {
+    elements.loginForm?.classList.remove("has-login-error");
+    return;
+  }
+
+  const missingAccount = !elements.accountId?.value.trim();
+  const missingPassword = !elements.password?.value.trim();
+  elements.accountId?.closest(".field-control")?.classList.toggle("is-invalid", missingAccount);
+  elements.password?.closest(".field-control")?.classList.toggle("is-invalid", missingPassword);
+  elements.accountId?.setAttribute("aria-invalid", String(missingAccount));
+  elements.password?.setAttribute("aria-invalid", String(missingPassword));
+
+  elements.loginForm?.classList.remove("has-login-error");
+  void elements.loginForm?.offsetWidth;
+  elements.loginForm?.classList.add("has-login-error");
+}
+
+function syncLoginFieldStates() {
+  [elements.accountId, elements.password].forEach((input) => {
+    if (!input) {
+      return;
+    }
+
+    const fieldControl = input.closest(".field-control");
+    const hasValue = Boolean(input.value.trim());
+    fieldControl?.classList.toggle("is-filled", hasValue);
+    if (hasValue) {
+      fieldControl?.classList.remove("is-invalid");
+      input.setAttribute("aria-invalid", "false");
+    }
+  });
+
+  if (elements.accountId?.value.trim() && elements.password?.value.trim()
+    && elements.loginMessage?.classList.contains("error")) {
+    elements.loginMessage.textContent = "";
+    elements.loginMessage.classList.remove("error");
+    elements.loginForm?.classList.remove("has-login-error");
+  }
 }
 
 function showToast(message) {
