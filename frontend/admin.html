@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260807-remaining-inventory-scroll" />
+    <link rel="stylesheet" href="./styles.css?v=20260807-shipping-completion-defect-photo" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1698,6 +1698,25 @@
                   </button>
                 </span>
               </label>
+              <section class="shipping-photo-panel full-span" aria-label="출고 처리 불량 사진 등록">
+                <div class="shipping-photo-heading">
+                  <span>출고 불량 사진</span>
+                  <small>출고 처리 중 확인된 불량 사진을 여러 장 등록할 수 있습니다.</small>
+                </div>
+                <input class="shipping-file-input" id="shippingCompletionDefectFiles" type="file" accept="image/*" multiple />
+                <button class="shipping-photo-button" type="button" id="shippingCompletionPhotoButton">
+                  <span class="shipping-photo-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M4.5 7.8A2.3 2.3 0 0 1 6.8 5.5h2l1.15-1.55h4.1L15.2 5.5h2A2.3 2.3 0 0 1 19.5 7.8v8.7a2.3 2.3 0 0 1-2.3 2.3H6.8a2.3 2.3 0 0 1-2.3-2.3V7.8Z" />
+                      <path d="M12 9.2a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Z" />
+                      <path d="M17 8.4h.01" />
+                    </svg>
+                  </span>
+                  <strong>불량 사진 등록</strong>
+                  <small id="shippingCompletionPhotoName">이미지를 선택해주세요.</small>
+                </button>
+                <div class="shipping-photo-preview" id="shippingCompletionPhotoPreview" hidden></div>
+              </section>
             </div>
             <p class="form-message" id="shippingCompletionMessage"></p>
           </section>
@@ -2446,6 +2465,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260729-shipping-edit-restore"></script>
+    <script src="./admin.js?v=20260807-shipping-completion-defect-photo"></script>
   </body>
 </html>

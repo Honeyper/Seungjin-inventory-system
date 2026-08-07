@@ -2971,7 +2971,7 @@ function uploadShippingDefectPhotos(payload) {
 
   const productName = dash_(payload.productName);
   const clientName = dash_(payload.clientName);
-  const dateFolderName = sanitizeDriveName_(dash_(payload.inspectionDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd')));
+  const dateFolderName = sanitizeDriveName_(dash_(payload.shippingDate || payload.inspectionDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd')));
   const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
   const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
     '불량사진',
@@ -3648,7 +3648,8 @@ function updateShippingStatus(payload) {
     shipper,
     shippingUpdatedAt,
     selectedBoxes,
-    allowCancelCompleted: payload.allowCancelCompleted === true || String(payload.allowCancelCompleted || '').toLowerCase() === 'true'
+    allowCancelCompleted: payload.allowCancelCompleted === true || String(payload.allowCancelCompleted || '').toLowerCase() === 'true',
+    defectPhotoFolderUrl: payload.defectPhotoFolderUrl || '-'
   });
   let finalStatus = status === '출고완료' && boxUpdateResult.remainingActiveRows > 0
     ? '일부 출고'
@@ -4390,6 +4391,17 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고일'], data.shippingDate);
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고시간'], data.shippingTime);
         setSheetCellByHeader_(sheet, rowIndex, indexes, ['출고자'], data.shipper);
+        if (data.defectPhotoFolderUrl && data.defectPhotoFolderUrl !== '-') {
+          const photoHeaders = ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'];
+          const existingDefectPhotoUrls = pickCell_(values[rowIndex], indexes, photoHeaders);
+          setSheetCellByHeader_(
+            sheet,
+            rowIndex,
+            indexes,
+            photoHeaders,
+            mergeAttachmentUrls_(existingDefectPhotoUrls, data.defectPhotoFolderUrl)
+          );
+        }
       } else if (data.status === '검수완료' || data.status === '보관') {
         if (shippingTypeIndex >= 0) {
           sheet.getRange(rowIndex + 1, shippingTypeIndex + 1).setValue('');
@@ -4614,6 +4626,22 @@ function setRowValue_(row, indexes, names, value) {
   if (index >= 0) {
     row[index] = value;
   }
+}
+
+function mergeAttachmentUrls_(...values) {
+  const urls = [];
+  values.forEach((value) => {
+    String(value || '')
+      .split(/\s+/)
+      .map((url) => url.trim())
+      .filter((url) => url && url !== '-')
+      .forEach((url) => {
+        if (!urls.includes(url)) {
+          urls.push(url);
+        }
+      });
+  });
+  return urls.join(' ') || '-';
 }
 
 function setStockDbAttachmentLinks_(sheet, rowNumber, indexes, record) {
