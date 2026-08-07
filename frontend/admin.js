@@ -405,6 +405,8 @@ const remainingInventoryForm = document.querySelector("#remainingInventoryForm")
 const remainingInventoryRecordId = document.querySelector("#remainingInventoryRecordId");
 const remainingInventoryProduct = document.querySelector("#remainingInventoryProduct");
 const remainingInventoryClient = document.querySelector("#remainingInventoryClient");
+const remainingInventoryInboundDate = document.querySelector("#remainingInventoryInboundDate");
+const remainingInventoryLatestShippingDate = document.querySelector("#remainingInventoryLatestShippingDate");
 const remainingInventoryBoxList = document.querySelector("#remainingInventoryBoxList");
 const remainingInventoryBoxSummary = document.querySelector("#remainingInventoryBoxSummary");
 const remainingInventorySelectAll = document.querySelector("#remainingInventorySelectAll");
@@ -2430,6 +2432,20 @@ function openRemainingInventoryModal(row) {
   }
   if (remainingInventoryProduct) {
     remainingInventoryProduct.textContent = row.children[3]?.textContent.trim() || "-";
+  }
+  if (remainingInventoryInboundDate) {
+    remainingInventoryInboundDate.textContent = toDateInputValue(row.dataset.inboundDate) || "-";
+  }
+  if (remainingInventoryLatestShippingDate) {
+    const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes");
+    const shippingDates = shippedBoxes
+      .map((box) => toDateInputValue(box.shippingDate))
+      .filter(Boolean)
+      .sort();
+    const latestShippingDate = shippingDates[shippingDates.length - 1] || "";
+    remainingInventoryLatestShippingDate.textContent = latestShippingDate
+      || toDateInputValue(row.dataset.shippingDate)
+      || "-";
   }
   if (remainingInventorySelectAll) {
     remainingInventorySelectAll.checked = true;
