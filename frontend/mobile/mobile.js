@@ -2423,7 +2423,7 @@ function renderInventoryMoveItem(item) {
         </div>
         <div class="inventory-move-primary-actions">
           <button class="ship-pending-button" type="button" data-inventory-move-action="single" data-inventory-move-key="${escapeHtml(key)}">자리이동</button>
-          <button class="ship-now-button" type="button" data-inventory-move-action="all" data-inventory-move-key="${escapeHtml(key)}">전량 이동</button>
+          <button class="ship-now-button" type="button" data-inventory-move-action="all" data-inventory-move-key="${escapeHtml(key)}">박스 전량 이동</button>
         </div>
       </div>
       <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(state.user?.name || item.registrant || item.inspector || "-"))}</p>
@@ -2505,7 +2505,7 @@ async function handleInventoryMoveCardAction(item, mode = "single") {
   const targetStorage = item.targetStorageConfirmed === true ? normalizeDisplay(item.targetStorage) : "-";
   const isInjectionAction = mode === "injection";
   const selectedBoxes = mode === "all" ? getInventoryMoveAllBoxNumbers(item) : getSelectedBoxNumbers(item);
-  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "전량 이동" : "자리이동";
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "박스 전량 이동" : "자리이동";
 
   if (!selectedBoxes.length) {
     showToast(isInjectionAction ? "사출재고로 등록할 박스 번호가 없습니다." : "이동할 박스 번호가 없습니다.");
@@ -3451,7 +3451,7 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
     return;
   }
 
-  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "전량 이동" : "자리이동";
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "박스 전량 이동" : "자리이동";
   const missingTarget = !isInjectionAction && items.find((item) => !isInventoryMoveTargetReady(item));
   if (missingTarget) {
     setScannerSheetExpanded(true);
@@ -3519,7 +3519,7 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
     return;
   }
 
-  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "전량 이동" : "자리이동";
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "박스 전량 이동" : "자리이동";
 
   state.isCompletingShipping = true;
   if (elements.scannerPendingButton) {
@@ -3830,7 +3830,7 @@ function updateScannerActionLabels() {
     `;
     elements.scannerDoneButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M4 12h14"></path><path d="m13 5 7 7-7 7"></path></svg>
-      현재 위치 전량
+      박스 전량 이동
     `;
     elements.scannerInjectionButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h8M8 16h5"></path></svg>

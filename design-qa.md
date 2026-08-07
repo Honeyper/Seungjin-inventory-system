@@ -580,3 +580,14 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 58. 재고 수정 박스 전량 이동 문구
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_xvTgIt/스크린샷 2026-08-07 오후 1.15.10.png`
+- QR 스캔 후 하단 작업 버튼의 `현재 위치 전량`은 무엇을 전량 처리하는지 명확하지 않아 `박스 전량 이동`으로 수정했다.
+- 스캐너 하단 버튼, 재고 수정 제품 카드, 단일·일괄 확인창 제목과 확정 버튼에 동일한 문구를 적용했다.
+- `스캔 박스 이동`은 QR로 선택한 박스만, `박스 전량 이동`은 같은 제품·현재 보관 장소의 전체 박스를 이동하는 기존 동작을 그대로 유지했다.
+- 이동 대상 선정, 보관 장소 검증, API 요청 및 완료 처리 로직은 변경하지 않았다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed
