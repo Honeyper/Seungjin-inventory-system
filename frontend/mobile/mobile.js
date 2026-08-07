@@ -2708,6 +2708,7 @@ function renderShippingItem(item) {
       : parseNumber(item.currentTotalQuantity);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
+  const pendingBoxCount = getShippingPendingBoxCount(item);
   const isPending = isShippingItemPending(item);
   const isCompleted = isShippingItemCompleted(item);
   const isTransferred = getTransferredShippingBoxes(item).length > 0;
@@ -2720,9 +2721,18 @@ function renderShippingItem(item) {
   const registeredAt = formatRegistrationDate(item.registeredAt);
   const status = getShippingCardStatus(item, isPending, isCompleted);
   const statusTone = getShippingStatusTone(status);
+  const pendingRegistrationLabel = status === "부분출고"
+    ? pendingBoxCount > 0
+      ? pendingBoxCount < boxCount
+        ? `출고대기 ${formatNumber(pendingBoxCount)}/${formatNumber(boxCount)}박스`
+        : `출고대기 ${formatNumber(pendingBoxCount)}박스`
+      : "출고대기 미등록"
+    : "";
   const primaryAction = isCompleted
     ? completedReturnAction
-    : { action: "complete", label: status === "부분출고" ? "추가 출고" : "출고" };
+    : !isPending
+      ? { action: "pending", label: "출고대기 등록" }
+      : { action: "complete", label: status === "부분출고" ? "추가 출고" : "출고" };
   const metaParts = [batch, process].filter((value) => value && value !== "-");
   const productDetails = [
     ["관리 ID", normalizeDisplay(item.managementId || "-")],
@@ -2753,7 +2763,10 @@ function renderShippingItem(item) {
           </div>
         </div>
         <div class="shipping-card-status-actions">
-          <span class="shipping-status-badge">${escapeHtml(status)}</span>
+          <span class="shipping-status-stack">
+            <span class="shipping-status-badge">${escapeHtml(status)}</span>
+            ${pendingRegistrationLabel ? `<span class="shipping-pending-state-badge ${pendingBoxCount > 0 ? "is-registered" : "is-unregistered"}">${escapeHtml(pendingRegistrationLabel)}</span>` : ""}
+          </span>
           <details class="shipping-card-menu">
             <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기" aria-haspopup="menu" aria-expanded="false">
               <i class="ti ti-dots" aria-hidden="true"></i>
@@ -2788,7 +2801,7 @@ function renderShippingItem(item) {
           </span>
         </div>
         <button
-          class="shipping-primary-action${isCompleted ? " shipping-cancel-button" : ""}"
+          class="shipping-primary-action${isCompleted ? " shipping-cancel-button" : ""}${primaryAction.action === "pending" ? " shipping-pending-register-button" : ""}"
           type="button"
           data-mobile-shipping="${escapeHtml(key)}"
           data-mobile-shipping-action="${escapeHtml(primaryAction.action)}"
@@ -2871,7 +2884,13 @@ function openConfirmModal(item, action = "complete") {
       ? "재입고"
       : isTransferReturnAction
         ? "이관 복귀"
-        : "출고 확인";
+        : isCancelCompletedAction
+          ? "출고 취소 확인"
+          : isCancelPendingAction
+            ? "출고대기 취소 확인"
+            : isPendingAction
+              ? "출고대기 등록 확인"
+              : "출고 확인";
   }
   if (elements.confirmMessage) {
     elements.confirmMessage.textContent = isTakeoutReturnAction
@@ -3359,12 +3378,18 @@ function isShippingItemCompleted(item) {
   return items.length > 0 && items.every(isCompletedShippingItem);
 }
 
+function getShippingPendingBoxCount(item) {
+  const items = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+  return items.reduce((count, row) => {
+    const box = getScannedBox(row);
+    const status = normalizeText(box?.rawStatus || box?.status || row?.stockStatus);
+    return count + (status.includes("출고대기") ? 1 : 0);
+  }, 0);
+}
+
 function isShippingItemPending(item) {
   const items = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
-  return items.length > 0 && items.every((row) => {
-    const box = getScannedBox(row);
-    return normalizeText(box?.rawStatus || box?.status || row?.stockStatus).includes("출고대기");
-  });
+  return items.length > 0 && getShippingPendingBoxCount(item) === items.length;
 }
 
 async function mapWithConcurrency(items, concurrency, callback) {

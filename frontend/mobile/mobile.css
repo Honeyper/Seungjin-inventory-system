@@ -9109,6 +9109,12 @@ body {
   gap: 3px;
 }
 
+.shipping-status-stack {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
 .shipping-status-badge {
   padding: 5px 8px;
   border: 1px solid #e9bd61;
@@ -9124,6 +9130,29 @@ body {
   border-color: #b9d5f8;
   color: #075ab6;
   background: #eef6ff;
+}
+
+.shipping-pending-state-badge {
+  padding: 3px 6px;
+  border: 1px solid;
+  border-radius: 7px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+}
+
+.shipping-pending-state-badge.is-registered {
+  border-color: #e6bd67;
+  color: #85580a;
+  background: #fff8e9;
+}
+
+.shipping-pending-state-badge.is-unregistered {
+  border-color: #e3b8b2;
+  color: #a24136;
+  background: #fff3f1;
 }
 
 .status-stored .shipping-status-badge,
@@ -9371,6 +9400,20 @@ body {
 .status-partial .shipping-primary-action {
   color: var(--operations-navy);
   background: #fff;
+}
+
+.shipping-primary-action.shipping-pending-register-button {
+  padding-right: 6px;
+  padding-left: 6px;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.status-partial .shipping-primary-action.shipping-pending-register-button {
+  border-color: var(--operations-navy);
+  color: #fff;
+  background: var(--operations-navy);
 }
 
 .shipping-product-details {
@@ -9688,6 +9731,11 @@ body {
   .shipping-status-badge {
     padding: 4px 6px;
     font-size: 9px;
+  }
+
+  .shipping-pending-state-badge {
+    padding: 3px 5px;
+    font-size: 8px;
   }
 
   .shipping-card-footer {

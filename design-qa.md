@@ -591,3 +591,19 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 59. 모바일 부분출고 카드 출고대기 등록 상태
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_cA1Rfe/스크린샷 2026-08-07 오후 1.18.59.png`
+- 구현 캡처: `/private/tmp/seungjin-shipping-pending-visibility-local.png`
+- 검증 뷰포트: 430 × 844px, 추가 360 × 800px 모바일 폭 확인
+- 기존에는 `부분출고` 상태가 `출고대기` 판정보다 우선 표시되어, 남은 박스가 서버의 출고대기 상태로 등록되었는지 카드에서 확인할 수 없었다.
+- 부분출고 진행 상태는 그대로 유지하면서 그 아래에 `출고대기 N박스`, 일부만 등록된 경우 `출고대기 N/M박스`, 등록되지 않은 경우 `출고대기 미등록`을 별도 배지로 표시했다.
+- 출고대기 등록이 완료된 카드의 주 버튼은 `추가 출고`, 미등록 카드의 주 버튼은 `출고대기 등록`으로 구분해 서버 등록 전후의 다음 동작을 명확히 했다.
+- 미등록 배지는 붉은 경고 톤, 등록 완료 배지는 골드 톤, 등록 버튼은 네이비 주 버튼으로 구분했으며 기존 부분출고 파란 배지와 충돌하지 않게 했다.
+- 확인창 제목도 출고대기 등록·취소, 출고 취소의 실제 동작에 맞게 구분했다.
+- 430px와 360px에서 카드 좌우 정렬, 상태 영역, 수량 영역, 버튼에 가로 넘침이 없음을 확인했다.
+- 출고대기 판정, 서버 요청, 출고 완료 및 부분출고 계산 로직은 기존 흐름을 유지했다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed
