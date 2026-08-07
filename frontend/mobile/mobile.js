@@ -1211,8 +1211,9 @@ function renderProductVisual(item) {
   const productName = normalizeDisplay(item?.productName || "제품");
   if (!productImageUrl) {
     return `
-      <span class="shipping-product-visual is-placeholder" aria-hidden="true">
-        <i class="ti ti-building-factory-2"></i>
+      <span class="shipping-product-visual is-placeholder" aria-label="등록된 제품 이미지 없음">
+        <i class="ti ti-photo-off" aria-hidden="true"></i>
+        <small>이미지 없음</small>
       </span>
     `;
   }
@@ -1246,10 +1247,13 @@ function handleProductImageError(event) {
   }
   visual.classList.remove("has-photo");
   visual.classList.add("is-placeholder");
-  visual.setAttribute("aria-hidden", "true");
+  visual.setAttribute("aria-label", "등록된 제품 이미지 없음");
   const fallbackIcon = document.createElement("i");
-  fallbackIcon.className = "ti ti-building-factory-2";
-  image.replaceWith(fallbackIcon);
+  fallbackIcon.className = "ti ti-photo-off";
+  fallbackIcon.setAttribute("aria-hidden", "true");
+  const fallbackLabel = document.createElement("small");
+  fallbackLabel.textContent = "이미지 없음";
+  visual.replaceChildren(fallbackIcon, fallbackLabel);
 }
 
 function normalizeMobileShippingStatusLabel(value) {
