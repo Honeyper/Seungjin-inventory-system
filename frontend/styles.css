@@ -4561,8 +4561,11 @@ input {
 }
 
 .product-modal.remaining-inventory-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   width: min(52rem, calc(100vw - 2rem));
-  max-height: min(52rem, calc(100vh - 2rem));
+  height: min(52rem, calc(100dvh - 2rem));
+  max-height: calc(100dvh - 2rem);
   overflow: hidden;
 }
 
@@ -4570,7 +4573,11 @@ input {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
 .remaining-inventory-section-heading h3,
