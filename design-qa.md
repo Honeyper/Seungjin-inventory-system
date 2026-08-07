@@ -495,8 +495,23 @@ final result: passed
 - 결합 비교 증거: `/private/tmp/seungjin-shipping-card-alignment-source.png`, `/private/tmp/seungjin-shipping-card-alignment-crop.png`
 - 검증 뷰포트: 1280 × 720px, 모바일 앱 표시 폭 430 CSS px
 - 제품 이미지와 미등록 자리표시자에 `align-self: center`를 적용해 업체명·제품명·공정 배지가 만드는 헤더 높이 중앙에 오도록 조정했다.
-- `제품 상세정보` 헤더에 좌측 12px, 우측 10px 안쪽 여백을 두어 카드 외곽에 붙어 보이던 텍스트와 화살표를 균형 있게 맞춰다.
+- `제품 상세정보` 헤더에 좌측 12px, 우측 10px 안쪽 여백을 두어 카드 외곽에 붙어 보이던 텍스트와 화살표를 균형 있게 정렬했다.
 - 긴 3줄 제품명, 상태 배지, 이미지 자리표시자, 수량 영역이 겹치지 않았고 상세정보 열기 동작을 유지했다.
+- 브라우저 콘솔 오류는 없었다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed
+
+## 53. 모바일 출고 카드 등록 취소 메뉴 순서
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_CFSOlW/스크린샷 2026-08-07 오후 12.40.02.png`
+- 구현 캡처: `/private/tmp/seungjin-shipping-menu-cancel-last-local.png`
+- 결합 비교 증거: `/private/tmp/seungjin-shipping-menu-order-source.png`, `/private/tmp/seungjin-shipping-menu-cancel-last-crop.png`
+- 검증 뷰포트: 1280 × 720px, 모바일 앱 표시 폭 430 CSS px
+- 출고 카드 액션을 `박스 추가 → 출고대기 취소 → 수량 변경 → 상세정보 → 등록 취소` 순서로 정리했다.
+- 비파괴적 정보 확인인 `상세정보`를 먼저 배치하고, 빨간색 파괴적 작업인 `등록 취소`를 구분선 아래 마지막 항목으로 유지했다.
+- DOM 순서를 바꿔 화면 표시뿐 아니라 Tab·방향키 키보드 이동 순서도 동일하게 정렬했다.
+- 완료 카드는 기존처럼 `상세정보`만 표시되고, 등록 중인 카드에서만 `등록 취소`가 마지막에 표시되는 조건을 유지했다.
 - 브라우저 콘솔 오류는 없었다.
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 

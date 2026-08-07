@@ -2755,9 +2755,11 @@ function renderShippingItem(item) {
                 <button type="button" role="menuitem" data-mobile-shipping-add="${escapeHtml(key)}"><i class="ti ti-package-import"></i>박스 추가</button>
                 <button type="button" role="menuitem" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}"><i class="ti ti-clock-edit"></i>${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
                 <button type="button" role="menuitem" data-mobile-shipping-quantity="${escapeHtml(key)}"><i class="ti ti-adjustments"></i>수량 변경</button>
-                <button type="button" role="menuitem" class="danger" data-mobile-shipping-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
               `}
               <button type="button" role="menuitem" data-mobile-shipping-details="${escapeHtml(key)}"><i class="ti ti-file-description"></i>상세정보</button>
+              ${isCompleted ? "" : `
+                <button type="button" role="menuitem" class="danger" data-mobile-shipping-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
+              `}
             </div>
           </details>
         </div>
