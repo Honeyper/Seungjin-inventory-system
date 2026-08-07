@@ -349,3 +349,14 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 43. 모바일 홈 카드 텍스트 줄바꿈·간격
+
+- 구현 캡처: `/private/tmp/seungjin-mobile-copy-wrap-390.png`
+- 검증 너비: 390px
+- 제목과 설명 사이 간격을 8px로 조정했다.
+- 제목에는 균형 줄바꿈, 설명에는 단어 단위 줄바꿈을 적용해 `수량`, `예외 사항` 등의 단어가 음절 중간에서 갈라지지 않도록 했다.
+- 설명의 기존 두 줄 제한과 말줄임, 카드 높이, 상태 배지 및 메뉴 동작은 유지했다.
+- 브라우저 콘솔 오류가 없고 4개 카드의 제목·설명·상태 배지가 겹치지 않음을 확인했다.
+
+final result: passed

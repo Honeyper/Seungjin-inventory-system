@@ -9369,6 +9369,27 @@ body {
   opacity: 1;
 }
 
+#homeScreen .mobile-menu-card .menu-copy {
+  gap: 8px;
+  min-width: 0;
+}
+
+#homeScreen .mobile-menu-card .menu-copy strong {
+  display: block;
+  max-width: 100%;
+  line-height: 1.25;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-wrap: balance;
+}
+
+#homeScreen .mobile-menu-card .menu-copy small {
+  max-width: none;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-wrap: pretty;
+}
+
 #homeScreen .status-pill.ready {
   border: 1px solid #e6bc5f;
   color: #8a5a08;
