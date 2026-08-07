@@ -2015,14 +2015,6 @@ function updateInbound(payload) {
     const row = rowInfo.rowValues.slice();
     const storedDueDate = pickCell_(row, rowInfo.indexes, ['납기일']);
     process = String(pickCell_(row, rowInfo.indexes, ['최종공정', '최종 공정']) || '').trim();
-    boxQuantity = toPositiveNumber_(
-      displayQuantityToNumber_(pickCell_(row, rowInfo.indexes, ['박스당 수량', '박스당수량'])),
-      '박스당 수량'
-    );
-    inspectionQuantity = toPositiveNumber_(
-      displayQuantityToNumber_(pickCell_(row, rowInfo.indexes, ['검수 수량', '검수수량', '검사 수량'])),
-      '검수 수량'
-    );
 
     if (!process) {
       throw new Error('제품 등록 정보에서 최종공정 값을 찾을 수 없습니다.');
