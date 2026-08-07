@@ -8874,18 +8874,26 @@ body {
 
 .shipping-card-menu {
   position: relative;
+  z-index: 1;
 }
 
 .shipping-card-menu summary {
+  position: relative;
+  z-index: 4;
   display: grid;
   width: 32px;
   height: 32px;
   cursor: pointer;
   list-style: none;
   place-items: center;
-  border-radius: 9px;
+  border-radius: 50%;
   color: var(--operations-navy);
   font-size: 23px;
+  outline: none;
+  transition:
+    color 160ms ease,
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .shipping-card-menu summary::-webkit-details-marker {
@@ -8893,41 +8901,106 @@ body {
 }
 
 .shipping-card-menu[open] summary {
-  background: #eef2f8;
+  color: #061f4c;
+  transform: scale(0.98);
+}
+
+.shipping-card-menu summary:focus-visible {
+  box-shadow: 0 0 0 3px rgba(11, 51, 116, 0.16);
+}
+
+.shipping-card-menu[open] {
+  z-index: 35;
+}
+
+.shipping-card-menu-filter {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.shipping-card-menu-goo {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  display: block;
+  width: var(--shipping-menu-width, 196px);
+  height: var(--shipping-menu-layer-height, 260px);
+  pointer-events: none;
+  filter: url(#shippingCardMenuGoo);
+  transform-origin: top right;
+}
+
+.shipping-card-menu-goo-trigger,
+.shipping-card-menu-goo-morph {
+  position: absolute;
+  display: block;
+  background: #fbfcfe;
+}
+
+.shipping-card-menu-goo-trigger {
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.shipping-card-menu-goo-morph {
+  inset: 0;
+  clip-path: inset(0 calc(100% - 32px) calc(100% - 32px) 0 round 16px);
 }
 
 .shipping-card-menu-popover {
   position: absolute;
-  z-index: 30;
-  top: 37px;
+  z-index: 3;
+  top: 46px;
   right: 0;
   display: grid;
-  width: 172px;
-  overflow: hidden;
-  padding: 5px;
-  border: 1px solid var(--operations-line);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 16px 34px rgba(6, 31, 76, 0.18);
+  width: min(196px, calc(100vw - 54px));
+  padding: 7px;
+  border: 0;
+  border-radius: 18px;
+  background: #fbfcfe;
+  box-shadow:
+    0 18px 38px rgba(6, 31, 76, 0.18),
+    0 0 0 1px rgba(174, 187, 207, 0.38);
+  transform-origin: top right;
 }
 
 .shipping-card-menu-popover button {
   display: flex;
   align-items: center;
   gap: 9px;
-  min-height: 39px;
-  padding: 0 10px;
+  min-height: 41px;
+  padding: 0 11px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 11px;
   color: var(--operations-ink);
   background: transparent;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   text-align: left;
+  outline: none;
+  opacity: 0;
 }
 
+.shipping-card-menu[data-menu-state="opening"] .shipping-card-menu-popover button,
+.shipping-card-menu[data-menu-state="open"] .shipping-card-menu-popover button {
+  animation: shipping-menu-row-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--menu-item-index, 0) * 36ms + 82ms);
+}
+
+.shipping-card-menu-popover button:hover,
+.shipping-card-menu-popover button:focus-visible,
 .shipping-card-menu-popover button:active {
   background: #f1f4f8;
+}
+
+.shipping-card-menu-popover button:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(11, 51, 116, 0.16);
 }
 
 .shipping-card-menu-popover button i {
@@ -8938,6 +9011,23 @@ body {
 .shipping-card-menu-popover button.danger,
 .shipping-card-menu-popover button.danger i {
   color: #b52f39;
+}
+
+.shipping-card-menu-popover button.danger {
+  margin-top: 3px;
+  border-top: 1px solid #edf0f5;
+  border-radius: 0 0 11px 11px;
+}
+
+@keyframes shipping-menu-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .shipping-card-footer {
@@ -9666,5 +9756,18 @@ body {
   #shippingScreen .shipping-product-details summary,
   #shippingScreen .shipping-product-details-chevron {
     transition: none;
+  }
+
+  .shipping-card-menu-goo {
+    filter: none;
+  }
+
+  .shipping-card-menu summary {
+    transition: none;
+  }
+
+  .shipping-card-menu-popover button {
+    animation: none !important;
+    opacity: 1;
   }
 }

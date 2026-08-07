@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260807-spring-product-details" />
+    <link rel="stylesheet" href="./mobile.css?v=20260807-goo-action-menu" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -517,8 +517,23 @@
       <div class="toast" id="mobileToast" role="status" aria-live="polite"></div>
     </main>
 
+    <svg class="shipping-card-menu-filter" aria-hidden="true" focusable="false" width="0" height="0">
+      <defs>
+        <filter id="shippingCardMenuGoo" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="shippingMenuBlur"></feGaussianBlur>
+          <feColorMatrix
+            in="shippingMenuBlur"
+            mode="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10"
+            result="shippingMenuGoo"
+          ></feColorMatrix>
+          <feComposite in="SourceGraphic" in2="shippingMenuGoo" operator="atop"></feComposite>
+        </filter>
+      </defs>
+    </svg>
+
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260807-spring-product-details"></script>
+    <script src="./mobile.js?v=20260807-goo-action-menu"></script>
   </body>
 </html>

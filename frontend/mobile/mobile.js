@@ -141,6 +141,8 @@ const state = {
   manualShippingViewportBaseHeight: 0
 };
 
+let activeShippingCardMenu = null;
+
 const elements = {
   loginScreen: document.querySelector("#loginScreen"),
   homeScreen: document.querySelector("#homeScreen"),
@@ -320,6 +322,8 @@ function bindEvents() {
   document.addEventListener("paste", handleHardwareScannerPaste);
   document.addEventListener("visibilitychange", handlePageVisibilityChange);
   document.addEventListener("click", closeShippingSortMenu);
+  document.addEventListener("click", handleShippingCardMenuDocumentClick);
+  document.addEventListener("keydown", handleShippingCardMenuKeydown);
   document.addEventListener("error", handleProductImageError, true);
   window.addEventListener("pagehide", releaseScannerStream);
   window.addEventListener("resize", syncManualShippingViewport);
@@ -331,6 +335,19 @@ function bindEvents() {
   });
 
   elements.shippingListPanel?.addEventListener("click", (event) => {
+    const menuSummary = event.target.closest(".shipping-card-menu > summary");
+    if (menuSummary) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleShippingCardMenu(menuSummary.parentElement);
+      return;
+    }
+
+    const menuItem = event.target.closest(".shipping-card-menu-popover [role='menuitem']");
+    if (menuItem) {
+      closeShippingCardMenu(menuItem.closest(".shipping-card-menu"));
+    }
+
     const detailsSummary = event.target.closest(".shipping-product-details > summary");
     if (detailsSummary) {
       event.preventDefault();
@@ -370,7 +387,6 @@ function bindEvents() {
       if (detailsPanel) {
         openShippingProductDetails(detailsPanel, { scroll: true });
       }
-      detailsButton.closest(".shipping-card-menu")?.removeAttribute("open");
       return;
     }
 
@@ -561,6 +577,242 @@ function handleShippingDetailsKeydown(event) {
     nextIndex = summaries.length - 1;
   }
   summaries[nextIndex]?.focus();
+}
+
+function toggleShippingCardMenu(menu) {
+  if (!(menu instanceof HTMLDetailsElement) || menu.dataset.menuAnimating === "true") {
+    return;
+  }
+
+  if (menu.open) {
+    closeShippingCardMenu(menu, { restoreFocus: true });
+    return;
+  }
+
+  openShippingCardMenu(menu);
+}
+
+function openShippingCardMenu(menu) {
+  if (!(menu instanceof HTMLDetailsElement)) {
+    return;
+  }
+
+  if (activeShippingCardMenu && activeShippingCardMenu !== menu) {
+    closeShippingCardMenu(activeShippingCardMenu, { immediate: true });
+  }
+
+  const summary = menu.querySelector(":scope > summary");
+  const popover = menu.querySelector(":scope > .shipping-card-menu-popover");
+  const gooLayer = menu.querySelector(":scope > .shipping-card-menu-goo");
+  const gooMorph = gooLayer?.querySelector(".shipping-card-menu-goo-morph");
+  if (!summary || !popover || !gooLayer || !gooMorph) {
+    menu.open = true;
+    return;
+  }
+
+  activeShippingCardMenu = menu;
+  menu.open = true;
+  menu.dataset.menuAnimating = "true";
+  menu.dataset.menuState = "opening";
+  summary.setAttribute("aria-expanded", "true");
+
+  const items = Array.from(popover.querySelectorAll("[role='menuitem']"));
+  items.forEach((item, index) => {
+    item.tabIndex = index === 0 ? 0 : -1;
+    item.style.setProperty("--menu-item-index", index);
+  });
+
+  const panelWidth = Math.ceil(popover.getBoundingClientRect().width);
+  const panelHeight = Math.ceil(popover.scrollHeight);
+  const triggerSize = Math.ceil(summary.getBoundingClientRect().width);
+  const panelTop = 46;
+  const layerHeight = panelTop + panelHeight;
+  const closedClip = `inset(0px 0px ${layerHeight - triggerSize}px ${panelWidth - triggerSize}px round ${triggerSize / 2}px)`;
+  const bridgeClip = `inset(0px 0px ${Math.max(0, layerHeight - panelTop - 18)}px ${Math.max(0, panelWidth - triggerSize - 10)}px round 17px)`;
+  const openClip = `inset(${panelTop}px 0px 0px 0px round 18px)`;
+
+  menu.style.setProperty("--shipping-menu-width", `${panelWidth}px`);
+  menu.style.setProperty("--shipping-menu-height", `${panelHeight}px`);
+  menu.style.setProperty("--shipping-menu-layer-height", `${layerHeight}px`);
+  gooMorph.style.clipPath = closedClip;
+
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reduceMotion || typeof popover.animate !== "function") {
+    gooMorph.style.clipPath = openClip;
+    menu.dataset.menuState = "open";
+    delete menu.dataset.menuAnimating;
+    items[0]?.focus({ preventScroll: true });
+    return;
+  }
+
+  gooMorph.getAnimations().forEach((animation) => animation.cancel());
+  popover.getAnimations().forEach((animation) => animation.cancel());
+  gooLayer.getAnimations().forEach((animation) => animation.cancel());
+
+  const gooAnimation = gooMorph.animate(
+    [
+      { clipPath: closedClip },
+      { clipPath: bridgeClip, offset: 0.42 },
+      { clipPath: openClip, offset: 0.84 },
+      { clipPath: openClip }
+    ],
+    { duration: 430, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "both" }
+  );
+  gooLayer.animate(
+    [
+      { transform: "scale(0.985)", opacity: 0.72 },
+      { transform: "scale(1.012)", opacity: 1, offset: 0.74 },
+      { transform: "scale(1)", opacity: 1 }
+    ],
+    { duration: 440, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "both" }
+  );
+  popover.animate(
+    [
+      {
+        clipPath: `inset(0px 0px ${Math.max(0, panelHeight - triggerSize)}px ${Math.max(0, panelWidth - triggerSize)}px round 16px)`,
+        opacity: 0,
+        transform: "translateY(-8px) scale(0.97)"
+      },
+      { opacity: 0.42, offset: 0.38 },
+      { clipPath: "inset(0px 0px 0px 0px round 18px)", opacity: 1, transform: "translateY(1px) scale(1.006)", offset: 0.82 },
+      { clipPath: "inset(0px 0px 0px 0px round 18px)", opacity: 1, transform: "translateY(0) scale(1)" }
+    ],
+    { duration: 430, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "both" }
+  );
+
+  const finishOpen = () => {
+    if (!menu.open || menu.dataset.menuState !== "opening") {
+      return;
+    }
+    menu.dataset.menuState = "open";
+    delete menu.dataset.menuAnimating;
+    gooMorph.style.clipPath = openClip;
+    items[0]?.focus({ preventScroll: true });
+  };
+  gooAnimation.addEventListener("finish", finishOpen, { once: true });
+  gooAnimation.addEventListener("cancel", finishOpen, { once: true });
+}
+
+function closeShippingCardMenu(menu, options = {}) {
+  if (!(menu instanceof HTMLDetailsElement) || !menu.open) {
+    return;
+  }
+
+  const summary = menu.querySelector(":scope > summary");
+  const popover = menu.querySelector(":scope > .shipping-card-menu-popover");
+  const gooLayer = menu.querySelector(":scope > .shipping-card-menu-goo");
+  const gooMorph = gooLayer?.querySelector(".shipping-card-menu-goo-morph");
+  const shouldRestoreFocus = options.restoreFocus === true;
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+  const finishClose = () => {
+    menu.open = false;
+    summary?.setAttribute("aria-expanded", "false");
+    delete menu.dataset.menuAnimating;
+    delete menu.dataset.menuState;
+    menu.style.removeProperty("--shipping-menu-height");
+    menu.style.removeProperty("--shipping-menu-layer-height");
+    popover?.getAnimations().forEach((animation) => animation.cancel());
+    gooLayer?.getAnimations().forEach((animation) => animation.cancel());
+    gooMorph?.getAnimations().forEach((animation) => animation.cancel());
+    if (activeShippingCardMenu === menu) {
+      activeShippingCardMenu = null;
+    }
+    if (shouldRestoreFocus) {
+      summary?.focus({ preventScroll: true });
+    }
+  };
+
+  if (options.immediate || reduceMotion || !popover || !gooMorph || typeof popover.animate !== "function") {
+    finishClose();
+    return;
+  }
+
+  if (menu.dataset.menuAnimating === "true") {
+    popover.getAnimations().forEach((animation) => animation.cancel());
+    gooLayer?.getAnimations().forEach((animation) => animation.cancel());
+    gooMorph.getAnimations().forEach((animation) => animation.cancel());
+  }
+
+  menu.dataset.menuAnimating = "true";
+  menu.dataset.menuState = "closing";
+  const panelWidth = Math.ceil(popover.getBoundingClientRect().width);
+  const panelHeight = Math.ceil(popover.scrollHeight);
+  const triggerSize = Math.ceil(summary?.getBoundingClientRect().width || 32);
+  const panelTop = 46;
+  const layerHeight = panelTop + panelHeight;
+  const openClip = `inset(${panelTop}px 0px 0px 0px round 18px)`;
+  const closedClip = `inset(0px 0px ${layerHeight - triggerSize}px ${panelWidth - triggerSize}px round ${triggerSize / 2}px)`;
+
+  const closeAnimation = gooMorph.animate(
+    [
+      { clipPath: openClip },
+      { clipPath: closedClip }
+    ],
+    { duration: 250, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "both" }
+  );
+  popover.animate(
+    [
+      { clipPath: "inset(0px 0px 0px 0px round 18px)", opacity: 1, transform: "translateY(0) scale(1)" },
+      {
+        clipPath: `inset(0px 0px ${Math.max(0, panelHeight - triggerSize)}px ${Math.max(0, panelWidth - triggerSize)}px round 16px)`,
+        opacity: 0,
+        transform: "translateY(-7px) scale(0.97)"
+      }
+    ],
+    { duration: 230, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "both" }
+  );
+  closeAnimation.addEventListener("finish", finishClose, { once: true });
+}
+
+function handleShippingCardMenuDocumentClick(event) {
+  if (!activeShippingCardMenu || activeShippingCardMenu.contains(event.target)) {
+    return;
+  }
+  closeShippingCardMenu(activeShippingCardMenu);
+}
+
+function handleShippingCardMenuKeydown(event) {
+  const menu = event.target.closest?.(".shipping-card-menu");
+  if (!(menu instanceof HTMLDetailsElement) || !menu.open) {
+    return;
+  }
+
+  const summary = menu.querySelector(":scope > summary");
+  const items = Array.from(menu.querySelectorAll(".shipping-card-menu-popover [role='menuitem']"));
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeShippingCardMenu(menu, { restoreFocus: true });
+    return;
+  }
+
+  if (event.key === "Tab") {
+    closeShippingCardMenu(menu);
+    return;
+  }
+
+  if (!items.length || !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    return;
+  }
+
+  event.preventDefault();
+  const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowDown") {
+    nextIndex = (currentIndex + 1) % items.length;
+  } else if (event.key === "ArrowUp") {
+    nextIndex = (currentIndex - 1 + items.length) % items.length;
+  } else if (event.key === "Home") {
+    nextIndex = 0;
+  } else if (event.key === "End") {
+    nextIndex = items.length - 1;
+  }
+  items.forEach((item, index) => {
+    item.tabIndex = index === nextIndex ? 0 : -1;
+  });
+  items[nextIndex]?.focus({ preventScroll: true });
+  summary?.setAttribute("aria-expanded", "true");
 }
 
 function bindScrollVeils() {
@@ -2116,10 +2368,14 @@ function renderInventoryMoveItem(item) {
         <div class="shipping-card-status-actions">
           <span class="shipping-status-badge inventory">재고 수정</span>
           <details class="shipping-card-menu">
-            <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기">
+            <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기" aria-haspopup="menu" aria-expanded="false">
               <i class="ti ti-dots" aria-hidden="true"></i>
             </summary>
-            <div class="shipping-card-menu-popover" role="menu">
+            <span class="shipping-card-menu-goo" aria-hidden="true">
+              <span class="shipping-card-menu-goo-trigger"></span>
+              <span class="shipping-card-menu-goo-morph"></span>
+            </span>
+            <div class="shipping-card-menu-popover" role="menu" aria-label="재고 수정 작업">
               <button type="button" role="menuitem" data-inventory-move-action="injection" data-inventory-move-key="${escapeHtml(key)}"><i class="ti ti-packages"></i>사출재고 등록</button>
               <button type="button" role="menuitem" class="danger" data-inventory-move-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
             </div>
@@ -2177,6 +2433,19 @@ function renderStorageOptions(selectedStorage, currentStorage = "") {
 }
 
 function handleInventoryMoveListClick(event) {
+  const menuSummary = event.target.closest(".shipping-card-menu > summary");
+  if (menuSummary) {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleShippingCardMenu(menuSummary.parentElement);
+    return;
+  }
+
+  const menuItem = event.target.closest(".shipping-card-menu-popover [role='menuitem']");
+  if (menuItem) {
+    closeShippingCardMenu(menuItem.closest(".shipping-card-menu"));
+  }
+
   const removeButton = event.target.closest("[data-inventory-move-remove]");
   if (removeButton) {
     confirmRemoveScannedMoveGroup(removeButton.dataset.inventoryMoveRemove);
@@ -2474,10 +2743,14 @@ function renderShippingItem(item) {
         <div class="shipping-card-status-actions">
           <span class="shipping-status-badge">${escapeHtml(status)}</span>
           <details class="shipping-card-menu">
-            <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기">
+            <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기" aria-haspopup="menu" aria-expanded="false">
               <i class="ti ti-dots" aria-hidden="true"></i>
             </summary>
-            <div class="shipping-card-menu-popover" role="menu">
+            <span class="shipping-card-menu-goo" aria-hidden="true">
+              <span class="shipping-card-menu-goo-trigger"></span>
+              <span class="shipping-card-menu-goo-morph"></span>
+            </span>
+            <div class="shipping-card-menu-popover" role="menu" aria-label="출고 관리 작업">
               ${isCompleted ? "" : `
                 <button type="button" role="menuitem" data-mobile-shipping-add="${escapeHtml(key)}"><i class="ti ti-package-import"></i>박스 추가</button>
                 <button type="button" role="menuitem" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}"><i class="ti ti-clock-edit"></i>${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
