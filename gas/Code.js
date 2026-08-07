@@ -3035,7 +3035,7 @@ function uploadShippingDefectPhotos(payload) {
 
   const productName = dash_(payload.productName);
   const clientName = dash_(payload.clientName);
-  const dateFolderName = sanitizeDriveName_(dash_(payload.inspectionDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd')));
+  const dateFolderName = sanitizeDriveName_(dash_(payload.shippingDate || payload.inspectionDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd')));
   const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
   const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
     '불량사진',
@@ -4356,6 +4356,15 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
         setRowValue_(row, indexes, ['출고일'], data.shippingDate);
         setRowValue_(row, indexes, ['출고시간'], data.shippingTime);
         setRowValue_(row, indexes, ['출고자'], data.shipper);
+        if (data.defectPhotoFolderUrl && data.defectPhotoFolderUrl !== '-') {
+          const existingDefectPhotoUrls = pickCell_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']);
+          setRowValue_(
+            row,
+            indexes,
+            ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'],
+            mergeAttachmentUrls_(existingDefectPhotoUrls, data.defectPhotoFolderUrl)
+          );
+        }
 
         if (data.autoShippingInspection === true) {
           const payloadInspectionQuantity = displayQuantityToNumber_(data.inspectionQuantity);
@@ -4372,7 +4381,6 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
           setRowValue_(row, indexes, ['불량 수량', '불량수량'], shouldWriteInspectionMetric ? formatEa_(displayQuantityToNumber_(data.defectQuantity)) : '');
           setRowValue_(row, indexes, ['불량 사유', '불량사유', '불량내역'], data.defectReason || '양호');
           setRowValue_(row, indexes, ['불량률'], shouldWriteInspectionMetric ? data.defectRate || '0%' : '');
-          setRowValue_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL'], data.defectPhotoFolderUrl || '-');
           wroteAutoInspectionMetric = true;
         }
       } else if (data.status === '검수완료' || data.status === '보관') {
@@ -4614,6 +4622,22 @@ function setRowValue_(row, indexes, names, value) {
   if (index >= 0) {
     row[index] = value;
   }
+}
+
+function mergeAttachmentUrls_(...values) {
+  const urls = [];
+  values.forEach((value) => {
+    String(value || '')
+      .split(/\s+/)
+      .map((url) => url.trim())
+      .filter((url) => url && url !== '-')
+      .forEach((url) => {
+        if (!urls.includes(url)) {
+          urls.push(url);
+        }
+      });
+  });
+  return urls.join(' ') || '-';
 }
 
 function setStockDbAttachmentLinks_(sheet, rowNumber, indexes, record) {

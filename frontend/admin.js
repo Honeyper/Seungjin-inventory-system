@@ -364,6 +364,10 @@ const shippingCompletionBoxList = document.querySelector("#shippingCompletionBox
 const shippingCompletionBoxSummary = document.querySelector("#shippingCompletionBoxSummary");
 const shippingCompletionDefectPhotos = document.querySelector("#shippingCompletionDefectPhotos");
 const shippingCompletionShippedBoxes = document.querySelector("#shippingCompletionShippedBoxes");
+const shippingCompletionDefectFiles = document.querySelector("#shippingCompletionDefectFiles");
+const shippingCompletionPhotoButton = document.querySelector("#shippingCompletionPhotoButton");
+const shippingCompletionPhotoName = document.querySelector("#shippingCompletionPhotoName");
+const shippingCompletionPhotoPreview = document.querySelector("#shippingCompletionPhotoPreview");
 const transferReturnModal = document.querySelector("#transferReturnModal");
 const transferReturnForm = document.querySelector("#transferReturnForm");
 const transferReturnKicker = document.querySelector("#transferReturnKicker");
@@ -708,6 +712,10 @@ shippingInspectionPhotoButton?.addEventListener("click", () => {
   shippingInspectionDefectFiles?.click();
 });
 shippingInspectionDefectFiles?.addEventListener("change", updateShippingInspectionPhotoPreview);
+shippingCompletionPhotoButton?.addEventListener("click", () => {
+  shippingCompletionDefectFiles?.click();
+});
+shippingCompletionDefectFiles?.addEventListener("change", updateShippingCompletionPhotoPreview);
 shippingInspectionQuantity?.addEventListener("input", () => {
   updateShippingInspectionDefectRate();
   updateShippingInspectionBoxSummary();
@@ -1831,6 +1839,49 @@ function updateShippingInspectionPhotoPreview() {
   shippingInspectionPhotoPreview.hidden = false;
 }
 
+function resetShippingCompletionPhotoPreview() {
+  if (shippingCompletionDefectFiles) {
+    shippingCompletionDefectFiles.value = "";
+  }
+
+  if (shippingCompletionPhotoName) {
+    shippingCompletionPhotoName.textContent = "이미지를 선택해주세요.";
+  }
+
+  if (shippingCompletionPhotoPreview) {
+    shippingCompletionPhotoPreview.hidden = true;
+    shippingCompletionPhotoPreview.innerHTML = "";
+  }
+}
+
+function updateShippingCompletionPhotoPreview() {
+  const files = Array.from(shippingCompletionDefectFiles?.files || []);
+
+  if (shippingCompletionPhotoName) {
+    shippingCompletionPhotoName.textContent = files.length
+      ? `${files.length}개 이미지 선택됨`
+      : "이미지를 선택해주세요.";
+  }
+
+  if (!shippingCompletionPhotoPreview) {
+    return;
+  }
+
+  if (!files.length) {
+    shippingCompletionPhotoPreview.hidden = true;
+    shippingCompletionPhotoPreview.innerHTML = "";
+    return;
+  }
+
+  const previewFiles = files.slice(0, 4);
+  const extraCount = files.length - previewFiles.length;
+  shippingCompletionPhotoPreview.innerHTML = [
+    ...previewFiles.map((file) => `<span>${escapeHtml(file.name)}</span>`),
+    extraCount > 0 ? `<span>외 ${extraCount}개</span>` : ""
+  ].join("");
+  shippingCompletionPhotoPreview.hidden = false;
+}
+
 function getShippingInspectionRateValue() {
   const inspectionQuantity = parseShippingSettlementNumber(shippingInspectionQuantity?.value || "");
   const defectQuantity = parseShippingSettlementNumber(shippingInspectionDefectQuantity?.value || "");
@@ -2701,6 +2752,8 @@ function openShippingCompletionModal(row) {
     shippingCompletionMessage.textContent = "";
   }
 
+  resetShippingCompletionPhotoPreview();
+
   renderShippingCompletionBoxList(row);
 
   if (saveShippingCompletionButton) {
@@ -2733,6 +2786,7 @@ function closeShippingCompletionModal() {
     shippingCompletionShippedBoxes.hidden = true;
     shippingCompletionShippedBoxes.innerHTML = "";
   }
+  resetShippingCompletionPhotoPreview();
   document.body.classList.remove("modal-open");
 }
 
@@ -3014,6 +3068,19 @@ async function saveShippingCompletion() {
   }
 
   try {
+    const defectFiles = await getFilePayloadsFromInput(shippingCompletionDefectFiles, {
+      label: "출고 불량사진",
+      maxSize: MAX_DEFECT_PHOTO_FILE_SIZE
+    });
+    const uploadResult = defectFiles.length
+      ? await requestApi("uploadShippingDefectPhotos", {
+          managementId: shippingCompletionRecordId?.textContent.trim() || "",
+          clientName: shippingCompletionClient?.textContent.trim() || "",
+          productName: shippingCompletionProduct?.textContent.trim() || "",
+          shippingDate,
+          defectFiles
+        })
+      : null;
     const result = await updateShippingStatus(row, "출고완료", {
       shippingType: shippingTypeLabel,
       "출고유형": shippingTypeLabel,
@@ -3021,7 +3088,9 @@ async function saveShippingCompletion() {
       shippingDate,
       shippingTime,
       selectedBoxes: selectedBoxes.map((box) => box.number),
-      shipper: shippingCompletionShipper?.value || session?.name || "Admin"
+      shipper: shippingCompletionShipper?.value || session?.name || "Admin",
+      defectPhotoFolderUrl: uploadResult?.folderUrl || "",
+      defectPhotoCount: uploadResult?.uploadedCount || 0
     });
     clearShippingBoxDraft(getShippingDraftKeyFromRow(row));
     closeShippingCompletionModal();
