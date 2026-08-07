@@ -9942,7 +9942,7 @@ body {
   font-weight: 700;
 }
 
-.shipping-product-name {
+#shippingScreen .shipping-product-name {
   font-weight: 500;
 }
 

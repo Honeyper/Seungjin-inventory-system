@@ -674,3 +674,13 @@ final result: passed
 - `git diff --check`를 통과했다.
 
 final result: passed
+
+## 66. 모바일 출고 카드 제품명 글꼴 두께
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_EpEogA/스크린샷 2026-08-07 오후 2.17.19.png`
+- 제품명에 뒤에서 선언한 `500` 두께가 있었지만, 앞선 `#shippingScreen` 선택자의 높은 우선순위 때문에 실제 화면에는 `900`이 적용되고 있었다.
+- 출고 카드 제품명 선택자의 우선순위를 맞춰 실제 계산 글꼴 두께를 미디움인 `500`으로 변경했다.
+- 업체명, 상태 배지, 수량과 버튼의 강조 두께 및 제품명의 크기·줄 수·줄바꿈 규칙은 유지했다.
+- `git diff --check`를 통과했다.
+
+final result: passed
