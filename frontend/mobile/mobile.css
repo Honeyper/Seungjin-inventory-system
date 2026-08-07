@@ -8717,6 +8717,52 @@ body {
   box-shadow: var(--operations-shadow);
 }
 
+.shipping-product-card::before {
+  position: absolute;
+  top: 15px;
+  bottom: 15px;
+  left: -1px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--client-accent, #7f8da3);
+  content: "";
+}
+
+.shipping-product-card.client-tone-sky {
+  --client-accent: #2583c5;
+  --client-accent-ink: #176193;
+}
+
+.shipping-product-card.client-tone-violet {
+  --client-accent: #7c63c6;
+  --client-accent-ink: #5c469e;
+}
+
+.shipping-product-card.client-tone-emerald {
+  --client-accent: #2f9a78;
+  --client-accent-ink: #25765d;
+}
+
+.shipping-product-card.client-tone-coral {
+  --client-accent: #d36f60;
+  --client-accent-ink: #a14d43;
+}
+
+.shipping-product-card.client-tone-amber {
+  --client-accent: #d39735;
+  --client-accent-ink: #8d641f;
+}
+
+.shipping-product-card.client-tone-teal {
+  --client-accent: #238b8f;
+  --client-accent-ink: #1b6b6e;
+}
+
+.shipping-product-card.client-tone-rose {
+  --client-accent: #c55f86;
+  --client-accent-ink: #934463;
+}
+
 .shipping-card-head {
   display: grid;
   grid-template-columns: 68px minmax(0, 1fr) auto;
@@ -8800,7 +8846,7 @@ body {
 .shipping-client {
   overflow: hidden;
   margin-bottom: 5px;
-  color: #68758d;
+  color: var(--client-accent-ink, #68758d);
   font-size: 12px;
   font-weight: 700;
   text-overflow: ellipsis;

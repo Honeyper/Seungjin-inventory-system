@@ -531,3 +531,19 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 55. 모바일 업체별 제품 카드 색상 구분
+
+- 참고 컴포넌트: `/Users/kang-kyoungmo/.codex/attachments/7d99c641-191a-4296-b26c-a12ed8de1121/pasted-text.txt`
+- 구현 캡처: `/private/tmp/seungjin-client-color-accents-local.png`
+- 검증 뷰포트: 1280 × 720px, 모바일 앱 표시 폭 430 CSS px
+- 참고 일정 카드의 카테고리 색상 바를 승진 출고 카드에 맞춰 좌측 4px 업체 액센트 바로 적용했다.
+- 업체명은 같은 색상의 어두운 톤으로 표시하고, 제품명·수량·출고 버튼·상태 배지는 기존 색상을 유지해 정보 위계가 뒤집히지 않게 했다.
+- `(주)`, `㈜`, `주식회사`, 공백·기호를 제거한 업체 키를 7개 팔레트에 결정적으로 매핑해 `(주)케이알`과 `케이알`처럼 표기가 달라도 같은 색상이 유지된다.
+- 실제 업체 `(주)케이알`, `(주)장업시스템`, `아이원(아이텍)`, `필립텍`, `(주)정훈`의 독립적인 매핑을 확인했다.
+- 모든 업체명 색상은 흰색 배경과 5.28:1 이상의 대비를 유지해 WCAG AA 일반 텍스트 기준을 충족한다.
+- 출고 관리와 재고 수정의 공유 제품 카드에 동일한 규칙을 적용했다.
+- 브라우저 콘솔 오류는 없었다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

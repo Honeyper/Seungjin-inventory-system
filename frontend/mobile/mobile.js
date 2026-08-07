@@ -86,6 +86,15 @@ const SHIPPING_SORT_OPTIONS = [
   { key: "scannedBoxes", label: "최근 스캔순" },
   { key: "quantity", label: "수량 많은 순" }
 ];
+const CLIENT_TONE_CLASS_NAMES = [
+  "client-tone-sky",
+  "client-tone-violet",
+  "client-tone-emerald",
+  "client-tone-coral",
+  "client-tone-amber",
+  "client-tone-teal",
+  "client-tone-rose"
+];
 
 const state = {
   user: null,
@@ -2351,7 +2360,7 @@ function renderInventoryMoveItem(item) {
     }, 0);
 
   return `
-    <article class="shipping-item shipping-product-card inventory-move-item" data-inventory-move-item="${escapeHtml(key)}">
+    <article class="shipping-item shipping-product-card inventory-move-item ${getClientToneClass(item.clientName)}" data-inventory-move-item="${escapeHtml(key)}">
       <div class="shipping-card-head inventory-move-card-head">
         ${renderProductVisual(item)}
         <div class="shipping-item-copy">
@@ -2728,7 +2737,7 @@ function renderShippingItem(item) {
   ];
 
   return `
-    <article class="shipping-item shipping-product-card status-${escapeHtml(statusTone)}">
+    <article class="shipping-item shipping-product-card status-${escapeHtml(statusTone)} ${getClientToneClass(item.clientName)}">
       <div class="shipping-card-head">
         ${renderProductVisual(item)}
         <div class="shipping-item-copy">
@@ -6073,6 +6082,23 @@ function normalizeText(value) {
 function normalizeDisplay(value) {
   const text = normalizeText(value);
   return text && text !== "-" ? text : "-";
+}
+
+function getClientToneClass(clientName) {
+  const key = String(clientName || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\(주\)|㈜|주식회사/g, "")
+    .replace(/[^0-9a-z가-힣]/g, "");
+  if (!key) {
+    return "client-tone-sky";
+  }
+
+  let hash = 0;
+  for (const character of key) {
+    hash = ((hash * 31) + character.codePointAt(0)) >>> 0;
+  }
+  return CLIENT_TONE_CLASS_NAMES[hash % CLIENT_TONE_CLASS_NAMES.length];
 }
 
 function parseNumber(value) {
