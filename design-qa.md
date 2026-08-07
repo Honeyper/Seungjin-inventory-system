@@ -716,3 +716,15 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 70. 모바일 전체 미디움 글꼴과 출고 카드 높이 축소
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_AMzYfW/스크린샷 2026-08-07 오후 3.19.30.png`
+- 모바일 CSS 전체에서 `600·700·800·900·bold`로 지정된 강조 두께 198곳을 미디움 `500`으로 통일하고, 별도 `!important` 강조 1곳도 `500`으로 변경했다.
+- 기본 굵기가 적용될 수 있는 `strong`, `b`, 제목 태그도 모바일 앱 범위에서 `500`으로 고정했다. 일반 본문 `400`은 유지했다.
+- 출고 카드 수량 영역의 위아래 패딩을 `13px → 10px`, 수량 칸과 출고 버튼 높이를 `72px → 54px`, 상세정보 행을 `44px → 38px`로 줄였다.
+- 수량 라벨은 `12px → 11px`, 수량 값은 `20px → 18px`, 단위는 `12px → 10px`, 출고 버튼은 `14px → 13px`, 상세정보 제목은 `12px → 11px`로 조정했다.
+- 로그인·홈·출고 관리·재고 수정·스캐너·모달의 기능, 상태색, 버튼 동작은 변경하지 않았다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

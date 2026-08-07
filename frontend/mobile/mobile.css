@@ -130,7 +130,7 @@ img {
 .mobile-brand strong {
   color: var(--blue);
   font-size: 35px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
   line-height: 1;
 }
@@ -140,7 +140,7 @@ img {
   margin-top: 2px;
   color: #566579;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -190,7 +190,7 @@ img {
   margin: 0 0 10px;
   color: var(--blue);
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
   line-height: 1.15;
 }
@@ -200,7 +200,7 @@ img {
   margin: 0;
   color: var(--navy-dark);
   font-size: 38px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
   line-height: 1.16;
   white-space: nowrap;
@@ -213,7 +213,7 @@ img {
   margin-top: 18px;
   color: #4f5d71;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.75;
   word-break: keep-all;
 }
@@ -276,7 +276,7 @@ img {
   margin: 0;
   color: var(--navy-dark);
   font-size: 31px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -284,7 +284,7 @@ img {
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .mobile-field {
@@ -296,7 +296,7 @@ img {
 .mobile-field > span:first-child {
   color: var(--navy-dark);
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .field-control {
@@ -330,7 +330,7 @@ img {
   outline: 0;
   color: var(--ink);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 500;
   background: transparent;
 }
 
@@ -360,7 +360,7 @@ img {
   margin: 12px 0 0;
   color: #c62828;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .form-message.success {
@@ -381,7 +381,7 @@ img {
   border-radius: 10px;
   border: 1px solid transparent;
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .primary-action {
@@ -461,7 +461,7 @@ img {
   padding: 0 13px;
   color: var(--navy-dark);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
   background: rgba(255, 255, 255, 0.86);
   box-shadow: 0 8px 18px rgba(6, 31, 76, 0.06);
 }
@@ -504,7 +504,7 @@ img {
   margin: 0;
   color: var(--navy-dark);
   font-size: 30px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.32;
   letter-spacing: 0;
   word-break: keep-all;
@@ -518,7 +518,7 @@ img {
   margin: 14px 0 0;
   color: var(--muted);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.6;
   word-break: keep-all;
 }
@@ -599,7 +599,7 @@ img {
 .menu-copy strong {
   color: var(--navy-dark);
   font-size: 25px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.16;
   letter-spacing: 0;
 }
@@ -607,7 +607,7 @@ img {
 .menu-copy small {
   color: #5f6f86;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.55;
 }
 
@@ -622,7 +622,7 @@ img {
   border-radius: 999px;
   padding: 0 13px;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .status-pill.ready {
@@ -640,7 +640,7 @@ img {
   justify-self: end;
   color: var(--blue);
   font-size: 42px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -676,7 +676,7 @@ img {
   text-align: center;
   color: #111827;
   font-size: 25px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -706,7 +706,7 @@ img {
   padding: 0 12px;
   color: #fff;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   background: linear-gradient(180deg, #082e6c, #061f4c);
   box-shadow: 0 12px 22px rgba(8, 42, 98, 0.2);
 }
@@ -753,7 +753,7 @@ img {
   outline: 0;
   color: var(--ink);
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 500;
   background: transparent;
 }
 
@@ -783,20 +783,20 @@ img {
   padding: 0 10px;
   color: #fff;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
   background: var(--navy);
 }
 
 .shipping-live-clock strong {
   color: #111827;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .shipping-live-clock time {
   color: var(--blue);
   font-size: 17px;
-  font-weight: 900;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -820,7 +820,7 @@ img {
   border-radius: 10px;
   color: #111827;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
   background: #fff;
 }
 
@@ -843,12 +843,12 @@ img {
   margin: 0;
   color: #111827;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .shipping-action-row strong {
   font-size: 32px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .control-button {
@@ -862,7 +862,7 @@ img {
   padding: 0 13px;
   color: #111827;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
   background: #fff;
 }
 
@@ -883,7 +883,7 @@ img {
   padding: 0 9px;
   color: #52627a;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
   background: #fff;
   white-space: nowrap;
 }
@@ -965,7 +965,7 @@ img {
   color: #374151;
   background: transparent;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
   text-align: left;
 }
 
@@ -1021,7 +1021,7 @@ img {
   margin: 18px 0 0;
   color: #111827;
   font-size: 25px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -1029,7 +1029,7 @@ img {
   margin: 10px 0 22px;
   color: var(--muted);
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .empty-state .primary-action {
@@ -1059,14 +1059,14 @@ img {
 .shipping-client {
   color: #5f6f86;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .shipping-title {
   margin-top: 4px;
   color: #111827;
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.32;
   letter-spacing: 0;
 }
@@ -1074,7 +1074,7 @@ img {
 .shipping-title small {
   color: #4c596d;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .process-pill {
@@ -1087,7 +1087,7 @@ img {
   color: var(--blue);
   background: #eaf2ff;
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .process-pill.green {
@@ -1109,7 +1109,7 @@ img {
   border: 0;
   border-radius: 10px;
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .ship-now-button {
@@ -1128,13 +1128,13 @@ img {
   margin: 0;
   color: #2b3546;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .item-worker span {
   margin-right: 6px;
   color: var(--blue);
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .item-metrics {
@@ -1158,13 +1158,13 @@ img {
 .metric span {
   color: #5f6c80;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .metric strong {
   color: #111827;
   font-size: 23px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .metric strong.blue {
@@ -1174,7 +1174,7 @@ img {
 .metric small {
   color: #5f6c80;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .bottom-nav {
@@ -1202,7 +1202,7 @@ img {
   border-radius: 10px;
   color: #667085;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.15;
   text-align: center;
   word-break: keep-all;
@@ -1259,7 +1259,7 @@ img {
   margin: 0;
   color: #111827;
   font-size: 27px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -1267,14 +1267,14 @@ img {
   margin: 16px 0 10px;
   color: #38465a;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .mobile-dialog strong {
   display: block;
   color: var(--muted);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -1303,7 +1303,7 @@ img {
   color: var(--navy-dark);
   background: #f8fafc;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
 }
@@ -1375,7 +1375,7 @@ img {
   margin: 0;
   text-align: center;
   font-size: 23px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -1400,7 +1400,7 @@ img {
 
 .scanner-flash {
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .scanner-tip {
@@ -1413,7 +1413,7 @@ img {
   color: #fff;
   text-align: center;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 500;
   background: rgba(0, 0, 0, 0.7);
 }
 
@@ -1481,7 +1481,7 @@ img {
   margin: 0;
   color: #fff;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.6;
 }
 
@@ -1506,7 +1506,7 @@ img {
   border: 0;
   color: #fff;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 500;
   background: transparent;
 }
 
@@ -1639,13 +1639,13 @@ img {
 .scanner-list-header span {
   color: #5f6c80;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .scanner-list-header strong {
   color: #111827;
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .scanner-list-header button {
@@ -1658,7 +1658,7 @@ img {
   padding: 0 12px;
   color: var(--navy-dark);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   background: #fff;
 }
 
@@ -1691,12 +1691,12 @@ img {
 .scanner-empty strong {
   color: #172234;
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .scanner-empty span {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .scanner-scanned-item {
@@ -1719,7 +1719,7 @@ img {
   border-radius: 10px;
   color: #fff;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   background: var(--blue);
 }
 
@@ -1735,14 +1735,14 @@ img {
 .scanner-scanned-item strong {
   color: #111827;
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .scanner-scanned-item small {
   margin-top: 3px;
   color: #607087;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .scanner-remove-button {
@@ -1766,7 +1766,7 @@ img {
   color: var(--navy-dark);
   background: #fff7e8;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .scanner-quantity-button:active {
@@ -1827,7 +1827,7 @@ img {
   color: #fff;
   text-align: center;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   background: rgba(6, 31, 76, 0.96);
   box-shadow: 0 14px 28px rgba(6, 31, 76, 0.22);
   opacity: 0;
@@ -1938,7 +1938,7 @@ img {
 .mobile-brand .brand-copy strong {
   color: var(--blue);
   font-size: 28px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 0.98;
 }
 
@@ -1946,7 +1946,7 @@ img {
   color: #566579;
   font-size: 11px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0.03em;
 }
 
@@ -2336,7 +2336,7 @@ img {
   margin-top: 22px;
   color: #516074;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.78;
 }
 
@@ -2390,7 +2390,7 @@ img {
 
 .login-card p {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -2403,7 +2403,7 @@ img {
 
 .field-control input {
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .primary-action,
@@ -2479,7 +2479,7 @@ img {
   max-width: 226px;
   color: #526176;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .welcome-art {
@@ -3541,7 +3541,7 @@ img {
   min-height: 26px;
   padding: 0 10px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -3555,7 +3555,7 @@ img {
 
 #homeScreen .menu-copy strong {
   font-size: 21px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.08;
   word-break: keep-all;
 }
@@ -3798,7 +3798,7 @@ img {
   min-height: 28px;
   color: #43536a;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -4003,7 +4003,7 @@ img {
 
 #shippingScreen .mobile-search input {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 #shippingScreen .shipping-live-clock {
@@ -4041,7 +4041,7 @@ img {
   align-self: center;
   color: var(--navy-dark);
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #shippingScreen .shipping-action-row strong {
@@ -4131,14 +4131,14 @@ img {
 
 #shippingScreen .manual-shipping-open-button strong {
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #shippingScreen .manual-shipping-open-button small {
   margin-top: 3px;
   color: #758399;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 #shippingScreen .manual-shipping-open-arrow {
@@ -4214,7 +4214,7 @@ img {
   display: block;
   color: var(--gold-dark);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .box-picker-header h2 {
@@ -4277,7 +4277,7 @@ img {
   outline: 0;
   color: var(--navy-dark);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
   background: transparent;
 }
 
@@ -4285,7 +4285,7 @@ img {
   margin: 12px 2px 9px;
   color: #6f7d91;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .box-picker-product-list {
@@ -4319,7 +4319,7 @@ img {
 .box-picker-product-button small {
   color: #78869a;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .box-picker-product-button strong {
@@ -4333,7 +4333,7 @@ img {
   color: #68778c;
   font-size: 11px;
   font-style: normal;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .box-picker-product-button b {
@@ -4383,7 +4383,7 @@ img {
 .manual-shipping-product-button strong {
   margin: 0;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .manual-shipping-product-copy {
@@ -4394,7 +4394,7 @@ img {
   margin-top: 5px;
   color: #6f7f95;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .manual-shipping-product-button b {
@@ -4413,7 +4413,7 @@ img {
   padding: 0;
   color: var(--blue);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   background: transparent;
 }
 
@@ -4436,7 +4436,7 @@ img {
 .box-picker-selected-product span {
   color: #748299;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .box-picker-selected-product strong {
@@ -4450,7 +4450,7 @@ img {
   color: var(--blue);
   font-size: 11px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .box-picker-section-header {
@@ -4474,7 +4474,7 @@ img {
   margin-top: 3px;
   color: #77859a;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .box-picker-section-header label {
@@ -4487,7 +4487,7 @@ img {
   border-radius: 8px;
   padding: 0 9px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   white-space: nowrap;
   background: #fff;
 }
@@ -4545,7 +4545,7 @@ img {
   overflow: hidden;
   color: #758399;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4576,7 +4576,7 @@ img {
   outline: 0;
   color: var(--navy-dark);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   text-align: right;
   background: transparent;
 }
@@ -4586,7 +4586,7 @@ img {
   color: #7d899b;
   font-size: 10px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .box-picker-footer {
@@ -4606,7 +4606,7 @@ img {
   margin: 0;
   color: #68778c;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .box-picker-footer p strong {
@@ -4629,7 +4629,7 @@ img {
   text-align: center;
   color: #7a889c;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 @media (max-width: 360px) {
@@ -4777,7 +4777,7 @@ img {
   background: #f5f8fc;
   border: 1px solid rgba(196, 210, 228, 0.78);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4801,7 +4801,7 @@ img {
   color: #0b6b43;
   background: #e8f7ef;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 #shippingScreen .shipping-remove-button {
@@ -4812,7 +4812,7 @@ img {
   color: #647083;
   background: #f8fafc;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #shippingScreen .shipping-remove-button:active {
@@ -4919,7 +4919,7 @@ img {
   color: var(--navy-dark);
   background: #fff7e8;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -5148,13 +5148,13 @@ img {
 
 .hardware-scanner-panel > strong {
   font-size: 19px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .hardware-scanner-panel > span:not(.hardware-scanner-icon) {
   color: rgba(255, 255, 255, 0.74);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .hardware-scanner-panel p {
@@ -5168,7 +5168,7 @@ img {
   padding: 0 13px;
   color: rgba(255, 255, 255, 0.88);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
   background: rgba(0, 0, 0, 0.22);
 }
 
@@ -5508,7 +5508,7 @@ img {
   padding: 0 7px;
   color: #6b788c;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 500;
   transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
@@ -5631,7 +5631,7 @@ img {
   overflow: visible;
   color: #718096;
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.1;
   text-overflow: clip;
   white-space: nowrap;
@@ -5641,7 +5641,7 @@ img {
   overflow: hidden;
   color: var(--navy-dark);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5656,7 +5656,7 @@ img {
   color: var(--navy-dark);
   background: transparent;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .confirm-meta-list.inventory-move-confirm-routes {
@@ -5691,7 +5691,7 @@ img {
   color: #42516a;
   font-size: 13px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .inventory-move-confirm-routes em i {
@@ -5706,7 +5706,7 @@ img {
   align-self: center;
   color: #667387;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .scanner-remove-button {
@@ -5743,7 +5743,7 @@ img {
 .scanner-list-panel .scanner-bottom button {
   min-height: 50px;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .scanner-list-panel .scanner-bottom svg {
@@ -5901,7 +5901,7 @@ img {
   overflow: hidden;
   color: #687890;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5911,7 +5911,7 @@ img {
   margin: 2px 0 0;
   color: var(--navy-dark);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.25;
   word-break: keep-all;
   overflow-wrap: anywhere;
@@ -5950,7 +5950,7 @@ img {
   overflow: hidden;
   color: var(--navy-dark);
   font-size: 17px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.16;
   word-break: keep-all;
   overflow-wrap: anywhere;
@@ -5964,7 +5964,7 @@ img {
   margin-top: 3px;
   color: #75849a;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6032,7 +6032,7 @@ img {
   border: 1px solid #c9d7ee;
   border-radius: 9px;
   background: #f6f9fe;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #shippingScreen .shipping-add-button {
@@ -6042,7 +6042,7 @@ img {
   color: var(--navy-dark);
   background: #fff7e8;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #shippingScreen .shipping-cancel-button {
@@ -6095,13 +6095,13 @@ img {
 #shippingScreen .item-registered-date span {
   margin-right: 0;
   color: var(--gold);
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #shippingScreen .item-registered-date {
   justify-content: flex-end;
   color: #2b3546;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 #shippingScreen .shipping-product-details {
@@ -6121,7 +6121,7 @@ img {
   padding: 4px 0 0;
   color: var(--navy-dark);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
   cursor: pointer;
   list-style: none;
   -webkit-tap-highlight-color: transparent;
@@ -6172,7 +6172,7 @@ img {
 #shippingScreen .shipping-product-detail-item span {
   color: #77869a;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -6180,7 +6180,7 @@ img {
   overflow-wrap: anywhere;
   color: #26364e;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.25;
 }
 
@@ -6380,7 +6380,7 @@ img {
 
 #inventoryMoveScreen .mobile-search input {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 #inventoryMoveScreen .shipping-live-clock {
@@ -6418,7 +6418,7 @@ img {
   align-self: center;
   color: var(--navy-dark);
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #inventoryMoveScreen .shipping-action-row strong {
@@ -6534,7 +6534,7 @@ img {
   overflow: hidden;
   color: var(--navy-dark);
   font-size: 17px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.16;
   word-break: keep-all;
   overflow-wrap: anywhere;
@@ -6560,7 +6560,7 @@ img {
   background: #f5f8fc;
   border: 1px solid rgba(196, 210, 228, 0.78);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6613,7 +6613,7 @@ img {
   border: 1px solid rgba(196, 210, 228, 0.9);
   color: #647083;
   background: #f8fafc;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #inventoryMoveScreen .item-worker {
@@ -6675,13 +6675,13 @@ img {
 .storage-card small {
   color: #667387;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .storage-card strong {
   color: var(--navy-dark);
   font-size: 17px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .inventory-storage-select {
@@ -6692,7 +6692,7 @@ img {
   color: var(--navy-dark);
   background: #fff7e8;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #shippingScreen .metric-count-row,
@@ -6730,7 +6730,7 @@ img {
   margin-top: 0;
   color: #667387;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 #shippingScreen .metric-action-row,
@@ -6774,7 +6774,7 @@ img {
 #shippingScreen .metric-support-row {
   color: #667387;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -6909,7 +6909,7 @@ body {
 #loginScreen .login-hero .mobile-brand .brand-copy strong {
   color: var(--mobile-navy);
   font-size: 19px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -6917,7 +6917,7 @@ body {
   color: #a97a22;
   font-size: 8px;
   font-style: normal;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.13em;
 }
 
@@ -6930,7 +6930,7 @@ body {
   margin: 0;
   color: var(--mobile-navy-strong);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.35;
   white-space: nowrap;
 }
@@ -6986,7 +6986,7 @@ body {
 #loginScreen .login-card h2 {
   color: var(--mobile-text);
   font-size: 21px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -7004,7 +7004,7 @@ body {
 #loginScreen .mobile-field > label {
   color: #52637b;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 #loginScreen .field-control {
@@ -7136,7 +7136,7 @@ body {
   min-height: 48px;
   border-radius: 11px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   box-shadow: none;
 }
 
@@ -7281,7 +7281,7 @@ body {
   color: var(--mobile-muted);
   font-size: 8px;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0.1em;
 }
 
@@ -7925,7 +7925,7 @@ body {
 .mobile-transfer-return-heading span {
   color: #9b6811;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -7975,7 +7975,7 @@ body {
   margin-top: 3px;
   color: var(--mobile-muted);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -7989,7 +7989,7 @@ body {
 .mobile-transfer-return-status legend {
   color: #526077;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .mobile-transfer-return-field select {
@@ -7999,7 +7999,7 @@ body {
   color: var(--mobile-text);
   font: inherit;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid var(--mobile-border);
   border-radius: 10px;
   background: #fff;
@@ -8051,7 +8051,7 @@ body {
   margin-top: 3px;
   color: var(--mobile-muted);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -8060,7 +8060,7 @@ body {
   margin: 0 !important;
   color: #b42318 !important;
   font-size: 11px !important;
-  font-weight: 900 !important;
+  font-weight: 500 !important;
   text-align: left !important;
 }
 
@@ -8273,7 +8273,7 @@ body {
   color: #0f6845;
   background: #eaf8f1;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 @media (max-width: 370px) {
@@ -8399,7 +8399,7 @@ body {
 #homeScreen .mobile-home-header .brand-copy strong {
   color: var(--operations-ink);
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: -0.045em;
 }
 
@@ -8407,7 +8407,7 @@ body {
   color: var(--operations-gold);
   font-size: 10px;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -8419,7 +8419,7 @@ body {
   background: transparent;
   box-shadow: none;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .mobile-home-header .small-outline-button svg {
@@ -8525,7 +8525,7 @@ body {
   color: #647087;
   background: #f0f2f6;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -8537,7 +8537,7 @@ body {
 .home-summary-item > strong {
   color: var(--operations-ink);
   font-size: 25px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -8554,7 +8554,7 @@ body {
   margin-top: 7px;
   color: #58657a;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -8683,7 +8683,7 @@ body {
 .mobile-toolbar h1 {
   color: var(--operations-ink);
   font-size: 24px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: -0.05em;
 }
 
@@ -8702,7 +8702,7 @@ body {
   background: var(--operations-navy);
   box-shadow: 0 7px 16px rgba(6, 31, 76, 0.16);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .scan-button svg {
@@ -8732,7 +8732,7 @@ body {
 .mobile-search input {
   color: var(--operations-ink);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .mobile-search input::placeholder {
@@ -8754,7 +8754,7 @@ body {
   color: #7b5207;
   background: linear-gradient(135deg, #f7d98c, #ffd56c);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -8762,7 +8762,7 @@ body {
 .shipping-live-clock time {
   color: var(--operations-ink);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .shipping-live-clock time {
@@ -8828,7 +8828,7 @@ body {
 .shipping-action-row p {
   color: var(--operations-ink);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -8846,7 +8846,7 @@ body {
   color: var(--operations-ink);
   background: #fff;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -8897,7 +8897,7 @@ body {
 .empty-state h2 {
   color: var(--operations-ink);
   font-size: 23px;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: -0.045em;
 }
 
@@ -9126,7 +9126,7 @@ body {
 .shipping-product-visual.is-placeholder > small {
   color: #929dad;
   font-size: 8px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
   letter-spacing: -0.04em;
   white-space: nowrap;
@@ -9169,7 +9169,7 @@ body {
   color: var(--client-label-ink, var(--client-accent-ink, #68758d));
   background: var(--client-label-bg, #eef2f7);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -9185,7 +9185,7 @@ body {
   overflow: hidden;
   color: var(--operations-ink);
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.38;
   letter-spacing: -0.035em;
   -webkit-box-orient: vertical;
@@ -9207,7 +9207,7 @@ body {
   color: #5d6980;
   background: #f1f3f7;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -9232,7 +9232,7 @@ body {
   color: #91600a;
   background: #fff7e7;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -9247,7 +9247,7 @@ body {
   border: 1px solid;
   border-radius: 7px;
   font-size: 9px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.035em;
   white-space: nowrap;
@@ -9387,7 +9387,7 @@ body {
   color: var(--operations-ink);
   background: transparent;
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 500;
   text-align: left;
   outline: none;
   opacity: 0;
@@ -9470,7 +9470,7 @@ body {
 .shipping-card-metrics .metric > span:first-child {
   color: #68758b;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -9484,13 +9484,13 @@ body {
 .shipping-card-metrics .metric-value-row strong {
   color: var(--operations-ink);
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .shipping-card-metrics .metric-value-row small {
   color: #536078;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .shipping-primary-action {
@@ -9502,7 +9502,7 @@ body {
   color: #fff;
   background: var(--operations-navy);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -9592,7 +9592,7 @@ body {
 .storage-card small {
   color: #778298;
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .storage-card strong {
@@ -9611,7 +9611,7 @@ body {
   color: var(--operations-navy);
   background-color: transparent;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .inventory-move-summary {
@@ -9644,7 +9644,7 @@ body {
 .inventory-move-metrics .metric > span:first-child {
   color: #6f7a8f;
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .inventory-move-metrics .metric-value-row {
@@ -9657,7 +9657,7 @@ body {
 .inventory-move-metrics .metric-value-row strong {
   color: var(--operations-ink);
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .inventory-move-metrics .metric-value-row small {
@@ -9675,7 +9675,7 @@ body {
   min-height: 44px;
   border-radius: 10px;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .inventory-move-primary-actions .ship-pending-button {
@@ -9720,7 +9720,7 @@ body {
   border-radius: 12px;
   color: #78849a;
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.18;
 }
 
@@ -10012,7 +10012,7 @@ body {
 #shippingScreen .mobile-toolbar h1,
 #inventoryMoveScreen .mobile-toolbar h1,
 .empty-state h2 {
-  font-weight: 800;
+  font-weight: 500;
 }
 
 #shippingScreen .scan-button,
@@ -10024,7 +10024,7 @@ body {
 .shipping-action-row p,
 .control-button,
 .shipping-completed-toggle {
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .mobile-search input {
@@ -10034,7 +10034,7 @@ body {
 .shipping-action-row p strong,
 .shipping-card-metrics .metric-value-row strong,
 .inventory-move-metrics .metric-value-row strong {
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .shipping-client,
@@ -10042,14 +10042,14 @@ body {
 .shipping-card-metrics .metric > span:first-child,
 .shipping-card-metrics .metric-value-row small,
 .shipping-card-menu-popover button {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .shipping-status-badge,
 .shipping-primary-action,
 #shippingScreen .shipping-product-details summary,
 .inventory-move-primary-actions button {
-  font-weight: 700;
+  font-weight: 500;
 }
 
 #shippingScreen .shipping-product-name {
@@ -10197,7 +10197,7 @@ body {
 
 #shippingScreen .shipping-product-details-title {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -10235,14 +10235,14 @@ body {
 #shippingScreen .shipping-product-details[open] .shipping-product-detail-item span {
   color: #758399;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
 }
 
 #shippingScreen .shipping-product-details[open] .shipping-product-detail-item strong {
   color: #26364e;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -10312,14 +10312,14 @@ body {
 .quantity-editor-header span {
   color: #91600a;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .quantity-editor-header h2 {
   margin: 3px 0 0;
   color: var(--operations-ink);
   font-size: 21px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.035em;
 }
@@ -10376,7 +10376,7 @@ body {
   margin-bottom: 3px;
   color: #6c7890;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .quantity-editor-product strong {
@@ -10384,7 +10384,7 @@ body {
   overflow: hidden;
   color: var(--operations-ink);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.4;
   letter-spacing: -0.025em;
   -webkit-box-orient: vertical;
@@ -10407,14 +10407,14 @@ body {
 .quantity-editor-section-heading h3 {
   color: var(--operations-ink);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .quantity-editor-section-heading p {
   margin-top: 3px;
   color: #778399;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .quantity-editor-section-heading > span {
@@ -10424,7 +10424,7 @@ body {
   color: #845709;
   background: #fff3d8;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .quantity-editor-box-list {
@@ -10492,7 +10492,7 @@ body {
   color: #66748a;
   background: #eef2f7;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .quantity-editor-box-option:has(input:checked) .quantity-editor-box-number {
@@ -10511,7 +10511,7 @@ body {
   overflow: hidden;
   color: var(--operations-ink);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -10521,13 +10521,13 @@ body {
   margin-top: 3px;
   color: #8490a2;
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .quantity-editor-box-option > b {
   color: var(--operations-ink);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -10535,7 +10535,7 @@ body {
   margin-left: 2px;
   color: #69768c;
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .quantity-editor-input-card {
@@ -10557,14 +10557,14 @@ body {
 .quantity-editor-input-heading > span {
   color: var(--operations-ink);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .quantity-editor-input-heading > small {
   overflow: hidden;
   color: #6f7c91;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -10618,7 +10618,7 @@ body {
   color: var(--operations-ink);
   background: transparent;
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 500;
   text-align: right;
 }
 
@@ -10631,7 +10631,7 @@ body {
   color: #68758b;
   font-size: 11px;
   font-style: normal;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 #shippingQuantityMessage {
@@ -10639,7 +10639,7 @@ body {
   margin: 8px 1px 0;
   color: #7a8698;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
 }
 
@@ -10649,7 +10649,7 @@ body {
 
 #shippingQuantityMessage.is-error {
   color: #b23a31;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .quantity-editor-footer {
@@ -10731,4 +10731,57 @@ body {
   .quantity-editor-box-option {
     transition: none;
   }
+}
+
+/* 2026-08-07 unified medium typography and compact shipping metrics */
+
+#mobileApp :is(strong, b, h1, h2, h3, h4, h5, h6) {
+  font-weight: 500;
+}
+
+#shippingScreen .shipping-card-footer {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+#shippingScreen .shipping-card-metrics .metric {
+  min-height: 54px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+#shippingScreen .shipping-card-metrics .metric > span:first-child {
+  min-height: 0;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+#shippingScreen .shipping-card-metrics .metric-value-row {
+  margin-top: 2px;
+}
+
+#shippingScreen .shipping-card-metrics .metric-value-row strong {
+  margin-top: 0;
+  font-size: 18px;
+  line-height: 1.05;
+}
+
+#shippingScreen .shipping-card-metrics .metric-value-row small {
+  margin-top: 0;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+#shippingScreen .shipping-primary-action {
+  min-height: 54px;
+  font-size: 13px;
+}
+
+#shippingScreen .shipping-product-details summary,
+#shippingScreen .shipping-product-details[open] summary {
+  min-height: 38px;
+}
+
+#shippingScreen .shipping-product-details-title {
+  font-size: 11px;
 }
