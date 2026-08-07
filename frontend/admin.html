@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260807-shipping-completion-defect-photo" />
+    <link rel="stylesheet" href="./styles.css?v=20260807-remaining-inventory-layout" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1538,18 +1538,26 @@
         </header>
 
         <form class="product-form remaining-inventory-form" id="remainingInventoryForm">
-          <section class="shipping-completion-summary" aria-label="보관 재고 대상 정보">
+          <section class="shipping-completion-summary remaining-inventory-summary" aria-label="보관 재고 대상 정보">
             <div>
               <span>관리 ID</span>
               <strong id="remainingInventoryRecordId">-</strong>
             </div>
-            <div>
+            <div class="remaining-inventory-summary-product">
               <span>제품명</span>
               <strong id="remainingInventoryProduct">-</strong>
             </div>
             <div>
               <span>거래처명</span>
               <strong id="remainingInventoryClient">-</strong>
+            </div>
+            <div>
+              <span>입고일</span>
+              <strong id="remainingInventoryInboundDate">-</strong>
+            </div>
+            <div>
+              <span>최종 출고일</span>
+              <strong id="remainingInventoryLatestShippingDate">-</strong>
             </div>
           </section>
 
@@ -2465,6 +2473,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260807-shipping-completion-defect-photo"></script>
+    <script src="./admin.js?v=20260807-remaining-inventory-layout"></script>
   </body>
 </html>

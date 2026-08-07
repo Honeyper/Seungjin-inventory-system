@@ -4569,15 +4569,57 @@ input {
   overflow: hidden;
 }
 
-.remaining-inventory-form {
+.product-form.remaining-inventory-form {
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  padding: 1.35rem 1.55rem 1.5rem;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
+}
+
+.remaining-inventory-form .remaining-inventory-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+
+.remaining-inventory-summary .remaining-inventory-summary-product {
+  grid-column: span 2;
+}
+
+.remaining-inventory-form .remaining-inventory-summary div {
+  min-height: 4.85rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 0.65rem;
+}
+
+.remaining-inventory-form .form-section {
+  padding: 0;
+}
+
+.remaining-inventory-form .form-section + .form-section {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+}
+
+.remaining-inventory-form .remaining-inventory-category-section {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #e5ebf2;
+}
+
+.remaining-inventory-form .remaining-inventory-box-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.remaining-inventory-form .modal-actions {
+  margin-top: 1.25rem;
 }
 
 .remaining-inventory-section-heading h3,
@@ -4709,6 +4751,18 @@ input {
 }
 
 @media (max-width: 680px) {
+  .product-form.remaining-inventory-form {
+    padding: 1rem;
+  }
+
+  .remaining-inventory-form .remaining-inventory-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .remaining-inventory-summary .remaining-inventory-summary-product {
+    grid-column: auto;
+  }
+
   .remaining-inventory-category-grid,
   .remaining-inventory-box-list {
     grid-template-columns: 1fr;
