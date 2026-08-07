@@ -9957,6 +9957,7 @@ body {
 #shippingScreen .shipping-card-footer {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 0;
+  padding-bottom: 13px;
 }
 
 #shippingScreen .shipping-primary-action {

@@ -664,3 +664,13 @@ final result: passed
 - `git diff --check`를 통과했다.
 
 final result: passed
+
+## 65. 모바일 출고 카드 수량 영역 구분선 정렬
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_Kj1ftJ/스크린샷 2026-08-07 오후 2.16.11.png`
+- 출고 카드의 수량 영역은 위쪽 구분선 아래에 13px 여백이 있었지만 아래쪽에는 여백이 없어, 가운데 세로 구분선과 출고 버튼이 아래쪽 구분선에 붙어 보이는 상태였다.
+- 수량 영역 아래에도 13px 여백을 적용해 위·아래 구분선에서 콘텐츠까지의 간격을 동일하게 맞췄다.
+- 위·아래 구분선의 좌우 시작점과 끝점, 수량 두 칸과 출고 버튼의 기존 가로 배치 및 기능은 유지했다.
+- `git diff --check`를 통과했다.
+
+final result: passed
