@@ -95,6 +95,27 @@ const CLIENT_TONE_CLASS_NAMES = [
   "client-tone-teal",
   "client-tone-rose"
 ];
+const CLIENT_TONE_BY_KEY = {
+  미지정: "client-tone-unassigned",
+  아이원아이텍: "client-tone-iwon",
+  리치코스: "client-tone-richcos",
+  장업시스템: "client-tone-jangeop",
+  anp: "client-tone-anp",
+  정훈: "client-tone-jeonghun",
+  케이알: "client-tone-kr",
+  코스엔텍: "client-tone-cosentec",
+  금호eng: "client-tone-kumho",
+  뉴파트너스: "client-tone-newpartners",
+  필립텍: "client-tone-philiptech",
+  이루팩: "client-tone-irupack",
+  디엠: "client-tone-dm",
+  보경: "client-tone-bogyeong",
+  cpi: "client-tone-cpi",
+  더승진2공장: "client-tone-seungjin2",
+  sj패키지: "client-tone-sjpackage",
+  에스제이패키지: "client-tone-sjpackage",
+  명신코스텍: "client-tone-myeongsin"
+};
 
 const state = {
   user: null,
@@ -6335,7 +6356,11 @@ function getClientToneClass(clientName) {
     .replace(/\(주\)|㈜|주식회사/g, "")
     .replace(/[^0-9a-z가-힣]/g, "");
   if (!key) {
-    return "client-tone-sky";
+    return "client-tone-unassigned";
+  }
+
+  if (CLIENT_TONE_BY_KEY[key]) {
+    return CLIENT_TONE_BY_KEY[key];
   }
 
   let hash = 0;

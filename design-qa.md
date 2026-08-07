@@ -705,3 +705,14 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 69. 모바일 출고 카드 업체별 고정 색상
+
+- 기준 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_lPUzsn/스크린샷 2026-08-07 오후 2.19.26.png`
+- 이미지의 업체 배지에서 배경색과 글자색을 직접 추출해 업체명별 고정 매핑으로 적용했다.
+- 리치코스 `#F8D1CB/#A22116`, 장업시스템 `#F7CAAF/#6D3B11`, ANP `#FBE6A9/#453924`, 정훈 `#D9ECC1/#35714E`, 케이알 `#C6E0F4/#2452A3`, 코스엔텍 `#CADBE0/#31596A`, 금호ENG `#E2D0F0/#553482`를 포함해 기준 화면의 전체 업체 색을 반영했다.
+- 뉴파트너스·필립텍·이루팩·디엠·보경은 같은 색상쌍의 진한 배경 버전을 적용하고, CPI·미지정·더승진(2공장)·SJ패키지·에스제이 패키지·명신코스텍 별칭을 포함했다.
+- 카드 좌측 표시선과 업체명 배지가 같은 업체색을 사용하며, 매핑에 없는 신규 업체는 기존 해시 기반 색상으로 표시한다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

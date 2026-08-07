@@ -8975,6 +8975,109 @@ body {
   --client-accent-ink: #934463;
 }
 
+.shipping-product-card.client-tone-unassigned {
+  --client-accent: #3d3d3d;
+  --client-label-bg: #3d3d3d;
+  --client-label-ink: #f2f2f2;
+}
+
+.shipping-product-card.client-tone-iwon {
+  --client-accent: #e6e6e6;
+  --client-label-bg: #e6e6e6;
+  --client-label-ink: #3d3d3d;
+}
+
+.shipping-product-card.client-tone-richcos {
+  --client-accent: #f8d1cb;
+  --client-label-bg: #f8d1cb;
+  --client-label-ink: #a22116;
+}
+
+.shipping-product-card.client-tone-jangeop {
+  --client-accent: #f7caaf;
+  --client-label-bg: #f7caaf;
+  --client-label-ink: #6d3b11;
+}
+
+.shipping-product-card.client-tone-anp {
+  --client-accent: #fbe6a9;
+  --client-label-bg: #fbe6a9;
+  --client-label-ink: #453924;
+}
+
+.shipping-product-card.client-tone-jeonghun {
+  --client-accent: #d9ecc1;
+  --client-label-bg: #d9ecc1;
+  --client-label-ink: #35714e;
+}
+
+.shipping-product-card.client-tone-kr {
+  --client-accent: #c6e0f4;
+  --client-label-bg: #c6e0f4;
+  --client-label-ink: #2452a3;
+}
+
+.shipping-product-card.client-tone-cosentec {
+  --client-accent: #cadbe0;
+  --client-label-bg: #cadbe0;
+  --client-label-ink: #31596a;
+}
+
+.shipping-product-card.client-tone-kumho {
+  --client-accent: #e2d0f0;
+  --client-label-bg: #e2d0f0;
+  --client-label-ink: #553482;
+}
+
+.shipping-product-card.client-tone-newpartners {
+  --client-accent: #553482;
+  --client-label-bg: #553482;
+  --client-label-ink: #e2d0f0;
+}
+
+.shipping-product-card.client-tone-philiptech,
+.shipping-product-card.client-tone-seungjin2 {
+  --client-accent: #a22116;
+  --client-label-bg: #a22116;
+  --client-label-ink: #f8d1cb;
+}
+
+.shipping-product-card.client-tone-irupack {
+  --client-accent: #35714e;
+  --client-label-bg: #35714e;
+  --client-label-ink: #d9ecc1;
+}
+
+.shipping-product-card.client-tone-dm {
+  --client-accent: #2452a3;
+  --client-label-bg: #2452a3;
+  --client-label-ink: #c6e0f4;
+}
+
+.shipping-product-card.client-tone-bogyeong {
+  --client-accent: #453925;
+  --client-label-bg: #453925;
+  --client-label-ink: #fbe6a9;
+}
+
+.shipping-product-card.client-tone-cpi {
+  --client-accent: #e9e8e8;
+  --client-label-bg: #e9e8e8;
+  --client-label-ink: #1f1f1f;
+}
+
+.shipping-product-card.client-tone-sjpackage {
+  --client-accent: #d9ecc1;
+  --client-label-bg: #d9ecc1;
+  --client-label-ink: #35714e;
+}
+
+.shipping-product-card.client-tone-myeongsin {
+  --client-accent: #e2d0f0;
+  --client-label-bg: #e2d0f0;
+  --client-label-ink: #553482;
+}
+
 .shipping-card-head {
   display: grid;
   grid-template-columns: 68px minmax(0, 1fr) auto;
@@ -9056,11 +9159,18 @@ body {
 }
 
 .shipping-client {
+  display: block;
   overflow: hidden;
+  width: fit-content;
+  max-width: 100%;
   margin-bottom: 5px;
-  color: var(--client-accent-ink, #68758d);
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--client-label-ink, var(--client-accent-ink, #68758d));
+  background: var(--client-label-bg, #eef2f7);
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
