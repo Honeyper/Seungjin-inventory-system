@@ -284,3 +284,43 @@ final result: passed
 - 출고 처리와 수정 동작은 변경하지 않았다.
 
 final result: passed
+
+## 41. 모바일 홈·출고 관리·재고 수정 통합 디자인
+
+### 비교 환경
+
+- 참고 디자인: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/codex-clipboard-b6b2c48d-4865-4df6-bd3e-c04657973efb.png`, `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/codex-clipboard-0796f05c-17de-4c48-be26-a9d4e6a652e9.png`, `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/codex-clipboard-aabf1f36-912d-4599-b930-ba88912f6544.png`, `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/codex-clipboard-286bc5cd-869f-4fad-ba66-c81f3f7fad94.png`
+- 구현 캡처: `/private/tmp/seungjin-mobile-home-top.png`, `/private/tmp/seungjin-mobile-shipping-v2.png`, `/private/tmp/seungjin-mobile-shipping-empty.png`, `/private/tmp/seungjin-mobile-inventory.png`
+- 나란히 비교 캡처: `/private/tmp/seungjin-ui-comparison-wide.png`, `/private/tmp/seungjin-ui-comparison-shipping.png`, `/private/tmp/seungjin-ui-comparison-empty.png`, `/private/tmp/seungjin-ui-comparison-inventory.png`
+- 구현 CSS 뷰포트: 390 × 844 px
+- 비교 상태: 홈 상단 및 메뉴, 출고 제품 3건, 출고 빈 화면, 재고 수정 제품 1건
+
+### 디자인 적용
+
+- 홈, 출고 관리, 재고 수정 화면을 흰색 배경과 네이비·골드 강조색, 1px 회색 테두리, 얕은 그림자 체계로 통일했다.
+- 홈에는 환영 영역, 오늘 출고·완료 박스·입출고 상태 요약, 기능별 메뉴 카드를 적용하고 준비 중인 기존 메뉴는 비활성 상태를 유지했다.
+- 출고 화면은 검색, 오늘 날짜·시간, 수동 출고 등록, 총 건수·새로고침·완료 박스·필터 순서를 유지하고 제품별 카드에 업체명, 제품명, 차수·최종공정, 박스 수, 출고 가능 수량, 상태, 주 작업을 배치했다.
+- 상태 표기는 `출고대기`, `부분출고`, `보관`, `출고완료` 규칙으로 정규화했으며 `일부 출고`는 `부분출고`로 표시한다.
+- 카드 이미지 영역은 현재 Tabler 공장 아이콘을 기본값으로 사용하며 제품 이미지 URL 필드가 추가되면 사진을 `cover` 방식으로 표시하고 로드 실패 시 기본 아이콘으로 복귀한다.
+- 재고 수정 카드는 같은 제품 헤더 구조를 사용하고 현재 위치, 이동 위치, 스캔·전체 박스, 현재 수량, 자리이동·전량 이동을 한 카드에서 확인하도록 정리했다.
+- 하단 메뉴는 홈, 출고 관리, 작업완료현황, 재고 현황 조회, 재고 수정의 기존 5개 흐름을 유지했다.
+
+### 기능 및 반응형 검증
+
+- 기존 출고 QR 스캔, 수동 등록, 새로고침, 완료 박스 토글, 필터, 출고, 추가 출고, 박스 추가, 출고대기 등록·취소, 수량 변경, 등록 취소, 상세정보 데이터 속성을 유지했다.
+- 기존 재고 수정 QR 스캔, 보관 장소 선택, 자리이동, 전량 이동, 사출재고 등록, 등록 취소 데이터 속성을 유지했다.
+- 출고 카드 `…` 메뉴를 실제로 열어 5개 보조 작업이 카드 바깥으로 잘리지 않고 표시되는 것을 확인했다.
+- 390 × 844 px에서 홈 카드, 출고 상태 배지·수량·주 작업, 재고 수정 위치 선택·수량·버튼이 가로로 겹치지 않았다.
+- 370px 이하 전용 규칙에서 화면 좌우 여백, 카드 이미지, 상태 배지, 출고 버튼 크기를 추가로 축소하도록 적용했다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+- 브라우저 콘솔 경고·오류: 없음.
+
+### 비교 이력
+
+1. P1: 기존 홈 카드의 과거 그리드 위치 규칙이 새 카드 레이아웃과 충돌해 아이콘·본문·배지가 세로로 분리됐다.
+2. 수정: 홈 화면 전용 열·행 위치를 명시하고 화면 레이아웃을 블록 흐름으로 고정했다.
+3. P1: 기존 수동 출고 등록 버튼 배경 규칙이 남아 흰 배경 위에 흰 제목이 표시됐다.
+4. 수정: 출고 화면 전용 선택자로 네이비 배경과 흰 제목·보조 설명을 함께 고정했다.
+5. 수정 후: 네 화면을 참고 이미지와 같은 비교 페이지에서 다시 확인했고 기능 요소 겹침과 콘솔 오류가 없음을 확인했다.
+
+final result: passed

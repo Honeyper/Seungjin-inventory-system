@@ -158,6 +158,9 @@ const elements = {
   adminLoginButton: document.querySelector("#adminLoginButton"),
   logoutButton: document.querySelector("#mobileLogoutButton"),
   mobileUserName: document.querySelector("#mobileUserName"),
+  mobileTodayShippingCount: document.querySelector("#mobileTodayShippingCount"),
+  mobileTodayCompletedBoxCount: document.querySelector("#mobileTodayCompletedBoxCount"),
+  mobileInventoryStatus: document.querySelector("#mobileInventoryStatus"),
   shippingSearchInput: document.querySelector("#shippingSearchInput"),
   shippingLiveDate: document.querySelector("#shippingLiveDate"),
   shippingLiveTime: document.querySelector("#shippingLiveTime"),
@@ -316,6 +319,7 @@ function bindEvents() {
   document.addEventListener("paste", handleHardwareScannerPaste);
   document.addEventListener("visibilitychange", handlePageVisibilityChange);
   document.addEventListener("click", closeShippingSortMenu);
+  document.addEventListener("error", handleProductImageError, true);
   window.addEventListener("pagehide", releaseScannerStream);
   window.addEventListener("resize", syncManualShippingViewport);
   window.visualViewport?.addEventListener("resize", syncManualShippingViewport);
@@ -347,6 +351,19 @@ function bindEvents() {
     const quantityButton = event.target.closest("[data-mobile-shipping-quantity]");
     if (quantityButton) {
       openShippingQuantityEditor(quantityButton.dataset.mobileShippingQuantity);
+      return;
+    }
+
+    const detailsButton = event.target.closest("[data-mobile-shipping-details]");
+    if (detailsButton) {
+      const detailsKey = detailsButton.dataset.mobileShippingDetails;
+      const detailsPanel = Array.from(elements.shippingListPanel.querySelectorAll("[data-shipping-details-panel]"))
+        .find((panel) => panel.dataset.shippingDetailsPanel === detailsKey);
+      if (detailsPanel) {
+        detailsPanel.open = true;
+        detailsPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+      detailsButton.closest(".shipping-card-menu")?.removeAttribute("open");
       return;
     }
 
@@ -628,6 +645,7 @@ function navigate(route) {
 
 function showHome() {
   elements.mobileUserName.textContent = state.user?.name || "관리자";
+  renderHomeSummary();
   showScreen("home");
   void refreshDashboardInBackground();
 }
@@ -678,6 +696,36 @@ function showScreen(name) {
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function renderHomeSummary() {
+  const todayKey = toDateKey(new Date());
+  const todayShippingRows = state.dashboard.filter((row) => {
+    return toDateKeyFromValue(row?.shippingDate || row?.shippingUpdatedAt) === todayKey;
+  });
+  const completedBoxCount = todayShippingRows.reduce((sum, row) => {
+    const shippedBoxes = Array.isArray(row?.shippedShippingBoxes) ? row.shippedShippingBoxes : [];
+    const todayBoxes = shippedBoxes.filter((box) => {
+      const boxDate = toDateKeyFromValue(box?.shippingDate || box?.shippingUpdatedAt);
+      return boxDate ? boxDate === todayKey : true;
+    });
+    return sum + todayBoxes.length;
+  }, 0);
+  const needsAttention = state.dashboard.some((row) => {
+    const status = normalizeText(row?.stockStatus || row?.processStatus);
+    return /보류|폐기/.test(status) || parseNumber(row?.shippingDefectQuantity) > 0;
+  });
+
+  if (elements.mobileTodayShippingCount) {
+    elements.mobileTodayShippingCount.textContent = formatNumber(todayShippingRows.length);
+  }
+  if (elements.mobileTodayCompletedBoxCount) {
+    elements.mobileTodayCompletedBoxCount.textContent = formatNumber(completedBoxCount);
+  }
+  if (elements.mobileInventoryStatus) {
+    elements.mobileInventoryStatus.textContent = needsAttention ? "확인 필요" : "정상";
+    elements.mobileInventoryStatus.classList.toggle("attention", needsAttention);
+  }
 }
 
 function handlePageVisibilityChange() {
@@ -738,6 +786,7 @@ async function loadShippingDashboard(options = {}) {
       const data = await requestApi("getInventoryDashboard");
       state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
       state.dashboardLoadedAt = Date.now();
+      renderHomeSummary();
       syncPendingShippingRowsFromDashboard();
       syncScannedMoveRowsFromDashboard();
       applyShippingFilters();
@@ -1134,6 +1183,118 @@ function isMobileShippingCandidate(row) {
   return hasActiveShippingBox || (status.includes("출고대기") && activeBoxes.length > 0);
 }
 
+function getProductImageUrl(item) {
+  const items = Array.isArray(item?.scannedItems) ? [item, ...item.scannedItems] : [item];
+  const keys = [
+    "productImageUrl",
+    "productPhotoUrl",
+    "productThumbnailUrl",
+    "thumbnailUrl",
+    "imageUrl",
+    "photoUrl"
+  ];
+
+  for (const candidate of items) {
+    for (const key of keys) {
+      const value = normalizeText(candidate?.[key]);
+      if (/^(https?:|data:image\/|blob:)/i.test(value)) {
+        return value;
+      }
+    }
+  }
+
+  return "";
+}
+
+function renderProductVisual(item) {
+  const productImageUrl = getProductImageUrl(item);
+  const productName = normalizeDisplay(item?.productName || "제품");
+  if (!productImageUrl) {
+    return `
+      <span class="shipping-product-visual is-placeholder" aria-hidden="true">
+        <i class="ti ti-building-factory-2"></i>
+      </span>
+    `;
+  }
+
+  return `
+    <span class="shipping-product-visual has-photo">
+      <img
+        src="${escapeHtml(productImageUrl)}"
+        data-product-image
+        alt="${escapeHtml(productName)} 제품 사진"
+        loading="lazy"
+      />
+    </span>
+  `;
+}
+
+function handleProductImageError(event) {
+  const image = event.target;
+  if (!(image instanceof HTMLImageElement) || !image.matches("[data-product-image]")) {
+    return;
+  }
+
+  if (image.dataset.fallbackApplied === "true") {
+    return;
+  }
+
+  image.dataset.fallbackApplied = "true";
+  const visual = image.closest(".shipping-product-visual");
+  if (!visual) {
+    return;
+  }
+  visual.classList.remove("has-photo");
+  visual.classList.add("is-placeholder");
+  visual.setAttribute("aria-hidden", "true");
+  const fallbackIcon = document.createElement("i");
+  fallbackIcon.className = "ti ti-building-factory-2";
+  image.replaceWith(fallbackIcon);
+}
+
+function normalizeMobileShippingStatusLabel(value) {
+  const status = normalizeText(value);
+  if (/일부\s*출고|부분\s*출고/.test(status)) {
+    return "부분출고";
+  }
+  return normalizeDisplay(status);
+}
+
+function getShippingCardStatus(item, isPending, isCompleted) {
+  if (isCompleted) {
+    return "출고완료";
+  }
+
+  const itemStatus = normalizeMobileShippingStatusLabel(item?.stockStatus || item?.processStatus || "");
+  const sourceItems = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+  const shippedBoxes = sourceItems.flatMap((row) => {
+    return Array.isArray(row?.shippedShippingBoxes) ? row.shippedShippingBoxes : [];
+  });
+  if (itemStatus === "부분출고" || shippedBoxes.length > 0) {
+    return "부분출고";
+  }
+  if (isPending) {
+    return "출고대기";
+  }
+  if (itemStatus && itemStatus !== "-") {
+    return itemStatus;
+  }
+  return "보관";
+}
+
+function getShippingStatusTone(status) {
+  if (status === "부분출고") {
+    return "partial";
+  }
+  if (status === "보관") {
+    return "stored";
+  }
+  if (status === "출고완료") {
+    return "completed";
+  }
+  return "pending";
+}
+
 function renderShippingList(rows) {
   elements.mobileShippingCount.textContent = String(rows.length);
 
@@ -1168,12 +1329,6 @@ function renderShippingList(rows) {
 function renderShippingProductGroup(group) {
   return `
     <section class="shipping-product-group" data-shipping-product-group="${escapeHtml(group.key)}">
-      <header class="shipping-product-group-header">
-        <div class="shipping-product-group-copy">
-          <span>${escapeHtml(normalizeDisplay(group.clientName || "-"))}</span>
-          <h2>${escapeHtml(normalizeDisplay(group.productName || "-"))}</h2>
-        </div>
-      </header>
       <div class="shipping-product-group-items">
         ${group.items.map(renderShippingItem).join("")}
       </div>
@@ -1733,30 +1888,33 @@ function renderInventoryMoveItem(item) {
     }, 0);
 
   return `
-    <article class="shipping-item inventory-move-item" data-inventory-move-item="${escapeHtml(key)}">
-      <div class="shipping-item-top">
-        <span class="shipping-box-art" aria-hidden="true">
-          <img src="${SHIPPING_BOX_ICON_SRC}" alt="" loading="lazy" />
-        </span>
+    <article class="shipping-item shipping-product-card inventory-move-item" data-inventory-move-item="${escapeHtml(key)}">
+      <div class="shipping-card-head inventory-move-card-head">
+        ${renderProductVisual(item)}
         <div class="shipping-item-copy">
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
           </div>
+          <div class="shipping-card-meta">
+            <span>${escapeHtml(batch)}</span>
+            <span>${escapeHtml(process)}</span>
+            <span>${formatNumber(scannedBoxCount)}박스 스캔</span>
+          </div>
         </div>
-        <div class="shipping-meta-stack">
-          <span class="process-pill">${escapeHtml(process)}</span>
-          <span class="shipping-meta-pill">${escapeHtml(batch)}</span>
-          <span class="shipping-meta-pill">${formatNumber(scannedBoxCount)}박스 스캔</span>
-        </div>
-        <div class="shipping-card-actions">
-          <button class="shipping-remove-button" type="button" data-inventory-move-remove="${escapeHtml(key)}">삭제</button>
-          <button class="ship-pending-button" type="button" data-inventory-move-action="single" data-inventory-move-key="${escapeHtml(key)}">자리이동</button>
-          <button class="ship-now-button" type="button" data-inventory-move-action="all" data-inventory-move-key="${escapeHtml(key)}">전량 이동</button>
-          <button class="inventory-stock-button" type="button" data-inventory-move-action="injection" data-inventory-move-key="${escapeHtml(key)}">사출재고 등록</button>
+        <div class="shipping-card-status-actions">
+          <span class="shipping-status-badge inventory">재고 수정</span>
+          <details class="shipping-card-menu">
+            <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기">
+              <i class="ti ti-dots" aria-hidden="true"></i>
+            </summary>
+            <div class="shipping-card-menu-popover" role="menu">
+              <button type="button" role="menuitem" data-inventory-move-action="injection" data-inventory-move-key="${escapeHtml(key)}"><i class="ti ti-packages"></i>사출재고 등록</button>
+              <button type="button" role="menuitem" class="danger" data-inventory-move-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
+            </div>
+          </details>
         </div>
       </div>
-      <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(state.user?.name || item.registrant || item.inspector || "-"))}</p>
       <div class="inventory-storage-grid">
         <span class="storage-card">
           <small>현재 보관 장소</small>
@@ -1769,29 +1927,27 @@ function renderInventoryMoveItem(item) {
           </select>
         </label>
       </div>
-      <div class="item-metrics inventory-move-metrics">
-        <span class="metric">
-          <span>스캔 박스</span>
-          <span class="metric-value-row">
-            <strong>${formatNumber(scannedBoxCount)}</strong>
-            <small>Box</small>
+      <div class="inventory-move-summary">
+        <div class="item-metrics inventory-move-metrics">
+          <span class="metric">
+            <span>스캔 박스</span>
+            <span class="metric-value-row"><strong>${formatNumber(scannedBoxCount)}</strong><small>박스</small></span>
           </span>
-        </span>
-        <span class="metric">
-          <span>전체 박스</span>
-          <span class="metric-value-row">
-            <strong>${formatNumber(totalBoxCount)}</strong>
-            <small>Box</small>
+          <span class="metric">
+            <span>전체 박스</span>
+            <span class="metric-value-row"><strong>${formatNumber(totalBoxCount)}</strong><small>박스</small></span>
           </span>
-        </span>
-        <span class="metric">
-          <span>현재 수량</span>
-          <span class="metric-value-row">
-            <strong class="blue">${formatNumber(quantity)}</strong>
-            <small>ea</small>
+          <span class="metric">
+            <span>현재 수량</span>
+            <span class="metric-value-row"><strong class="blue">${formatNumber(quantity)}</strong><small>ea</small></span>
           </span>
-        </span>
+        </div>
+        <div class="inventory-move-primary-actions">
+          <button class="ship-pending-button" type="button" data-inventory-move-action="single" data-inventory-move-key="${escapeHtml(key)}">자리이동</button>
+          <button class="ship-now-button" type="button" data-inventory-move-action="all" data-inventory-move-key="${escapeHtml(key)}">전량 이동</button>
+        </div>
       </div>
+      <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(state.user?.name || item.registrant || item.inspector || "-"))}</p>
     </article>
   `;
 }
@@ -2060,7 +2216,6 @@ function renderShippingItem(item) {
       : parseNumber(item.currentTotalQuantity);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
-  const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 등록` : getScannedBoxLabel(item);
   const isPending = isShippingItemPending(item);
   const isCompleted = isShippingItemCompleted(item);
   const isTransferred = getTransferredShippingBoxes(item).length > 0;
@@ -2070,9 +2225,13 @@ function renderShippingItem(item) {
     : isTakenOut
       ? { action: "returnTakeout", label: "재입고" }
       : { action: "cancelCompleted", label: "출고 취소" };
-  const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
-  const processClass = /2|3/.test(process) ? "green" : "";
   const registeredAt = formatRegistrationDate(item.registeredAt);
+  const status = getShippingCardStatus(item, isPending, isCompleted);
+  const statusTone = getShippingStatusTone(status);
+  const primaryAction = isCompleted
+    ? completedReturnAction
+    : { action: "complete", label: status === "부분출고" ? "추가 출고" : "출고" };
+  const metaParts = [batch, process].filter((value) => value && value !== "-");
   const productDetails = [
     ["관리 ID", normalizeDisplay(item.managementId || "-")],
     ["제품 ID", normalizeDisplay(item.productId || "-")],
@@ -2080,80 +2239,67 @@ function renderShippingItem(item) {
     ["보관 장소", normalizeDisplay(item.storage || "-")],
     ["차수", batch],
     ["최종공정", process],
+    ["등록 박스", `${formatNumber(boxCount)} box / 전체 ${formatNumber(totalBoxCount)} box`],
     ["박스당 수량", normalizeDisplay(item.boxQuantity || "-")],
-    ["재고 상태", normalizeDisplay(item.stockStatus || item.processStatus || "-")]
+    ["현재 수량", `${formatNumber(currentQuantity)} ea`],
+    ["재고 상태", normalizeMobileShippingStatusLabel(item.stockStatus || item.processStatus || status)],
+    ["등록자", normalizeDisplay(item.registrant || item.inspector || "-")],
+    ["등록일", registeredAt]
   ];
 
   return `
-    <article class="shipping-item">
-      <div class="shipping-item-top">
-        <span class="shipping-box-art" aria-hidden="true">
-          <img src="${SHIPPING_BOX_ICON_SRC}" alt="" loading="lazy" />
-        </span>
+    <article class="shipping-item shipping-product-card status-${escapeHtml(statusTone)}">
+      <div class="shipping-card-head">
+        ${renderProductVisual(item)}
         <div class="shipping-item-copy">
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
-            <small class="shipping-management-id">${escapeHtml(normalizeDisplay(item.managementId || item.productId || "-"))}</small>
+          </div>
+          <div class="shipping-card-meta">
+            ${metaParts.map((part) => `<span>${escapeHtml(part)}</span>`).join("")}
           </div>
         </div>
-        <div class="shipping-meta-stack">
-          <span class="process-pill ${processClass}">${escapeHtml(process)}</span>
-          ${metaParts.map((part) => `<span class="shipping-meta-pill">${escapeHtml(part)}</span>`).join("")}
-          ${isCompleted
-            ? '<span class="shipping-meta-pill shipping-complete-pill">출고완료</span>'
-            : isPending ? '<span class="shipping-meta-pill">출고대기</span>' : ""}
+        <div class="shipping-card-status-actions">
+          <span class="shipping-status-badge">${escapeHtml(status)}</span>
+          <details class="shipping-card-menu">
+            <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기">
+              <i class="ti ti-dots" aria-hidden="true"></i>
+            </summary>
+            <div class="shipping-card-menu-popover" role="menu">
+              ${isCompleted ? "" : `
+                <button type="button" role="menuitem" data-mobile-shipping-add="${escapeHtml(key)}"><i class="ti ti-package-import"></i>박스 추가</button>
+                <button type="button" role="menuitem" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}"><i class="ti ti-clock-edit"></i>${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
+                <button type="button" role="menuitem" data-mobile-shipping-quantity="${escapeHtml(key)}"><i class="ti ti-adjustments"></i>수량 변경</button>
+                <button type="button" role="menuitem" class="danger" data-mobile-shipping-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
+              `}
+              <button type="button" role="menuitem" data-mobile-shipping-details="${escapeHtml(key)}"><i class="ti ti-file-description"></i>상세정보</button>
+            </div>
+          </details>
         </div>
-        <div class="shipping-card-actions">
-          <button class="shipping-add-button" type="button" data-mobile-shipping-add="${escapeHtml(key)}" ${isCompleted ? "disabled" : ""}>박스 추가</button>
-          <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}" ${isCompleted ? "disabled" : ""}>등록 취소</button>
-          ${isCompleted
-            ? `<button class="ship-pending-button" type="button" disabled>출고대기 등록</button>
-              <button class="ship-now-button shipping-cancel-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${completedReturnAction.action}">${completedReturnAction.label}</button>`
-            : `
-              <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}">${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
-              <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
-            `}
+      </div>
+      <div class="shipping-card-footer">
+        <div class="shipping-card-metrics">
+          <span class="metric">
+            <span class="metric-label">등록 박스 수</span>
+            <span class="metric-value-row"><strong>${formatNumber(boxCount)}</strong><small>박스</small></span>
+          </span>
+          <span class="metric">
+            <span class="metric-label">출고 가능 수량</span>
+            <span class="metric-value-row"><strong>${formatNumber(totalQuantity)}</strong><small>ea</small></span>
+          </span>
         </div>
+        <button
+          class="shipping-primary-action${isCompleted ? " shipping-cancel-button" : ""}"
+          type="button"
+          data-mobile-shipping="${escapeHtml(key)}"
+          data-mobile-shipping-action="${escapeHtml(primaryAction.action)}"
+        >${escapeHtml(primaryAction.label)}</button>
       </div>
-      <div class="item-registration-info">
-        <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
-        <p class="item-registered-date"><span>등록일</span>${escapeHtml(registeredAt)}</p>
-      </div>
-      <div class="item-metrics">
-        <span class="metric">
-          <span class="metric-label">등록 박스</span>
-          <span class="metric-value-row">
-            <strong>${formatNumber(boxCount)}</strong>
-            <small>Box</small>
-          </span>
-          <span class="metric-support-row">총 ${formatNumber(totalBoxCount)}박스</span>
-        </span>
-        <span class="metric">
-          <span class="metric-label">출고 가능 수량</span>
-          <span class="metric-value-row">
-            <strong>${formatNumber(totalQuantity)}</strong>
-            <small>ea</small>
-          </span>
-          <span class="metric-support-row" aria-hidden="true"></span>
-        </span>
-        <span class="metric">
-          <span class="metric-label">현재 수량</span>
-          <span class="metric-value-row">
-            <strong class="blue">${formatNumber(currentQuantity)}</strong>
-            <small>ea</small>
-          </span>
-          <span class="metric-action-row">
-            ${isCompleted ? "" : `<button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>`}
-          </span>
-        </span>
-      </div>
-      <details class="shipping-product-details">
+      <details class="shipping-product-details" data-shipping-details-panel="${escapeHtml(key)}">
         <summary>
           <span class="shipping-product-details-title">제품 상세정보</span>
-          <svg class="shipping-product-details-chevron" viewBox="0 0 10 6" aria-hidden="true">
-            <path d="M1 1l4 4 4-4"></path>
-          </svg>
+          <i class="ti ti-chevron-down shipping-product-details-chevron" aria-hidden="true"></i>
         </summary>
         <div class="shipping-product-details-grid">
           ${productDetails.map(([label, value]) => `
@@ -4734,6 +4880,7 @@ function restoreCachedDashboard() {
 
     state.dashboard = cached.rows;
     state.dashboardLoadedAt = savedAt;
+    renderHomeSummary();
     syncPendingShippingRowsFromDashboard();
     syncScannedMoveRowsFromDashboard();
     return true;

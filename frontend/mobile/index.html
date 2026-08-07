@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260727-pc-mood-mobile-redesign-v3" />
+    <link rel="stylesheet" href="./mobile.css?v=20260807-unified-mobile-operations-ui" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -118,10 +118,28 @@
         <section class="welcome-panel">
           <div>
             <h1 id="homeTitle"><span id="mobileUserName">관리자</span>님, 환영합니다!</h1>
-            <p>재고 관리 및 출고 업무를 관리하세요.</p>
+            <p>안전한 작업으로 오늘도 화이팅하세요.</p>
           </div>
           <div class="welcome-art" aria-hidden="true">
-            <img src="../assets/mobile-login-hero-reference.png" alt="" />
+            <img src="../assets/logo-generated.png" alt="" />
+          </div>
+        </section>
+
+        <section class="home-summary-panel" aria-label="오늘 작업 요약">
+          <div class="home-summary-item">
+            <span class="home-summary-kicker today">오늘</span>
+            <strong id="mobileTodayShippingCount">0</strong>
+            <small>출고 건수</small>
+          </div>
+          <div class="home-summary-item">
+            <span class="home-summary-kicker">작업</span>
+            <strong id="mobileTodayCompletedBoxCount">0</strong>
+            <small>완료 박스</small>
+          </div>
+          <div class="home-summary-item">
+            <span class="home-summary-kicker">상태</span>
+            <strong class="home-status-value" id="mobileInventoryStatus">정상</strong>
+            <small>입·출고 상태</small>
           </div>
         </section>
 
@@ -135,7 +153,7 @@
               <small>QR을 스캔하여 제품을 확인하고 출고 수량을 등록합니다.</small>
             </span>
             <span class="status-pill ready">사용 가능</span>
-            <span class="menu-arrow" aria-hidden="true">→</span>
+            <span class="menu-arrow" aria-hidden="true"><i class="ti ti-chevron-right"></i></span>
           </button>
 
           <button class="mobile-menu-card locked" type="button" disabled>
@@ -171,7 +189,7 @@
               <small>재고 수량, 위치, 상태 등 예외 사항을 수정하고 관리합니다.</small>
             </span>
             <span class="status-pill ready">사용 가능</span>
-            <span class="menu-arrow" aria-hidden="true">›</span>
+            <span class="menu-arrow" aria-hidden="true"><i class="ti ti-chevron-right"></i></span>
           </button>
         </div>
       </section>
@@ -302,7 +320,7 @@
             <path d="M5 10v10h14V10" />
             <path d="M9 20v-6h6v6" />
           </svg>
-          홈
+          <span>홈</span>
         </button>
         <button type="button" data-mobile-route="shipping">
           <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -312,7 +330,7 @@
             <path d="M17 18h4" />
             <path d="M19 16v4" />
           </svg>
-          출고 관리
+          <span>출고 관리</span>
         </button>
         <button type="button" disabled>
           <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -320,7 +338,7 @@
             <path d="M9 4.5V3h6v1.5" />
             <path d="m9 13 2 2 4-5" />
           </svg>
-          작업완료현황
+          <span>작업완료현황</span>
         </button>
         <button type="button" disabled>
           <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -330,7 +348,7 @@
             <circle cx="18" cy="18" r="2.5" />
             <path d="m20 20 1.5 1.5" />
           </svg>
-          재고 현황 조회
+          <span>재고 현황 조회</span>
         </button>
         <button type="button" data-mobile-route="inventoryMove">
           <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -338,14 +356,7 @@
             <path d="m8 16 1-.2 8.8-8.8a2.1 2.1 0 0 0-3-3L6 12.8 5.8 16z" />
             <path d="m13.8 5 3 3" />
           </svg>
-          재고 수정
-        </button>
-        <button type="button" disabled>
-          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
-          </svg>
-          내 정보
+          <span>재고 수정</span>
         </button>
       </nav>
 
@@ -528,6 +539,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260727-mobile-ui-system"></script>
+    <script src="./mobile.js?v=20260807-unified-mobile-operations-ui"></script>
   </body>
 </html>
