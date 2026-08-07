@@ -324,3 +324,28 @@ final result: passed
 5. 수정 후: 네 화면을 참고 이미지와 같은 비교 페이지에서 다시 확인했고 기능 요소 겹침과 콘솔 오류가 없음을 확인했다.
 
 final result: passed
+
+## 42. 모바일 생성형 얇은 아이콘·홈 카드 상태 표현
+
+### 비교 환경
+
+- 참고 디자인: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/codex-clipboard-b6b2c48d-4865-4df6-bd3e-c04657973efb.png`
+- 사용자 피드백 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_zq61BG/스크린샷 2026-08-07 오전 11.59.20.png`
+- 구현 캡처: `/private/tmp/seungjin-mobile-generated-icons-final.png`
+- 구현 CSS 뷰포트: 390 × 844 px
+
+### 디자인 적용
+
+- 참고 이미지의 얇고 정돈된 네이비 아웃라인 스타일을 기준으로 홈 메뉴, 하단 내비게이션, 사용자, 화살표 아이콘 10종을 이미지 생성해 투명 PNG로 적용했다.
+- 홈의 사용 가능·사용 불가 카드는 모두 흰색 배경, 중립 회색 테두리, 동일한 아이콘 색으로 통일했다.
+- 카드 우측 상태만 `이용 가능`은 골드, `이용 불가`는 회색 배지로 구분해 기능 상태가 색상에 의해 명확히 전달되도록 했다.
+- 기존 카드 클릭과 비활성 상태, 하단 내비게이션 버튼의 동작 및 접근성 레이블은 그대로 유지했다.
+
+### 기능 및 반응형 검증
+
+- 390 × 844 px에서 아이콘, 제목, 설명, 상태 배지, 화살표가 겹치지 않고 카드 내부 정렬이 유지됐다.
+- 370px 이하에서는 생성 아이콘 크기가 36px로 축소되도록 보정했다.
+- 생성 PNG 10종의 투명 배경과 알파 영역을 확인하고, 브라우저 콘솔 오류가 없음을 확인했다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

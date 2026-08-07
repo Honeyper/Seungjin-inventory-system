@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260807-unified-mobile-operations-ui" />
+    <link rel="stylesheet" href="./mobile.css?v=20260807-generated-thin-icons" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -106,11 +106,7 @@
             </span>
           </div>
           <button class="small-outline-button" id="mobileLogoutButton" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M10 17 15 12 10 7"></path>
-              <path d="M15 12H3"></path>
-              <path d="M21 3v18"></path>
-            </svg>
+            <img class="mobile-header-user-icon" src="../assets/mobile-generated/mobile-header-user-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
             로그아웃
           </button>
         </header>
@@ -146,50 +142,50 @@
         <div class="mobile-menu-list" aria-label="모바일 메뉴">
           <button class="mobile-menu-card" type="button" data-mobile-route="shipping">
             <span class="menu-icon scan-icon" aria-hidden="true">
-              <i class="ti ti-truck-delivery"></i>
+              <img class="menu-generated-icon" src="../assets/mobile-generated/mobile-menu-shipping-outline.png?v=20260807-thin-outline" alt="" />
             </span>
             <span class="menu-copy">
               <strong>출고 관리</strong>
               <small>QR을 스캔하여 제품을 확인하고 출고 수량을 등록합니다.</small>
             </span>
             <span class="status-pill ready">사용 가능</span>
-            <span class="menu-arrow" aria-hidden="true"><i class="ti ti-chevron-right"></i></span>
+            <span class="menu-arrow" aria-hidden="true"><img src="../assets/mobile-generated/mobile-menu-chevron-outline.png?v=20260807-thin-outline" alt="" /></span>
           </button>
 
           <button class="mobile-menu-card locked" type="button" disabled>
             <span class="menu-icon work-icon" aria-hidden="true">
-              <i class="ti ti-clipboard-check"></i>
+              <img class="menu-generated-icon" src="../assets/mobile-generated/mobile-menu-work-outline.png?v=20260807-thin-outline" alt="" />
             </span>
             <span class="menu-copy">
               <strong>작업 현황</strong>
               <small>작업자가 등록한 작업 완료 현황을 확인합니다.</small>
             </span>
-            <span class="status-pill pending">준비 중</span>
+            <span class="status-pill pending">이용 불가</span>
             <span class="lock-mark" aria-hidden="true">잠금</span>
           </button>
 
           <button class="mobile-menu-card locked" type="button" disabled>
             <span class="menu-icon inventory-icon" aria-hidden="true">
-              <i class="ti ti-packages"></i>
+              <img class="menu-generated-icon" src="../assets/mobile-generated/mobile-menu-inventory-outline.png?v=20260807-thin-outline" alt="" />
             </span>
             <span class="menu-copy">
               <strong>재고 현황 조회</strong>
               <small>현재 재고의 상태와 위치, 잔여 수량 등을 조회합니다.</small>
             </span>
-            <span class="status-pill pending">준비 중</span>
+            <span class="status-pill pending">이용 불가</span>
             <span class="lock-mark" aria-hidden="true">잠금</span>
           </button>
 
           <button class="mobile-menu-card" type="button" data-mobile-route="inventoryMove">
             <span class="menu-icon edit-icon" aria-hidden="true">
-              <i class="ti ti-box-seam"></i>
+              <img class="menu-generated-icon" src="../assets/mobile-generated/mobile-menu-inventory-edit-outline.png?v=20260807-thin-outline" alt="" />
             </span>
             <span class="menu-copy">
               <strong>재고 수정 / 예외 처리</strong>
               <small>재고 수량, 위치, 상태 등 예외 사항을 수정하고 관리합니다.</small>
             </span>
             <span class="status-pill ready">사용 가능</span>
-            <span class="menu-arrow" aria-hidden="true"><i class="ti ti-chevron-right"></i></span>
+            <span class="menu-arrow" aria-hidden="true"><img src="../assets/mobile-generated/mobile-menu-chevron-outline.png?v=20260807-thin-outline" alt="" /></span>
           </button>
         </div>
       </section>
@@ -315,47 +311,23 @@
 
       <nav class="bottom-nav" id="bottomNav" aria-label="모바일 하단 메뉴" hidden>
         <button type="button" data-mobile-route="home" class="active">
-          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m3 11 9-8 9 8" />
-            <path d="M5 10v10h14V10" />
-            <path d="M9 20v-6h6v6" />
-          </svg>
+          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-nav-home-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
           <span>홈</span>
         </button>
         <button type="button" data-mobile-route="shipping">
-          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m3.7 7.5 8.3 4.8 8.3-4.8" />
-            <path d="M12 21.5v-9.2" />
-            <path d="M20.3 13.1V7.5L12 2.7 3.7 7.5v9l8.3 4.8 2.1-1.2" />
-            <path d="M17 18h4" />
-            <path d="M19 16v4" />
-          </svg>
+          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-nav-shipping-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
           <span>출고 관리</span>
         </button>
         <button type="button" disabled>
-          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="5" y="4" width="14" height="17" rx="2" />
-            <path d="M9 4.5V3h6v1.5" />
-            <path d="m9 13 2 2 4-5" />
-          </svg>
+          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-menu-work-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
           <span>작업완료현황</span>
         </button>
         <button type="button" disabled>
-          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m3.7 7.5 8.3 4.8 8.3-4.8" />
-            <path d="M12 21.5v-9.2" />
-            <path d="M20.3 13.1V7.5L12 2.7 3.7 7.5v9l8.3 4.8 2.3-1.3" />
-            <circle cx="18" cy="18" r="2.5" />
-            <path d="m20 20 1.5 1.5" />
-          </svg>
+          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-nav-inventory-search-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
           <span>재고 현황 조회</span>
         </button>
         <button type="button" data-mobile-route="inventoryMove">
-          <svg class="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-6" />
-            <path d="m8 16 1-.2 8.8-8.8a2.1 2.1 0 0 0-3-3L6 12.8 5.8 16z" />
-            <path d="m13.8 5 3 3" />
-          </svg>
+          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-nav-inventory-edit-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
           <span>재고 수정</span>
         </button>
       </nav>

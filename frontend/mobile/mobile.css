@@ -9321,3 +9321,98 @@ body {
     font-size: 12px;
   }
 }
+
+/* 2026-08-07 generated thin-outline mobile icons and neutral home cards */
+
+#homeScreen .mobile-menu-card,
+#homeScreen .mobile-menu-card:not(.locked),
+#homeScreen .mobile-menu-card.locked {
+  border-color: var(--operations-line);
+  background: #fff;
+  box-shadow: var(--operations-shadow);
+  opacity: 1;
+}
+
+#homeScreen .mobile-menu-card::before,
+#homeScreen .mobile-menu-card::after,
+#homeScreen .mobile-menu-card:not(.locked)::before,
+#homeScreen .mobile-menu-card:not(.locked)::after {
+  display: none;
+  content: none;
+}
+
+#homeScreen .mobile-menu-card:not(.locked):active {
+  border-color: #bdc8d7;
+  background: #fbfcfe;
+}
+
+#homeScreen .mobile-menu-card .menu-icon,
+#homeScreen .mobile-menu-card:not(.locked) .menu-icon,
+#homeScreen .mobile-menu-card.locked .menu-icon {
+  border-color: var(--operations-line);
+  color: var(--operations-navy);
+  background: #fff;
+  box-shadow: none;
+  opacity: 1;
+}
+
+#homeScreen .menu-icon .menu-generated-icon {
+  display: block;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+#homeScreen .mobile-menu-card.locked .menu-copy,
+#homeScreen .mobile-menu-card.locked .menu-copy strong,
+#homeScreen .mobile-menu-card.locked .menu-copy small {
+  opacity: 1;
+}
+
+#homeScreen .status-pill.ready {
+  border: 1px solid #e6bc5f;
+  color: #8a5a08;
+  background: #fff8e9;
+}
+
+#homeScreen .status-pill.pending {
+  border: 1px solid #d8dee8;
+  color: #6c778b;
+  background: #f2f4f7;
+}
+
+#homeScreen .menu-arrow {
+  color: var(--operations-navy);
+}
+
+#homeScreen .menu-arrow img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+#homeScreen .mobile-header-user-icon {
+  display: block;
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+}
+
+.bottom-nav img.bottom-nav-icon {
+  display: block;
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+}
+
+.bottom-nav button:disabled img.bottom-nav-icon {
+  opacity: 0.58;
+}
+
+@media (max-width: 370px) {
+  #homeScreen .menu-icon .menu-generated-icon {
+    width: 36px;
+    height: 36px;
+  }
+}
