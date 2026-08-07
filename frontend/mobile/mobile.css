@@ -9514,3 +9514,22 @@ body {
 .inventory-move-primary-actions button {
   font-weight: 700;
 }
+
+/* 2026-08-07 centered three-column shipping card footer */
+
+#shippingScreen .shipping-card-footer {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 0;
+}
+
+#shippingScreen .shipping-primary-action {
+  width: min(96px, calc(100% - 8px));
+  margin-right: auto;
+  margin-left: auto;
+  justify-self: center;
+}
+
+#shippingScreen .shipping-product-details summary {
+  padding-right: 0;
+  padding-left: 0;
+}
