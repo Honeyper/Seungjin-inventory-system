@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260807-centered-card-footer" />
+    <link rel="stylesheet" href="./mobile.css?v=20260807-scroll-edge-veil" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -260,7 +260,11 @@
           <div class="shipping-filter-menu" id="shippingFilterMenu" hidden role="menu" aria-label="출고 목록 정렬"></div>
         </div>
 
-        <section class="shipping-list-panel" id="shippingListPanel" aria-live="polite"></section>
+        <div class="scroll-veil-shell" data-scroll-veil>
+          <div class="edge-veil-blur edge-veil-blur-top" aria-hidden="true"></div>
+          <section class="shipping-list-panel" id="shippingListPanel" aria-live="polite"></section>
+          <div class="edge-veil-blur edge-veil-blur-bottom" aria-hidden="true"></div>
+        </div>
       </section>
 
       <section class="screen app-screen" id="inventoryMoveScreen" aria-labelledby="inventoryMoveTitle">
@@ -306,7 +310,11 @@
           </div>
         </div>
 
-        <section class="shipping-list-panel inventory-move-list-panel" id="inventoryMoveListPanel" aria-live="polite"></section>
+        <div class="scroll-veil-shell" data-scroll-veil>
+          <div class="edge-veil-blur edge-veil-blur-top" aria-hidden="true"></div>
+          <section class="shipping-list-panel inventory-move-list-panel" id="inventoryMoveListPanel" aria-live="polite"></section>
+          <div class="edge-veil-blur edge-veil-blur-bottom" aria-hidden="true"></div>
+        </div>
       </section>
 
       <nav class="bottom-nav" id="bottomNav" aria-label="모바일 하단 메뉴" hidden>
@@ -511,6 +519,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260807-product-image-placeholder"></script>
+    <script src="./mobile.js?v=20260807-scroll-edge-veil"></script>
   </body>
 </html>
