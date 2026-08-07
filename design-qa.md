@@ -565,3 +565,18 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 57. 모바일 제품 상세정보 아코디언 정렬
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_g995Tx/스크린샷 2026-08-07 오후 12.55.07.png`, `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_Dut2YY/스크린샷 2026-08-07 오후 12.55.13.png`
+- 구현 캡처: `/private/tmp/seungjin-details-accordion-aligned-local.png`
+- 검증 뷰포트: 430 × 844px 모바일 표시 폭
+- 펼친 상태에서 상세 영역에 음수 좌우 마진과 추가 패딩이 동시에 적용되어, 368px 본문 기준선 안쪽으로 요약·정보 영역이 346px로 한 번 더 줄어드는 문제를 확인했다.
+- 펼친 상태의 이중 테두리·음수 마진·배경 패널을 제거하고, 제품 상세정보 제목·그리드·수량 영역을 모두 368px 동일 기준선에 정렬했다.
+- 정보 셀은 2열 180px로 확장하고, 라벨과 값을 58px 높이 안에서 수직 중앙 정렬해 위쪽에 붙던 인상을 제거했다.
+- 정보 값의 글자 굵기를 900에서 700으로 낮추고 제목·라벨을 700·600으로 정리해 카드 안의 정보 위계를 완화했다.
+- 펼칠 때 전체 제품 카드가 위로 들리던 `translateY(-1px)`를 제거해 제목과 수량 정보의 화면 위치가 흔들리지 않게 했다.
+- 스프링 높이·투명도·위치 애니메이션, 왼쪽 업체 색상 바, 하단 스크롤 블러, 요약 수량·출고 버튼의 기존 기능은 유지했다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed
