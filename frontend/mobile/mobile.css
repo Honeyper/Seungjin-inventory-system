@@ -9468,3 +9468,49 @@ body {
     height: 36px;
   }
 }
+
+/* 2026-08-07 balanced typography for mobile management screens */
+
+#shippingScreen .mobile-toolbar h1,
+#inventoryMoveScreen .mobile-toolbar h1,
+.empty-state h2 {
+  font-weight: 800;
+}
+
+#shippingScreen .scan-button,
+#inventoryMoveScreen .scan-button,
+.manual-shipping-open-copy strong,
+.shipping-live-clock > span,
+.shipping-live-clock strong,
+.shipping-live-clock time,
+.shipping-action-row p,
+.control-button,
+.shipping-completed-toggle {
+  font-weight: 700;
+}
+
+.mobile-search input {
+  font-weight: 500;
+}
+
+.shipping-action-row p strong,
+.shipping-card-metrics .metric-value-row strong,
+.inventory-move-metrics .metric-value-row strong {
+  font-weight: 800;
+}
+
+.shipping-client,
+.metric-label,
+.shipping-card-metrics .metric > span:first-child,
+.shipping-card-metrics .metric-value-row small,
+.shipping-card-menu-popover button {
+  font-weight: 600;
+}
+
+.shipping-product-name,
+.shipping-status-badge,
+.shipping-primary-action,
+#shippingScreen .shipping-product-details summary,
+.inventory-move-primary-actions button {
+  font-weight: 700;
+}
