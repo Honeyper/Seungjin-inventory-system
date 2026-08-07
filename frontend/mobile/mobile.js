@@ -417,17 +417,6 @@ function bindEvents() {
       return;
     }
 
-    const detailsButton = event.target.closest("[data-mobile-shipping-details]");
-    if (detailsButton) {
-      const detailsKey = detailsButton.dataset.mobileShippingDetails;
-      const detailsPanel = Array.from(elements.shippingListPanel.querySelectorAll("[data-shipping-details-panel]"))
-        .find((panel) => panel.dataset.shippingDetailsPanel === detailsKey);
-      if (detailsPanel) {
-        openShippingProductDetails(detailsPanel, { scroll: true });
-      }
-      return;
-    }
-
     const removeButton = event.target.closest("[data-mobile-shipping-remove]");
     if (removeButton) {
       confirmRemoveScannedShippingGroup(removeButton.dataset.mobileShippingRemove);
@@ -2798,26 +2787,23 @@ function renderShippingItem(item) {
             <span class="shipping-status-badge">${escapeHtml(status)}</span>
             ${pendingRegistrationLabel ? `<span class="shipping-pending-state-badge ${pendingBoxCount > 0 ? "is-registered" : "is-unregistered"}">${escapeHtml(pendingRegistrationLabel)}</span>` : ""}
           </span>
-          <details class="shipping-card-menu">
-            <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기" aria-haspopup="menu" aria-expanded="false">
-              <i class="ti ti-dots" aria-hidden="true"></i>
-            </summary>
-            <span class="shipping-card-menu-goo" aria-hidden="true">
-              <span class="shipping-card-menu-goo-trigger"></span>
-              <span class="shipping-card-menu-goo-morph"></span>
-            </span>
-            <div class="shipping-card-menu-popover" role="menu" aria-label="출고 관리 작업">
-              ${isCompleted ? "" : `
+          ${isCompleted ? "" : `
+            <details class="shipping-card-menu">
+              <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기" aria-haspopup="menu" aria-expanded="false">
+                <i class="ti ti-dots" aria-hidden="true"></i>
+              </summary>
+              <span class="shipping-card-menu-goo" aria-hidden="true">
+                <span class="shipping-card-menu-goo-trigger"></span>
+                <span class="shipping-card-menu-goo-morph"></span>
+              </span>
+              <div class="shipping-card-menu-popover" role="menu" aria-label="출고 관리 작업">
                 <button type="button" role="menuitem" data-mobile-shipping-add="${escapeHtml(key)}"><i class="ti ti-package-import"></i>박스 추가</button>
                 <button type="button" role="menuitem" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}"><i class="ti ti-clock-edit"></i>${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
                 <button type="button" role="menuitem" data-mobile-shipping-quantity="${escapeHtml(key)}"><i class="ti ti-adjustments"></i>수량 변경</button>
-              `}
-              <button type="button" role="menuitem" data-mobile-shipping-details="${escapeHtml(key)}"><i class="ti ti-file-description"></i>상세정보</button>
-              ${isCompleted ? "" : `
                 <button type="button" role="menuitem" class="danger" data-mobile-shipping-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
-              `}
-            </div>
-          </details>
+              </div>
+            </details>
+          `}
         </div>
       </div>
       <div class="shipping-card-footer">

@@ -623,3 +623,14 @@ final result: passed
 - 브라우저 콘솔 오류는 없었고, `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 61. 모바일 출고 카드 중복 상세정보 메뉴 정리
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_JZLQIc/스크린샷 2026-08-07 오후 1.20.11.png`
+- 카드 하단에 항상 `제품 상세정보` 아코디언이 있어 `...` 메뉴의 `상세정보`가 같은 기능을 중복 제공하던 문제를 확인했다.
+- `...` 메뉴에서 `상세정보` 항목을 제거하고, 상세 내용은 카드 하단 아코디언에서만 열도록 경로를 하나로 정리했다.
+- 출고완료 카드는 메뉴에 남는 작업이 없으므로 `...` 버튼 자체를 표시하지 않게 했다.
+- 진행 중 카드의 `박스 추가`, `출고대기 등록/취소`, `수량 변경`, `등록 취소` 기능과 카드 하단 상세정보 기능은 그대로 유지했다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed
