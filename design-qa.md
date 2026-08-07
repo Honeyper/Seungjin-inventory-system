@@ -694,3 +694,14 @@ final result: passed
 - `git diff --check`를 통과했다.
 
 final result: passed
+
+## 68. 모바일 실시간 시계 초 경계 동기화
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_UAAEi5/스크린샷 2026-08-07 오후 2.18.24.png`
+- 배포 화면 자동 측정에서는 `15:14:10 → 15:14:12`로 2초 뒤 값이 바뀌어 현재 번들의 1초 갱신은 동작했지만, 이미 열린 탭에는 이전 자바스크립트가 남을 수 있었다.
+- 모바일 자바스크립트 캐시 키를 변경해 새 시계 로직을 강제로 불러오도록 했다.
+- 고정 `setInterval` 대신 현재 밀리초를 기준으로 다음 초 경계에 맞춘 `setTimeout`을 매번 재예약해, 지연 후에도 표시 시각이 실제 초 경계에 다시 맞도록 보강했다.
+- 출고 관리·재고 수정 화면이 활성화된 동안만 재예약하고, 화면 숨김·포커스 복귀·화면 전환 시 기존 정리 및 재시작 흐름을 유지했다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

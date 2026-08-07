@@ -5414,14 +5414,28 @@ function startShippingClock() {
   if (state.clockTimer) {
     return;
   }
-  state.clockTimer = window.setInterval(updateShippingClock, SHIPPING_CLOCK_INTERVAL_MS);
+  scheduleShippingClockTick();
+}
+
+function scheduleShippingClockTick() {
+  const delay = SHIPPING_CLOCK_INTERVAL_MS - (Date.now() % SHIPPING_CLOCK_INTERVAL_MS) + 20;
+  state.clockTimer = window.setTimeout(() => {
+    state.clockTimer = null;
+    updateShippingClock();
+
+    const isClockScreenActive = elements.shippingScreen?.classList.contains("active")
+      || elements.inventoryMoveScreen?.classList.contains("active");
+    if (!document.hidden && isClockScreenActive) {
+      scheduleShippingClockTick();
+    }
+  }, delay);
 }
 
 function stopShippingClock() {
   if (!state.clockTimer) {
     return;
   }
-  window.clearInterval(state.clockTimer);
+  window.clearTimeout(state.clockTimer);
   state.clockTimer = null;
 }
 
