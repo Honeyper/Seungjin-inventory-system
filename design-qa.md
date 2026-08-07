@@ -645,3 +645,13 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 63. 모바일 로그인 시스템명 정리
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_65V0eY/스크린샷 2026-08-07 오후 2.15.01.png`
+- 로그인 화면 제목을 `재고관리 시스템`에서 `(주)승진 관리 시스템`으로 변경했다.
+- 제목 아래의 `안전하고 정확한 승진 업무를 시작하세요.` 설명 문구를 제거했다.
+- 로고·회사명, 제목, 골드 구분선, 로그인 카드의 기존 중앙 정렬과 여백 구조는 유지했다.
+- `git diff --check`를 통과했다.
+
+final result: passed
