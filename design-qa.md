@@ -473,3 +473,17 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 51. 모바일 제품명 글자 굵기
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_GturTw/스크린샷 2026-08-07 오후 12.39.09.png`
+- 구현 캡처: `/private/tmp/seungjin-product-name-lighter-local.png`
+- 결합 비교 증거: `/private/tmp/seungjin-product-name-source.png`, `/private/tmp/seungjin-product-name-lighter-crop.png`
+- 검증 뷰포트: 1280 × 720px, 모바일 앱 표시 폭 430 CSS px
+- 제품명의 최종 적용 굵기를 700에서 500으로 낮춰 업체명보다는 선명하고 수량·버튼보다는 편안한 중간 계층으로 조정했다.
+- 출고 관리와 재고 수정 카드가 공유하는 `.shipping-product-name`에만 적용했고, 업체명·상태 배지·박스 수·출고 가능 수량·기본 버튼의 글자 굵기는 유지했다.
+- 긴 제품명의 3줄 줄바꿈, 상태 배지와의 간격, 카드 표시 영역의 정렬을 동일한 430px 카드에서 확인했다.
+- 브라우저 콘솔 오류는 없었다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

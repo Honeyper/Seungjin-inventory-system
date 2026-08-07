@@ -9620,12 +9620,15 @@ body {
   font-weight: 600;
 }
 
-.shipping-product-name,
 .shipping-status-badge,
 .shipping-primary-action,
 #shippingScreen .shipping-product-details summary,
 .inventory-move-primary-actions button {
   font-weight: 700;
+}
+
+.shipping-product-name {
+  font-weight: 500;
 }
 
 /* 2026-08-07 centered three-column shipping card footer */
