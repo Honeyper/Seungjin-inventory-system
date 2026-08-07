@@ -7942,10 +7942,23 @@ function renderUnitInput(id, value, unit) {
 }
 
 function renderEditableUnitInput(id, label, value, unit, isLocked) {
+  const isInitiallyLocked = isLocked !== false;
+  const actionLabel = isInitiallyLocked ? "수정" : "잠금";
+  const fieldLabel = String(label || "입력값").replace(/\s?(수정|잠금)$/, "");
+
   return `
-    <span class="unit-input">
-      <input id="${escapeAttribute(id)}" type="number" value="${escapeAttribute(value)}" min="0" disabled />
+    <span class="unit-input editable-lock-input editable-unit-input">
+      <input id="${escapeAttribute(id)}" type="number" value="${escapeAttribute(value)}" min="0" ${isInitiallyLocked ? "disabled" : ""} />
       <i>${escapeHtml(unit)}</i>
+      <button
+        type="button"
+        data-edit-lock-target="${escapeAttribute(id)}"
+        aria-label="${escapeAttribute(`${fieldLabel} ${actionLabel}`)}"
+        title="${escapeAttribute(actionLabel)}"
+        aria-pressed="${String(!isInitiallyLocked)}"
+      >
+        ${renderEditLockIcons()}
+      </button>
     </span>
   `;
 }
