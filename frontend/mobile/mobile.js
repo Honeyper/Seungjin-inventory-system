@@ -331,6 +331,13 @@ function bindEvents() {
   });
 
   elements.shippingListPanel?.addEventListener("click", (event) => {
+    const detailsSummary = event.target.closest(".shipping-product-details > summary");
+    if (detailsSummary) {
+      event.preventDefault();
+      toggleShippingProductDetails(detailsSummary.parentElement);
+      return;
+    }
+
     const addButton = event.target.closest("[data-mobile-shipping-add]");
     if (addButton) {
       const item = state.filteredRows.find((row) => getShippingKey(row) === addButton.dataset.mobileShippingAdd);
@@ -361,8 +368,7 @@ function bindEvents() {
       const detailsPanel = Array.from(elements.shippingListPanel.querySelectorAll("[data-shipping-details-panel]"))
         .find((panel) => panel.dataset.shippingDetailsPanel === detailsKey);
       if (detailsPanel) {
-        detailsPanel.open = true;
-        detailsPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        openShippingProductDetails(detailsPanel, { scroll: true });
       }
       detailsButton.closest(".shipping-card-menu")?.removeAttribute("open");
       return;
@@ -391,6 +397,8 @@ function bindEvents() {
     }
   });
 
+  elements.shippingListPanel?.addEventListener("keydown", handleShippingDetailsKeydown);
+
   elements.inventoryMoveListPanel?.addEventListener("click", handleInventoryMoveListClick);
   elements.inventoryMoveListPanel?.addEventListener("change", handleInventoryMoveListChange);
 
@@ -409,6 +417,150 @@ function bindEvents() {
       closeManualShippingPicker();
     }
   });
+}
+
+function toggleShippingProductDetails(details) {
+  if (!(details instanceof HTMLDetailsElement) || details.dataset.detailsAnimating === "true") {
+    return;
+  }
+
+  if (details.open) {
+    void setShippingProductDetailsOpen(details, false);
+    return;
+  }
+
+  openShippingProductDetails(details);
+}
+
+function openShippingProductDetails(details, options = {}) {
+  if (!(details instanceof HTMLDetailsElement)) {
+    return;
+  }
+
+  elements.shippingListPanel?.querySelectorAll(".shipping-product-details[open]").forEach((candidate) => {
+    if (candidate !== details) {
+      void setShippingProductDetailsOpen(candidate, false);
+    }
+  });
+
+  void setShippingProductDetailsOpen(details, true).then(() => {
+    if (options.scroll) {
+      details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  });
+}
+
+function setShippingProductDetailsOpen(details, shouldOpen) {
+  const content = details.querySelector(".shipping-product-details-content");
+  if (!content) {
+    return Promise.resolve();
+  }
+
+  if (details.dataset.detailsAnimating === "true") {
+    const currentTargetIsOpen = details.dataset.detailsAnimationTarget === "open";
+    const currentAnimation = details.shippingDetailsAnimationPromise || Promise.resolve();
+    if (currentTargetIsOpen === shouldOpen) {
+      return currentAnimation;
+    }
+    return currentAnimation.then(() => setShippingProductDetailsOpen(details, shouldOpen));
+  }
+
+  if (details.open === shouldOpen) {
+    return Promise.resolve();
+  }
+
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reduceMotion || typeof content.animate !== "function") {
+    details.open = shouldOpen;
+    return Promise.resolve();
+  }
+
+  details.dataset.detailsAnimating = "true";
+  details.dataset.detailsAnimationTarget = shouldOpen ? "open" : "closed";
+  content.getAnimations().forEach((animation) => animation.cancel());
+
+  if (shouldOpen) {
+    content.style.height = "0px";
+    content.style.opacity = "0";
+    content.style.transform = "translateY(-6px)";
+    details.open = true;
+  }
+
+  const contentHeight = content.scrollHeight;
+  const animation = content.animate(
+    shouldOpen
+      ? [
+          { height: "0px", opacity: 0, transform: "translateY(-6px)" },
+          { height: `${Math.round(contentHeight * 1.02)}px`, opacity: 1, transform: "translateY(1px)", offset: 0.78 },
+          { height: `${contentHeight}px`, opacity: 1, transform: "translateY(0)" }
+        ]
+      : [
+          { height: `${contentHeight}px`, opacity: 1, transform: "translateY(0)" },
+          { height: "0px", opacity: 0, transform: "translateY(-5px)" }
+        ],
+    {
+      duration: shouldOpen ? 500 : 340,
+      easing: shouldOpen ? "cubic-bezier(0.16, 1, 0.3, 1)" : "cubic-bezier(0.4, 0, 0.2, 1)",
+      fill: "both"
+    }
+  );
+
+  const animationPromise = new Promise((resolve) => {
+    const finish = () => {
+      if (!shouldOpen) {
+        details.open = false;
+      }
+      content.style.removeProperty("height");
+      content.style.removeProperty("opacity");
+      content.style.removeProperty("transform");
+      delete details.dataset.detailsAnimating;
+      delete details.dataset.detailsAnimationTarget;
+      delete details.shippingDetailsAnimationPromise;
+      resolve();
+    };
+    animation.addEventListener("finish", finish, { once: true });
+    animation.addEventListener("cancel", finish, { once: true });
+  });
+  details.shippingDetailsAnimationPromise = animationPromise;
+  return animationPromise;
+}
+
+function handleShippingDetailsKeydown(event) {
+  const summary = event.target.closest(".shipping-product-details > summary");
+  if (!summary) {
+    return;
+  }
+
+  const details = summary.parentElement;
+  if (event.key === "Escape" && details?.open) {
+    event.preventDefault();
+    summary.focus();
+    void setShippingProductDetailsOpen(details, false);
+    return;
+  }
+
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    return;
+  }
+
+  const summaries = Array.from(elements.shippingListPanel.querySelectorAll(".shipping-product-details > summary"));
+  const currentIndex = summaries.indexOf(summary);
+  if (currentIndex < 0 || !summaries.length) {
+    return;
+  }
+
+  event.preventDefault();
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowDown") {
+    nextIndex = (currentIndex + 1) % summaries.length;
+  } else if (event.key === "ArrowUp") {
+    nextIndex = (currentIndex - 1 + summaries.length) % summaries.length;
+  } else if (event.key === "Home") {
+    nextIndex = 0;
+  } else if (event.key === "End") {
+    nextIndex = summaries.length - 1;
+  }
+  summaries[nextIndex]?.focus();
 }
 
 function bindScrollVeils() {
@@ -2360,13 +2512,15 @@ function renderShippingItem(item) {
           <span class="shipping-product-details-title">제품 상세정보</span>
           <i class="ti ti-chevron-down shipping-product-details-chevron" aria-hidden="true"></i>
         </summary>
-        <div class="shipping-product-details-grid">
-          ${productDetails.map(([label, value]) => `
-            <div class="shipping-product-detail-item">
-              <span>${escapeHtml(label)}</span>
-              <strong>${escapeHtml(value)}</strong>
-            </div>
-          `).join("")}
+        <div class="shipping-product-details-content">
+          <div class="shipping-product-details-grid">
+            ${productDetails.map(([label, value]) => `
+              <div class="shipping-product-detail-item">
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(value)}</strong>
+              </div>
+            `).join("")}
+          </div>
         </div>
       </details>
     </article>
