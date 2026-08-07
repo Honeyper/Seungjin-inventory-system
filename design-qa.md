@@ -607,3 +607,19 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 60. 모바일 박스 수량 변경 전용 모달
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_bbMWUD/스크린샷 2026-08-07 오후 1.19.46.png`
+- 구현 캡처: `/private/tmp/seungjin-shipping-quantity-editor-local.png`
+- 검증 뷰포트: 430 × 844px 모바일 표시 폭
+- 브라우저 기본 `prompt()`로 박스 번호와 수량을 두 번 입력하던 흐름을 제거하고, 한 화면에서 박스 선택과 수량 입력을 완료하는 전용 바텀시트 모달로 교체했다.
+- 업체명·제품명, 선택 가능한 박스 카드, 현재 수량, 변경 수량을 같은 화면에 배치해 수정 대상을 잃지 않게 했다.
+- 선택한 박스는 골드 테두리와 네이비 번호로 표시하고, `감소 / 직접 입력 / 증가` 스테퍼와 고정 하단 `취소 / 수량 변경` 버튼을 적용했다.
+- 단일 박스와 홀수 마지막 박스는 전체 폭을 사용하고, 여러 박스는 2열로 배치해 불필요한 빈 공간을 줄였다.
+- 4번 박스 선택 시 `486ea`가 입력란에 연결되고, 증가 버튼·직접 입력·확정 후 `500ea` 반영 및 완료 토스트가 표시됨을 확인했다.
+- `0` 입력 시 `aria-invalid=true`, 오류 안내, 확정 버튼 비활성화가 적용되고 서버 요청 없이 모달 안에서 검증이 끝나는 것을 확인했다.
+- 배경 클릭, 닫기, 취소, Escape로 닫을 수 있으며 기존 스캔 목록 저장·카드 재렌더링 로직은 유지했다.
+- 브라우저 콘솔 오류는 없었고, `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

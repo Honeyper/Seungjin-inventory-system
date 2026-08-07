@@ -146,11 +146,14 @@ const state = {
   boxPickerTargetItems: [],
   boxPickerMode: "edit",
   boxPickerSource: "card",
+  quantityEditorItems: [],
+  quantityEditorSelectedIndex: -1,
   manualShippingQuery: "",
   manualShippingViewportBaseHeight: 0
 };
 
 let activeShippingCardMenu = null;
+let quantityEditorReturnFocus = null;
 
 const elements = {
   loginScreen: document.querySelector("#loginScreen"),
@@ -201,6 +204,20 @@ const elements = {
   boxPickerBoxList: document.querySelector("#boxPickerBoxList"),
   boxPickerSelectedCount: document.querySelector("#boxPickerSelectedCount"),
   confirmShippingBoxPickerButton: document.querySelector("#confirmShippingBoxPickerButton"),
+  shippingQuantityModal: document.querySelector("#shippingQuantityModal"),
+  shippingQuantityForm: document.querySelector("#shippingQuantityForm"),
+  closeShippingQuantityButton: document.querySelector("#closeShippingQuantityButton"),
+  cancelShippingQuantityButton: document.querySelector("#cancelShippingQuantityButton"),
+  confirmShippingQuantityButton: document.querySelector("#confirmShippingQuantityButton"),
+  shippingQuantityClientName: document.querySelector("#shippingQuantityClientName"),
+  shippingQuantityProductName: document.querySelector("#shippingQuantityProductName"),
+  shippingQuantityBoxCount: document.querySelector("#shippingQuantityBoxCount"),
+  shippingQuantityBoxList: document.querySelector("#shippingQuantityBoxList"),
+  shippingQuantitySelectedBox: document.querySelector("#shippingQuantitySelectedBox"),
+  shippingQuantityInput: document.querySelector("#shippingQuantityInput"),
+  shippingQuantityMessage: document.querySelector("#shippingQuantityMessage"),
+  decreaseShippingQuantityButton: document.querySelector("#decreaseShippingQuantityButton"),
+  increaseShippingQuantityButton: document.querySelector("#increaseShippingQuantityButton"),
   inventoryMoveSearchInput: document.querySelector("#inventoryMoveSearchInput"),
   inventoryMoveLiveDate: document.querySelector("#inventoryMoveLiveDate"),
   inventoryMoveLiveTime: document.querySelector("#inventoryMoveLiveTime"),
@@ -305,6 +322,14 @@ function bindEvents() {
   elements.boxPickerBoxList?.addEventListener("change", handleBoxPickerBoxChange);
   elements.boxPickerSelectAll?.addEventListener("change", handleBoxPickerSelectAll);
   elements.confirmShippingBoxPickerButton?.addEventListener("click", updateSelectedShippingBoxes);
+  elements.closeShippingQuantityButton?.addEventListener("click", closeShippingQuantityEditor);
+  elements.cancelShippingQuantityButton?.addEventListener("click", closeShippingQuantityEditor);
+  elements.shippingQuantityForm?.addEventListener("submit", handleShippingQuantitySubmit);
+  elements.shippingQuantityBoxList?.addEventListener("change", handleShippingQuantityBoxChange);
+  elements.shippingQuantityInput?.addEventListener("input", syncShippingQuantityValidation);
+  elements.shippingQuantityInput?.addEventListener("focus", (event) => event.target.select());
+  elements.decreaseShippingQuantityButton?.addEventListener("click", () => adjustShippingQuantity(-1));
+  elements.increaseShippingQuantityButton?.addEventListener("click", () => adjustShippingQuantity(1));
   elements.openInventoryScannerButton?.addEventListener("click", openInventoryMoveScanner);
   elements.refreshInventoryMoveButton?.addEventListener("click", handleRefreshInventoryMove);
   elements.inventoryMoveSearchInput?.addEventListener("input", (event) => {
@@ -336,6 +361,7 @@ function bindEvents() {
   document.addEventListener("click", closeShippingSortMenu);
   document.addEventListener("click", handleShippingCardMenuDocumentClick);
   document.addEventListener("keydown", handleShippingCardMenuKeydown);
+  document.addEventListener("keydown", handleShippingQuantityKeydown);
   document.addEventListener("error", handleProductImageError, true);
   window.addEventListener("pagehide", releaseScannerStream);
   window.addEventListener("resize", syncManualShippingViewport);
@@ -443,6 +469,11 @@ function bindEvents() {
   elements.manualShippingModal?.addEventListener("click", (event) => {
     if (event.target === elements.manualShippingModal) {
       closeManualShippingPicker();
+    }
+  });
+  elements.shippingQuantityModal?.addEventListener("click", (event) => {
+    if (event.target === elements.shippingQuantityModal) {
+      closeShippingQuantityEditor();
     }
   });
 }
@@ -5108,27 +5139,7 @@ function openShippingQuantityEditor(key) {
     return;
   }
 
-  if (items.length === 1) {
-    editScannedBoxQuantity(items[0]);
-    return;
-  }
-
-  const list = items.map((item, index) => {
-    const label = getScannedBoxLabel(item) || `${index + 1}번 박스`;
-    return `${index + 1}. ${label} - ${formatNumber(getEditableBoxQuantity(item))}ea`;
-  }).join("\n");
-  const selected = window.prompt(`수량을 변경할 박스를 선택하세요.\n\n${list}`, "1");
-  if (selected === null) {
-    return;
-  }
-
-  const selectedIndex = Number.parseInt(selected, 10) - 1;
-  if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= items.length) {
-    showToast("박스 번호를 다시 확인해주세요.");
-    return;
-  }
-
-  editScannedBoxQuantity(items[selectedIndex]);
+  openShippingQuantityEditorModal(items);
 }
 
 function getShippingQuantityItems(key) {
@@ -5149,23 +5160,176 @@ function getShippingQuantityItems(key) {
 }
 
 function editScannedBoxQuantity(item) {
+  if (!item) {
+    return;
+  }
+
+  openShippingQuantityEditorModal([item]);
+}
+
+function openShippingQuantityEditorModal(items) {
+  if (!elements.shippingQuantityModal || !elements.shippingQuantityBoxList || !elements.shippingQuantityInput) {
+    showToast("수량 변경 화면을 열지 못했습니다.");
+    return;
+  }
+
+  const editableItems = items.filter(Boolean);
+  if (!editableItems.length) {
+    showToast("수량을 변경할 박스를 찾지 못했습니다.");
+    return;
+  }
+
+  quantityEditorReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  state.quantityEditorItems = editableItems;
+  state.quantityEditorSelectedIndex = 0;
+
+  const firstItem = editableItems[0];
+  elements.shippingQuantityClientName.textContent = normalizeDisplay(firstItem.clientName || "-");
+  elements.shippingQuantityProductName.textContent = normalizeDisplay(firstItem.productName || "-");
+  elements.shippingQuantityBoxCount.textContent = `${formatNumber(editableItems.length)}개 박스`;
+  elements.shippingQuantityBoxList.innerHTML = editableItems.map((item, index) => {
+    const label = getShippingQuantityBoxLabel(item, index);
+    const quantity = getEditableBoxQuantity(item);
+    return `
+      <label class="quantity-editor-box-option">
+        <input type="radio" name="shippingQuantityBox" value="${index}" data-shipping-quantity-box="${index}" ${index === 0 ? "checked" : ""} />
+        <span class="quantity-editor-box-number">${formatNumber(index + 1)}</span>
+        <span class="quantity-editor-box-copy">
+          <strong>${escapeHtml(label)}</strong>
+          <small>현재 수량</small>
+        </span>
+        <b>${formatNumber(quantity)}<small>ea</small></b>
+      </label>
+    `;
+  }).join("");
+
+  elements.shippingQuantityModal.hidden = false;
+  document.body.classList.add("modal-open");
+  selectShippingQuantityItem(0);
+
+  if (editableItems.length === 1) {
+    window.requestAnimationFrame(() => {
+      elements.shippingQuantityInput.focus({ preventScroll: true });
+      elements.shippingQuantityInput.select();
+    });
+  }
+}
+
+function getShippingQuantityBoxLabel(item, index) {
+  return getScannedBoxLabel(item) || `${index + 1}번 박스`;
+}
+
+function handleShippingQuantityBoxChange(event) {
+  const input = event.target.closest("[data-shipping-quantity-box]");
+  if (!input) {
+    return;
+  }
+
+  selectShippingQuantityItem(Number(input.dataset.shippingQuantityBox), { focusInput: true });
+}
+
+function selectShippingQuantityItem(index, { focusInput = false } = {}) {
+  const item = state.quantityEditorItems[index];
+  if (!item || !elements.shippingQuantityInput) {
+    return;
+  }
+
+  state.quantityEditorSelectedIndex = index;
   const currentQuantity = getEditableBoxQuantity(item);
-  const label = getScannedBoxLabel(item) || "선택한 박스";
-  const input = window.prompt(`${label} 수량을 입력하세요.`, currentQuantity ? String(currentQuantity) : "");
-  if (input === null) {
+  const label = getShippingQuantityBoxLabel(item, index);
+  elements.shippingQuantityInput.value = currentQuantity ? String(currentQuantity) : "";
+  elements.shippingQuantitySelectedBox.textContent = `${label} · 현재 ${formatNumber(currentQuantity)} ea`;
+  syncShippingQuantityValidation();
+
+  if (focusInput) {
+    window.requestAnimationFrame(() => {
+      elements.shippingQuantityInput.focus({ preventScroll: true });
+      elements.shippingQuantityInput.select();
+    });
+  }
+}
+
+function syncShippingQuantityValidation() {
+  if (!elements.shippingQuantityInput || !elements.shippingQuantityMessage || !elements.confirmShippingQuantityButton) {
     return;
   }
 
-  const nextQuantity = parseNumber(input);
-  if (!nextQuantity || nextQuantity < 1) {
-    showToast("수량은 1 이상으로 입력해주세요.");
+  const item = state.quantityEditorItems[state.quantityEditorSelectedIndex];
+  const currentQuantity = item ? getEditableBoxQuantity(item) : 0;
+  const nextQuantity = parseNumber(elements.shippingQuantityInput.value);
+  const isValid = Boolean(item) && Number.isInteger(nextQuantity) && nextQuantity >= 1;
+
+  elements.shippingQuantityInput.setAttribute("aria-invalid", String(!isValid));
+  elements.confirmShippingQuantityButton.disabled = !isValid;
+  elements.shippingQuantityMessage.classList.toggle("is-error", !isValid);
+  elements.shippingQuantityMessage.classList.toggle("is-changed", isValid && nextQuantity !== currentQuantity);
+  elements.shippingQuantityMessage.textContent = !isValid
+    ? "수량은 1 이상의 숫자로 입력해주세요."
+    : nextQuantity === currentQuantity
+      ? "현재 등록된 수량과 같습니다."
+      : `${formatNumber(currentQuantity)} ea에서 ${formatNumber(nextQuantity)} ea로 변경합니다.`;
+}
+
+function adjustShippingQuantity(delta) {
+  if (!elements.shippingQuantityInput) {
     return;
   }
 
+  const item = state.quantityEditorItems[state.quantityEditorSelectedIndex];
+  const fallbackQuantity = item ? getEditableBoxQuantity(item) : 1;
+  const currentValue = parseNumber(elements.shippingQuantityInput.value) || fallbackQuantity || 1;
+  elements.shippingQuantityInput.value = String(Math.max(1, currentValue + delta));
+  syncShippingQuantityValidation();
+}
+
+function handleShippingQuantitySubmit(event) {
+  event.preventDefault();
+  const index = state.quantityEditorSelectedIndex;
+  const item = state.quantityEditorItems[index];
+  const nextQuantity = parseNumber(elements.shippingQuantityInput?.value);
+
+  if (!item || !Number.isInteger(nextQuantity) || nextQuantity < 1) {
+    syncShippingQuantityValidation();
+    elements.shippingQuantityInput?.focus();
+    return;
+  }
+
+  const label = getShippingQuantityBoxLabel(item, index);
   setScannedBoxQuantity(item, nextQuantity);
+  closeShippingQuantityEditor();
   saveScannedShippingRows();
   applyShippingFilters();
   showToast(`${label} 수량을 ${formatNumber(nextQuantity)}ea로 변경했습니다.`);
+}
+
+function closeShippingQuantityEditor() {
+  if (!elements.shippingQuantityModal || elements.shippingQuantityModal.hidden) {
+    return;
+  }
+
+  elements.shippingQuantityModal.hidden = true;
+  state.quantityEditorItems = [];
+  state.quantityEditorSelectedIndex = -1;
+  elements.shippingQuantityBoxList.innerHTML = "";
+  elements.shippingQuantityInput.value = "";
+  elements.shippingQuantityMessage.textContent = "";
+  elements.shippingQuantityMessage.classList.remove("is-error", "is-changed");
+  document.body.classList.remove("modal-open");
+
+  const returnFocus = quantityEditorReturnFocus;
+  quantityEditorReturnFocus = null;
+  if (returnFocus?.isConnected && returnFocus.offsetParent !== null) {
+    window.requestAnimationFrame(() => returnFocus.focus({ preventScroll: true }));
+  }
+}
+
+function handleShippingQuantityKeydown(event) {
+  if (event.key !== "Escape" || elements.shippingQuantityModal?.hidden) {
+    return;
+  }
+
+  event.preventDefault();
+  closeShippingQuantityEditor();
 }
 
 function getEditableBoxQuantity(item) {

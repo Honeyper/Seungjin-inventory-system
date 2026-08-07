@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260807-shipping-pending-visibility" />
+    <link rel="stylesheet" href="./mobile.css?v=20260807-shipping-quantity-editor" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -380,6 +380,60 @@
         </section>
       </div>
 
+      <div class="modal-backdrop quantity-editor-backdrop" id="shippingQuantityModal" hidden>
+        <section class="mobile-quantity-editor" role="dialog" aria-modal="true" aria-labelledby="shippingQuantityTitle">
+          <header class="quantity-editor-header">
+            <div>
+              <span>출고 관리</span>
+              <h2 id="shippingQuantityTitle">박스 수량 변경</h2>
+            </div>
+            <button id="closeShippingQuantityButton" type="button" aria-label="박스 수량 변경 닫기">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"></path></svg>
+            </button>
+          </header>
+
+          <form id="shippingQuantityForm" novalidate>
+            <div class="quantity-editor-body">
+              <div class="quantity-editor-product">
+                <span id="shippingQuantityClientName">-</span>
+                <strong id="shippingQuantityProductName">-</strong>
+              </div>
+
+              <div class="quantity-editor-section-heading">
+                <div>
+                  <h3>변경할 박스</h3>
+                  <p>수량을 수정할 박스를 선택해주세요.</p>
+                </div>
+                <span id="shippingQuantityBoxCount">0개 박스</span>
+              </div>
+
+              <fieldset class="quantity-editor-box-list" id="shippingQuantityBoxList" aria-label="수량을 변경할 박스"></fieldset>
+
+              <div class="quantity-editor-input-card">
+                <div class="quantity-editor-input-heading">
+                  <span>변경할 수량</span>
+                  <small id="shippingQuantitySelectedBox">박스를 선택해주세요.</small>
+                </div>
+                <div class="quantity-editor-stepper">
+                  <button id="decreaseShippingQuantityButton" type="button" aria-label="수량 1 감소">−</button>
+                  <label>
+                    <input id="shippingQuantityInput" type="number" min="1" step="1" inputmode="numeric" autocomplete="off" aria-label="변경할 박스 수량" aria-describedby="shippingQuantityMessage" />
+                    <em>ea</em>
+                  </label>
+                  <button id="increaseShippingQuantityButton" type="button" aria-label="수량 1 증가">＋</button>
+                </div>
+                <p id="shippingQuantityMessage" aria-live="polite"></p>
+              </div>
+            </div>
+
+            <footer class="quantity-editor-footer">
+              <button class="secondary-action compact" id="cancelShippingQuantityButton" type="button">취소</button>
+              <button class="primary-action compact" id="confirmShippingQuantityButton" type="submit">수량 변경</button>
+            </footer>
+          </form>
+        </section>
+      </div>
+
       <div class="modal-backdrop box-picker-backdrop" id="shippingBoxPickerModal" hidden>
         <section class="mobile-box-picker" role="dialog" aria-modal="true" aria-labelledby="shippingBoxPickerTitle">
           <header class="box-picker-header">
@@ -538,6 +592,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260807-shipping-pending-visibility"></script>
+    <script src="./mobile.js?v=20260807-shipping-quantity-editor"></script>
   </body>
 </html>
