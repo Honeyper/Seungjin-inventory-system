@@ -105,7 +105,7 @@ const state = {
     status: ""
   },
   shippingSort: {
-    key: "recent",
+    key: "inboundDate",
     direction: "desc"
   },
   shippingListPeriodOnly: false,
@@ -3502,7 +3502,7 @@ function resetShippingFilters() {
   });
 
   state.shippingSort = {
-    key: "recent",
+    key: "inboundDate",
     direction: "desc"
   };
   state.shippingListPeriodOnly = false;
