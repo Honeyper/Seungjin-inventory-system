@@ -655,3 +655,12 @@ final result: passed
 - `git diff --check`를 통과했다.
 
 final result: passed
+
+## 64. 모바일 비밀번호 우측 아이콘 순서
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_IfdC3D/스크린샷 2026-08-07 오후 2.15.39.png`
+- 비밀번호 입력칸 우측 아이콘 순서를 `입력 완료 체크 → 비밀번호 보기`에서 `비밀번호 보기 → 입력 완료 체크`로 변경했다.
+- 비밀번호 보기·숨기기와 입력 완료 체크의 기존 기능 및 접근성 라벨은 유지했다.
+- `git diff --check`를 통과했다.
+
+final result: passed
