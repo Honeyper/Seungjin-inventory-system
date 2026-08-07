@@ -9559,6 +9559,29 @@ body {
   }
 }
 
+/* 2026-08-07 vertically centered home cards with single-line headings */
+
+#homeScreen .mobile-menu-card,
+#homeScreen .mobile-menu-card.locked {
+  align-items: center;
+}
+
+#homeScreen .mobile-menu-card .menu-icon,
+#homeScreen .mobile-menu-card .menu-copy,
+#homeScreen .mobile-menu-card .status-pill,
+#homeScreen .mobile-menu-card .menu-arrow {
+  align-self: center;
+}
+
+#homeScreen .mobile-menu-card .menu-copy strong {
+  overflow: visible;
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: -0.05em;
+  text-wrap: nowrap;
+  white-space: nowrap;
+}
+
 /* 2026-08-07 balanced typography for mobile management screens */
 
 #shippingScreen .mobile-toolbar h1,

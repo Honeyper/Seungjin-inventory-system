@@ -106,6 +106,7 @@ final result: blocked; authenticated live visual capture pending
 
 final result: passed
 
+
 ## 27. 관리자 로그인 화면 및 참고 컴포넌트 적용
 
 ### 비교 환경
@@ -457,5 +458,18 @@ final result: passed
 1. P2: 초기 구현에서 팝오버 표면이 투명해 아래 카드의 수량·구분선이 메뉴 뒤로 비쳐 보였다.
 2. 수정: 액체형 배경과 팝오버 본체에 동일한 `#fbfcfe` 표면을 적용하고 외곽·그림자를 조정했다.
 3. 수정 후: 메뉴 항목의 가독성, 우측 정렬, 카드 경계 내 표시, 열림·닫힘·키보드 이동을 재검증했고 추가 P0/P1/P2 이슈가 없었다.
+
+final result: passed
+
+## 50. 모바일 홈 메뉴 카드 중앙 정렬
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_hgflQ7/스크린샷 2026-08-07 오후 12.38.37.png`
+- 구현 캡처: `/private/tmp/seungjin-home-card-centered.png`
+- 검증 뷰포트: 1280 × 720 px, 모바일 앱 표시 폭 430 CSS px, device scale factor 1
+- 카드 그리드와 아이콘·본문·상태 배지·화살표의 `align-self`를 중앙으로 통일해 위쪽으로 치우치던 내용을 카드 높이 중앙에 맞췄다.
+- 메뉴 제목을 17px, -0.05em로 보정하고 한 줄로 고정해 `재고 수정 / 예외 처리`가 중간에서 줄바꿈되지 않게 했다.
+- 기존 카드 높이, 설명 두 줄 제한, 상태 배지, 클릭·비활성 기능을 유지했다.
+- 430px 폭에서 네 카드의 제목·설명·배지가 겹치지 않았고 브라우저 콘솔 오류가 없었다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
