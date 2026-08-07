@@ -516,3 +516,18 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 54. 모바일 현재 일시 `오늘` 배지 가독성
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_vEKE3E/스크린샷 2026-08-07 오후 12.40.13.png`
+- 구현 캡처: `/private/tmp/seungjin-today-badge-readable-local.png`
+- 결합 비교 증거: `/private/tmp/seungjin-today-badge-source.png`, `/private/tmp/seungjin-today-badge-readable-crop.png`
+- 검증 뷰포트: 1280 × 720px, 모바일 앱 표시 폭 430 CSS px
+- 기존 중간 골드 배경과 갈색 텍스트 조합을 밝은 골드 틴트 `#fff3d6`와 진한 네이비 `#173563` 조합으로 변경했다.
+- 골드 테두리 `#e3b95d`를 남겨 기존 네이비·골드 디자인 언어는 유지하면서 지나치게 낡은 표시로 보이지 않게 했다.
+- 텍스트와 배경의 WCAG 대비비는 11.03:1로 AA·AAA 일반 텍스트 기준을 충족한다.
+- 출고 관리와 재고 수정의 동일한 현재 일시 배지에 같은 색상을 적용했다.
+- 브라우저 콘솔 오류는 없었다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed

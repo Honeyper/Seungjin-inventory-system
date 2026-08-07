@@ -8557,6 +8557,15 @@ body {
   margin-left: auto;
 }
 
+/* 2026-08-07 high-contrast today badge */
+
+#shippingScreen .shipping-live-clock > span,
+#inventoryMoveScreen .shipping-live-clock > span {
+  border: 1px solid #e3b95d;
+  color: #173563;
+  background: #fff3d6;
+}
+
 .manual-shipping-open-button {
   grid-template-columns: 48px minmax(0, 1fr) 18px;
   min-height: 78px;
