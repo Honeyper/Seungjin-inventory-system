@@ -54,7 +54,7 @@ const KOREAN_SCANNER_COMPATIBILITY_KEYS = new Map([
   ["ㅛ", "y"], ["ㅜ", "n"], ["ㅝ", "nj"], ["ㅞ", "np"], ["ㅟ", "nl"], ["ㅠ", "b"],
   ["ㅡ", "m"], ["ㅢ", "ml"], ["ㅣ", "l"]
 ]);
-const SHIPPING_CLOCK_INTERVAL_MS = 10000;
+const SHIPPING_CLOCK_INTERVAL_MS = 1000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
 const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
@@ -358,6 +358,8 @@ function bindEvents() {
   document.addEventListener("compositionend", handleHardwareScannerCompositionEnd);
   document.addEventListener("paste", handleHardwareScannerPaste);
   document.addEventListener("visibilitychange", handlePageVisibilityChange);
+  window.addEventListener("focus", resumeShippingClock);
+  window.addEventListener("pageshow", resumeShippingClock);
   document.addEventListener("click", closeShippingSortMenu);
   document.addEventListener("click", handleShippingCardMenuDocumentClick);
   document.addEventListener("keydown", handleShippingCardMenuKeydown);
@@ -1237,6 +1239,16 @@ function handlePageVisibilityChange() {
     && !getReusableScannerStream()) {
     void startScannerCamera();
   }
+}
+
+function resumeShippingClock() {
+  if (!elements.shippingScreen?.classList.contains("active")
+    && !elements.inventoryMoveScreen?.classList.contains("active")) {
+    return;
+  }
+
+  stopShippingClock();
+  startShippingClock();
 }
 
 function restoreSavedRoute() {

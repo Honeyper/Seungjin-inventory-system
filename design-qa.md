@@ -634,3 +634,14 @@ final result: passed
 - `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
 
 final result: passed
+
+## 62. 모바일 현재 시간 초 단위 갱신
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_W19RXC/스크린샷 2026-08-07 오후 1.20.45.png`
+- 화면에는 초까지 표시하면서 실제 갱신 간격이 10초로 설정되어 있어 시계가 멈춘 것처럼 보이던 원인을 확인했다.
+- 출고 관리와 재고 수정의 공용 시계 갱신 주기를 1초로 변경해 새로고침 없이 초 단위로 계속 갱신되게 했다.
+- 탭이 다시 표시되거나 브라우저 포커스·페이지가 복원될 때 기존 타이머를 정리하고 즉시 다시 시작하도록 보강했다.
+- 날짜와 `datetime` 값도 매초 같은 시각 기준으로 갱신되므로 자정이 지나도 날짜가 자동 변경된다.
+- `node --check frontend/mobile/mobile.js`와 `git diff --check`를 통과했다.
+
+final result: passed
