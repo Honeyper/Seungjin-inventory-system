@@ -684,3 +684,13 @@ final result: passed
 - `git diff --check`를 통과했다.
 
 final result: passed
+
+## 67. 모바일 관리 화면 최상단 여백
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_OYeDaE/스크린샷 2026-08-07 오후 2.18.05.png`
+- 출고 관리 화면의 상단 패딩 `10px`을 툴바의 음수 상단 마진 `-10px`이 모두 상쇄해, 뒤로 가기·화면 제목·QR 버튼이 뷰포트 최상단에 붙어 보였다.
+- 툴바의 좌우 확장과 하단 간격은 유지하면서 상단 음수 마진만 해제해 화면에 설정된 안전 여백이 실제로 보이도록 했다.
+- 동일한 툴바를 사용하는 출고 관리와 재고 수정 화면에 같은 규칙을 적용해 화면 전환 시 상단 위치가 달라지지 않게 했다.
+- `git diff --check`를 통과했다.
+
+final result: passed

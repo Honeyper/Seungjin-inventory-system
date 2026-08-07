@@ -9946,6 +9946,12 @@ body {
   font-weight: 500;
 }
 
+/* Keep management toolbars clear of the top viewport edge. */
+#shippingScreen .mobile-toolbar,
+#inventoryMoveScreen .mobile-toolbar {
+  margin-top: 0;
+}
+
 /* 2026-08-07 aligned shipping card visual and details inset */
 
 #shippingScreen .shipping-product-visual {
