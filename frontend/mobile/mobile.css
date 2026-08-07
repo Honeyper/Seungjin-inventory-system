@@ -9631,6 +9631,12 @@ body {
   font-weight: 500;
 }
 
+/* 2026-08-07 aligned shipping card visual and details inset */
+
+#shippingScreen .shipping-product-visual {
+  align-self: center;
+}
+
 /* 2026-08-07 centered three-column shipping card footer */
 
 #shippingScreen .shipping-card-footer {
@@ -9646,8 +9652,8 @@ body {
 }
 
 #shippingScreen .shipping-product-details summary {
-  padding-right: 0;
-  padding-left: 0;
+  padding-right: 10px;
+  padding-left: 12px;
 }
 
 /* 2026-08-07 progressive blur at scrollable list edges */
