@@ -138,6 +138,7 @@ const state = {
   activeTransferReturnMode: "transfer",
   selectedInventoryMoveMode: "single",
   selectedConfirmMode: "item",
+  selectedConfirmCallback: null,
   isCompletingShipping: false,
   scannerStream: null,
   scannerTimer: null,
@@ -177,6 +178,7 @@ const state = {
 
 let activeShippingCardMenu = null;
 let quantityEditorReturnFocus = null;
+let confirmDialogReturnFocus = null;
 
 const elements = {
   loginScreen: document.querySelector("#loginScreen"),
@@ -249,8 +251,11 @@ const elements = {
   inventoryMoveListPanel: document.querySelector("#inventoryMoveListPanel"),
   openInventoryScannerButton: document.querySelector("#openInventoryScannerButton"),
   confirmModal: document.querySelector("#confirmModal"),
+  confirmEyebrow: document.querySelector("#confirmEyebrow"),
+  confirmIcon: document.querySelector("#confirmIcon"),
   confirmTitle: document.querySelector("#confirmTitle"),
   confirmMessage: document.querySelector("#confirmMessage"),
+  confirmSubjectLabel: document.querySelector("#confirmSubjectLabel"),
   confirmProductName: document.querySelector("#confirmProductName"),
   confirmMetaList: document.querySelector("#confirmMetaList"),
   mobileTransferReturnControls: document.querySelector("#mobileTransferReturnControls"),
@@ -262,6 +267,7 @@ const elements = {
   mobileTransferReturnStoredLabel: document.querySelector("#mobileTransferReturnStoredLabel"),
   mobileTransferReturnPendingHelp: document.querySelector("#mobileTransferReturnPendingHelp"),
   mobileTransferReturnMessage: document.querySelector("#mobileTransferReturnMessage"),
+  closeConfirmButton: document.querySelector("#closeConfirmButton"),
   cancelConfirmButton: document.querySelector("#cancelConfirmButton"),
   acceptConfirmButton: document.querySelector("#acceptConfirmButton"),
   scannerScreen: document.querySelector("#scannerScreen"),
@@ -374,6 +380,7 @@ function bindEvents() {
     showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
   });
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
+  elements.closeConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
   elements.mobileTransferReturnBoxList?.addEventListener("change", syncMobileTransferReturnSummary);
   bindScannerSheetEvents();
@@ -387,6 +394,7 @@ function bindEvents() {
   document.addEventListener("click", handleShippingCardMenuDocumentClick);
   document.addEventListener("keydown", handleShippingCardMenuKeydown);
   document.addEventListener("keydown", handleShippingQuantityKeydown);
+  document.addEventListener("keydown", handleConfirmDialogKeydown);
   document.addEventListener("error", handleProductImageError, true);
   window.addEventListener("pagehide", releaseScannerStream);
   window.addEventListener("resize", syncManualShippingViewport);
@@ -2572,32 +2580,41 @@ async function handleInventoryMoveCardAction(item, mode = "single") {
     return;
   }
 
-  const confirmMessage = isInjectionAction
-    ? `${normalizeDisplay(item.productName)}\n${formatNumber(selectedBoxes.length)}개 박스를 사출재고로 등록하시겠습니까?\n현재 수량과 보관 위치는 유지됩니다.`
-    : `${normalizeDisplay(item.productName)}\n${normalizeDisplay(currentStorage)} → ${targetStorage}\n${formatNumber(selectedBoxes.length)}개 박스를 ${actionLabel} 처리하시겠습니까?`;
-  const ok = window.confirm(confirmMessage);
-  if (!ok) {
-    return;
-  }
-
-  try {
-    const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
-    if (isInjectionAction) {
-      applyInventoryStockResultLocally(item, selectedBoxes, "사출재고");
-    } else {
-      applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mode, result);
+  openCallbackConfirm({
+    eyebrow: "재고 수정",
+    icon: isInjectionAction ? "ti-building-warehouse" : "ti-arrows-exchange",
+    tone: "move",
+    title: `${actionLabel} 확인`,
+    message: isInjectionAction
+      ? "선택한 박스를 사출재고로 구분합니다. 현재 수량과 보관 위치는 유지됩니다."
+      : "선택한 박스의 보관 위치를 변경합니다.",
+    subject: normalizeDisplay(item.productName),
+    subjectLabel: "선택 제품",
+    meta: isInjectionAction
+      ? [`${formatNumber(selectedBoxes.length)}박스`, `현재 위치 ${normalizeDisplay(currentStorage)}`]
+      : [`${normalizeDisplay(currentStorage)} → ${targetStorage}`, `${formatNumber(selectedBoxes.length)}박스`],
+    acceptLabel: actionLabel,
+    onConfirm: async () => {
+      try {
+        const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
+        if (isInjectionAction) {
+          applyInventoryStockResultLocally(item, selectedBoxes, "사출재고");
+        } else {
+          applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mode, result);
+        }
+        if (mode === "all") {
+          removeMovedInventoryGroup(item);
+        } else {
+          removeScannedMoveGroup(getInventoryMoveKey(item));
+        }
+        renderInventoryMoveList();
+        showToast(`${actionLabel}이 완료되었습니다.`);
+        void loadShippingDashboard({ silent: true });
+      } catch (error) {
+        showToast(error.message || `${actionLabel} 중 문제가 발생했습니다.`);
+      }
     }
-    if (mode === "all") {
-      removeMovedInventoryGroup(item);
-    } else {
-      removeScannedMoveGroup(getInventoryMoveKey(item));
-    }
-    renderInventoryMoveList();
-    showToast(`${actionLabel}이 완료되었습니다.`);
-    void loadShippingDashboard({ silent: true });
-  } catch (error) {
-    showToast(error.message || `${actionLabel} 중 문제가 발생했습니다.`);
-  }
+  });
 }
 
 function isTransferredShippingBox(box) {
@@ -2911,6 +2928,63 @@ function renderShippingError(message) {
   document.querySelector("#retryShippingButton")?.addEventListener("click", loadShippingDashboard);
 }
 
+function setConfirmPresentation({ eyebrow = "출고 관리", icon = "ti-truck-delivery", tone = "primary", subjectLabel = "선택 제품" } = {}) {
+  if (elements.confirmEyebrow) {
+    elements.confirmEyebrow.textContent = eyebrow;
+  }
+  if (elements.confirmIcon) {
+    elements.confirmIcon.className = `ti ${icon}`;
+  }
+  if (elements.confirmSubjectLabel) {
+    elements.confirmSubjectLabel.textContent = subjectLabel;
+  }
+  if (elements.confirmModal) {
+    elements.confirmModal.dataset.confirmTone = tone;
+  }
+}
+
+function showConfirmDialog() {
+  if (!elements.confirmModal) {
+    return;
+  }
+
+  confirmDialogReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  elements.confirmModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.requestAnimationFrame(() => elements.closeConfirmButton?.focus({ preventScroll: true }));
+}
+
+function openCallbackConfirm({
+  title,
+  message,
+  subject,
+  meta = [],
+  acceptLabel = "확인",
+  eyebrow = "작업 확인",
+  icon = "ti-check",
+  tone = "primary",
+  subjectLabel = "선택 내용",
+  onConfirm
+}) {
+  if (typeof onConfirm !== "function" || !elements.confirmModal) {
+    return;
+  }
+
+  state.selectedConfirmMode = "callback";
+  state.selectedConfirmCallback = onConfirm;
+  state.selectedShippingItem = null;
+  setConfirmPresentation({ eyebrow, icon, tone, subjectLabel });
+  elements.confirmTitle.textContent = title;
+  elements.confirmMessage.textContent = message;
+  elements.confirmProductName.textContent = subject;
+  elements.acceptConfirmButton.textContent = acceptLabel;
+  renderConfirmMeta(meta);
+  if (elements.mobileTransferReturnControls) {
+    elements.mobileTransferReturnControls.hidden = true;
+  }
+  showConfirmDialog();
+}
+
 function openConfirmModal(item, action = "complete") {
   state.selectedConfirmMode = "item";
   state.selectedShippingItem = item;
@@ -2931,6 +3005,21 @@ function openConfirmModal(item, action = "complete") {
   const isTransferReturnAction = action === "returnTransfer";
   const isTakeoutReturnAction = action === "returnTakeout";
   const isInventoryReturnAction = isTransferReturnAction || isTakeoutReturnAction;
+  const isCancelAction = isCancelPendingAction || isCancelCompletedAction;
+  setConfirmPresentation({
+    eyebrow: isInventoryReturnAction ? "재고 복귀" : "출고 관리",
+    icon: isTakeoutReturnAction
+      ? "ti-package-import"
+      : isTransferReturnAction
+        ? "ti-transfer-in"
+        : isCancelAction
+          ? "ti-arrow-back-up"
+          : isPendingAction
+            ? "ti-clock-check"
+            : "ti-truck-delivery",
+    tone: isCancelAction ? "danger" : isInventoryReturnAction ? "move" : isPendingAction ? "pending" : "primary",
+    subjectLabel: isInventoryReturnAction ? "복귀 대상" : "선택 제품"
+  });
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = isTakeoutReturnAction
       ? "재입고"
@@ -2950,12 +3039,12 @@ function openConfirmModal(item, action = "complete") {
       : isTransferReturnAction
         ? "돌아온 이관 박스와 보관 위치를 확인해주세요."
       : isCancelCompletedAction
-      ? "해당 박스의 출고를 취소하고 보관 상태로 변경하시겠습니까?"
+      ? "선택한 박스의 출고 기록을 취소하고 보관 상태로 되돌립니다."
       : isCancelPendingAction
-      ? "해당 박스의 출고대기를 취소하고 보관 상태로 변경하시겠습니까?"
+      ? "선택한 박스의 출고대기를 취소하고 보관 상태로 되돌립니다."
       : isPendingAction
-        ? "해당 제품을 출고대기로 등록하시겠습니까?"
-        : "해당 제품을 출고 처리하시겠습니까?";
+        ? "선택한 박스를 출고대기로 등록합니다. 제품과 박스 정보를 확인해주세요."
+        : "선택한 박스만 출고 처리합니다. 제품과 박스 정보를 한 번 더 확인해주세요.";
   }
   elements.acceptConfirmButton.textContent = isTakeoutReturnAction
     ? "재입고 처리"
@@ -2974,7 +3063,7 @@ function openConfirmModal(item, action = "complete") {
   if (elements.mobileTransferReturnControls) {
     elements.mobileTransferReturnControls.hidden = !isInventoryReturnAction;
   }
-  elements.confirmModal.hidden = false;
+  showConfirmDialog();
 }
 
 function openScannedShippingConfirmModal(action = "complete") {
@@ -2996,6 +3085,16 @@ function openScannedShippingConfirmModal(action = "complete") {
   state.selectedShippingItem = null;
   state.selectedShippingAction = action;
 
+  setConfirmPresentation({
+    eyebrow: "QR 스캔 목록",
+    icon: isPendingAction ? "ti-clock-check" : "ti-truck-delivery",
+    tone: isPendingAction ? "pending" : "primary",
+    subjectLabel: "선택 박스"
+  });
+  if (elements.confirmTitle) {
+    elements.confirmTitle.textContent = `${actionLabel} 확인`;
+  }
+
   if (elements.confirmMessage) {
     elements.confirmMessage.textContent = `스캔한 ${formatNumber(boxCount)}개 박스를 ${actionLabel} 처리하시겠습니까?`;
   }
@@ -3004,7 +3103,7 @@ function openScannedShippingConfirmModal(action = "complete") {
   renderConfirmMeta(totalQuantity
     ? [`총 ${formatNumber(boxCount)}box`, `${formatNumber(totalQuantity)}ea`]
     : [`총 ${formatNumber(boxCount)}box`]);
-  elements.confirmModal.hidden = false;
+  showConfirmDialog();
 }
 
 function renderConfirmMeta(parts = []) {
@@ -3033,6 +3132,7 @@ function closeConfirmModal() {
   state.activeTransferReturnMode = "transfer";
   state.selectedInventoryMoveMode = "single";
   state.selectedConfirmMode = "item";
+  state.selectedConfirmCallback = null;
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = "출고 확인";
   }
@@ -3046,12 +3146,28 @@ function closeConfirmModal() {
   if (elements.mobileTransferReturnMessage) {
     elements.mobileTransferReturnMessage.textContent = "";
   }
+  setConfirmPresentation();
   elements.confirmModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  const returnFocus = confirmDialogReturnFocus;
+  confirmDialogReturnFocus = null;
+  if (returnFocus?.isConnected && returnFocus.offsetParent !== null) {
+    window.requestAnimationFrame(() => returnFocus.focus({ preventScroll: true }));
+  }
   if (shouldResumeInventoryScanner) {
     window.requestAnimationFrame(() => {
       void startScannerCamera();
     });
   }
+}
+
+function handleConfirmDialogKeydown(event) {
+  if (event.key !== "Escape" || elements.confirmModal?.hidden) {
+    return;
+  }
+
+  event.preventDefault();
+  closeConfirmModal();
 }
 
 async function handleReturnTransferredInventory(item) {
@@ -3148,6 +3264,18 @@ async function handleReturnTransferredInventory(item) {
 }
 
 async function handleConfirmShipping() {
+  if (state.selectedConfirmMode === "callback") {
+    const callback = state.selectedConfirmCallback;
+    if (typeof callback !== "function") {
+      closeConfirmModal();
+      return;
+    }
+
+    closeConfirmModal();
+    await callback();
+    return;
+  }
+
   if (state.selectedConfirmMode === "inventoryMoveBatch") {
     if (state.isCompletingShipping) {
       return;
@@ -3544,6 +3672,13 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
   state.selectedInventoryMoveMode = mode;
   state.selectedShippingItem = null;
 
+  setConfirmPresentation({
+    eyebrow: "재고 수정",
+    icon: isInjectionAction ? "ti-building-warehouse" : "ti-arrows-exchange",
+    tone: "move",
+    subjectLabel: "이동 대상"
+  });
+
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = `${actionLabel} 확인`;
   }
@@ -3558,7 +3693,7 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
   elements.acceptConfirmButton.textContent = actionLabel;
   renderInventoryMoveConfirmRoutes(items, mode);
   pauseScannerDetection();
-  elements.confirmModal.hidden = false;
+  showConfirmDialog();
 }
 
 function renderInventoryMoveConfirmRoutes(items, mode) {
@@ -5430,12 +5565,18 @@ function confirmRemoveScannedShippingGroup(key) {
   }
 
   const representative = items[0];
-  const ok = window.confirm(`${normalizeDisplay(representative.productName)}\n스캔한 ${formatNumber(items.length)}개 박스를 출고 등록 목록에서 삭제하시겠습니까?`);
-  if (!ok) {
-    return;
-  }
-
-  removeScannedShippingGroup(key);
+  openCallbackConfirm({
+    eyebrow: "출고 관리",
+    icon: "ti-trash",
+    tone: "danger",
+    title: "등록 목록에서 삭제",
+    message: "스캔한 박스를 출고 등록 목록에서만 제거합니다. 실제 재고는 변경되지 않습니다.",
+    subject: normalizeDisplay(representative.productName),
+    subjectLabel: "삭제 대상",
+    meta: [`${formatNumber(items.length)}박스`],
+    acceptLabel: "목록에서 삭제",
+    onConfirm: () => removeScannedShippingGroup(key)
+  });
 }
 
 function removeScannedShippingGroup(key) {
@@ -6315,12 +6456,18 @@ function confirmRemoveScannedMoveGroup(key) {
   }
 
   const scannedBoxCount = parseNumber(item.scannedBoxCount) || getSelectedBoxNumbers(item).length || 1;
-  const ok = window.confirm(`${normalizeDisplay(item.productName)}\n스캔한 ${formatNumber(scannedBoxCount)}개 박스를 재고 수정 목록에서 삭제하시겠습니까?`);
-  if (!ok) {
-    return;
-  }
-
-  removeScannedMoveGroup(key);
+  openCallbackConfirm({
+    eyebrow: "재고 수정",
+    icon: "ti-trash",
+    tone: "danger",
+    title: "수정 목록에서 삭제",
+    message: "스캔한 박스를 재고 수정 목록에서만 제거합니다. 실제 재고는 변경되지 않습니다.",
+    subject: normalizeDisplay(item.productName),
+    subjectLabel: "삭제 대상",
+    meta: [`${formatNumber(scannedBoxCount)}박스`],
+    acceptLabel: "목록에서 삭제",
+    onConfirm: () => removeScannedMoveGroup(key)
+  });
 }
 
 function removeScannedMoveGroup(key) {

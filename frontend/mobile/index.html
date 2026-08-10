@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260810-card-top-spacing" />
+    <link rel="stylesheet" href="./mobile.css?v=20260810-action-sheets" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -343,39 +343,57 @@
         </button>
       </nav>
 
-      <div class="modal-backdrop" id="confirmModal" hidden>
-        <section class="mobile-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-          <h2 id="confirmTitle">출고 확인</h2>
-          <p id="confirmMessage">해당 제품을 출고 처리하시겠습니까?</p>
-          <strong id="confirmProductName">-</strong>
-          <div class="confirm-meta-list" id="confirmMetaList" aria-label="출고 상세"></div>
-          <section class="mobile-transfer-return-controls" id="mobileTransferReturnControls" hidden>
-            <div class="mobile-transfer-return-heading">
-              <strong id="mobileTransferReturnHeading">복귀할 이관 박스</strong>
-              <span id="mobileTransferReturnBoxSummary">-</span>
+      <div class="modal-backdrop action-confirm-backdrop" id="confirmModal" hidden>
+        <section class="mobile-action-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+          <header class="action-dialog-header">
+            <span class="action-dialog-icon" aria-hidden="true">
+              <i class="ti ti-truck-delivery" id="confirmIcon"></i>
+            </span>
+            <div>
+              <span id="confirmEyebrow">출고 관리</span>
+              <h2 id="confirmTitle">출고 확인</h2>
             </div>
-            <div class="mobile-transfer-return-box-list" id="mobileTransferReturnBoxList"></div>
-            <label class="mobile-transfer-return-field">
-              <span>보관 위치</span>
-              <select id="mobileTransferReturnStorage" required></select>
-            </label>
-            <fieldset class="mobile-transfer-return-status">
-              <legend id="mobileTransferReturnStatusLegend">복귀 후 상태</legend>
-              <label>
-                <input type="radio" name="mobileTransferReturnStatus" value="보관" checked />
-                <span><strong id="mobileTransferReturnStoredLabel">보관으로 복귀</strong><small>일반 재고로 되돌립니다.</small></span>
+            <button id="closeConfirmButton" type="button" aria-label="확인 창 닫기">
+              <i class="ti ti-x" aria-hidden="true"></i>
+            </button>
+          </header>
+
+          <div class="action-dialog-body">
+            <p class="action-dialog-message" id="confirmMessage">해당 제품을 출고 처리하시겠습니까?</p>
+            <section class="action-dialog-product">
+              <span id="confirmSubjectLabel">선택 제품</span>
+              <strong id="confirmProductName">-</strong>
+            </section>
+            <div class="confirm-meta-list" id="confirmMetaList" aria-label="작업 상세"></div>
+            <section class="mobile-transfer-return-controls" id="mobileTransferReturnControls" hidden>
+              <div class="mobile-transfer-return-heading">
+                <strong id="mobileTransferReturnHeading">복귀할 이관 박스</strong>
+                <span id="mobileTransferReturnBoxSummary">-</span>
+              </div>
+              <div class="mobile-transfer-return-box-list" id="mobileTransferReturnBoxList"></div>
+              <label class="mobile-transfer-return-field">
+                <span>보관 위치</span>
+                <select id="mobileTransferReturnStorage" required></select>
               </label>
-              <label>
-                <input type="radio" name="mobileTransferReturnStatus" value="출고대기" />
-                <span><strong>바로 출고대기</strong><small id="mobileTransferReturnPendingHelp">복귀 후 곧바로 출고대기로 등록합니다.</small></span>
-              </label>
-            </fieldset>
-            <p class="mobile-transfer-return-message" id="mobileTransferReturnMessage"></p>
-          </section>
-          <div class="dialog-actions">
+              <fieldset class="mobile-transfer-return-status">
+                <legend id="mobileTransferReturnStatusLegend">복귀 후 상태</legend>
+                <label>
+                  <input type="radio" name="mobileTransferReturnStatus" value="보관" checked />
+                  <span><strong id="mobileTransferReturnStoredLabel">보관으로 복귀</strong><small>일반 재고로 되돌립니다.</small></span>
+                </label>
+                <label>
+                  <input type="radio" name="mobileTransferReturnStatus" value="출고대기" />
+                  <span><strong>바로 출고대기</strong><small id="mobileTransferReturnPendingHelp">복귀 후 곧바로 출고대기로 등록합니다.</small></span>
+                </label>
+              </fieldset>
+              <p class="mobile-transfer-return-message" id="mobileTransferReturnMessage"></p>
+            </section>
+          </div>
+
+          <footer class="dialog-actions action-dialog-footer">
             <button class="secondary-action compact" id="cancelConfirmButton" type="button">취소</button>
             <button class="primary-action compact" id="acceptConfirmButton" type="button">확인</button>
-          </div>
+          </footer>
         </section>
       </div>
 
@@ -387,7 +405,7 @@
               <h2 id="shippingQuantityTitle">박스 수량 변경</h2>
             </div>
             <button id="closeShippingQuantityButton" type="button" aria-label="박스 수량 변경 닫기">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"></path></svg>
+              <i class="ti ti-x" aria-hidden="true"></i>
             </button>
           </header>
 
@@ -441,7 +459,7 @@
               <h2 id="shippingBoxPickerTitle">박스 수정</h2>
             </div>
             <button id="closeShippingBoxPickerButton" type="button" aria-label="박스 선택 닫기">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"></path></svg>
+              <i class="ti ti-x" aria-hidden="true"></i>
             </button>
           </header>
 
@@ -481,7 +499,7 @@
               <h2 id="manualShippingTitle">수동출고등록</h2>
             </div>
             <button id="closeManualShippingButton" type="button" aria-label="수동출고등록 닫기">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"></path></svg>
+              <i class="ti ti-x" aria-hidden="true"></i>
             </button>
           </header>
 
@@ -591,6 +609,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260810-scanner-performance"></script>
+    <script src="./mobile.js?v=20260810-action-sheets"></script>
   </body>
 </html>
