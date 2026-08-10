@@ -6348,7 +6348,11 @@ function applyInventoryFilters() {
   const filters = state.inventoryFilters;
 
   state.filteredInventoryRows = state.inventoryRows.filter((item) => {
-    if (item.countsAsInventory === false) {
+    const isInventoryCategoryFilter = INVENTORY_CATEGORY_FILTERS.includes(
+      normalizeInventoryCategory(filters.stock)
+    );
+
+    if (item.countsAsInventory === false && !isInventoryCategoryFilter) {
       return false;
     }
 

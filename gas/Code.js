@@ -172,7 +172,7 @@ function getProductsCached_() {
 
 function getInventoryDashboardCached_() {
   return getCachedApiData_(
-    'inventory-dashboard-with-categories-v1',
+    'inventory-dashboard-with-categories-v2',
     getInventoryDashboard,
     INVENTORY_DASHBOARD_CACHE_TTL_SECONDS
   );
@@ -1395,6 +1395,9 @@ function getInventoryDashboard() {
     const qrGeneratedCount = boxSummary.qrGeneratedCount || 0;
     const qrPrintStatus = boxTotalCount > 0 && qrGeneratedCount >= boxTotalCount ? 'QR 생성' : '미인쇄';
     const processStatus = stockStatus || '보관';
+    const inventoryCategories = uniqueSorted_((boxSummary.allShippingBoxes || [])
+      .map((box) => box.inventoryCategory)
+      .filter(Boolean));
 
     return {
       managementId,
@@ -1438,10 +1441,8 @@ function getInventoryDashboard() {
       shippingInspectionDate: boxSummary.shippingInspectionDate || '',
       shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
       completedShippingType,
-      inventoryCategories: uniqueSorted_((boxSummary.allShippingBoxes || [])
-        .map((box) => box.inventoryCategory)
-        .filter(Boolean)),
-      countsAsInventory: isInventorySummaryRow_({
+      inventoryCategories,
+      countsAsInventory: inventoryCategories.length > 0 || isInventorySummaryRow_({
         stockStatus,
         completedShippingType,
         currentTotalQuantity: inventoryTotalQuantity
