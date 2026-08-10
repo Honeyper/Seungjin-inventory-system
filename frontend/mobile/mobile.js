@@ -3928,10 +3928,7 @@ async function handleQrValue(rawValue) {
   state.scannerLastValue = value;
 
   try {
-    await ensureDashboardLoaded();
-    const matched = state.activeWorkflow === "inventoryMove"
-      ? findInventoryMoveByQrValue(value)
-      : findShippingByQrValue(value);
+    const matched = await resolveInventoryItemByQrValue(value);
 
     if (!matched) {
       setScannerHelp(state.activeWorkflow === "inventoryMove" ? "이동할 박스를 찾지 못했습니다. QR 또는 보관 상태를 확인해주세요." : "일치하는 박스를 찾지 못했습니다. QR 또는 박스 정보를 확인해주세요.");
@@ -4006,6 +4003,74 @@ async function handleQrValue(rawValue) {
       state.isProcessingScan = false;
     }, processingLockMs);
   }
+}
+
+async function resolveInventoryItemByQrValue(value) {
+  const localMatch = state.activeWorkflow === "inventoryMove"
+    ? findInventoryMoveByQrValue(value)
+    : findShippingByQrValue(value);
+  if (localMatch) {
+    return localMatch;
+  }
+
+  const parsed = parseQrValue(value);
+  try {
+    const lookup = await requestApi("getInventoryByQr", {
+      rawValue: value,
+      boxId: parsed.boxId,
+      managementId: parsed.managementId,
+      productId: parsed.productId,
+      boxNumber: parsed.boxNumber
+    });
+    if (!lookup?.row) {
+      return null;
+    }
+
+    upsertDashboardQrLookupRow(lookup.row);
+    const box = lookup.box || findMatchedBox(getKnownBoxes(lookup.row), parsed);
+    if (state.activeWorkflow === "inventoryMove") {
+      const movableBoxes = getMovableBoxes(lookup.row);
+      const movableBox = box && isInventoryMoveLookupBoxAvailable(box, lookup.row)
+        ? box
+        : movableBoxes[0];
+      return movableBox
+        ? buildInventoryMoveItem(lookup.row, movableBox, parsed, value)
+        : null;
+    }
+
+    return buildScannedBoxItem(
+      lookup.row,
+      box || createParsedBox(parsed),
+      parsed,
+      value
+    );
+  } catch (error) {
+    await ensureDashboardLoaded();
+    return state.activeWorkflow === "inventoryMove"
+      ? findInventoryMoveByQrValue(value)
+      : findShippingByQrValue(value);
+  }
+}
+
+function upsertDashboardQrLookupRow(row) {
+  const managementId = normalizeScanValue(row?.managementId);
+  const productId = normalizeScanValue(row?.productId);
+  const existingIndex = state.dashboard.findIndex((candidate) => {
+    return normalizeScanValue(candidate?.managementId) === managementId
+      && normalizeScanValue(candidate?.productId) === productId;
+  });
+
+  if (existingIndex >= 0) {
+    state.dashboard[existingIndex] = row;
+    return;
+  }
+
+  state.dashboard.push(row);
+}
+
+function isInventoryMoveLookupBoxAvailable(box, item) {
+  const status = normalizeText(box?.rawStatus || box?.status);
+  return getBoxCurrentQuantity(box, item) > 0 && !/출고완료|폐기/.test(status);
 }
 
 function restoreHardwareScannerQrValue(rawValue) {

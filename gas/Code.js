@@ -17,6 +17,7 @@ const APP_ENVIRONMENTS = {
 
 const CONFIG = buildRuntimeConfig_();
 const API_READ_CACHE_TTL_SECONDS = 45;
+const INVENTORY_DASHBOARD_CACHE_TTL_SECONDS = 300;
 const API_READ_CACHE_CHUNK_SIZE = 70000;
 const API_READ_CACHE_SCHEMA_VERSION = 'v7';
 const API_READ_CACHE_VERSION_PROPERTY = 'API_READ_CACHE_VERSION';
@@ -120,6 +121,7 @@ function doPost(e) {
       getProducts: getProductsCached_,
       getTodayInbounds: getTodayInboundsCached_,
       getInventoryDashboard: getInventoryDashboardCached_,
+      getInventoryByQr,
       getInboundBoxQrs,
       uploadShippingDefectPhotos,
       saveShippingInspection,
@@ -169,7 +171,327 @@ function getProductsCached_() {
 }
 
 function getInventoryDashboardCached_() {
-  return getCachedApiData_('inventory-dashboard', getInventoryDashboard);
+  return getCachedApiData_(
+    'inventory-dashboard',
+    getInventoryDashboard,
+    INVENTORY_DASHBOARD_CACHE_TTL_SECONDS
+  );
+}
+
+function getInventoryByQr(payload) {
+  const qr = parseInventoryQrLookup_(payload);
+  if (!qr.boxId && !qr.managementId && !qr.productId && !qr.boxNumber) {
+    throw new Error('조회할 QR 정보가 없습니다.');
+  }
+
+  return findInventoryByQrInSheets_(qr);
+}
+
+function findInventoryByQrInSheets_(qr) {
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const productSheet = getProductSheet_();
+  const boxContext = getInventoryQrSheetContext_(boxSheet, ['박스ID', '관리ID', '제품명']);
+  let boxRows = [];
+
+  if (qr.managementId) {
+    boxRows = findInventoryQrRowsByValue_(boxSheet, boxContext, ['관리ID', '관리 ID'], qr.managementId);
+  } else if (qr.boxId) {
+    boxRows = findInventoryQrRowsByValue_(boxSheet, boxContext, ['박스ID', '박스 ID'], qr.boxId);
+  }
+
+  const seedBoxRow = boxRows.find((row) => isInventoryQrSourceBoxMatch_(row, qr)) || boxRows[0] || null;
+  const managementId = normalizeInventoryQrLookupValue_(
+    qr.managementId || (seedBoxRow ? getObjectCell_(seedBoxRow, ['관리ID', '관리 ID']) : '')
+  );
+  const productId = normalizeInventoryQrLookupValue_(
+    qr.productId || (seedBoxRow ? getObjectCell_(seedBoxRow, ['제품ID', '제품 ID']) : '')
+  );
+
+  if (!managementId && !productId) {
+    return { row: null, box: null };
+  }
+
+  if (managementId && (!boxRows.length || !qr.managementId)) {
+    boxRows = findInventoryQrRowsByValue_(boxSheet, boxContext, ['관리ID', '관리 ID'], managementId);
+  }
+  if (productId) {
+    boxRows = boxRows.filter((row) => {
+      const rowProductId = normalizeInventoryQrLookupValue_(getObjectCell_(row, ['제품ID', '제품 ID']));
+      return !rowProductId || rowProductId === productId;
+    });
+  }
+
+  const stockContext = getInventoryQrSheetContext_(stockSheet, ['관리 ID', '입고일', '제품명']);
+  let stockRows = managementId
+    ? findInventoryQrRowsByValue_(stockSheet, stockContext, ['관리 ID', '관리ID'], managementId)
+    : findInventoryQrRowsByValue_(stockSheet, stockContext, ['제품ID', '제품 ID'], productId);
+  if (productId) {
+    stockRows = stockRows.filter((row) => {
+      return normalizeInventoryQrLookupValue_(getObjectCell_(row, ['제품ID', '제품 ID'])) === productId;
+    });
+  }
+  if (!stockRows.length) {
+    return { row: null, box: null };
+  }
+
+  const seedStorage = normalizeInventoryQrLookupValue_(
+    seedBoxRow ? getObjectCell_(seedBoxRow, ['보관 위치', '보관위치', '보관 장소']) : ''
+  );
+  const stockRow = stockRows.find((row) => {
+    return seedStorage
+      && normalizeInventoryQrLookupValue_(getObjectCell_(row, ['보관위치', '보관 위치'])) === seedStorage;
+  }) || stockRows[0];
+
+  const resolvedProductId = getObjectCell_(stockRow, ['제품ID', '제품 ID'])
+    || (seedBoxRow ? getObjectCell_(seedBoxRow, ['제품ID', '제품 ID']) : '');
+  const productContext = getInventoryQrSheetContext_(productSheet, ['제품 ID', '업체명', '제품명']);
+  const productRows = resolvedProductId
+    ? findInventoryQrRowsByValue_(productSheet, productContext, ['제품 ID', '제품ID'], resolvedProductId)
+    : [];
+  const productMap = buildInventoryProductMap_(productRows);
+  const boxSummaryMap = buildInventoryBoxSummaryMap_(boxRows);
+  const todayKey = normalizeDateKey_(Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'));
+  const row = buildInventoryQrDashboardRow_(stockRow, productMap, boxSummaryMap, todayKey);
+  const matchedBox = getInventoryQrLookupBoxes_(row).find((box) => isInventoryQrLookupBoxMatch_(box, qr)) || null;
+
+  return { row, box: matchedBox };
+}
+
+function getInventoryQrSheetContext_(sheet, requiredHeaders) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (!lastRow || !lastColumn) {
+    return { headers: [], indexes: {}, rowIndex: -1, lastRow, lastColumn };
+  }
+
+  const probeRowCount = Math.min(lastRow, 12);
+  const values = sheet.getRange(1, 1, probeRowCount, lastColumn).getDisplayValues();
+  const headerInfo = findHeaderRow_(values, requiredHeaders);
+  if (!headerInfo) {
+    return { headers: [], indexes: {}, rowIndex: -1, lastRow, lastColumn };
+  }
+
+  return {
+    headers: headerInfo.headers,
+    indexes: indexHeaders_(headerInfo.headers),
+    rowIndex: headerInfo.rowIndex,
+    lastRow,
+    lastColumn
+  };
+}
+
+function findInventoryQrRowsByValue_(sheet, context, columnNames, value) {
+  const normalizedValue = String(value || '').trim();
+  const columnIndex = findHeaderIndex_(context?.indexes || {}, columnNames);
+  const startRow = Number(context?.rowIndex) + 2;
+  const rowCount = Number(context?.lastRow) - startRow + 1;
+  if (!normalizedValue || columnIndex < 0 || startRow < 2 || rowCount <= 0) {
+    return [];
+  }
+
+  const matches = sheet
+    .getRange(startRow, columnIndex + 1, rowCount, 1)
+    .createTextFinder(normalizedValue)
+    .matchCase(false)
+    .matchEntireCell(true)
+    .findAll();
+
+  return matches.map((match) => {
+    const values = sheet.getRange(match.getRow(), 1, 1, context.lastColumn).getDisplayValues()[0];
+    return context.headers.reduce((row, header, index) => {
+      const normalizedHeader = String(header || '').trim();
+      if (normalizedHeader) {
+        row[normalizedHeader] = String(values[index] || '').trim();
+      }
+      return row;
+    }, {});
+  });
+}
+
+function isInventoryQrSourceBoxMatch_(row, qr) {
+  if (!row) {
+    return false;
+  }
+  if (qr.boxId && normalizeInventoryQrLookupValue_(getObjectCell_(row, ['박스ID', '박스 ID'])) === qr.boxId) {
+    return true;
+  }
+  return Boolean(qr.boxNumber)
+    && String(getObjectCell_(row, ['박스번호', '박스 번호', '박스번호']) || '').trim() === qr.boxNumber;
+}
+
+function buildInventoryQrDashboardRow_(stockRow, productMap, boxSummaryMap, todayKey) {
+  const managementId = getObjectCell_(stockRow, ['관리 ID', '관리ID']);
+  const productId = getObjectCell_(stockRow, ['제품ID', '제품 ID']);
+  const product = productMap[productId] || {};
+  const clientName = normalizeClientName_(getObjectCell_(stockRow, ['업체명', '거래처명']) || product.clientName);
+  const productName = getObjectCell_(stockRow, ['제품명']) || product.productName;
+  const stockStorage = getObjectCell_(stockRow, ['보관위치', '보관 위치']) || '미지정';
+  const boxSummary = getInventoryBoxSummaryForStock_(
+    boxSummaryMap,
+    managementId,
+    productId,
+    productName,
+    stockStorage
+  );
+  const hasBoxSummary = Boolean(boxSummary.managementId);
+  const dueDate = getObjectCell_(stockRow, ['납기일']) || product.dueDate || '';
+  const dueStatus = getDueStatus_(dueDate, todayKey);
+  const boxTotalCount = hasBoxSummary
+    ? boxSummary.boxCount
+    : displayQuantityToNumber_(getObjectCell_(stockRow, ['박스 총 수량', '박스총수량']));
+  const currentTotalQuantity = hasBoxSummary
+    ? boxSummary.currentQuantity
+    : displayQuantityToNumber_(getObjectCell_(stockRow, ['입고 총 수량', '입고총수량']));
+  const rawStockStatus = normalizeStockStatusText_(getObjectCell_(stockRow, ['상태']) || boxSummary.status || '보관');
+  const hasPartialShipping = (boxSummary.activeShippingBoxes || []).length > 0
+    && (boxSummary.shippedShippingBoxes || []).length > 0;
+  const hasOnlyShippedBoxes = hasBoxSummary
+    && !(boxSummary.activeShippingBoxes || []).length
+    && (boxSummary.shippedShippingBoxes || []).length > 0;
+  const completedShippingType = hasOnlyShippedBoxes
+    ? getCompletedShippingTypeLabel_(boxSummary.shippedShippingBoxes)
+    : '';
+  const transferredInventoryBoxes = getTransferredInventoryBoxes_(boxSummary);
+  const inventoryBoxCount = boxTotalCount + transferredInventoryBoxes.length;
+  const inventoryTotalQuantity = currentTotalQuantity + transferredInventoryBoxes.reduce(
+    (sum, box) => sum + displayQuantityToNumber_(box.quantity),
+    0
+  );
+  const stockStatus = hasPartialShipping
+    ? '일부 출고'
+    : hasOnlyShippedBoxes
+      ? '출고완료'
+      : rawStockStatus;
+  const qrGeneratedCount = boxSummary.qrGeneratedCount || 0;
+  const qrPrintStatus = boxTotalCount > 0 && qrGeneratedCount >= boxTotalCount ? 'QR 생성' : '미인쇄';
+  const processStatus = stockStatus || '보관';
+
+  return {
+    managementId,
+    productId,
+    clientName,
+    productName,
+    stockStatus,
+    registrant: getObjectCell_(stockRow, ['등록자']),
+    registeredAt: getObjectCell_(stockRow, ['등록 일시', '등록일시']),
+    inboundDate: getObjectCell_(stockRow, ['입고일']),
+    inboundTime: getObjectCell_(stockRow, ['입고 시간', '입고시간']),
+    inboundType: getObjectCell_(stockRow, ['입고 유형', '입고유형']),
+    batch: getObjectCell_(stockRow, ['차수']),
+    finalProcess: getObjectCell_(stockRow, ['최종공정', '최종 공정']),
+    dustRemovalStatus: product.dustRemovalStatus || '무',
+    flameTreatmentStatus: product.flameTreatmentStatus || '무',
+    storage: boxSummary.primaryStorage || stockStorage,
+    boxQuantity: getObjectCell_(stockRow, ['박스당 수량', '박스당수량']),
+    trayQuantity: product.trayQuantity || '',
+    inboundBoxCount: getObjectCell_(stockRow, ['입고 박스 수', '입고박스수']),
+    remainQuantity: getObjectCell_(stockRow, ['잔량 수량', '잔량수량', '잔량']),
+    remainderQuantities: parseRemainderQuantities_(
+      getObjectCell_(stockRow, ['잔량 상세', '잔량상세']),
+      getObjectCell_(stockRow, ['잔량 수량', '잔량수량', '잔량'])
+    ),
+    boxTotalCount: formatBox_(inventoryBoxCount),
+    currentBoxCount: formatBox_(inventoryBoxCount),
+    inboundTotalQuantity: getObjectCell_(stockRow, ['입고 총 수량', '입고총수량']),
+    currentTotalQuantity: formatEa_(inventoryTotalQuantity),
+    inspectionQuantity: getObjectCell_(stockRow, ['검수 수량', '검수수량']),
+    defectQuantity: getObjectCell_(stockRow, ['불량 수량', '불량수량']),
+    defectRate: getObjectCell_(stockRow, ['불량률']),
+    defectReason: getObjectCell_(stockRow, ['불량 사유', '불량사유']),
+    shippingInspectionCount: boxSummary.shippingInspectionCount || 0,
+    shippingInspectionQuantity: boxSummary.shippingInspectionQuantity ? formatEa_(boxSummary.shippingInspectionQuantity) : '',
+    shippingDefectQuantity: boxSummary.shippingDefectQuantity ? formatEa_(boxSummary.shippingDefectQuantity) : '',
+    shippingDefectRate: boxSummary.shippingDefectRate ? `${formatPercentNumber_(boxSummary.shippingDefectRate)}%` : '',
+    shippingDefectReason: boxSummary.shippingDefectReason || '',
+    defectPhotoFolderUrl: boxSummary.defectPhotoFolderUrl || '',
+    defectPhotoCount: boxSummary.defectPhotoCount || 0,
+    shippingInspectionDate: boxSummary.shippingInspectionDate || '',
+    shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
+    completedShippingType,
+    countsAsInventory: isInventorySummaryRow_({
+      stockStatus,
+      completedShippingType,
+      currentTotalQuantity: inventoryTotalQuantity
+    }),
+    activeShippingBoxes: boxSummary.activeShippingBoxes || [],
+    shippedShippingBoxes: boxSummary.shippedShippingBoxes || [],
+    discardedShippingBoxes: boxSummary.discardedShippingBoxes || [],
+    note: getObjectCell_(stockRow, ['비고']),
+    dueDate,
+    dueLabel: dueStatus.label,
+    dueDays: dueStatus.days,
+    processStatus,
+    qrPrintStatus,
+    qrGeneratedCount
+  };
+}
+
+function parseInventoryQrLookup_(payload) {
+  const rawValue = String(payload?.rawValue || payload?.qrValue || '').trim();
+  let parsed = {};
+
+  if (rawValue) {
+    try {
+      parsed = JSON.parse(rawValue) || {};
+    } catch (error) {
+      parsed = {};
+    }
+  }
+
+  return {
+    rawValue: normalizeInventoryQrLookupValue_(rawValue),
+    boxId: normalizeInventoryQrLookupValue_(payload?.boxId || parsed.b || parsed.boxId || (!Object.keys(parsed).length ? rawValue : '')),
+    managementId: normalizeInventoryQrLookupValue_(payload?.managementId || parsed.m || parsed.managementId),
+    productId: normalizeInventoryQrLookupValue_(payload?.productId || parsed.p || parsed.productId),
+    boxNumber: String(payload?.boxNumber || payload?.number || parsed.n || parsed.number || '').trim()
+  };
+}
+
+function getInventoryQrLookupBoxes_(row) {
+  const sources = [
+    row?.activeShippingBoxes,
+    row?.allShippingBoxes,
+    row?.shippedShippingBoxes,
+    row?.boxes
+  ];
+  const seen = {};
+  const boxes = [];
+
+  sources.forEach((source) => {
+    if (!Array.isArray(source)) {
+      return;
+    }
+    source.forEach((box) => {
+      const key = [box?.boxId, box?.number, box?.sequence, box?.status, box?.quantity]
+        .map((value) => String(value || ''))
+        .join('|');
+      if (seen[key]) {
+        return;
+      }
+      seen[key] = true;
+      boxes.push(box);
+    });
+  });
+
+  return boxes;
+}
+
+function isInventoryQrLookupBoxMatch_(box, qr) {
+  if (qr.boxId) {
+    const matchedById = [box?.boxId, box?.id, box?.qrId]
+      .some((value) => normalizeInventoryQrLookupValue_(value) === qr.boxId);
+    if (matchedById) {
+      return true;
+    }
+  }
+
+  return Boolean(qr.boxNumber)
+    && String(box?.number || box?.sequence || '').trim() === qr.boxNumber;
+}
+
+function normalizeInventoryQrLookupValue_(value) {
+  return String(value || '').replace(/\s+/g, '').trim().toLowerCase();
 }
 
 function getTodayInboundsCached_(payload) {
