@@ -3766,7 +3766,8 @@ input {
   overflow: hidden;
 }
 
-.product-modal.transfer-return-modal {
+.product-modal.transfer-return-modal,
+.product-modal.shipping-cancel-modal {
   width: min(46rem, calc(100vw - 2.5rem));
   max-height: calc(100vh - 2.5rem);
   display: flex;
@@ -3774,7 +3775,8 @@ input {
   overflow: hidden;
 }
 
-.transfer-return-form {
+.transfer-return-form,
+.shipping-cancel-form {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -3784,17 +3786,34 @@ input {
   padding-bottom: 1rem;
 }
 
-.transfer-return-modal .modal-header {
+.transfer-return-modal .modal-header,
+.shipping-cancel-modal .modal-header {
   flex: 0 0 auto;
 }
 
-.transfer-return-modal .modal-actions {
+.transfer-return-modal .modal-actions,
+.shipping-cancel-modal .modal-actions {
   position: sticky;
   bottom: 0;
   z-index: 1;
   margin: 0;
   padding: 0.95rem 0 0.75rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), #fff 28%);
+}
+
+.shipping-cancel-confirm-button {
+  background: linear-gradient(180deg, #bd3030, #941f1f);
+  box-shadow: 0 0.65rem 1.2rem rgba(148, 31, 31, 0.18);
+}
+
+.shipping-cancel-box-card:has(input[type="checkbox"]:checked) {
+  border-color: rgba(190, 48, 48, 0.5);
+  background: linear-gradient(180deg, #fff7f7, #fff);
+  box-shadow: inset 0 0 0 1px rgba(190, 48, 48, 0.12);
+}
+
+.shipping-cancel-box-card input[type="checkbox"] {
+  accent-color: #b72d2d;
 }
 
 .transfer-return-options {
