@@ -5367,6 +5367,9 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const inventoryCategory = getObjectCell_(row, ['재고 구분', '재고구분']);
     const inventoryClassifiedAt = getObjectCell_(row, ['재고 구분일시', '재고구분일시']);
     const inventoryClassifier = getObjectCell_(row, ['재고 구분자', '재고구분자']);
+    const normalizedInventoryCategory = String(inventoryCategory || '').replace(/\s+/g, '');
+    const isClassifiedRemainingInventory = status === '보관'
+      && ['자사재고', '사출보관재고'].includes(normalizedInventoryCategory);
     const boxInfo = {
       number: sequence || summary.boxes.length + 1,
       boxId: getObjectCell_(row, ['박스ID', '박스 ID']),
@@ -5412,7 +5415,9 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       summary.boxCount += 1;
       summary.currentQuantity += currentQuantity;
       summary.statusCounts[status] = (summary.statusCounts[status] || 0) + 1;
-      summary.activeShippingBoxes.push(boxInfo);
+      if (!isClassifiedRemainingInventory) {
+        summary.activeShippingBoxes.push(boxInfo);
+      }
 
       if (hasShippingInspection) {
         summary.shippingInspectionCount += 1;

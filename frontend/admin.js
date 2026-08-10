@@ -2431,7 +2431,9 @@ function getRemainingInventoryTargetBoxes(row) {
   return getShippingRowBoxes(row, "activeShippingBoxes")
     .filter((box) => {
       const status = normalizeInventoryStockStatus(box.status);
-      return parseShippingSettlementNumber(box.quantity) > 0 && status === "보관";
+      return parseShippingSettlementNumber(box.quantity) > 0
+        && status === "보관"
+        && !isClassifiedRemainingInventoryBox(box);
     })
     .map((box) => ({
       ...box,
@@ -3357,8 +3359,12 @@ function renderShippingTable(message = "") {
   const pageRows = rows.slice(start, start + pageSize);
 
   shippingTableBody.innerHTML = pageRows.map((item, index) => {
-    const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
-    const boxes = parseShippingSettlementNumber(item.currentBoxCount);
+    const activeShippingBoxes = getShippingWorkflowActiveBoxes(item);
+    const boxes = activeShippingBoxes.length;
+    const quantity = activeShippingBoxes.reduce(
+      (sum, box) => sum + parseShippingSettlementNumber(box.quantity),
+      0
+    );
     const inspectionQuantity = parseShippingSettlementNumber(item.shippingInspectionQuantity);
     const defectQuantity = parseShippingSettlementNumber(item.shippingDefectQuantity);
     const defectRate = parseShippingSettlementNumber(item.shippingDefectRate);
@@ -3384,7 +3390,7 @@ function renderShippingTable(message = "") {
         data-defect-photo-folder-url="${escapeAttribute(item.defectPhotoFolderUrl || "")}"
         data-defect-photo-count="${Number(item.defectPhotoCount) || 0}"
         data-all-shipping-boxes="${escapeAttribute(JSON.stringify(item.allShippingBoxes || []))}"
-        data-active-shipping-boxes="${escapeAttribute(JSON.stringify(item.activeShippingBoxes || []))}"
+        data-active-shipping-boxes="${escapeAttribute(JSON.stringify(activeShippingBoxes))}"
         data-shipped-shipping-boxes="${escapeAttribute(JSON.stringify(item.shippedShippingBoxes || []))}"
         data-defect-reason="${escapeAttribute(item.shippingDefectReason || "")}">
         <td>${start + index + 1}</td>
@@ -3394,8 +3400,8 @@ function renderShippingTable(message = "") {
         <td>${escapeHtml(item.batch || "-")}</td>
         <td>${escapeHtml(item.finalProcess || "-")}</td>
         <td>${escapeHtml(item.storage || "-")}</td>
-        <td>${escapeHtml(item.currentBoxCount || "-")}</td>
-        <td>${escapeHtml(item.currentTotalQuantity || "-")}</td>
+        <td>${formatNumber(boxes)} box</td>
+        <td>${formatNumber(quantity)} ea</td>
         <td class="shipping-shipped-value">${formatNumber(shippedBoxCount)} box</td>
         <td class="shipping-shipped-value">${formatNumber(shippedQuantity)} ea</td>
         <td>${renderShippingInspectionBadge(item)}</td>
@@ -3447,7 +3453,10 @@ function renderShippingPagination(pageCount) {
 function getShippingSourceRows() {
   return (state.inventoryRows || []).filter((item) => {
     const status = getEffectiveShippingStatus(item);
-    const quantity = parseShippingSettlementNumber(item.currentTotalQuantity);
+    const quantity = getShippingWorkflowActiveBoxes(item).reduce(
+      (sum, box) => sum + parseShippingSettlementNumber(box.quantity),
+      0
+    );
     return !["폐기"].includes(status) && (quantity > 0 || status === "출고완료");
   });
 }
@@ -3689,9 +3698,20 @@ function renderPlainShippingStatus(status) {
   return status || "보관";
 }
 
+function isClassifiedRemainingInventoryBox(box) {
+  const status = normalizeInventoryStockStatus(box?.status);
+  const category = String(box?.inventoryCategory || "").replace(/\s+/g, "").trim();
+  return status === "보관" && ["자사재고", "사출보관재고"].includes(category);
+}
+
+function getShippingWorkflowActiveBoxes(item) {
+  return (Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : [])
+    .filter((box) => !isClassifiedRemainingInventoryBox(box));
+}
+
 function getEffectiveShippingStatus(item) {
   const status = normalizeInventoryStockStatus(item?.stockStatus);
-  const activeBoxes = Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const activeBoxes = getShippingWorkflowActiveBoxes(item);
   const activeCount = activeBoxes.length;
   const shippedCount = Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes.length : 0;
   const counts = {};
@@ -3701,12 +3721,12 @@ function getEffectiveShippingStatus(item) {
     counts[boxStatus] = (counts[boxStatus] || 0) + 1;
   });
 
-  if (status === "일부 출고" || (activeCount > 0 && shippedCount > 0)) {
-    return "일부 출고";
-  }
-
   if (activeCount === 0 && shippedCount > 0) {
     return "출고완료";
+  }
+
+  if (status === "일부 출고" || (activeCount > 0 && shippedCount > 0)) {
+    return "일부 출고";
   }
 
   if (activeCount > 0) {
@@ -3729,7 +3749,7 @@ function getEffectiveShippingStatus(item) {
 
 function isShippingInspected(item) {
   const status = getEffectiveShippingStatus(item);
-  const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const activeBoxes = getShippingWorkflowActiveBoxes(item);
   return activeBoxes.some((box) => ["검수완료", "출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status)))
     || ["검수완료", "출고대기", "일부 출고", "출고완료", "보류"].includes(status)
     || Number(item.shippingInspectionCount || 0) > 0;
@@ -3737,7 +3757,7 @@ function isShippingInspected(item) {
 
 function getShippingBoxStatusCounts(item) {
   const counts = {};
-  (Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : []).forEach((box) => {
+  getShippingWorkflowActiveBoxes(item).forEach((box) => {
     const status = normalizeInventoryStockStatus(box.status);
     counts[status] = (counts[status] || 0) + 1;
   });
@@ -3862,7 +3882,7 @@ function renderShippingStatusBadge(item) {
 function renderShippingRowAction(item) {
   const status = getEffectiveShippingStatus(item);
   const counts = getShippingBoxStatusCounts(item);
-  const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const activeBoxes = getShippingWorkflowActiveBoxes(item);
   const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
   const transferredBoxes = shippedBoxes.filter(isTransferredShippingBox);
   const takenOutBoxes = shippedBoxes.filter(isTakenOutShippingBox);
@@ -7745,10 +7765,13 @@ function renderInboundDetail(inbound) {
 
 function renderShippingDetail(item) {
   const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
-  const activeBoxes = Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : [];
+  const activeBoxes = getShippingWorkflowActiveBoxes(item);
+  const classifiedInventoryBoxes = (Array.isArray(item.allShippingBoxes) ? item.allShippingBoxes : [])
+    .filter(isClassifiedRemainingInventoryBox);
+  const remainingBoxes = [...activeBoxes, ...classifiedInventoryBoxes];
   const shippingHistoryGroups = buildShippingHistoryGroups(shippedBoxes);
   const shippedQuantity = shippedBoxes.reduce((sum, box) => sum + parseShippingSettlementNumber(box.quantity || ""), 0);
-  const remainingQuantity = activeBoxes.reduce((sum, box) => sum + parseShippingSettlementNumber(box.quantity || ""), 0);
+  const remainingQuantity = remainingBoxes.reduce((sum, box) => sum + parseShippingSettlementNumber(box.quantity || ""), 0);
   const shippingDates = shippedBoxes.map((box) => toDateInputValue(box.shippingDate)).filter(Boolean).sort();
   const shippingTimes = shippedBoxes.map((box) => box.shippingTime).filter(Boolean);
   const shippers = shippedBoxes.map((box) => box.shipper).filter(Boolean);
@@ -7763,12 +7786,12 @@ function renderShippingDetail(item) {
   const shippedBoxText = shippedBoxes.length
     ? shippedBoxes.map((box) => `${box.number}번`).join(", ")
     : "-";
-  const remainingBoxText = activeBoxes.length
-    ? activeBoxes.map((box) => `${box.number}번 ${normalizeInventoryStockStatus(box.status)}`).join(", ")
+  const remainingBoxText = remainingBoxes.length
+    ? remainingBoxes.map((box) => `${box.number}번 ${normalizeInventoryStockStatus(box.status)}`).join(", ")
     : "-";
   const remainingInventoryCategoryText = ["자사재고", "사출 보관재고"]
     .map((category) => {
-      const categoryBoxes = activeBoxes.filter((box) => box.inventoryCategory === category);
+      const categoryBoxes = classifiedInventoryBoxes.filter((box) => box.inventoryCategory === category);
       return categoryBoxes.length
         ? `${category}: ${categoryBoxes.map((box) => `${box.number}번`).join(", ")}`
         : "";
@@ -7824,7 +7847,7 @@ function renderShippingDetail(item) {
       <div class="detail-grid">
         ${detailItem("출고 박스 수", `${formatNumber(shippedBoxes.length)} box`)}
         ${detailItem("출고 수량", `${formatNumber(shippedQuantity)} ea`)}
-        ${detailItem("남은 박스 수", `${formatNumber(activeBoxes.length)} box`)}
+        ${detailItem("남은 박스 수", `${formatNumber(remainingBoxes.length)} box`)}
         ${detailItem("남은 수량", `${formatNumber(remainingQuantity)} ea`)}
         ${detailItem("출고된 박스", shippedBoxText, false, "full-span")}
         ${detailItem("남은 박스", remainingBoxText, false, "full-span")}
