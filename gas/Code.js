@@ -172,7 +172,7 @@ function getProductsCached_() {
 
 function getInventoryDashboardCached_() {
   return getCachedApiData_(
-    'inventory-dashboard',
+    'inventory-dashboard-with-categories-v1',
     getInventoryDashboard,
     INVENTORY_DASHBOARD_CACHE_TTL_SECONDS
   );
@@ -1438,6 +1438,9 @@ function getInventoryDashboard() {
       shippingInspectionDate: boxSummary.shippingInspectionDate || '',
       shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
       completedShippingType,
+      inventoryCategories: uniqueSorted_((boxSummary.allShippingBoxes || [])
+        .map((box) => box.inventoryCategory)
+        .filter(Boolean)),
       countsAsInventory: isInventorySummaryRow_({
         stockStatus,
         completedShippingType,

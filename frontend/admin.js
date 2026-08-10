@@ -6327,9 +6327,16 @@ function matchesInventoryStockFilter(item, filterValue) {
   const normalizedFilter = normalizeInventoryCategory(filterValue);
 
   if (INVENTORY_CATEGORY_FILTERS.includes(normalizedFilter)) {
+    const itemCategories = Array.isArray(item?.inventoryCategories)
+      ? item.inventoryCategories.map(normalizeInventoryCategory)
+      : [];
+
+    if (itemCategories.includes(normalizedFilter)) {
+      return true;
+    }
+
     return (Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : []).some((box) => (
       normalizeInventoryCategory(box?.inventoryCategory) === normalizedFilter
-      && normalizeInventoryStockStatus(box?.status) === "보관"
     ));
   }
 
