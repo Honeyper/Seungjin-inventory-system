@@ -5863,7 +5863,7 @@ img {
 /* Tighten scanned shipping cards after returning from QR scan. */
 #shippingScreen .shipping-item {
   gap: 7px;
-  padding: 10px 11px 9px;
+  padding: 14px 11px 9px;
   align-content: start;
   align-self: start;
 }
