@@ -190,7 +190,6 @@ function getInventoryByQr(payload) {
 function findInventoryByQrInSheets_(qr) {
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
   const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
-  const productSheet = getProductSheet_();
   const boxContext = getInventoryQrSheetContext_(boxSheet, ['박스ID', '관리ID', '제품명']);
   let boxRows = [];
 
@@ -245,11 +244,16 @@ function findInventoryByQrInSheets_(qr) {
 
   const resolvedProductId = getObjectCell_(stockRow, ['제품ID', '제품 ID'])
     || (seedBoxRow ? getObjectCell_(seedBoxRow, ['제품ID', '제품 ID']) : '');
-  const productContext = getInventoryQrSheetContext_(productSheet, ['제품 ID', '업체명', '제품명']);
-  const productRows = resolvedProductId
-    ? findInventoryQrRowsByValue_(productSheet, productContext, ['제품 ID', '제품ID'], resolvedProductId)
-    : [];
-  const productMap = buildInventoryProductMap_(productRows);
+  const productMap = {};
+  if (resolvedProductId) {
+    productMap[resolvedProductId] = {
+      productId: resolvedProductId,
+      clientName: getObjectCell_(stockRow, ['업체명', '거래처명']),
+      productName: getObjectCell_(stockRow, ['제품명']),
+      trayQuantity: getObjectCell_(stockRow, ['트레이 수량', '트레이수량']),
+      dueDate: getObjectCell_(stockRow, ['납기일'])
+    };
+  }
   const boxSummaryMap = buildInventoryBoxSummaryMap_(boxRows);
   const todayKey = normalizeDateKey_(Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'));
   const row = buildInventoryQrDashboardRow_(stockRow, productMap, boxSummaryMap, todayKey);
@@ -297,8 +301,19 @@ function findInventoryQrRowsByValue_(sheet, context, columnNames, value) {
     .matchEntireCell(true)
     .findAll();
 
-  return matches.map((match) => {
-    const values = sheet.getRange(match.getRow(), 1, 1, context.lastColumn).getDisplayValues()[0];
+  if (!matches.length) {
+    return [];
+  }
+
+  const rowNumbers = matches.map((match) => match.getRow());
+  const firstRow = Math.min.apply(null, rowNumbers);
+  const lastRow = Math.max.apply(null, rowNumbers);
+  const valuesByRow = sheet
+    .getRange(firstRow, 1, lastRow - firstRow + 1, context.lastColumn)
+    .getDisplayValues();
+
+  return rowNumbers.map((rowNumber) => {
+    const values = valuesByRow[rowNumber - firstRow] || [];
     return context.headers.reduce((row, header, index) => {
       const normalizedHeader = String(header || '').trim();
       if (normalizedHeader) {
