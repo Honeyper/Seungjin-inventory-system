@@ -24,13 +24,14 @@ const IS_LOW_POWER_SCANNER = IS_LEGACY_ANDROID_SCANNER
   || SCANNER_DEVICE_CORES <= 4
   || SCANNER_DEVICE_MEMORY_GB <= 3
   || (IS_ANDROID_SCANNER && SCANNER_DEVICE_MEMORY_GB <= 4);
-const BARCODE_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
-const JSQR_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 220 : 170;
-const JSQR_FAST_MAX_EDGE = IS_LOW_POWER_SCANNER ? 640 : 960;
-const JSQR_DETAIL_MAX_EDGE = IS_LOW_POWER_SCANNER ? 960 : 1440;
-const JSQR_DETAIL_SCAN_INTERVAL = IS_LOW_POWER_SCANNER ? 5 : 3;
-const JSQR_FAST_CROP_RATIO = IS_LOW_POWER_SCANNER ? 0.82 : 1;
-const JSQR_NATIVE_FALLBACK_INTERVAL = IS_LOW_POWER_SCANNER ? 3 : 2;
+const BARCODE_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 280 : 210;
+const JSQR_DETECT_INTERVAL_MS = IS_LOW_POWER_SCANNER ? 300 : 220;
+const JSQR_FAST_MAX_EDGE = IS_LOW_POWER_SCANNER ? 480 : 640;
+const JSQR_DETAIL_MAX_EDGE = IS_LOW_POWER_SCANNER ? 720 : 960;
+const JSQR_DETAIL_SCAN_INTERVAL = IS_LOW_POWER_SCANNER ? 8 : 6;
+const JSQR_FAST_CROP_RATIO = IS_LOW_POWER_SCANNER ? 0.68 : 0.76;
+const JSQR_DETAIL_CROP_RATIO = IS_LOW_POWER_SCANNER ? 0.84 : 0.9;
+const JSQR_NATIVE_FALLBACK_INTERVAL = IS_LOW_POWER_SCANNER ? 4 : 3;
 const NATIVE_DETECT_TIMEOUT_MS = IS_LOW_POWER_SCANNER ? 420 : 560;
 const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
@@ -147,6 +148,7 @@ const state = {
   scannerFocusFeedbackTimer: null,
   scannerTuneTimers: [],
   scannerInputMode: "camera",
+  scannerViewDirty: false,
   hardwareScannerBuffer: "",
   hardwareScannerLastInputAt: 0,
   hardwareScannerSubmitTimer: null,
@@ -3773,6 +3775,7 @@ function openInventoryMoveScanner() {
 }
 
 async function openScanner() {
+  flushScannerViewUpdates();
   if (elements.inventoryMoveScreen?.classList.contains("active")) {
     state.activeWorkflow = "inventoryMove";
   } else {
@@ -3876,7 +3879,6 @@ async function startScannerCamera() {
       elements.scannerVideo.srcObject = stream;
     }
     await elements.scannerVideo.play();
-    await tuneScannerCamera(stream);
     scheduleScannerCameraTuning(stream);
     startBarcodeDetection();
   } catch (error) {
@@ -3951,9 +3953,9 @@ async function getScannerStream() {
       }
     : {
         facingMode: { ideal: "environment" },
-        width: { min: 640, ideal: 1280, max: 1920 },
-        height: { min: 480, ideal: 720, max: 1080 },
-        frameRate: { ideal: 24, max: 30 }
+        width: { min: 640, ideal: 1280, max: 1280 },
+        height: { min: 480, ideal: 720, max: 720 },
+        frameRate: { ideal: 24, max: 24 }
       };
   let stream;
   try {
@@ -4054,7 +4056,7 @@ async function applyScannerTrackControls(track, controls) {
 
 function scheduleScannerCameraTuning(stream) {
   clearScannerCameraTuning();
-  [420, 1200].forEach((delay) => {
+  [480].forEach((delay) => {
     const timer = window.setTimeout(() => {
       state.scannerTuneTimers = state.scannerTuneTimers.filter((entry) => entry !== timer);
       if (state.scannerStream === stream && getReusableScannerStream() === stream && !elements.scannerScreen?.hidden) {
@@ -4093,15 +4095,8 @@ async function handleScannerFocusRequest() {
       return;
     }
 
-    stopScannerCamera();
-    await startScannerCamera();
-    if (getReusableScannerStream()) {
-      showScannerFocusFeedback();
-      setScannerHelp("자동 초점을 다시 시작했습니다. QR을 가운데에 잠시 고정해 주세요.");
-      return;
-    }
-
-    setScannerHelp("이 기기에서는 터치 초점을 지원하지 않습니다. QR과 카메라 거리를 조금 늘려주세요.");
+    await tuneScannerCamera(stream);
+    setScannerHelp("이 기기에서는 터치 초점을 지원하지 않아 자동 초점을 유지합니다. QR과 카메라 거리를 조금 늘려주세요.");
   } finally {
     state.scannerFocusRequestPending = false;
   }
@@ -4191,6 +4186,21 @@ function showScannerFocusFeedback() {
 
 function closeScanner() {
   releaseScannerStream();
+  flushScannerViewUpdates();
+}
+
+function flushScannerViewUpdates() {
+  if (!state.scannerViewDirty) {
+    return;
+  }
+
+  state.scannerViewDirty = false;
+  if (state.activeWorkflow === "inventoryMove") {
+    renderInventoryMoveList();
+    return;
+  }
+
+  applyShippingFilters();
 }
 
 function stopScannerCamera() {
@@ -4252,11 +4262,17 @@ function startBarcodeDetection() {
     showToast("QR 인식 모듈 로딩에 실패했습니다. 스캐너 모드를 사용해주세요.");
     return;
   }
+  let isDetectingFrame = false;
   state.scannerTimer = setInterval(async () => {
-    if (document.hidden || elements.scannerScreen.hidden || !elements.scannerVideo.srcObject) {
+    if (isDetectingFrame
+      || state.isProcessingScan
+      || document.hidden
+      || elements.scannerScreen.hidden
+      || !elements.scannerVideo.srcObject) {
       return;
     }
 
+    isDetectingFrame = true;
     try {
       const codes = await detectBarcodeWithTimeout(detector, elements.scannerVideo);
       if (codes.length) {
@@ -4267,6 +4283,8 @@ function startBarcodeDetection() {
       state.scannerTimer = null;
       setScannerHelp("QR 자동 인식이 중단되었습니다. 스캐너 모드로 전환해주세요.");
       showToast("카메라 QR 인식이 중단되었습니다.");
+    } finally {
+      isDetectingFrame = false;
     }
   }, BARCODE_DETECT_INTERVAL_MS);
 }
@@ -4339,7 +4357,7 @@ function startJsQrDetection(detector = null) {
   let jsQrScanCount = 0;
   let jsQrTransientErrorCount = 0;
   state.scannerTimer = window.setInterval(async () => {
-    if (isDetectingFrame) {
+    if (isDetectingFrame || state.isProcessingScan) {
       return;
     }
 
@@ -4387,7 +4405,7 @@ function startJsQrDetection(detector = null) {
     jsQrScanCount += 1;
     const isDetailScan = jsQrScanCount % JSQR_DETAIL_SCAN_INTERVAL === 0;
     const maxEdge = isDetailScan ? JSQR_DETAIL_MAX_EDGE : JSQR_FAST_MAX_EDGE;
-    const cropRatio = isDetailScan ? 1 : JSQR_FAST_CROP_RATIO;
+    const cropRatio = isDetailScan ? JSQR_DETAIL_CROP_RATIO : JSQR_FAST_CROP_RATIO;
     const cropWidth = Math.max(1, Math.floor(sourceWidth * cropRatio));
     const cropHeight = Math.max(1, Math.floor(sourceHeight * cropRatio));
     const cropX = Math.floor((sourceWidth - cropWidth) / 2);
@@ -4746,7 +4764,7 @@ async function handleQrValue(rawValue) {
       if (elements.inventoryMoveSearchInput) {
         elements.inventoryMoveSearchInput.value = "";
       }
-      renderInventoryMoveList();
+      state.scannerViewDirty = true;
       renderScannerScannedList();
       updateScannerActionLabels();
     } else {
@@ -4761,7 +4779,8 @@ async function handleQrValue(rawValue) {
       if (elements.shippingSearchInput) {
         elements.shippingSearchInput.value = "";
       }
-      applyShippingFilters();
+      state.scannerViewDirty = true;
+      renderScannerScannedList();
       updateScannerActionLabels();
     }
 
@@ -5130,7 +5149,7 @@ function handleScannerListChange(event) {
   }
 
   saveScannedMoveRows();
-  renderInventoryMoveList();
+  state.scannerViewDirty = true;
   updateScannerActionLabels();
   showToast(`${select.value}(으)로 이동 위치를 설정했습니다.`);
 }
@@ -5317,7 +5336,12 @@ function handleShippingQuantitySubmit(event) {
   setScannedBoxQuantity(item, nextQuantity);
   closeShippingQuantityEditor();
   saveScannedShippingRows();
-  applyShippingFilters();
+  if (!elements.scannerScreen?.hidden) {
+    state.scannerViewDirty = true;
+    renderScannerScannedList();
+  } else {
+    applyShippingFilters();
+  }
   showToast(`${label} 수량을 ${formatNumber(nextQuantity)}ea로 변경했습니다.`);
 }
 
@@ -5388,7 +5412,8 @@ function removeScannedShippingRow(index) {
   state.scannedShippingRows = state.scannedShippingRows.filter((row) => getShippingKey(row) !== key);
   state.scannerSessionShippingKeys = state.scannerSessionShippingKeys.filter((sessionKey) => sessionKey !== key);
   saveScannedShippingRows();
-  applyShippingFilters();
+  state.scannerViewDirty = true;
+  renderScannerScannedList();
   updateScannerActionLabels();
   triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
   showToast("스캔 목록에서 삭제했습니다.");
@@ -6272,7 +6297,7 @@ function removeScannedMoveRow(index) {
 
   state.scannedMoveRows.splice(index, 1);
   saveScannedMoveRows();
-  renderInventoryMoveList();
+  state.scannerViewDirty = true;
   renderScannerScannedList();
   updateScannerActionLabels();
   triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
@@ -6312,7 +6337,7 @@ function removeScannedMoveGroup(key) {
   }
 
   saveScannedMoveRows();
-  renderInventoryMoveList();
+  state.scannerViewDirty = true;
   renderScannerScannedList();
   updateScannerActionLabels();
   triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
