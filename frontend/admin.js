@@ -33,6 +33,7 @@ const DEFECT_REASON_TONES = {
 };
 
 const INVENTORY_STOCK_STATUSES = ["보관", "작업중", "검수완료", "보류", "폐기", "출고대기", "일부 출고", "출고완료"];
+const INVENTORY_CATEGORY_FILTERS = ["자사재고", "사출 보관재고"];
 const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
@@ -6190,7 +6191,11 @@ function isInventoryUnspecifiedStorageTarget(item) {
 function renderInventoryFilterOptions(filters) {
   renderSelectOptions(inventoryClientFilter, filters.clients, "전체");
   renderSelectOptions(inventoryStorageFilter, filters.storages, "전체");
-  renderSelectOptions(inventoryStockFilter, filters.stockStatuses, "전체");
+  renderSelectOptions(
+    inventoryStockFilter,
+    [...new Set([...(filters.stockStatuses || []), ...INVENTORY_CATEGORY_FILTERS])],
+    "전체"
+  );
   renderSelectOptions(inventoryProcessFilter, filters.processStatuses, "전체");
 }
 
@@ -6300,6 +6305,37 @@ function resetInventoryFilters() {
   syncInventoryFilterState();
 }
 
+function normalizeInventoryCategory(value) {
+  const compact = String(value ?? "").replace(/\s+/g, "").trim();
+
+  if (compact === "자사재고") {
+    return "자사재고";
+  }
+
+  if (compact === "사출보관재고") {
+    return "사출 보관재고";
+  }
+
+  return String(value ?? "").trim();
+}
+
+function matchesInventoryStockFilter(item, filterValue) {
+  if (!filterValue) {
+    return true;
+  }
+
+  const normalizedFilter = normalizeInventoryCategory(filterValue);
+
+  if (INVENTORY_CATEGORY_FILTERS.includes(normalizedFilter)) {
+    return (Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : []).some((box) => (
+      normalizeInventoryCategory(box?.inventoryCategory) === normalizedFilter
+      && normalizeInventoryStockStatus(box?.status) === "보관"
+    ));
+  }
+
+  return normalizeInventoryStockStatus(item?.stockStatus) === normalizeInventoryStockStatus(filterValue);
+}
+
 function applyInventoryFilters() {
   syncInventoryFilterState();
   const filters = state.inventoryFilters;
@@ -6321,7 +6357,7 @@ function applyInventoryFilters() {
       return false;
     }
 
-    if (filters.stock && item.stockStatus !== filters.stock) {
+    if (!matchesInventoryStockFilter(item, filters.stock)) {
       return false;
     }
 
