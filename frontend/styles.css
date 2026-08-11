@@ -4773,6 +4773,51 @@ input {
   font-weight: 800;
 }
 
+.remaining-inventory-quantity-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  min-height: 2.15rem;
+  padding: 0.28rem 0.42rem;
+  border: 1px solid #d7e0ec;
+  border-radius: 0.48rem;
+  background: #fff;
+}
+
+.remaining-inventory-quantity-field:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(213, 163, 65, 0.12);
+}
+
+.remaining-inventory-quantity-input {
+  width: 5rem;
+  min-width: 0;
+  color: var(--navy-dark);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: right;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.remaining-inventory-quantity-field em {
+  color: #718096;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.remaining-inventory-quantity-field:has(input:disabled) {
+  opacity: 0.45;
+  background: #f5f7fa;
+}
+
+.remaining-inventory-note-field {
+  margin-top: 1.25rem;
+}
+
 @media (max-width: 680px) {
   .product-form.remaining-inventory-form {
     padding: 1rem;

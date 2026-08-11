@@ -431,6 +431,8 @@ const remainingInventoryBoxHelp = document.querySelector("#remainingInventoryBox
 const remainingInventoryBoxList = document.querySelector("#remainingInventoryBoxList");
 const remainingInventoryBoxSummary = document.querySelector("#remainingInventoryBoxSummary");
 const remainingInventorySelectAll = document.querySelector("#remainingInventorySelectAll");
+const remainingInventoryNoteField = document.querySelector("#remainingInventoryNoteField");
+const remainingInventoryNote = document.querySelector("#remainingInventoryNote");
 const remainingInventoryMessage = document.querySelector("#remainingInventoryMessage");
 const saveRemainingInventoryButton = document.querySelector("#saveRemainingInventoryButton");
 const shippingHoldGuideModal = document.querySelector("#shippingHoldGuideModal");
@@ -673,6 +675,11 @@ remainingInventorySelectAll?.addEventListener("change", () => {
   syncRemainingInventoryBoxState();
 });
 remainingInventoryBoxList?.addEventListener("change", syncRemainingInventoryBoxState);
+remainingInventoryBoxList?.addEventListener("input", (event) => {
+  if (event.target?.matches?.(".remaining-inventory-quantity-input")) {
+    syncRemainingInventoryBoxState();
+  }
+});
 document.querySelector("#closeShippingHoldGuideModal")?.addEventListener("click", closeShippingHoldGuideModal);
 document.querySelector("#cancelShippingHoldGuideModal")?.addEventListener("click", closeShippingHoldGuideModal);
 openShippingHoldGuidePhotoButton?.addEventListener("click", () => {
@@ -2511,6 +2518,12 @@ function openRemainingInventoryModal(row, mode = "classify") {
       ? "재고 조사 결과 실제로 출고되었거나 재고에서 확인되지 않은 박스만 선택해주세요."
       : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
   }
+  if (remainingInventoryNoteField) {
+    remainingInventoryNoteField.hidden = !isAdjustment;
+  }
+  if (remainingInventoryNote) {
+    remainingInventoryNote.value = "";
+  }
 
   if (remainingInventoryRecordId) {
     remainingInventoryRecordId.textContent = row.dataset.managementId || row.children[1]?.textContent.trim() || "-";
@@ -2567,7 +2580,20 @@ function openRemainingInventoryModal(row, mode = "classify") {
             <strong>${formatNumber(box.number)}번 박스</strong>
             <small>${escapeHtml(status)} · ${escapeHtml(category)}</small>
           </span>
-          <b>${formatNumber(box.quantity)} ea</b>
+          ${isAdjustment ? `
+            <span class="remaining-inventory-quantity-field">
+              <input
+                class="remaining-inventory-quantity-input"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="numeric"
+                value="${Math.round(box.quantity)}"
+                aria-label="${formatNumber(box.number)}번 박스 조정 수량"
+              />
+              <em>ea</em>
+            </span>
+          ` : `<b>${formatNumber(box.quantity)} ea</b>`}
         </label>
       `;
     }).join("");
@@ -2606,10 +2632,21 @@ function syncRemainingInventoryBoxState() {
     remainingInventoryBoxList?.querySelectorAll('input[name="remainingInventoryBox"]') || []
   );
   const checkedInputs = inputs.filter((input) => input.checked);
-  const selectedQuantity = checkedInputs.reduce(
-    (sum, input) => sum + parseShippingSettlementNumber(input.dataset.quantity || ""),
-    0
-  );
+  const isAdjustment = state.activeRemainingInventoryMode === "adjust";
+  inputs.forEach((input) => {
+    const quantityInput = input.closest(".remaining-inventory-box-card")
+      ?.querySelector(".remaining-inventory-quantity-input");
+    if (quantityInput) {
+      quantityInput.disabled = !input.checked;
+    }
+  });
+  const selectedQuantity = checkedInputs.reduce((sum, input) => {
+    const quantityInput = input.closest(".remaining-inventory-box-card")
+      ?.querySelector(".remaining-inventory-quantity-input");
+    return sum + parseShippingSettlementNumber(
+      isAdjustment && quantityInput ? quantityInput.value : input.dataset.quantity || ""
+    );
+  }, 0);
 
   if (remainingInventorySelectAll) {
     remainingInventorySelectAll.checked = inputs.length > 0 && checkedInputs.length === inputs.length;
@@ -2635,6 +2672,26 @@ async function saveRemainingInventory() {
     ?.querySelector('input[name="remainingInventoryCategory"]:checked')
     ?.value || "";
   const isAdjustment = state.activeRemainingInventoryMode === "adjust";
+  const selectedBoxQuantities = {};
+
+  if (isAdjustment) {
+    const hasInvalidQuantity = selectedInputs.some((input) => {
+      const quantityInput = input.closest(".remaining-inventory-box-card")
+        ?.querySelector(".remaining-inventory-quantity-input");
+      const quantity = Number(quantityInput?.value);
+      if (!Number.isInteger(quantity) || quantity < 0) {
+        return true;
+      }
+      selectedBoxQuantities[input.value] = quantity;
+      return false;
+    });
+    if (hasInvalidQuantity) {
+      if (remainingInventoryMessage) {
+        remainingInventoryMessage.textContent = "박스별 조정 수량을 0 이상의 정수로 입력해주세요.";
+      }
+      return;
+    }
+  }
 
   if (!selectedInputs.length) {
     if (remainingInventoryMessage) {
@@ -2670,6 +2727,8 @@ async function saveRemainingInventory() {
       finalProcess: row.children[5]?.textContent.trim() || "",
       inventoryCategory: category,
       adjustmentDate: isAdjustment ? getLocalDateInputValue() : "",
+      boxQuantities: isAdjustment ? selectedBoxQuantities : {},
+      note: isAdjustment ? remainingInventoryNote?.value.trim() || "" : "",
       selectedBoxes: selectedInputs.map((input) => Number(input.value)).filter(Number.isFinite),
       selectedBoxIds: selectedInputs.map((input) => input.dataset.boxId || "").filter(Boolean),
       userName: signedInAdminName

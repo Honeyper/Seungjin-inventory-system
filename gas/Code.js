@@ -3907,12 +3907,22 @@ function adjustRemainingInventory(payload) {
   const managementId = String(payload.managementId || '').trim();
   const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
   const selectedBoxIds = Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : [];
+  const boxQuantities = buildBoxQuantityMap_(payload.boxQuantities || payload.selectedBoxQuantities);
+  const note = String(payload.note || payload.memo || '').trim();
 
   if (!managementId) {
     throw new Error('관리 ID가 없습니다.');
   }
-  if (!selectedBoxes.length && !selectedBoxIds.length) {
+  if (!selectedBoxes.length) {
     throw new Error('조정할 박스를 하나 이상 선택해주세요.');
+  }
+  const invalidQuantityBoxes = selectedBoxes
+    .map((value) => Number(value))
+    .filter((boxNumber) => !Number.isFinite(boxQuantities[boxNumber])
+      || boxQuantities[boxNumber] < 0
+      || !Number.isInteger(boxQuantities[boxNumber]));
+  if (invalidQuantityBoxes.length) {
+    throw new Error(`${invalidQuantityBoxes[0]}번 박스의 조정 수량을 0 이상의 정수로 입력해주세요.`);
   }
 
   const timezone = Session.getScriptTimeZone() || 'Asia/Seoul';
@@ -3951,6 +3961,8 @@ function adjustRemainingInventory(payload) {
       shipper: adjuster,
       selectedBoxes,
       selectedBoxIds,
+      boxQuantities,
+      note,
       forceCompleteShipping: true,
       inventoryAdjustment: true,
       ignoreStorage: true
@@ -4696,6 +4708,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       .map((value) => normalizeStockStatusText_(value))
       .filter(Boolean)
   );
+  const selectedBoxQuantityMap = buildBoxQuantityMap_(data.boxQuantities || data.selectedBoxQuantities);
   const requiresSelectedBoxes = ['보관', '출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status);
 
   if (managementIndex < 0) {
@@ -4746,7 +4759,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     // A box ID identifies the exact row. Sequence numbers are only a fallback
     // for legacy rows that do not send box IDs.
     const isSelectedBox = selectedBoxIds.size > 0
-      ? isDirectBoxIdMatch
+      ? isDirectBoxIdMatch || (!normalizedRowBoxId && selectedBoxNumbers.has(sequence))
       : selectedBoxNumbers.has(sequence);
     if (isSelectedBox) {
       matchedSelectedRows += 1;
@@ -4781,6 +4794,13 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       setRowValue_(row, indexes, ['상태', '재고 상태'], persistedStatus);
 
       if (data.status === '출고완료') {
+        const adjustedQuantity = selectedBoxQuantityMap[sequence];
+        if (data.inventoryAdjustment === true
+          && currentQuantityIndex >= 0
+          && Number.isFinite(adjustedQuantity)
+          && adjustedQuantity >= 0) {
+          row[currentQuantityIndex] = formatEa_(adjustedQuantity);
+        }
         row[shippingTypeIndex] = data.shippingType;
         setRowValue_(row, indexes, ['출고일'], data.shippingDate);
         setRowValue_(row, indexes, ['출고시간'], data.shippingTime);
@@ -4791,11 +4811,13 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
         if (data.inventoryAdjustment === true) {
           const previousNote = String(pickCell_(row, indexes, ['비고', '메모', '참고']) || '').trim();
           const notePrefix = previousNote && previousNote !== '-' ? `${previousNote}\n` : '';
+          const adjustmentNote = String(data.note || '').trim();
+          const noteSuffix = adjustmentNote ? ` · 비고 ${adjustmentNote}` : '';
           setRowValue_(
             row,
             indexes,
             ['비고', '메모', '참고'],
-            `${notePrefix}[재고조정 ${data.shippingUpdatedAt}] ${sequence}번 박스 · 조정자 ${data.shipper}`
+            `${notePrefix}[재고조정 ${data.shippingUpdatedAt}] ${sequence}번 박스 · ${formatEa_(adjustedQuantity)} · 조정자 ${data.shipper}${noteSuffix}`
           );
         }
         if (data.defectPhotoFolderUrl && data.defectPhotoFolderUrl !== '-') {
