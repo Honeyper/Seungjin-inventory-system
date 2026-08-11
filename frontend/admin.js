@@ -143,6 +143,7 @@ const state = {
   activeTransferReturnMode: "transfer",
   activeShippingWaitingRow: null,
   activeRemainingInventoryRow: null,
+  activeRemainingInventoryMode: "classify",
   isSavingShippingWaiting: false,
   isSavingRemainingInventory: false,
   isSavingShippingInspection: false,
@@ -415,12 +416,18 @@ const shippingWaitingConfirmBoxList = document.querySelector("#shippingWaitingCo
 const shippingWaitingConfirmMessage = document.querySelector("#shippingWaitingConfirmMessage");
 const confirmShippingWaitingButton = document.querySelector("#confirmShippingWaitingButton");
 const remainingInventoryModal = document.querySelector("#remainingInventoryModal");
+const remainingInventoryKicker = document.querySelector("#remainingInventoryKicker");
+const remainingInventoryTitle = document.querySelector("#remainingInventoryTitle");
+const remainingInventoryDescription = document.querySelector("#remainingInventoryDescription");
 const remainingInventoryForm = document.querySelector("#remainingInventoryForm");
 const remainingInventoryRecordId = document.querySelector("#remainingInventoryRecordId");
 const remainingInventoryProduct = document.querySelector("#remainingInventoryProduct");
 const remainingInventoryClient = document.querySelector("#remainingInventoryClient");
 const remainingInventoryInboundDate = document.querySelector("#remainingInventoryInboundDate");
 const remainingInventoryLatestShippingDate = document.querySelector("#remainingInventoryLatestShippingDate");
+const remainingInventoryCategorySection = document.querySelector("#remainingInventoryCategorySection");
+const remainingInventoryBoxTitle = document.querySelector("#remainingInventoryBoxTitle");
+const remainingInventoryBoxHelp = document.querySelector("#remainingInventoryBoxHelp");
 const remainingInventoryBoxList = document.querySelector("#remainingInventoryBoxList");
 const remainingInventoryBoxSummary = document.querySelector("#remainingInventoryBoxSummary");
 const remainingInventorySelectAll = document.querySelector("#remainingInventorySelectAll");
@@ -821,7 +828,12 @@ function handleShippingAction(row, action, button) {
   }
 
   if (action === "classifyRemaining") {
-    openRemainingInventoryModal(row);
+    openRemainingInventoryModal(row, "classify");
+    return;
+  }
+
+  if (action === "adjustInventory") {
+    openRemainingInventoryModal(row, "adjust");
     return;
   }
 
@@ -1577,6 +1589,7 @@ function getShippingRowBoxes(row, datasetKey, fallbackCount = 0, fallbackQuantit
           defectReason: box.defectReason || "",
           shippingDate: box.shippingDate || "",
           shippingTime: box.shippingTime || "",
+          shippingUpdatedAt: box.shippingUpdatedAt || "",
           shippingType: box.shippingType || "",
           shipper: box.shipper || "",
           transferCompany: box.transferCompany || "",
@@ -2444,19 +2457,60 @@ function getRemainingInventoryTargetBoxes(row) {
     .filter((box) => Number.isFinite(box.number) && box.number > 0);
 }
 
-function openRemainingInventoryModal(row) {
+function getRemainingInventoryAdjustmentTargetBoxes(row) {
+  return getShippingRowBoxes(row, "allShippingBoxes")
+    .filter((box) => parseShippingSettlementNumber(box.quantity) > 0
+      && normalizeInventoryStockStatus(box.status) === "보관")
+    .map((box) => ({
+      ...box,
+      number: Number(box.number),
+      quantity: parseShippingSettlementNumber(box.quantity)
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0);
+}
+
+function openRemainingInventoryModal(row, mode = "classify") {
   if (!row || !remainingInventoryModal) {
     return;
   }
 
-  const targetBoxes = getRemainingInventoryTargetBoxes(row);
+  const isAdjustment = mode === "adjust";
+  const targetBoxes = isAdjustment
+    ? getRemainingInventoryAdjustmentTargetBoxes(row)
+    : getRemainingInventoryTargetBoxes(row);
   if (!targetBoxes.length) {
-    showToast("등록할 수 있는 남은 박스가 없습니다.");
+    showToast(isAdjustment
+      ? "재고 조정할 수 있는 보관 박스가 없습니다."
+      : "등록할 수 있는 남은 박스가 없습니다.");
     return;
   }
 
   state.activeRemainingInventoryRow = row;
+  state.activeRemainingInventoryMode = isAdjustment ? "adjust" : "classify";
   state.isSavingRemainingInventory = false;
+
+  if (remainingInventoryKicker) {
+    remainingInventoryKicker.textContent = isAdjustment ? "재고 조사" : "보관 재고";
+  }
+  if (remainingInventoryTitle) {
+    remainingInventoryTitle.textContent = isAdjustment ? "재고 조정" : "보관 재고 등록";
+  }
+  if (remainingInventoryDescription) {
+    remainingInventoryDescription.textContent = isAdjustment
+      ? "재고 조사 중 확인된 출고 누락 박스를 선택해 출고완료(재고조정)로 처리합니다."
+      : "부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.";
+  }
+  if (remainingInventoryCategorySection) {
+    remainingInventoryCategorySection.hidden = isAdjustment;
+  }
+  if (remainingInventoryBoxTitle) {
+    remainingInventoryBoxTitle.textContent = isAdjustment ? "조정할 박스" : "등록할 남은 박스";
+  }
+  if (remainingInventoryBoxHelp) {
+    remainingInventoryBoxHelp.textContent = isAdjustment
+      ? "재고 조사 결과 실제로 출고되었거나 재고에서 확인되지 않은 박스만 선택해주세요."
+      : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
+  }
 
   if (remainingInventoryRecordId) {
     remainingInventoryRecordId.textContent = row.dataset.managementId || row.children[1]?.textContent.trim() || "-";
@@ -2490,7 +2544,7 @@ function openRemainingInventoryModal(row) {
   }
   if (saveRemainingInventoryButton) {
     saveRemainingInventoryButton.disabled = false;
-    saveRemainingInventoryButton.textContent = "재고 구분 저장";
+    saveRemainingInventoryButton.textContent = isAdjustment ? "재고 조정 처리" : "재고 구분 저장";
   }
 
   remainingInventoryForm?.querySelector('input[name="remainingInventoryCategory"][value="자사재고"]')?.click();
@@ -2532,6 +2586,7 @@ function closeRemainingInventoryModal() {
 
   remainingInventoryModal.hidden = true;
   state.activeRemainingInventoryRow = null;
+  state.activeRemainingInventoryMode = "classify";
   state.isSavingRemainingInventory = false;
   if (remainingInventoryBoxList) {
     remainingInventoryBoxList.innerHTML = "";
@@ -2579,14 +2634,17 @@ async function saveRemainingInventory() {
   const category = remainingInventoryForm
     ?.querySelector('input[name="remainingInventoryCategory"]:checked')
     ?.value || "";
+  const isAdjustment = state.activeRemainingInventoryMode === "adjust";
 
   if (!selectedInputs.length) {
     if (remainingInventoryMessage) {
-      remainingInventoryMessage.textContent = "등록할 남은 박스를 하나 이상 선택해주세요.";
+      remainingInventoryMessage.textContent = isAdjustment
+        ? "조정할 박스를 하나 이상 선택해주세요."
+        : "등록할 남은 박스를 하나 이상 선택해주세요.";
     }
     return;
   }
-  if (!category) {
+  if (!isAdjustment && !category) {
     if (remainingInventoryMessage) {
       remainingInventoryMessage.textContent = "재고 구분을 선택해주세요.";
     }
@@ -2596,19 +2654,22 @@ async function saveRemainingInventory() {
   state.isSavingRemainingInventory = true;
   if (saveRemainingInventoryButton) {
     saveRemainingInventoryButton.disabled = true;
-    saveRemainingInventoryButton.textContent = "저장 중";
+    saveRemainingInventoryButton.textContent = isAdjustment ? "조정 중" : "저장 중";
   }
   if (remainingInventoryMessage) {
     remainingInventoryMessage.textContent = "";
   }
 
   try {
-    const result = await requestApi("classifyRemainingInventory", {
+    const result = await requestApi(isAdjustment ? "adjustRemainingInventory" : "classifyRemainingInventory", {
       managementId: row.dataset.managementId || row.children[1]?.textContent.trim() || "",
       productId: row.dataset.productId || "",
       productName: row.children[3]?.textContent.trim() || "",
       clientName: row.children[2]?.textContent.trim() || "",
+      batch: row.children[4]?.textContent.trim() || "",
+      finalProcess: row.children[5]?.textContent.trim() || "",
       inventoryCategory: category,
+      adjustmentDate: isAdjustment ? getLocalDateInputValue() : "",
       selectedBoxes: selectedInputs.map((input) => Number(input.value)).filter(Number.isFinite),
       selectedBoxIds: selectedInputs.map((input) => input.dataset.boxId || "").filter(Boolean),
       userName: signedInAdminName
@@ -2616,15 +2677,18 @@ async function saveRemainingInventory() {
 
     closeRemainingInventoryModal();
     await loadInventoryDashboard(false);
-    showToast(`${category}로 ${formatNumber(result?.updatedRows || selectedInputs.length)}개 박스를 등록했습니다.`);
+    showToast(isAdjustment
+      ? `재고 조정으로 ${formatNumber(result?.updatedBoxRows || selectedInputs.length)}개 박스를 출고 완료 처리했습니다.`
+      : `${category}로 ${formatNumber(result?.updatedRows || selectedInputs.length)}개 박스를 등록했습니다.`);
   } catch (error) {
     state.isSavingRemainingInventory = false;
     if (saveRemainingInventoryButton) {
       saveRemainingInventoryButton.disabled = false;
-      saveRemainingInventoryButton.textContent = "재고 구분 저장";
+      saveRemainingInventoryButton.textContent = isAdjustment ? "재고 조정 처리" : "재고 구분 저장";
     }
     if (remainingInventoryMessage) {
-      remainingInventoryMessage.textContent = error.message || "보관 재고 등록 중 문제가 발생했습니다.";
+      remainingInventoryMessage.textContent = error.message
+        || (isAdjustment ? "재고 조정 중 문제가 발생했습니다." : "보관 재고 등록 중 문제가 발생했습니다.");
     }
   }
 }
@@ -3776,6 +3840,10 @@ function getCompletedShippingTypeLabel(item) {
     return "이관";
   }
 
+  if (explicitType.startsWith("재고조정")) {
+    return "재고조정";
+  }
+
   const shippedBoxes = Array.isArray(item?.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
   const latestTypedBox = shippedBoxes
     .filter((box) => box?.shippingType)
@@ -3788,6 +3856,10 @@ function getCompletedShippingTypeLabel(item) {
 
   if (shippingType.startsWith("이관")) {
     return "이관";
+  }
+
+  if (shippingType.startsWith("재고조정")) {
+    return "재고조정";
   }
 
   return "";
@@ -3920,6 +3992,7 @@ function renderShippingRowAction(item) {
       [
         { action: "detail", label: "상세보기", icon: "ti-eye" },
         { action: "classifyRemaining", label: "보관 재고 등록", icon: "ti-box" },
+        { action: "adjustInventory", label: "재고 조정", icon: "ti-adjustments-horizontal" },
         ...transferReturnAction,
         ...takeoutReturnAction,
         ...cancelShippingAction
@@ -5868,6 +5941,7 @@ function normalizeInventoryStockStatus(value) {
     출고대기: "출고대기",
     "출고대기(검수완료)": "출고대기",
     출고완료: "출고완료",
+    "출고완료(재고조정)": "출고완료",
     일부출고: "일부 출고",
     부분출고: "일부 출고",
     "부분 출고": "일부 출고",

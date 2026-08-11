@@ -1110,6 +1110,7 @@
                     <option>출고 완료</option>
                     <option>반출</option>
                     <option>이관</option>
+                    <option>재고조정</option>
                   </select>
                 </label>
               </div>
@@ -1519,9 +1520,9 @@
       <section class="product-modal remaining-inventory-modal" role="dialog" aria-modal="true" aria-labelledby="remainingInventoryTitle">
         <header class="modal-header">
           <div>
-            <span class="modal-kicker">보관 재고</span>
+            <span class="modal-kicker" id="remainingInventoryKicker">보관 재고</span>
             <h2 id="remainingInventoryTitle">보관 재고 등록</h2>
-            <p>부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.</p>
+            <p id="remainingInventoryDescription">부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.</p>
           </div>
           <button class="modal-close" type="button" id="closeRemainingInventoryModal" aria-label="닫기">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1554,7 +1555,7 @@
             </div>
           </section>
 
-          <section class="form-section remaining-inventory-category-section" aria-labelledby="remainingInventoryCategoryTitle">
+          <section class="form-section remaining-inventory-category-section" id="remainingInventoryCategorySection" aria-labelledby="remainingInventoryCategoryTitle">
             <div class="remaining-inventory-section-heading">
               <div>
                 <h3 id="remainingInventoryCategoryTitle">재고 구분</h3>
@@ -1589,7 +1590,7 @@
             <div class="shipping-box-section-header">
               <div>
                 <h3 id="remainingInventoryBoxTitle">등록할 남은 박스</h3>
-                <p>같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.</p>
+                <p id="remainingInventoryBoxHelp">같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.</p>
               </div>
               <label class="shipping-box-select-all">
                 <input id="remainingInventorySelectAll" type="checkbox" checked />

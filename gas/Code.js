@@ -127,6 +127,7 @@ function doPost(e) {
       saveShippingInspection,
       cancelDiscardedBoxes,
       classifyRemainingInventory,
+      adjustRemainingInventory,
       updateShippingStatus,
       returnTransferredInventory,
       returnTakenOutInventory,
@@ -622,6 +623,7 @@ function isApiMutationAction_(action) {
     'saveShippingInspection',
     'cancelDiscardedBoxes',
     'classifyRemainingInventory',
+    'adjustRemainingInventory',
     'updateShippingStatus',
     'returnTransferredInventory',
     'returnTakenOutInventory',
@@ -1568,6 +1570,10 @@ function getCompletedShippingTypeLabel_(boxes) {
 
   if (shippingType.indexOf('이관') === 0) {
     return '이관';
+  }
+
+  if (shippingType.indexOf('재고조정') === 0) {
+    return '재고조정';
   }
 
   return '';
@@ -2596,6 +2602,7 @@ function ensureBoxDbShippingInspectionHeaders_(sheet) {
     '불량 사유',
     '불량 사진',
     '폐기 전 수량',
+    '출고 수정일시',
     '재고 구분',
     '재고 구분일시',
     '재고 구분자'
@@ -3531,6 +3538,7 @@ function normalizeStockStatusText_(value) {
     '출고대기': '출고대기',
     '출고대기(검수완료)': '출고대기',
     '출고완료': '출고완료',
+    '출고완료(재고조정)': '출고완료',
     '일부출고': '일부 출고',
     '부분출고': '일부 출고',
     '부분 출고': '일부 출고',
@@ -3889,6 +3897,84 @@ function classifyRemainingInventory(payload) {
       classifier,
       updatedRows,
       totalQuantity
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function adjustRemainingInventory(payload) {
+  const managementId = String(payload.managementId || '').trim();
+  const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
+  const selectedBoxIds = Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : [];
+
+  if (!managementId) {
+    throw new Error('관리 ID가 없습니다.');
+  }
+  if (!selectedBoxes.length && !selectedBoxIds.length) {
+    throw new Error('조정할 박스를 하나 이상 선택해주세요.');
+  }
+
+  const timezone = Session.getScriptTimeZone() || 'Asia/Seoul';
+  const now = new Date();
+  const adjustmentDate = normalizeDateKey_(
+    payload.adjustmentDate || Utilities.formatDate(now, timezone, 'yyyy-MM-dd')
+  );
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(adjustmentDate)) {
+    throw new Error('조정일 형식이 올바르지 않습니다.');
+  }
+
+  const shippingDate = `(조정일)${adjustmentDate}`;
+  const shippingTime = Utilities.formatDate(now, timezone, 'HH:mm');
+  const shippingUpdatedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
+  const adjuster = String(payload.userName || payload.registrant || 'Admin').trim() || 'Admin';
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    ensureBoxDbShippingInspectionHeaders_(boxSheet);
+    const boxUpdateResult = updateShippingStatusBoxRows_(boxSheet, managementId, {
+      productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
+      productName: payload.productName || payload['제품명'],
+      clientName: payload.clientName || payload['업체명'] || payload['거래처명'],
+      batch: payload.batch || payload['차수'],
+      finalProcess: payload.finalProcess || payload['최종공정'] || payload['최종 공정'],
+      status: '출고완료',
+      persistedCompleteStatus: '출고완료(재고조정)',
+      allowedSourceStatuses: ['보관'],
+      shippingType: '재고조정',
+      shippingDate,
+      shippingTime,
+      shippingUpdatedAt,
+      shipper: adjuster,
+      selectedBoxes,
+      selectedBoxIds,
+      forceCompleteShipping: true,
+      inventoryAdjustment: true,
+      ignoreStorage: true
+    });
+    const finalStatus = boxUpdateResult.remainingActiveRows > 0
+      ? '일부 출고'
+      : '출고완료(재고조정)';
+    const updatedStockRows = updateStockStatusRows_(stockSheet, managementId, finalStatus, {
+      ...payload,
+      ignoreStorage: true
+    });
+    SpreadsheetApp.flush();
+
+    return {
+      managementId,
+      status: finalStatus,
+      adjustmentDate,
+      shippingDate,
+      shippingTime,
+      adjuster,
+      updatedBoxRows: boxUpdateResult.updatedRows,
+      updatedStockRows,
+      remainingActiveRows: boxUpdateResult.remainingActiveRows,
+      isPartialShipping: finalStatus === '일부 출고'
     };
   } finally {
     lock.releaseLock();
@@ -4605,6 +4691,11 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       .map((value) => normalizeInventoryIdentityPart_(value))
       .filter(Boolean)
   );
+  const allowedSourceStatuses = new Set(
+    (Array.isArray(data.allowedSourceStatuses) ? data.allowedSourceStatuses : [])
+      .map((value) => normalizeStockStatusText_(value))
+      .filter(Boolean)
+  );
   const requiresSelectedBoxes = ['보관', '출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status);
 
   if (managementIndex < 0) {
@@ -4672,7 +4763,9 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       && isSelectedBox
       && (
         forceCompleteShipping
-          ? !isAlreadyShipped && !/폐기/.test(rowStatus)
+          ? !isAlreadyShipped
+            && !/폐기/.test(rowStatus)
+            && (!allowedSourceStatuses.size || allowedSourceStatuses.has(rowStatus))
           : isShippingCompletionReadyBoxRow_(row, indexes, rawRowStatus)
       );
     const shouldUpdate = data.status === '출고완료'
@@ -4682,13 +4775,29 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
 
     if (shouldUpdate) {
       rowStatus = data.status;
-      setRowValue_(row, indexes, ['상태', '재고 상태'], data.status);
+      const persistedStatus = data.status === '출고완료' && data.persistedCompleteStatus
+        ? data.persistedCompleteStatus
+        : data.status;
+      setRowValue_(row, indexes, ['상태', '재고 상태'], persistedStatus);
 
       if (data.status === '출고완료') {
         row[shippingTypeIndex] = data.shippingType;
         setRowValue_(row, indexes, ['출고일'], data.shippingDate);
         setRowValue_(row, indexes, ['출고시간'], data.shippingTime);
         setRowValue_(row, indexes, ['출고자'], data.shipper);
+        if (data.shippingUpdatedAt) {
+          setRowValue_(row, indexes, ['출고 수정일시', '출고수정일시'], data.shippingUpdatedAt);
+        }
+        if (data.inventoryAdjustment === true) {
+          const previousNote = String(pickCell_(row, indexes, ['비고', '메모', '참고']) || '').trim();
+          const notePrefix = previousNote && previousNote !== '-' ? `${previousNote}\n` : '';
+          setRowValue_(
+            row,
+            indexes,
+            ['비고', '메모', '참고'],
+            `${notePrefix}[재고조정 ${data.shippingUpdatedAt}] ${sequence}번 박스 · 조정자 ${data.shipper}`
+          );
+        }
         if (data.defectPhotoFolderUrl && data.defectPhotoFolderUrl !== '-') {
           const existingDefectPhotoUrls = pickCell_(row, indexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']);
           setRowValue_(
@@ -5366,6 +5475,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const shippingInspectionTime = getObjectCell_(row, ['출고 검수시간', '검수시간']);
     const shippingDate = normalizeDateKey_(getObjectCell_(row, ['출고일']));
     const shippingType = getObjectCell_(row, ['출고유형', '출고 유형', '출고타입', '출고 타입', '출고구분', '출고 구분']);
+    const shippingUpdatedAt = getObjectCell_(row, ['출고 수정일시', '출고수정일시']);
     const transferCompanyCell = getObjectCell_(row, ['이관업체', '이관 업체', '출고 이관 업체', '출고이관업체']);
     const transferCompany = transferCompanyCell || extractTransferCompanyFromShippingType_(shippingType) || extractTransferCompanyFromNote_(boxNote);
     const inventoryCategory = getObjectCell_(row, ['재고 구분', '재고구분']);
@@ -5400,6 +5510,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const shippingTime = getObjectCell_(row, ['출고시간']);
     if (shippingTime && shippingTime !== '-') boxInfo.shippingTime = shippingTime;
     if (shippingType && shippingType !== '-') boxInfo.shippingType = shippingType;
+    if (shippingUpdatedAt && shippingUpdatedAt !== '-') boxInfo.shippingUpdatedAt = shippingUpdatedAt;
     if (transferCompany) boxInfo.transferCompany = transferCompany;
     const shipper = getObjectCell_(row, ['출고자']);
     if (shipper && shipper !== '-') boxInfo.shipper = shipper;
@@ -5457,6 +5568,9 @@ function buildInventoryBoxSummaryMap_(boxRows) {
 
     if (shippingDate) {
       summary.shippingDateCounts[shippingDate] = (summary.shippingDateCounts[shippingDate] || 0) + 1;
+    }
+    if (shippingUpdatedAt && shippingUpdatedAt !== '-' && String(shippingUpdatedAt) > summary.shippingUpdatedAt) {
+      summary.shippingUpdatedAt = String(shippingUpdatedAt);
     }
 
     summary.boxes.push(boxInfo);
