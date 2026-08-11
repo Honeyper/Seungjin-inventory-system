@@ -8,7 +8,9 @@ const PERSISTENT_SCANNED_ROWS_KEY = "seungjinMobilePersistentScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
 const SCANNER_MODE_KEY = "seungjinMobileScannerMode";
 const DASHBOARD_CACHE_KEY = `seungjinMobileDashboardCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const SCANNER_LOOKUP_CACHE_KEY = `seungjinMobileScannerLookupCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const DASHBOARD_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const SCANNER_LOOKUP_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const DASHBOARD_BACKGROUND_REFRESH_MS = 45 * 1000;
 const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
 const SCANNER_DEVICE_MEMORY_GB = Number(navigator.deviceMemory) || 8;
@@ -93,6 +95,9 @@ const state = {
   dashboard: [],
   dashboardLoadedAt: 0,
   dashboardLoadPromise: null,
+  scannerLookupRows: [],
+  scannerLookupIndex: new Map(),
+  scannerLookupSavedAt: 0,
   filteredRows: [],
   scannedShippingRows: [],
   scannerSessionShippingKeys: [],
@@ -248,6 +253,7 @@ function initializeMobileApp() {
     state.user = savedSession;
     state.scannedShippingRows = readSavedScannedRows();
     state.scannedMoveRows = readSavedMoveRows();
+    restoreScannerLookupCache();
     restoreCachedDashboard();
     restoreSavedRoute();
     return;
@@ -521,6 +527,7 @@ async function attemptAdminLogin() {
     if (!state.scannedMoveRows.length) {
       state.scannedMoveRows = readSavedMoveRows();
     }
+    restoreScannerLookupCache();
     restoreCachedDashboard();
     showHome();
   } catch (error) {
@@ -597,6 +604,9 @@ function logout() {
   state.dashboard = [];
   state.dashboardLoadedAt = 0;
   state.dashboardLoadPromise = null;
+  state.scannerLookupRows = [];
+  state.scannerLookupIndex = new Map();
+  state.scannerLookupSavedAt = 0;
   state.filteredRows = [];
   state.scannedShippingRows = [];
   state.scannedMoveRows = [];
@@ -738,6 +748,8 @@ async function loadShippingDashboard(options = {}) {
       const data = await requestApi("getInventoryDashboard");
       state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
       state.dashboardLoadedAt = Date.now();
+      replaceScannerLookupRows(state.dashboard, state.dashboardLoadedAt);
+      saveScannerLookupCache();
       syncPendingShippingRowsFromDashboard();
       syncScannedMoveRowsFromDashboard();
       applyShippingFilters();
@@ -2651,6 +2663,7 @@ function markShippingItemsPending(items, failedItems = []) {
     item.stockStatus = "출고대기";
     item.processStatus = "출고대기";
   });
+  updateScannerLookupItems(items, failedItems, { status: "출고대기" });
 }
 
 function markShippingItemsCompleted(items, failedItems = []) {
@@ -2670,6 +2683,7 @@ function markShippingItemsCompleted(items, failedItems = []) {
     item.processStatus = "출고완료";
     item.syncedFromPending = false;
   });
+  updateScannerLookupItems(items, failedItems, { status: "출고완료" });
 }
 
 function markShippingItemsAvailable(items, failedItems = []) {
@@ -2688,6 +2702,50 @@ function markShippingItemsAvailable(items, failedItems = []) {
     item.stockStatus = "보관";
     item.processStatus = "보관";
   });
+  updateScannerLookupItems(items, failedItems, { status: "보관" });
+}
+
+function updateScannerLookupItems(items, failedItems = [], updates = {}) {
+  const failedSet = new Set(failedItems);
+  let changed = false;
+
+  items.forEach((item) => {
+    const sourceItems = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+    sourceItems.forEach((sourceItem) => {
+      if (!sourceItem || failedSet.has(sourceItem) || failedSet.has(item)) {
+        return;
+      }
+
+      const box = getScannedBox(sourceItem);
+      const parsed = {
+        boxId: normalizeScanValue(sourceItem?.scannedBoxId || box?.boxId),
+        managementId: normalizeScanValue(sourceItem?.managementId),
+        productId: normalizeScanValue(sourceItem?.productId),
+        boxNumber: String(sourceItem?.scannedBoxNumber || box?.number || box?.sequence || "").trim()
+      };
+      for (const key of getScannerLookupKeys(parsed)) {
+        const match = state.scannerLookupIndex.get(key);
+        if (!match) {
+          continue;
+        }
+        if (updates.status) {
+          match.box.status = updates.status;
+          match.box.rawStatus = updates.status;
+        }
+        if (updates.storage) {
+          match.box.storage = updates.storage;
+          match.box.storageLocation = updates.storage;
+        }
+        changed = true;
+        break;
+      }
+    });
+  });
+
+  if (changed) {
+    state.scannerLookupSavedAt = Date.now();
+    saveScannerLookupCache();
+  }
 }
 
 function isShippingItemCompleted(item) {
@@ -2977,6 +3035,7 @@ function applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mod
       row.storageLocation = targetStorage;
     }
   });
+  updateScannerLookupItems([item], [], { storage: targetStorage });
 }
 
 function openInventoryMoveScanner() {
@@ -4006,6 +4065,11 @@ async function handleQrValue(rawValue) {
 }
 
 async function resolveInventoryItemByQrValue(value) {
+  const scannerCacheMatch = findScannerLookupByQrValue(value);
+  if (scannerCacheMatch) {
+    return scannerCacheMatch;
+  }
+
   const localMatch = state.activeWorkflow === "inventoryMove"
     ? findInventoryMoveByQrValue(value)
     : findShippingByQrValue(value);
@@ -4027,6 +4091,8 @@ async function resolveInventoryItemByQrValue(value) {
     }
 
     upsertDashboardQrLookupRow(lookup.row);
+    upsertScannerLookupRow(lookup.row);
+    saveScannerLookupCache();
     const box = lookup.box || findMatchedBox(getKnownBoxes(lookup.row), parsed);
     if (state.activeWorkflow === "inventoryMove") {
       const movableBoxes = getMovableBoxes(lookup.row);
@@ -4066,6 +4132,151 @@ function upsertDashboardQrLookupRow(row) {
   }
 
   state.dashboard.push(row);
+}
+
+function findScannerLookupByQrValue(rawValue) {
+  const parsed = parseQrValue(rawValue);
+  const lookupKeys = getScannerLookupKeys(parsed);
+  let match = null;
+
+  for (const key of lookupKeys) {
+    const candidate = state.scannerLookupIndex.get(key);
+    if (!candidate) {
+      continue;
+    }
+    if (parsed.managementId && normalizeScanValue(candidate.row?.managementId) !== parsed.managementId) {
+      continue;
+    }
+    if (parsed.productId && normalizeScanValue(candidate.row?.productId) !== parsed.productId) {
+      continue;
+    }
+    match = candidate;
+    break;
+  }
+
+  if (!match) {
+    return null;
+  }
+
+  if (state.activeWorkflow === "inventoryMove") {
+    return isInventoryMoveLookupBoxAvailable(match.box, match.row)
+      ? buildInventoryMoveItem(match.row, match.box, parsed, rawValue)
+      : null;
+  }
+
+  return buildScannedBoxItem(match.row, match.box, parsed, rawValue);
+}
+
+function getScannerLookupKeys(parsed) {
+  const keys = [];
+  if (parsed.boxId) {
+    keys.push(`box:${parsed.boxId}`);
+  }
+  if (parsed.managementId && parsed.boxNumber) {
+    keys.push(`management:${parsed.managementId}:box:${parsed.boxNumber}`);
+  }
+  if (parsed.productId && parsed.boxNumber) {
+    keys.push(`product:${parsed.productId}:box:${parsed.boxNumber}`);
+  }
+  return keys;
+}
+
+function getScannerLookupKeysForBox(row, box) {
+  return getScannerLookupKeys({
+    boxId: normalizeScanValue(box?.boxId || box?.id || box?.qrId),
+    managementId: normalizeScanValue(row?.managementId),
+    productId: normalizeScanValue(row?.productId),
+    boxNumber: String(box?.number || box?.sequence || "").trim()
+  });
+}
+
+function rebuildScannerLookupIndex() {
+  const index = new Map();
+  state.scannerLookupRows.forEach((row) => {
+    getKnownBoxes(row).forEach((box) => {
+      getScannerLookupKeysForBox(row, box).forEach((key) => {
+        if (key && !index.has(key)) {
+          index.set(key, { row, box });
+        }
+      });
+    });
+  });
+  state.scannerLookupIndex = index;
+}
+
+function compactScannerLookupBox(box) {
+  return {
+    boxId: box?.boxId || box?.id || box?.qrId || "",
+    number: box?.number || box?.sequence || "",
+    quantity: box?.quantity || box?.currentQuantity || "",
+    status: box?.status || "",
+    rawStatus: box?.rawStatus || box?.status || "",
+    storage: box?.storage || box?.storageLocation || "",
+    storageLocation: box?.storageLocation || box?.storage || "",
+    inventoryCategory: box?.inventoryCategory || ""
+  };
+}
+
+function compactCompletedScannerLookupBox(box) {
+  return {
+    boxId: box?.boxId || box?.id || box?.qrId || "",
+    number: box?.number || box?.sequence || "",
+    status: box?.status || "출고완료",
+    rawStatus: box?.rawStatus || box?.status || "출고완료"
+  };
+}
+
+function compactScannerLookupRow(row) {
+  return {
+    managementId: row?.managementId || "",
+    productId: row?.productId || "",
+    clientName: row?.clientName || "",
+    productName: row?.productName || "",
+    stockStatus: row?.stockStatus || "",
+    processStatus: row?.processStatus || "",
+    registrant: row?.registrant || "",
+    inspector: row?.inspector || "",
+    registeredAt: row?.registeredAt || "",
+    inboundDate: row?.inboundDate || "",
+    batch: row?.batch || "",
+    finalProcess: row?.finalProcess || "",
+    storage: row?.storage || "",
+    boxQuantity: row?.boxQuantity || "",
+    trayQuantity: row?.trayQuantity || "",
+    currentBoxCount: row?.currentBoxCount || row?.boxTotalCount || "",
+    boxTotalCount: row?.boxTotalCount || row?.currentBoxCount || "",
+    currentTotalQuantity: row?.currentTotalQuantity || "",
+    completedShippingType: row?.completedShippingType || "",
+    countsAsInventory: row?.countsAsInventory !== false,
+    activeShippingBoxes: (Array.isArray(row?.activeShippingBoxes) ? row.activeShippingBoxes : []).map(compactScannerLookupBox),
+    shippedShippingBoxes: (Array.isArray(row?.shippedShippingBoxes) ? row.shippedShippingBoxes : []).map(compactCompletedScannerLookupBox)
+  };
+}
+
+function replaceScannerLookupRows(rows, savedAt = Date.now()) {
+  state.scannerLookupRows = (Array.isArray(rows) ? rows : [])
+    .map(compactScannerLookupRow)
+    .filter((row) => getKnownBoxes(row).length > 0);
+  state.scannerLookupSavedAt = Number(savedAt) || Date.now();
+  rebuildScannerLookupIndex();
+}
+
+function upsertScannerLookupRow(row) {
+  const compactRow = compactScannerLookupRow(row);
+  const managementId = normalizeScanValue(compactRow.managementId);
+  const productId = normalizeScanValue(compactRow.productId);
+  const existingIndex = state.scannerLookupRows.findIndex((candidate) => {
+    return normalizeScanValue(candidate?.managementId) === managementId
+      && normalizeScanValue(candidate?.productId) === productId;
+  });
+
+  if (existingIndex >= 0) {
+    state.scannerLookupRows[existingIndex] = compactRow;
+  } else {
+    state.scannerLookupRows.push(compactRow);
+  }
+  state.scannerLookupSavedAt = Date.now();
+  rebuildScannerLookupIndex();
 }
 
 function isInventoryMoveLookupBoxAvailable(box, item) {
@@ -4730,6 +4941,44 @@ function getMobileCacheUserKey() {
   return String(state.user?.accountId || state.user?.name || "").trim();
 }
 
+function restoreScannerLookupCache() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(SCANNER_LOOKUP_CACHE_KEY) || "null");
+    const currentUserKey = getMobileCacheUserKey();
+    const savedAt = Number(cached?.savedAt) || 0;
+    const isExpired = !savedAt || Date.now() - savedAt > SCANNER_LOOKUP_CACHE_MAX_AGE_MS;
+    const isDifferentUser = cached?.userKey && currentUserKey && cached.userKey !== currentUserKey;
+    if (!Array.isArray(cached?.rows) || isExpired || isDifferentUser) {
+      if (cached) {
+        localStorage.removeItem(SCANNER_LOOKUP_CACHE_KEY);
+      }
+      return false;
+    }
+
+    replaceScannerLookupRows(cached.rows, savedAt);
+    return state.scannerLookupIndex.size > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+function saveScannerLookupCache() {
+  if (!state.scannerLookupRows.length) {
+    return false;
+  }
+
+  try {
+    localStorage.setItem(SCANNER_LOOKUP_CACHE_KEY, JSON.stringify({
+      userKey: getMobileCacheUserKey(),
+      savedAt: state.scannerLookupSavedAt || Date.now(),
+      rows: state.scannerLookupRows
+    }));
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 function restoreCachedDashboard() {
   try {
     const cached = JSON.parse(localStorage.getItem(DASHBOARD_CACHE_KEY) || "null");
@@ -4746,6 +4995,8 @@ function restoreCachedDashboard() {
 
     state.dashboard = cached.rows;
     state.dashboardLoadedAt = savedAt;
+    replaceScannerLookupRows(state.dashboard, savedAt);
+    saveScannerLookupCache();
     syncPendingShippingRowsFromDashboard();
     syncScannedMoveRowsFromDashboard();
     return true;
@@ -4769,6 +5020,7 @@ function saveDashboardCache() {
 function clearPersistentMobileData() {
   try {
     localStorage.removeItem(DASHBOARD_CACHE_KEY);
+    localStorage.removeItem(SCANNER_LOOKUP_CACHE_KEY);
     localStorage.removeItem(PERSISTENT_SCANNED_ROWS_KEY);
   } catch (error) {
     // Private browsing or device policy can block persistent storage.

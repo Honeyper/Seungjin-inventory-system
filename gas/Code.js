@@ -18,6 +18,8 @@ const APP_ENVIRONMENTS = {
 const CONFIG = buildRuntimeConfig_();
 const API_READ_CACHE_TTL_SECONDS = 45;
 const INVENTORY_DASHBOARD_CACHE_TTL_SECONDS = 300;
+const INVENTORY_QR_LOOKUP_CACHE_TTL_SECONDS = 300;
+const INVENTORY_QR_HEADER_CACHE_TTL_SECONDS = 21600;
 const API_READ_CACHE_CHUNK_SIZE = 70000;
 const API_READ_CACHE_SCHEMA_VERSION = 'v7';
 const API_READ_CACHE_VERSION_PROPERTY = 'API_READ_CACHE_VERSION';
@@ -185,7 +187,85 @@ function getInventoryByQr(payload) {
     throw new Error('조회할 QR 정보가 없습니다.');
   }
 
-  return findInventoryByQrInSheets_(qr);
+  const cacheKey = getInventoryQrLookupCacheKey_(qr);
+  const cachedLookup = readInventoryQrLookupCache_(cacheKey);
+  if (cachedLookup?.row) {
+    return {
+      ...cachedLookup,
+      lookupSource: 'qr-cache'
+    };
+  }
+
+  const dashboardLookup = findInventoryByQrInCachedDashboard_(qr);
+  if (dashboardLookup?.row) {
+    writeInventoryQrLookupCache_(cacheKey, dashboardLookup);
+    return {
+      ...dashboardLookup,
+      lookupSource: 'dashboard-cache'
+    };
+  }
+
+  const sheetLookup = findInventoryByQrInSheets_(qr);
+  if (sheetLookup?.row) {
+    writeInventoryQrLookupCache_(cacheKey, sheetLookup);
+  }
+  return {
+    ...sheetLookup,
+    lookupSource: 'sheet'
+  };
+}
+
+function getInventoryQrLookupCacheKey_(qr) {
+  const parts = [
+    qr.boxId || '-',
+    qr.managementId || '-',
+    qr.productId || '-',
+    qr.boxNumber || '-'
+  ].map((value) => normalizeInventoryQrLookupValue_(value).replace(/[^a-z0-9._-]/g, '_'));
+  return `inventory-qr-lookup-v2-${parts.join('-')}`.slice(0, 180);
+}
+
+function readInventoryQrLookupCache_(key) {
+  try {
+    const cached = CacheService.getScriptCache().get(getApiCacheKey_(key));
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeInventoryQrLookupCache_(key, value) {
+  try {
+    CacheService.getScriptCache().put(
+      getApiCacheKey_(key),
+      JSON.stringify(value),
+      INVENTORY_QR_LOOKUP_CACHE_TTL_SECONDS
+    );
+  } catch (error) {
+    // QR lookup cache failures must not block the live sheet lookup.
+  }
+}
+
+function findInventoryByQrInCachedDashboard_(qr) {
+  const dashboard = readChunkedApiCache_('inventory-dashboard-with-categories-v2');
+  const rows = Array.isArray(dashboard?.rows) ? dashboard.rows : [];
+
+  for (const row of rows) {
+    if (qr.managementId && normalizeInventoryQrLookupValue_(row?.managementId) !== qr.managementId) {
+      continue;
+    }
+    if (qr.productId && normalizeInventoryQrLookupValue_(row?.productId) !== qr.productId) {
+      continue;
+    }
+
+    const matchedBox = getInventoryQrLookupBoxes_(row)
+      .find((box) => isInventoryQrLookupBoxMatch_(box, qr));
+    if (matchedBox) {
+      return { row, box: matchedBox };
+    }
+  }
+
+  return null;
 }
 
 function findInventoryByQrInSheets_(qr) {
@@ -265,6 +345,22 @@ function findInventoryByQrInSheets_(qr) {
 
 function getInventoryQrSheetContext_(sheet, requiredHeaders) {
   const lastRow = sheet.getLastRow();
+  const headerCacheKey = `sj-${CONFIG.ENV}-inventory-qr-headers-v1-${sheet.getSheetId()}`;
+  try {
+    const cached = JSON.parse(CacheService.getScriptCache().get(headerCacheKey) || 'null');
+    if (cached?.headers?.length && cached?.indexes && cached?.lastColumn) {
+      return {
+        headers: cached.headers,
+        indexes: cached.indexes,
+        rowIndex: Number(cached.rowIndex),
+        lastRow,
+        lastColumn: Number(cached.lastColumn)
+      };
+    }
+  } catch (error) {
+    // Header cache misses must fall through to the sheet probe.
+  }
+
   const lastColumn = sheet.getLastColumn();
   if (!lastRow || !lastColumn) {
     return { headers: [], indexes: {}, rowIndex: -1, lastRow, lastColumn };
@@ -277,13 +373,28 @@ function getInventoryQrSheetContext_(sheet, requiredHeaders) {
     return { headers: [], indexes: {}, rowIndex: -1, lastRow, lastColumn };
   }
 
-  return {
+  const context = {
     headers: headerInfo.headers,
     indexes: indexHeaders_(headerInfo.headers),
     rowIndex: headerInfo.rowIndex,
     lastRow,
     lastColumn
   };
+  try {
+    CacheService.getScriptCache().put(
+      headerCacheKey,
+      JSON.stringify({
+        headers: context.headers,
+        indexes: context.indexes,
+        rowIndex: context.rowIndex,
+        lastColumn: context.lastColumn
+      }),
+      INVENTORY_QR_HEADER_CACHE_TTL_SECONDS
+    );
+  } catch (error) {
+    // Header cache failures must not block QR lookup.
+  }
+  return context;
 }
 
 function findInventoryQrRowsByValue_(sheet, context, columnNames, value) {
