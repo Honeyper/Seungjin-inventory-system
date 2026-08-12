@@ -1104,7 +1104,7 @@
                   <span>출고 상태</span>
                   <select>
                     <option value="">전체</option>
-                    <option>출고대기(검수완료)</option>
+                    <option value="출고대기(검수완료)">출고대기(부분출고 포함)</option>
                     <option>출고 보류</option>
                     <option value="일부 출고">부분출고</option>
                     <option>출고 완료</option>
@@ -1153,7 +1153,7 @@
                   <select id="shippingPageSizeSelect">
                     <option value="10">10개씩 보기</option>
                     <option value="20">20개씩 보기</option>
-                    <option value="30">30개씩 보기</option>
+                    <option value="30" selected>30개씩 보기</option>
                   </select>
                 </label>
               </div>
@@ -2538,6 +2538,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260812-shipping-discard-restore"></script>
+    <script src="./admin.js?v=20260813-shipping-data-sync"></script>
   </body>
 </html>

@@ -92,7 +92,7 @@ const state = {
   page: 1,
   pageSize: 10,
   shippingPage: 1,
-  shippingPageSize: 10,
+  shippingPageSize: 30,
   shippingFilters: {
     query: "",
     client: "",
@@ -3621,7 +3621,8 @@ function getShippingSourceRows() {
       (sum, box) => sum + parseShippingSettlementNumber(box.quantity),
       0
     );
-    return !["폐기"].includes(status) && (quantity > 0 || status === "출고완료");
+    return !["폐기"].includes(status)
+      && (quantity > 0 || ["출고대기", "보류", "일부 출고", "출고완료"].includes(status));
   });
 }
 
@@ -3648,8 +3649,13 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
       return false;
     }
 
-    if (filters.status && getShippingStatusFilterValue(item) !== filters.status) {
-      return false;
+    if (filters.status) {
+      const matchesStatus = filters.status === SHIPPING_READY_STATUS_LABEL
+        ? hasPendingShippingBoxes(item)
+        : getShippingStatusFilterValue(item) === filters.status;
+      if (!matchesStatus) {
+        return false;
+      }
     }
 
     if (!filters.query) {
@@ -3871,6 +3877,12 @@ function isClassifiedRemainingInventoryBox(box) {
 function getShippingWorkflowActiveBoxes(item) {
   return (Array.isArray(item?.activeShippingBoxes) ? item.activeShippingBoxes : [])
     .filter((box) => !isClassifiedRemainingInventoryBox(box));
+}
+
+function hasPendingShippingBoxes(item) {
+  return getShippingWorkflowActiveBoxes(item).some((box) => (
+    normalizeInventoryStockStatus(box?.status) === "출고대기"
+  ));
 }
 
 function getEffectiveShippingStatus(item) {
@@ -4201,7 +4213,7 @@ function updateShippingSummaryCards(rows) {
 
   const settlementRows = Array.isArray(rows) ? rows : getShippingSettlementItems();
   const counts = [
-    settlementRows.filter((item) => getEffectiveShippingStatus(item) === "출고대기").length,
+    settlementRows.filter(hasPendingShippingBoxes).length,
     settlementRows.filter((item) => getEffectiveShippingStatus(item) === "보류").length,
     settlementRows.filter((item) => getEffectiveShippingStatus(item) === "출고완료").length
   ];

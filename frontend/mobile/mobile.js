@@ -4358,15 +4358,37 @@ function syncPendingShippingRowsFromDashboard() {
   state.scannedShippingRows.forEach((row) => {
     const key = getShippingKey(row);
     const pendingRow = pendingByKey.get(key);
-    if (row.syncedFromPending && !pendingRow) {
+
+    if (pendingRow) {
+      mergedRows.push({
+        ...pendingRow,
+        scannedQrValue: row.scannedQrValue || pendingRow.scannedQrValue || "",
+        syncedFromPending: true
+      });
+      mergedKeys.add(key);
       return;
     }
 
-    if (pendingRow) {
-      Object.assign(row, pendingRow);
+    if (row.syncedFromPending) {
+      return;
     }
-    mergedRows.push(row);
-    mergedKeys.add(key);
+
+    const match = findSavedShippingRowInDashboard(row);
+    if (!match) {
+      return;
+    }
+
+    const refreshedRow = buildScannedBoxItem(match.row, match.box, {
+      boxId: normalizeScanValue(match.box?.boxId || match.box?.id || match.box?.qrId || row.scannedBoxId),
+      managementId: normalizeScanValue(match.row.managementId),
+      productId: normalizeScanValue(match.row.productId),
+      boxNumber: String(match.box?.number || match.box?.sequence || row.scannedBoxNumber || "").trim()
+    }, row.scannedQrValue || "");
+    const refreshedKey = getShippingKey(refreshedRow);
+    if (!mergedKeys.has(refreshedKey)) {
+      mergedRows.push({ ...refreshedRow, syncedFromPending: false });
+      mergedKeys.add(refreshedKey);
+    }
   });
 
   pendingRows.forEach((row) => {
@@ -4379,6 +4401,40 @@ function syncPendingShippingRowsFromDashboard() {
 
   state.scannedShippingRows = mergedRows;
   saveScannedShippingRows();
+}
+
+function findSavedShippingRowInDashboard(savedRow) {
+  const managementId = normalizeScanValue(savedRow?.managementId);
+  const productId = normalizeScanValue(savedRow?.productId);
+  const productName = normalizeScanValue(savedRow?.productName);
+  const clientName = normalizeScanValue(savedRow?.clientName);
+  const parsed = {
+    boxId: normalizeScanValue(savedRow?.scannedBoxId || savedRow?.scannedBox?.boxId),
+    boxNumber: String(savedRow?.scannedBoxNumber || savedRow?.scannedBox?.number || "").trim()
+  };
+
+  const candidates = state.dashboard.filter((row) => {
+    if (managementId && normalizeScanValue(row?.managementId) !== managementId) {
+      return false;
+    }
+    if (productId && normalizeScanValue(row?.productId) !== productId) {
+      return false;
+    }
+    if (!managementId && !productId) {
+      return normalizeScanValue(row?.productName) === productName
+        && (!clientName || normalizeScanValue(row?.clientName) === clientName);
+    }
+    return true;
+  });
+
+  for (const row of candidates) {
+    const box = findMatchedBox(getKnownBoxes(row), parsed);
+    if (box) {
+      return { row, box };
+    }
+  }
+
+  return null;
 }
 
 function findShippingByQrValue(rawValue) {
