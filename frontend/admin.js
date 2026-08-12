@@ -126,6 +126,7 @@ const state = {
   activeDetailInboundId: "",
   activeDetailInboundProductId: "",
   activeDetailInboundRecord: null,
+  activeShippingDetailItem: null,
   activeQrInboundId: "",
   activeQrInboundProductId: "",
   activeMenuProductCode: "",
@@ -150,6 +151,7 @@ const state = {
   isSavingShippingCompletion: false,
   isSavingShippingCancel: false,
   isSavingTransferReturn: false,
+  isCancelingDiscardedBoxes: false,
   inboundProductPickerQuery: "",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
@@ -349,6 +351,7 @@ const shippingInspectionPhotoButton = document.querySelector("#shippingInspectio
 const shippingInspectionPhotoName = document.querySelector("#shippingInspectionPhotoName");
 const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
 const shippingInspectionHoldStatus = document.querySelector("#shippingInspectionHoldStatus");
+const shippingInspectionDiscardStatus = document.querySelector("#shippingInspectionDiscardStatus");
 const shippingCompletionModal = document.querySelector("#shippingCompletionModal");
 const shippingCompletionForm = document.querySelector("#shippingCompletionForm");
 const shippingCompletionRecordId = document.querySelector("#shippingCompletionRecordId");
@@ -700,6 +703,16 @@ shippingInspectionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingInspection();
 });
+shippingInspectionHoldStatus?.addEventListener("change", () => {
+  if (shippingInspectionHoldStatus.checked && shippingInspectionDiscardStatus) {
+    shippingInspectionDiscardStatus.checked = false;
+  }
+});
+shippingInspectionDiscardStatus?.addEventListener("change", () => {
+  if (shippingInspectionDiscardStatus.checked && shippingInspectionHoldStatus) {
+    shippingInspectionHoldStatus.checked = false;
+  }
+});
 shippingCompletionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveShippingCompletion();
@@ -1016,6 +1029,12 @@ document.querySelector("#closeInboundDetailModal").addEventListener("click", clo
 closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
 editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
 saveInboundEditButton?.addEventListener("click", saveInboundEdit);
+inboundDetailContent?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-cancel-discarded-boxes]");
+  if (button) {
+    cancelDiscardedBoxesFromDetail(button);
+  }
+});
 closeInboundQrModalButton?.addEventListener("click", closeInboundQrModal);
 closeInboundQrButton?.addEventListener("click", closeInboundQrModal);
 printInboundQrButton?.addEventListener("click", () => window.print());
@@ -1320,6 +1339,9 @@ async function openShippingInspectionModal(row) {
   if (shippingInspectionHoldStatus) {
     shippingInspectionHoldStatus.checked = row.children[14]?.textContent.trim() === "출고 보류";
   }
+  if (shippingInspectionDiscardStatus) {
+    shippingInspectionDiscardStatus.checked = false;
+  }
 
   if (shippingInspectorName) {
     shippingInspectorName.value = session?.name || "Admin";
@@ -1430,7 +1452,7 @@ function renderShippingInspectionBoxList(row) {
           <strong>${box.number}번 박스</strong>
           <small>${escapeHtml(storageLocation)} · ${quantityText}${statusText ? ` · ${statusText}` : ""}</small>
           <span class="shipping-box-quantity-field">
-            <input class="shipping-box-quantity-input" type="number" min="1" step="1" inputmode="numeric" value="${quantity}" aria-label="${box.number}번 박스 수량" ${isDisabled ? "disabled" : ""} />
+            <input class="shipping-box-quantity-input" type="number" min="0" step="1" inputmode="numeric" value="${quantity}" aria-label="${box.number}번 박스 수량" ${isDisabled ? "disabled" : ""} />
             <em>ea</em>
           </span>
         </span>
@@ -1957,14 +1979,19 @@ function updateShippingInspectionDefectRate() {
 
 async function saveShippingInspection() {
   const row = state.activeShippingInspectionRow;
+  if (!row) {
+    return;
+  }
+
   const selectedReasons = Array.from(
     shippingInspectionForm?.querySelectorAll('input[name="shippingDefectReason"]:checked') || []
   ).map((input) => input.value);
   const selectedBoxes = getSelectedShippingInspectionBoxes();
-
-  if (!row) {
-    return;
-  }
+  const discardRequested = Boolean(shippingInspectionDiscardStatus?.checked);
+  const registeredBoxes = getShippingRowBoxes(row, "activeShippingBoxes").filter((box) => (
+    ["출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status))
+  ));
+  const clearShippingWaiting = !discardRequested && selectedBoxes.length === 0 && registeredBoxes.length > 0;
 
   if (!selectedReasons.length) {
     if (shippingInspectionMessage) {
@@ -1973,17 +2000,17 @@ async function saveShippingInspection() {
     return;
   }
 
-  if (!selectedBoxes.length) {
+  if (!selectedBoxes.length && !clearShippingWaiting) {
     if (shippingInspectionMessage) {
       shippingInspectionMessage.textContent = "이번에 출고할 박스를 하나 이상 선택해주세요.";
     }
     return;
   }
 
-  const invalidBoxQuantity = selectedBoxes.find((box) => !Number.isFinite(box.quantity) || box.quantity <= 0);
+  const invalidBoxQuantity = selectedBoxes.find((box) => !Number.isFinite(box.quantity) || box.quantity < 0);
   if (invalidBoxQuantity) {
     if (shippingInspectionMessage) {
-      shippingInspectionMessage.textContent = `${invalidBoxQuantity.number}번 박스 수량을 1ea 이상 입력해주세요.`;
+      shippingInspectionMessage.textContent = `${invalidBoxQuantity.number}번 박스 수량을 0ea 이상 입력해주세요.`;
     }
     return;
   }
@@ -1992,9 +2019,9 @@ async function saveShippingInspection() {
   const defectQuantity = parseShippingSettlementNumber(shippingInspectionDefectQuantity?.value || "");
   const defectRate = getShippingInspectionRateValue();
 
-  if (inspectionQuantity <= 0) {
+  if (inspectionQuantity < 0) {
     if (shippingInspectionMessage) {
-      shippingInspectionMessage.textContent = "검수 수량을 1ea 이상 입력해주세요.";
+      shippingInspectionMessage.textContent = "검수 수량을 0ea 이상 입력해주세요.";
     }
     return;
   }
@@ -2087,9 +2114,21 @@ async function saveShippingInspection() {
       defectReasons: selectedReasons,
       memo,
       holdRequested,
+      discardRequested,
+      clearShippingWaiting,
       defectPhotoFolderUrl,
       defectPhotoCount
     });
+
+    if (clearShippingWaiting || discardRequested) {
+      clearShippingBoxDraft(getShippingDraftKeyFromRow(row));
+      closeShippingInspectionModal();
+      showToast(clearShippingWaiting
+        ? "출고대기 박스를 보관 상태로 변경했습니다."
+        : `${selectedBoxes.length}개 박스를 폐기 처리했습니다.`);
+      await loadInventoryDashboard(false);
+      return;
+    }
 
     const inspectionCell = row.children[11];
     const anomalyCell = row.children[12];
@@ -3516,6 +3555,7 @@ function renderShippingTable(message = "") {
         data-all-shipping-boxes="${escapeAttribute(JSON.stringify(item.allShippingBoxes || []))}"
         data-active-shipping-boxes="${escapeAttribute(JSON.stringify(activeShippingBoxes))}"
         data-shipped-shipping-boxes="${escapeAttribute(JSON.stringify(item.shippedShippingBoxes || []))}"
+        data-discarded-shipping-boxes="${escapeAttribute(JSON.stringify(item.discardedShippingBoxes || []))}"
         data-defect-reason="${escapeAttribute(item.shippingDefectReason || "")}">
         <td>${start + index + 1}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
@@ -4128,6 +4168,9 @@ function buildShippingDetailItemFromRow(row, item = {}) {
   const explicitShippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes");
   const fallbackShippedBoxes = allShippingBoxes.filter((box) => normalizeInventoryStockStatus(box.status) === "출고완료");
   const shippedShippingBoxes = explicitShippedBoxes.length ? explicitShippedBoxes : fallbackShippedBoxes;
+  const explicitDiscardedBoxes = getShippingRowBoxes(row, "discardedShippingBoxes");
+  const fallbackDiscardedBoxes = allShippingBoxes.filter((box) => normalizeInventoryStockStatus(box.status) === "폐기");
+  const discardedShippingBoxes = explicitDiscardedBoxes.length ? explicitDiscardedBoxes : fallbackDiscardedBoxes;
   const fallbackStatus = !activeShippingBoxes.length && shippedShippingBoxes.length ? "출고완료" : item.stockStatus;
 
   return {
@@ -4146,7 +4189,8 @@ function buildShippingDetailItemFromRow(row, item = {}) {
     stockStatus: fallbackStatus,
     allShippingBoxes,
     activeShippingBoxes,
-    shippedShippingBoxes
+    shippedShippingBoxes,
+    discardedShippingBoxes
   };
 }
 
@@ -6786,6 +6830,7 @@ function openShippingDetail(item) {
   state.activeDetailInboundId = item.managementId;
   state.activeDetailInboundProductId = item.productId || "";
   state.activeDetailInboundRecord = null;
+  state.activeShippingDetailItem = item;
   if (inboundDetailTitle) {
     inboundDetailTitle.textContent = "출고 상세보기";
   }
@@ -7319,6 +7364,8 @@ function closeInboundDetailModal() {
   state.activeDetailInboundId = "";
   state.activeDetailInboundProductId = "";
   state.activeDetailInboundRecord = null;
+  state.activeShippingDetailItem = null;
+  state.isCancelingDiscardedBoxes = false;
   state.inboundEditDefectReasons = [];
   setInboundDetailMode("view");
 
@@ -7945,6 +7992,7 @@ function renderInboundDetail(inbound) {
 
 function renderShippingDetail(item) {
   const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
+  const discardedBoxes = Array.isArray(item.discardedShippingBoxes) ? item.discardedShippingBoxes : [];
   const activeBoxes = getShippingWorkflowActiveBoxes(item);
   const classifiedInventoryBoxes = (Array.isArray(item.allShippingBoxes) ? item.allShippingBoxes : [])
     .filter(isClassifiedRemainingInventoryBox);
@@ -8034,7 +8082,64 @@ function renderShippingDetail(item) {
         ${remainingInventoryCategoryText ? detailItem("보관 재고 구분", remainingInventoryCategoryText, false, "full-span") : ""}
       </div>
     </section>
+
+    ${discardedBoxes.length ? `
+      <section class="detail-section discarded-box-detail-section" aria-labelledby="shippingDetailDiscardedTitle">
+        <h3 id="shippingDetailDiscardedTitle">폐기 박스</h3>
+        <div class="discarded-box-detail-panel">
+          <div class="discarded-box-detail-copy">
+            <span>폐기된 박스</span>
+            <strong>${escapeHtml(discardedBoxes.map((box) => `${box.number}번 박스`).join(", "))}</strong>
+            <small>폐기 취소 시 박스는 보관 상태로 복구되고 수량이 다시 재고에 반영됩니다.</small>
+          </div>
+          <button class="discarded-box-cancel-button" type="button" data-cancel-discarded-boxes>폐기 취소</button>
+        </div>
+      </section>
+    ` : ""}
   `;
+}
+
+async function cancelDiscardedBoxesFromDetail(button) {
+  const item = state.activeShippingDetailItem;
+  const discardedBoxes = Array.isArray(item?.discardedShippingBoxes) ? item.discardedShippingBoxes : [];
+
+  if (!item || !discardedBoxes.length || state.isCancelingDiscardedBoxes) {
+    return;
+  }
+
+  const boxNumbers = discardedBoxes.map((box) => `${box.number}번`).join(", ");
+  if (!window.confirm(`${boxNumbers} 박스의 폐기를 취소하고 재고로 복구할까요?`)) {
+    return;
+  }
+
+  state.isCancelingDiscardedBoxes = true;
+  const previousText = button.textContent;
+  button.disabled = true;
+  button.textContent = "복구 중";
+
+  try {
+    const result = await requestApi("cancelDiscardedBoxes", {
+      managementId: item.managementId || "",
+      productId: item.productId || "",
+      clientName: item.clientName || "",
+      productName: item.productName || "",
+      batch: item.batch || "",
+      finalProcess: item.finalProcess || item.process || "",
+      storage: item.storage || "",
+      storageLocation: item.storage || "",
+      selectedBoxes: discardedBoxes.map((box) => box.number),
+      selectedBoxIds: discardedBoxes.map((box) => box.boxId).filter(Boolean),
+      userName: session?.name || "Admin"
+    });
+    closeInboundDetailModal();
+    await loadInventoryDashboard(false);
+    showToast(`${result?.updatedBoxRows || discardedBoxes.length}개 폐기 박스를 재고로 복구했습니다.`);
+  } catch (error) {
+    showToast(error.message || "폐기 취소 처리 중 문제가 발생했습니다.");
+    state.isCancelingDiscardedBoxes = false;
+    button.disabled = false;
+    button.textContent = previousText;
+  }
 }
 
 function renderInboundAttachmentDetail(inbound) {
