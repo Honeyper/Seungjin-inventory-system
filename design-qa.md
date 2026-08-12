@@ -144,6 +144,19 @@ final result: passed
 
 final result: passed
 
+## 72. 모바일 홈 이용 상태 정렬 및 비활성 카드 구분
+
+- 문제 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_3WqCRK/스크린샷 2026-08-12 오전 9.51.42.png`
+- 구현 화면: `/private/tmp/seungjin-home-disabled-card-qa.png`
+- 활성·비활성 카드 모두 동일한 상태 배지 열을 사용하도록 구성해 `사용 가능`과 `이용 불가`의 오른쪽 기준선을 통일했다.
+- 비활성 카드는 연회색 배경, 회색 테두리, 그림자 제거, 회색 아이콘·제목·설명·상태 배지를 함께 적용해 버튼 상태가 카드 전체에서 구분되게 했다.
+- 활성 카드는 기존 흰색 배경과 네이비·골드 조합을 유지해 실제 사용 가능한 메뉴의 우선순위가 흐려지지 않게 했다.
+- 420 × 900과 360 × 800 뷰포트에서 확인했으며, 360px 화면에서 네 상태 배지의 오른쪽 좌표가 모두 `336px`로 일치했다.
+- 기존 버튼의 `disabled` 속성과 활성 카드의 이동 경로는 변경하지 않았다.
+- `git diff --check`를 통과했다.
+
+final result: passed
+
 ## 32. 로그인 소개 문구 간소화
 
 - `SEUNGJIN OPERATIONS`, `현장 업무를 하나의 흐름으로.`, 부연 설명 문구를 제거했다.

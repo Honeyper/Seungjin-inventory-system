@@ -10012,6 +10012,44 @@ body {
   white-space: nowrap;
 }
 
+/* Keep home availability badges aligned and make unavailable cards unmistakable. */
+#homeScreen .mobile-menu-card.locked {
+  grid-template-columns: 60px minmax(0, 1fr) auto 18px;
+  border-color: #d5dbe4;
+  background: #eef1f5;
+  box-shadow: none;
+}
+
+#homeScreen .mobile-menu-card.locked .menu-icon {
+  border-color: #d4dae3;
+  background: #e4e8ee;
+}
+
+#homeScreen .mobile-menu-card.locked .menu-generated-icon {
+  filter: grayscale(1);
+  opacity: 0.48;
+}
+
+#homeScreen .mobile-menu-card.locked .menu-copy strong {
+  color: #667286;
+}
+
+#homeScreen .mobile-menu-card.locked .menu-copy small {
+  color: #8792a3;
+}
+
+#homeScreen .mobile-menu-card.locked .status-pill.pending {
+  border-color: #cbd2dc;
+  color: #647084;
+  background: #e2e6ec;
+}
+
+@media (max-width: 370px) {
+  #homeScreen .mobile-menu-card.locked {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+  }
+}
+
 /* 2026-08-07 balanced typography for mobile management screens */
 
 #shippingScreen .mobile-toolbar h1,
