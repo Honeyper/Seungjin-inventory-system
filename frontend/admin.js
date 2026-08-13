@@ -8161,7 +8161,7 @@ function renderShippingDetail(item) {
         ${detailItem("최초 입고일", item.inboundDate)}
         ${detailItem("최초 입고 박스", formatDetailMetric(initialInboundBoxCount, "box"))}
         ${detailItem("최초 입고량", formatDetailMetric(item.inboundTotalQuantity, "ea"))}
-        ${detailItem("출고 상태", renderShippingStatusBadge(item), true)}
+        ${detailItem("출고 상태", renderShippingStatusBadge(item), true, "status-detail-item")}
         ${detailItem("출고일", latestShippingDate)}
         ${detailItem("출고 시간", latestShippingTime)}
         ${detailItem("출고자", latestShipper)}

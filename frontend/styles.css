@@ -11341,6 +11341,17 @@ input {
   font-size: 0.7rem;
 }
 
+#inboundDetailModal:not(.is-editing) .detail-item.status-detail-item > strong {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+#inboundDetailModal:not(.is-editing) .detail-item.status-detail-item .shipping-status-badges {
+  align-items: flex-start;
+}
+
 #productDetailModal .detail-actions,
 #inboundDetailModal:not(.is-editing) .detail-actions {
   align-items: center;
