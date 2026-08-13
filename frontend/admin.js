@@ -5495,11 +5495,15 @@ function getExistingStockPayload() {
   const boxQuantity = getNumberValue(existingStockBoxQuantity);
   const inboundBoxCount = getNumberValue(existingStockBoxCount);
   const remainQuantity = getNumberValue(existingStockRemainQuantity);
+  const inventoryCategory = existingStockForm
+    ?.querySelector('input[name="existingStockInventoryCategory"]:checked')
+    ?.value || "";
   const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
   const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
 
   return {
     entryCategory: "기존재고",
+    inventoryCategory,
     registrant: existingStockRegistrant.value.trim() || session?.name || "Admin",
     inboundDate: existingStockDate.value.trim(),
     inboundTime: "00:00",
@@ -5525,6 +5529,7 @@ function getExistingStockPayload() {
 
 function validateExistingStockPayload(payload) {
   const requiredFields = [
+    ["inventoryCategory", "재고 유형을 선택해주세요."],
     ["inboundDate", "등록일을 입력해주세요."],
     ["productName", "제품을 선택해주세요."],
     ["productId", "제품 ID를 확인해주세요."],

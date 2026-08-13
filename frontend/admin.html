@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260813-existing-stock-product-create" />
+    <link rel="stylesheet" href="./styles.css?v=20260813-existing-stock-category" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260806-qr-print-margin-5mm" />
   </head>
   <body class="admin-body">
@@ -2329,6 +2329,32 @@
               <span>재고 기본 정보</span>
             </h3>
             <div class="form-grid existing-stock-grid">
+              <fieldset class="existing-stock-category-field">
+                <legend>재고 유형 <b>*</b></legend>
+                <div class="remaining-inventory-category-grid existing-stock-category-grid">
+                  <label class="remaining-inventory-category-card existing-stock-category-card">
+                    <input type="radio" name="existingStockInventoryCategory" value="자사재고" checked required />
+                    <span class="remaining-inventory-category-icon" aria-hidden="true">
+                      <i class="ti ti-printer"></i>
+                    </span>
+                    <span>
+                      <strong>인쇄재고</strong>
+                      <small>인쇄가 완료된 자사 소유 재고로 등록</small>
+                    </span>
+                  </label>
+                  <label class="remaining-inventory-category-card existing-stock-category-card">
+                    <input type="radio" name="existingStockInventoryCategory" value="사출 보관재고" required />
+                    <span class="remaining-inventory-category-icon" aria-hidden="true">
+                      <i class="ti ti-package"></i>
+                    </span>
+                    <span>
+                      <strong>사출재고</strong>
+                      <small>미인쇄 사출 용기를 보관하는 재고로 등록</small>
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+
               <div class="form-field stock-product-field">
                 <span>제품명 <b>*</b></span>
                 <div class="stock-product-controls">
@@ -2544,6 +2570,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260813-direct-inventory-classification"></script>
+    <script src="./admin.js?v=20260813-existing-stock-category"></script>
   </body>
 </html>

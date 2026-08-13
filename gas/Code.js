@@ -2245,6 +2245,19 @@ function isExistingStockInboundType_(value) {
   return String(value || '').replace(/\s/g, '') === '기존재고';
 }
 
+function normalizeExistingStockInventoryCategory_(value) {
+  const normalized = String(value || '').replace(/\s+/g, '').trim();
+
+  if (['자사재고', '인쇄재고'].includes(normalized)) {
+    return '자사재고';
+  }
+  if (['사출보관재고', '사출재고'].includes(normalized)) {
+    return '사출 보관재고';
+  }
+
+  return '';
+}
+
 function createInbound(payload) {
   payload.productId = String(payload.productId || payload.productCode || payload['제품ID'] || payload['제품 ID'] || '').trim();
   payload.productName = String(payload.productName || payload['제품명'] || '').trim();
@@ -2258,6 +2271,9 @@ function createInbound(payload) {
 
   const category = normalizeInboundCategory_(payload);
   const isExistingStock = category === '기존재고';
+  const inventoryCategory = isExistingStock
+    ? normalizeExistingStockInventoryCategory_(payload.inventoryCategory || payload['재고 구분'])
+    : '';
   const required = [
     ['productId', '제품 ID'],
     ['productName', '제품명'],
@@ -2271,6 +2287,10 @@ function createInbound(payload) {
 
   if (!isExistingStock) {
     required.push(['defectReason', '불량 사유']);
+  }
+
+  if (isExistingStock && !inventoryCategory) {
+    throw new Error('재고 유형을 선택해주세요.');
   }
 
   required.forEach(([key, label]) => {
@@ -2303,9 +2323,11 @@ function createInbound(payload) {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
     ensureStockDbAttachmentHeaders_(stockSheet);
+    ensureBoxDbShippingInspectionHeaders_(boxSheet);
     const now = new Date();
     const timezone = 'Asia/Seoul';
     const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
+    const inventoryClassifiedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
     const managementDate = Utilities.formatDate(now, timezone, 'yyMMdd');
     const managementId = generateInboundManagementId_(stockSheet, boxSheet, managementDate, payload.productId);
     const totalBoxCount = inboundBoxCount + remainderQuantities.length;
@@ -2368,7 +2390,10 @@ function createInbound(payload) {
         currentQuantity: formatEa_(currentQuantity),
         storage: dash_(payload.storage),
         status: '보관',
-        registeredDate
+        registeredDate,
+        inventoryCategory,
+        inventoryClassifiedAt: inventoryCategory ? inventoryClassifiedAt : '',
+        inventoryClassifier: inventoryCategory ? String(payload.registrant || 'Admin').trim() || 'Admin' : ''
       });
     }
 
@@ -2379,7 +2404,8 @@ function createInbound(payload) {
       stockRow,
       boxStartRow,
       boxCount: boxRecords.length,
-      boxIds: boxRecords.map((record) => record.boxId)
+      boxIds: boxRecords.map((record) => record.boxId),
+      inventoryCategory
     };
   } finally {
     lock.releaseLock();
@@ -2773,6 +2799,9 @@ function appendBoxManagementRows_(sheet, boxRecords) {
     setRowValue_(row, indexes, ['검수수량'], '');
     setRowValue_(row, indexes, ['불량률'], '');
     setRowValue_(row, indexes, ['비고'], '-');
+    setRowValue_(row, indexes, ['재고 구분', '재고구분'], record.inventoryCategory || '');
+    setRowValue_(row, indexes, ['재고 구분일시', '재고구분일시'], record.inventoryClassifiedAt || '');
+    setRowValue_(row, indexes, ['재고 구분자', '재고구분자'], record.inventoryClassifier || '');
 
     return row.slice(startColumn - 1);
   });

@@ -5892,6 +5892,51 @@ input {
   grid-column: span 2;
 }
 
+.existing-stock-create-form .existing-stock-category-field {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.existing-stock-create-form .existing-stock-category-field legend {
+  margin-bottom: 0.4rem;
+  color: var(--navy-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.existing-stock-create-form .existing-stock-category-field legend b {
+  color: #d62929;
+}
+
+.existing-stock-create-form .existing-stock-category-grid {
+  gap: 0.6rem;
+}
+
+.existing-stock-create-form .existing-stock-category-card {
+  grid-template-columns: auto 2.35rem minmax(0, 1fr);
+  min-height: 4.35rem;
+  padding: 0.68rem 0.75rem;
+  border-radius: 0.55rem;
+}
+
+.existing-stock-create-form .existing-stock-category-card .remaining-inventory-category-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  font-size: 1.1rem;
+  border-radius: 0.52rem;
+}
+
+.existing-stock-create-form .existing-stock-category-card strong {
+  font-size: 0.84rem;
+}
+
+.existing-stock-create-form .existing-stock-category-card small {
+  font-size: 0.7rem;
+}
+
 .existing-stock-create-form .stock-product-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -10807,6 +10852,10 @@ input {
   }
 
   .existing-stock-create-form .stock-product-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .existing-stock-create-form .existing-stock-category-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
