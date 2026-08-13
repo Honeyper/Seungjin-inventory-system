@@ -427,6 +427,7 @@ const remainingInventoryRecordId = document.querySelector("#remainingInventoryRe
 const remainingInventoryProduct = document.querySelector("#remainingInventoryProduct");
 const remainingInventoryClient = document.querySelector("#remainingInventoryClient");
 const remainingInventoryInboundDate = document.querySelector("#remainingInventoryInboundDate");
+const remainingInventoryLatestShippingLabel = document.querySelector("#remainingInventoryLatestShippingLabel");
 const remainingInventoryLatestShippingDate = document.querySelector("#remainingInventoryLatestShippingDate");
 const remainingInventoryCategorySection = document.querySelector("#remainingInventoryCategorySection");
 const remainingInventoryBoxTitle = document.querySelector("#remainingInventoryBoxTitle");
@@ -2527,6 +2528,8 @@ function openRemainingInventoryModal(row, mode = "classify") {
   }
 
   const isAdjustment = mode === "adjust";
+  const hasPreviousShipping = getShippingRowBoxes(row, "shippedShippingBoxes").length > 0;
+  const isDirectClassification = !isAdjustment && !hasPreviousShipping;
   const targetBoxes = isAdjustment
     ? getRemainingInventoryAdjustmentTargetBoxes(row)
     : getRemainingInventoryTargetBoxes(row);
@@ -2550,18 +2553,24 @@ function openRemainingInventoryModal(row, mode = "classify") {
   if (remainingInventoryDescription) {
     remainingInventoryDescription.textContent = isAdjustment
       ? "재고 조사 중 확인된 출고 누락 박스를 선택해 출고완료(재고조정)로 처리합니다."
-      : "부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.";
+      : isDirectClassification
+        ? "출고대기 등록 없이 현재 보관 박스를 자사재고 또는 사출 보관재고로 구분합니다."
+        : "부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.";
   }
   if (remainingInventoryCategorySection) {
     remainingInventoryCategorySection.hidden = isAdjustment;
   }
   if (remainingInventoryBoxTitle) {
-    remainingInventoryBoxTitle.textContent = isAdjustment ? "조정할 박스" : "등록할 남은 박스";
+    remainingInventoryBoxTitle.textContent = isAdjustment
+      ? "조정할 박스"
+      : isDirectClassification ? "등록할 보관 박스" : "등록할 남은 박스";
   }
   if (remainingInventoryBoxHelp) {
     remainingInventoryBoxHelp.textContent = isAdjustment
       ? "재고 조사 결과 실제로 출고되었거나 재고에서 확인되지 않은 박스만 선택해주세요."
-      : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
+      : isDirectClassification
+        ? "보관재고로 구분할 박스만 선택해주세요. 수량과 QR 정보는 바뀌지 않습니다."
+        : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
   }
   if (remainingInventoryNoteField) {
     remainingInventoryNoteField.hidden = !isAdjustment;
@@ -2589,9 +2598,12 @@ function openRemainingInventoryModal(row, mode = "classify") {
       .filter(Boolean)
       .sort();
     const latestShippingDate = shippingDates[shippingDates.length - 1] || "";
-    remainingInventoryLatestShippingDate.textContent = latestShippingDate
-      || toDateInputValue(row.dataset.shippingDate)
-      || "-";
+    if (remainingInventoryLatestShippingLabel) {
+      remainingInventoryLatestShippingLabel.textContent = isDirectClassification ? "출고 이력" : "최종 출고일";
+    }
+    remainingInventoryLatestShippingDate.textContent = isDirectClassification
+      ? "없음"
+      : latestShippingDate || toDateInputValue(row.dataset.shippingDate) || "-";
   }
   if (remainingInventorySelectAll) {
     remainingInventorySelectAll.checked = true;
@@ -4160,7 +4172,10 @@ function renderShippingRowAction(item) {
     );
   }
 
-  return '<button class="shipping-row-button" type="button" data-shipping-action="inspect">출고대기 등록</button>';
+  return renderShippingActionSet(
+    { action: "inspect", label: "출고대기 등록" },
+    [{ action: "classifyRemaining", label: "보관 재고 등록", icon: "ti-box" }]
+  );
 }
 
 function openShippingInventoryDetail(row) {
