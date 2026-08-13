@@ -5465,6 +5465,7 @@ function selectExistingStockProduct(product) {
   existingStockProductName.value = normalizeDisplayValue(product.productName);
   existingStockProductId.value = normalizeDisplayValue(product.productCode);
   existingStockClientName.value = normalizeDisplayValue(product.clientName);
+  setSelectValue(existingStockProcess, product.finalProcess);
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);
 
