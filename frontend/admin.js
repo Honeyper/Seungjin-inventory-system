@@ -5589,9 +5589,32 @@ async function saveExistingStock() {
   try {
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
+    const savedInventoryCategory = normalizeInventoryCategory(result?.inventoryCategory || "");
+    const requestedInventoryCategory = normalizeInventoryCategory(payload.inventoryCategory);
+
+    if (requestedInventoryCategory && savedInventoryCategory !== requestedInventoryCategory) {
+      try {
+        const boxCount = Math.max(0, Number(result?.boxCount) || 0);
+        await requestApi("classifyRemainingInventory", {
+          managementId: result?.managementId || "",
+          inventoryCategory: requestedInventoryCategory,
+          selectedBoxes: Array.from({ length: boxCount }, (_, index) => index + 1),
+          selectedBoxIds: Array.isArray(result?.boxIds) ? result.boxIds : [],
+          userName: payload.registrant || signedInAdminName
+        });
+      } catch (classificationError) {
+        await refreshInboundMutationData({ includeProducts: true, includeInventory: true });
+        closeExistingStockModal();
+        const categoryLabel = requestedInventoryCategory === "자사재고" ? "인쇄재고" : "사출재고";
+        showToast(`기존 재고는 등록됐지만 ${categoryLabel} 구분 저장에 실패했습니다. 출고 관리의 보관 재고 등록에서 다시 저장해주세요.`);
+        return;
+      }
+    }
+
     await refreshInboundMutationData({ includeProducts: true, includeInventory: true });
     closeExistingStockModal();
-    showToast(`기존 재고가 저장되었습니다.${managementId}`);
+    const categoryLabel = requestedInventoryCategory === "자사재고" ? "인쇄재고" : "사출재고";
+    showToast(`${categoryLabel}로 기존 재고가 저장되었습니다.${managementId}`);
   } catch (error) {
     existingStockFormMessage.textContent = error.message || "기존 재고 저장에 실패했습니다.";
     showToast(error.message || "기존 재고 저장에 실패했습니다.");
