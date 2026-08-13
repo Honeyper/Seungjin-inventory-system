@@ -8032,6 +8032,7 @@ function renderInboundDetail(inbound) {
 function renderShippingDetail(item) {
   const shippedBoxes = Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [];
   const discardedBoxes = Array.isArray(item.discardedShippingBoxes) ? item.discardedShippingBoxes : [];
+  const initialInboundBoxCount = getInitialInboundBoxCount(item);
   const activeBoxes = getShippingWorkflowActiveBoxes(item);
   const classifiedInventoryBoxes = (Array.isArray(item.allShippingBoxes) ? item.allShippingBoxes : [])
     .filter(isClassifiedRemainingInventoryBox);
@@ -8082,7 +8083,9 @@ function renderShippingDetail(item) {
       <h3 id="shippingDetailBaseTitle">출고 기본 정보</h3>
       <div class="detail-grid">
         ${detailItem("관리 ID", item.managementId)}
-        ${detailItem("입고일", item.inboundDate)}
+        ${detailItem("최초 입고일", item.inboundDate)}
+        ${detailItem("최초 입고 박스", formatDetailMetric(initialInboundBoxCount, "box"))}
+        ${detailItem("최초 입고량", formatDetailMetric(item.inboundTotalQuantity, "ea"))}
         ${detailItem("출고 상태", renderShippingStatusBadge(item), true)}
         ${detailItem("출고일", latestShippingDate)}
         ${detailItem("출고 시간", latestShippingTime)}
@@ -8136,6 +8139,22 @@ function renderShippingDetail(item) {
       </section>
     ` : ""}
   `;
+}
+
+function getInitialInboundBoxCount(item) {
+  const explicitInitialBoxCount = parseShippingSettlementNumber(item?.initialBoxTotalCount || "");
+  if (explicitInitialBoxCount > 0) {
+    return explicitInitialBoxCount;
+  }
+
+  const fullBoxCount = parseShippingSettlementNumber(item?.inboundBoxCount || "");
+  const remainderBoxCount = getInboundRecordRemainderQuantities(item).length;
+  const calculatedBoxCount = fullBoxCount + remainderBoxCount;
+  if (calculatedBoxCount > 0) {
+    return calculatedBoxCount;
+  }
+
+  return Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes.length : 0;
 }
 
 async function cancelDiscardedBoxesFromDetail(button) {
