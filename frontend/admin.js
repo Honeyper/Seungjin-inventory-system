@@ -6566,6 +6566,14 @@ function matchesInventoryStockFilter(item, filterValue) {
   const normalizedFilter = normalizeInventoryCategory(filterValue);
 
   if (INVENTORY_CATEGORY_FILTERS.includes(normalizedFilter)) {
+    const categoryStats = getInventoryCategoryStats(item, normalizedFilter);
+    const hasServerCategoryStats = item?.inventoryCategoryStats
+      && typeof item.inventoryCategoryStats === "object";
+
+    if (hasServerCategoryStats) {
+      return categoryStats.boxCount > 0;
+    }
+
     const itemCategories = Array.isArray(item?.inventoryCategories)
       ? item.inventoryCategories.map(normalizeInventoryCategory)
       : [];
@@ -6582,15 +6590,55 @@ function matchesInventoryStockFilter(item, filterValue) {
   return normalizeInventoryStockStatus(item?.stockStatus) === normalizeInventoryStockStatus(filterValue);
 }
 
+function getInventoryCategoryStats(item, category) {
+  const normalizedCategory = normalizeInventoryCategory(category);
+  const serverStats = item?.inventoryCategoryStats && typeof item.inventoryCategoryStats === "object"
+    ? Object.entries(item.inventoryCategoryStats).find(([key]) => (
+      normalizeInventoryCategory(key) === normalizedCategory
+    ))?.[1]
+    : null;
+
+  if (serverStats) {
+    return {
+      boxCount: parseShippingSettlementNumber(serverStats.boxCount),
+      quantity: parseShippingSettlementNumber(serverStats.quantity)
+    };
+  }
+
+  const categoryBoxes = (Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : []).filter((box) => {
+    const status = normalizeInventoryStockStatus(box?.status);
+    return normalizeInventoryCategory(box?.inventoryCategory) === normalizedCategory
+      && parseShippingSettlementNumber(box?.quantity) > 0
+      && !/출고완료|폐기/.test(status);
+  });
+
+  return {
+    boxCount: categoryBoxes.length,
+    quantity: categoryBoxes.reduce(
+      (sum, box) => sum + parseShippingSettlementNumber(box?.quantity),
+      0
+    )
+  };
+}
+
+function projectInventoryRowForCategory(item, category) {
+  const stats = getInventoryCategoryStats(item, category);
+
+  return {
+    ...item,
+    currentBoxCount: `${formatNumber(stats.boxCount)} box`,
+    currentTotalQuantity: `${formatNumber(stats.quantity)} ea`
+  };
+}
+
 function applyInventoryFilters() {
   syncInventoryFilterState();
   const filters = state.inventoryFilters;
+  const isInventoryCategoryFilter = INVENTORY_CATEGORY_FILTERS.includes(
+    normalizeInventoryCategory(filters.stock)
+  );
 
   state.filteredInventoryRows = state.inventoryRows.filter((item) => {
-    const isInventoryCategoryFilter = INVENTORY_CATEGORY_FILTERS.includes(
-      normalizeInventoryCategory(filters.stock)
-    );
-
     if (item.countsAsInventory === false && !isInventoryCategoryFilter) {
       return false;
     }
@@ -6630,7 +6678,11 @@ function applyInventoryFilters() {
       item.stockStatus,
       item.processStatus
     ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(filters.query)));
-  });
+  }).map((item) => (
+    isInventoryCategoryFilter
+      ? projectInventoryRowForCategory(item, filters.stock)
+      : item
+  ));
 
   renderInventoryTable();
 }

@@ -175,7 +175,7 @@ function getProductsCached_() {
 
 function getInventoryDashboardCached_() {
   return getCachedApiData_(
-    'inventory-dashboard-with-categories-v2',
+    'inventory-dashboard-with-category-totals-v3',
     getInventoryDashboard,
     INVENTORY_DASHBOARD_CACHE_TTL_SECONDS
   );
@@ -1508,9 +1508,8 @@ function getInventoryDashboard() {
     const qrGeneratedCount = boxSummary.qrGeneratedCount || 0;
     const qrPrintStatus = boxTotalCount > 0 && qrGeneratedCount >= boxTotalCount ? 'QR 생성' : '미인쇄';
     const processStatus = stockStatus || '보관';
-    const inventoryCategories = uniqueSorted_((boxSummary.allShippingBoxes || [])
-      .map((box) => box.inventoryCategory)
-      .filter(Boolean));
+    const inventoryCategoryStats = buildInventoryCategoryStats_(boxSummary.allShippingBoxes || []);
+    const inventoryCategories = uniqueSorted_(Object.keys(inventoryCategoryStats));
 
     return {
       managementId,
@@ -1555,6 +1554,7 @@ function getInventoryDashboard() {
       shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
       completedShippingType,
       inventoryCategories,
+      inventoryCategoryStats,
       countsAsInventory: inventoryCategories.length > 0 || isInventorySummaryRow_({
         stockStatus,
         completedShippingType,
@@ -1621,6 +1621,26 @@ function getInventoryDashboard() {
     },
     rows: visibleRows.reverse()
   };
+}
+
+function buildInventoryCategoryStats_(boxes) {
+  return (Array.isArray(boxes) ? boxes : []).reduce((stats, box) => {
+    const category = normalizeExistingStockInventoryCategory_(box && box.inventoryCategory);
+    const status = normalizeStockStatusText_(box && box.status);
+    const quantity = displayQuantityToNumber_(box && box.quantity);
+
+    if (!category || quantity <= 0 || /출고완료|폐기/.test(status)) {
+      return stats;
+    }
+
+    if (!stats[category]) {
+      stats[category] = { boxCount: 0, quantity: 0 };
+    }
+
+    stats[category].boxCount += 1;
+    stats[category].quantity += quantity;
+    return stats;
+  }, {});
 }
 
 function getInventoryRowStockStatuses_(row) {
