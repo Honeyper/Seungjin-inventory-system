@@ -477,6 +477,7 @@ const existingStockNote = document.querySelector("#existingStockNote");
 const existingStockFormMessage = document.querySelector("#existingStockFormMessage");
 const saveExistingStockButton = document.querySelector("#saveExistingStockButton");
 const existingStockProductSearchButton = document.querySelector("#existingStockProductSearchButton");
+const existingStockCreateProductButton = document.querySelector("#existingStockCreateProductButton");
 const inboundSortButtons = document.querySelectorAll("[data-inbound-sort]");
 const inboundNumberInputs = [
   ["#inboundBoxQty", "#calcBoxQty"],
@@ -899,6 +900,11 @@ openExistingStockModalButton?.addEventListener("click", openExistingStockModal);
 document.querySelector("#closeExistingStockModal")?.addEventListener("click", closeExistingStockModal);
 document.querySelector("#cancelExistingStockModal")?.addEventListener("click", closeExistingStockModal);
 existingStockProductSearchButton?.addEventListener("click", () => openInboundProductPicker("existingStock"));
+existingStockCreateProductButton?.addEventListener("click", () => {
+  state.productFormReturnTarget = "existingStockForm";
+  existingStockModal.hidden = true;
+  openProductModal();
+});
 existingStockForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   saveExistingStock();
@@ -8985,6 +8991,13 @@ function closeProductModal() {
   productFormMessage.classList.remove("success");
 
   if (returnTarget) {
+    if (returnTarget === "existingStockForm") {
+      existingStockModal.hidden = false;
+      document.body.classList.add("modal-open");
+      focusModalDialog(existingStockModal);
+      return;
+    }
+
     openInboundProductPicker(returnTarget);
     return;
   }
@@ -9177,11 +9190,22 @@ async function saveProduct() {
     state.productFormReturnTarget = "";
     closeProductModal();
     if (createdProduct) {
-      if (returnTarget === "existingStock") {
+      if (returnTarget === "existingStock" || returnTarget === "existingStockForm") {
+        if (returnTarget === "existingStockForm") {
+          existingStockModal.hidden = false;
+          document.body.classList.add("modal-open");
+        }
         selectExistingStockProduct(createdProduct);
+        if (returnTarget === "existingStockForm") {
+          focusModalDialog(existingStockModal);
+        }
       } else {
         selectInboundProduct(createdProduct);
       }
+    } else if (returnTarget === "existingStockForm") {
+      existingStockModal.hidden = false;
+      document.body.classList.add("modal-open");
+      openInboundProductPicker("existingStock");
     } else if (returnTarget) {
       openInboundProductPicker(returnTarget);
     }

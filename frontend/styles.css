@@ -5892,6 +5892,39 @@ input {
   grid-column: span 2;
 }
 
+.existing-stock-create-form .stock-product-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.existing-stock-create-form .stock-product-create-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 8.3rem;
+  height: 2.65rem;
+  padding: 0 0.85rem;
+  border: 1px solid #b9c8dc;
+  border-radius: 0.42rem;
+  color: #082e6c;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #f8fafc;
+  white-space: nowrap;
+}
+
+.existing-stock-create-form .stock-product-create-button:hover {
+  border-color: #082e6c;
+  background: #eef4fb;
+}
+
+.existing-stock-create-form .stock-product-create-button .ti {
+  font-size: 1rem;
+}
+
 .existing-stock-create-form .form-field {
   font-size: 0.78rem;
 }
@@ -10771,6 +10804,14 @@ input {
 
   .existing-stock-create-form .stock-product-field {
     grid-column: auto;
+  }
+
+  .existing-stock-create-form .stock-product-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .existing-stock-create-form .stock-product-create-button {
+    width: 100%;
   }
 }
 

@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260812-shipping-discard-restore" />
+    <link rel="stylesheet" href="./styles.css?v=20260813-existing-stock-product-create" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260806-qr-print-margin-5mm" />
   </head>
   <body class="admin-body">
@@ -2329,15 +2329,21 @@
               <span>재고 기본 정보</span>
             </h3>
             <div class="form-grid existing-stock-grid">
-              <label class="form-field stock-product-field">
+              <div class="form-field stock-product-field">
                 <span>제품명 <b>*</b></span>
-                <div class="field-with-button">
-                  <input id="existingStockProductName" type="text" placeholder="제품을 선택하세요." readonly required />
-                  <button id="existingStockProductSearchButton" type="button" aria-label="제품 검색">
-                    <i class="ti ti-search" aria-hidden="true"></i>
+                <div class="stock-product-controls">
+                  <div class="field-with-button">
+                    <input id="existingStockProductName" type="text" placeholder="제품을 선택하세요." readonly required />
+                    <button id="existingStockProductSearchButton" type="button" aria-label="제품 검색">
+                      <i class="ti ti-search" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <button class="stock-product-create-button" id="existingStockCreateProductButton" type="button">
+                    <i class="ti ti-plus" aria-hidden="true"></i>
+                    <span>신규 제품 등록</span>
                   </button>
                 </div>
-              </label>
+              </div>
 
               <label class="form-field">
                 <span>거래처명</span>
@@ -2538,6 +2544,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260813-shipping-data-sync"></script>
+    <script src="./admin.js?v=20260813-existing-stock-product-create"></script>
   </body>
 </html>
