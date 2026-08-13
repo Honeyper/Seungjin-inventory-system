@@ -2511,7 +2511,11 @@ function getRemainingInventoryTargetBoxes(row) {
 }
 
 function getRemainingInventoryAdjustmentTargetBoxes(row) {
-  return getShippingRowBoxes(row, "allShippingBoxes")
+  const allBoxes = getShippingRowBoxes(row, "allShippingBoxes");
+  const activeBoxes = getShippingRowBoxes(row, "activeShippingBoxes");
+  const sourceBoxes = allBoxes.length ? allBoxes : activeBoxes;
+
+  return sourceBoxes
     .filter((box) => parseShippingSettlementNumber(box.quantity) > 0
       && normalizeInventoryStockStatus(box.status) === "보관")
     .map((box) => ({

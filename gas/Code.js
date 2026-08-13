@@ -1560,6 +1560,7 @@ function getInventoryDashboard() {
         completedShippingType,
         currentTotalQuantity: inventoryTotalQuantity
       }),
+      allShippingBoxes: boxSummary.allShippingBoxes || [],
       activeShippingBoxes: boxSummary.activeShippingBoxes || [],
       shippedShippingBoxes: boxSummary.shippedShippingBoxes || [],
       discardedShippingBoxes: boxSummary.discardedShippingBoxes || [],
