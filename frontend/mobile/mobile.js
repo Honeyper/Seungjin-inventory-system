@@ -4079,19 +4079,12 @@ async function getScannerStream() {
     return reusableStream;
   }
 
-  const videoConstraints = IS_LOW_POWER_SCANNER
-    ? {
-        facingMode: { ideal: "environment" },
-        width: { min: 640, ideal: 960, max: 1280 },
-        height: { min: 480, ideal: 540, max: 720 },
-        frameRate: { ideal: 20, max: 24 }
-      }
-    : {
-        facingMode: { ideal: "environment" },
-        width: { min: 640, ideal: 1280, max: 1280 },
-        height: { min: 480, ideal: 720, max: 720 },
-        frameRate: { ideal: 24, max: 24 }
-      };
+  const videoConstraints = {
+    facingMode: { ideal: "environment" },
+    width: { min: 1280, ideal: 1920, max: 1920 },
+    height: { min: 720, ideal: 1080, max: 1080 },
+    frameRate: { ideal: 30, max: 30 }
+  };
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
