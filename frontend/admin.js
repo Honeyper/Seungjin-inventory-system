@@ -6752,19 +6752,19 @@ function renderInventoryAggregateRow(rows) {
 
   return `
     <tr class="inventory-total-row">
-      <td><span class="inventory-total-label">합계</span></td>
-      <td><span class="inventory-total-muted">-</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.totalRows)}건</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.clientCount)}곳</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.productCount)}품목</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.batchCount)}개</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.processCount)}개</span></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
       <td><span class="inventory-total-value">${formatNumber(stats.totalBoxes)} box</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.totalQuantity)} ea</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.storageCount)}곳</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.statusCount)}상태</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.dueCount)}건</span></td>
-      <td><span class="inventory-total-muted">-</span></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
     </tr>
   `;
 }
