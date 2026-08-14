@@ -197,9 +197,6 @@ const elements = {
   adminLoginButton: document.querySelector("#adminLoginButton"),
   logoutButton: document.querySelector("#mobileLogoutButton"),
   mobileUserName: document.querySelector("#mobileUserName"),
-  mobileTodayShippingCount: document.querySelector("#mobileTodayShippingCount"),
-  mobileTodayCompletedBoxCount: document.querySelector("#mobileTodayCompletedBoxCount"),
-  mobileInventoryStatus: document.querySelector("#mobileInventoryStatus"),
   shippingSearchInput: document.querySelector("#shippingSearchInput"),
   shippingLiveDate: document.querySelector("#shippingLiveDate"),
   shippingLiveTime: document.querySelector("#shippingLiveTime"),
@@ -1171,7 +1168,6 @@ function navigate(route) {
 
 function showHome() {
   elements.mobileUserName.textContent = state.user?.name || "관리자";
-  renderHomeSummary();
   showScreen("home");
   void refreshDashboardInBackground();
 }
@@ -1222,36 +1218,6 @@ function showScreen(name) {
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
-}
-
-function renderHomeSummary() {
-  const todayKey = toDateKey(new Date());
-  const todayShippingRows = state.dashboard.filter((row) => {
-    return toDateKeyFromValue(row?.shippingDate || row?.shippingUpdatedAt) === todayKey;
-  });
-  const completedBoxCount = todayShippingRows.reduce((sum, row) => {
-    const shippedBoxes = Array.isArray(row?.shippedShippingBoxes) ? row.shippedShippingBoxes : [];
-    const todayBoxes = shippedBoxes.filter((box) => {
-      const boxDate = toDateKeyFromValue(box?.shippingDate || box?.shippingUpdatedAt);
-      return boxDate ? boxDate === todayKey : true;
-    });
-    return sum + todayBoxes.length;
-  }, 0);
-  const needsAttention = state.dashboard.some((row) => {
-    const status = normalizeText(row?.stockStatus || row?.processStatus);
-    return /보류|폐기/.test(status) || parseNumber(row?.shippingDefectQuantity) > 0;
-  });
-
-  if (elements.mobileTodayShippingCount) {
-    elements.mobileTodayShippingCount.textContent = formatNumber(todayShippingRows.length);
-  }
-  if (elements.mobileTodayCompletedBoxCount) {
-    elements.mobileTodayCompletedBoxCount.textContent = formatNumber(completedBoxCount);
-  }
-  if (elements.mobileInventoryStatus) {
-    elements.mobileInventoryStatus.textContent = needsAttention ? "확인 필요" : "정상";
-    elements.mobileInventoryStatus.classList.toggle("attention", needsAttention);
-  }
 }
 
 function handlePageVisibilityChange() {
@@ -1322,7 +1288,6 @@ async function loadShippingDashboard(options = {}) {
       const data = await requestApi("getInventoryDashboard");
       state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
       state.dashboardLoadedAt = Date.now();
-      renderHomeSummary();
       syncPendingShippingRowsFromDashboard();
       syncScannedMoveRowsFromDashboard();
       applyShippingFilters();
@@ -5812,7 +5777,6 @@ function restoreCachedDashboard() {
 
     state.dashboard = cached.rows;
     state.dashboardLoadedAt = savedAt;
-    renderHomeSummary();
     syncPendingShippingRowsFromDashboard();
     syncScannedMoveRowsFromDashboard();
     return true;
