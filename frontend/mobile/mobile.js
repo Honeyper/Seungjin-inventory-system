@@ -2814,7 +2814,7 @@ function renderShippingItem(item) {
     ? completedReturnAction
     : !isPending
       ? { action: "pending", label: "출고대기 등록" }
-      : { action: "complete", label: status === "부분출고" ? "추가 출고" : "출고" };
+      : { action: "complete", label: "출고" };
   const metaParts = [batch, process].filter((value) => value && value !== "-");
   const productDetails = [
     ["관리 ID", normalizeDisplay(item.managementId || "-")],
