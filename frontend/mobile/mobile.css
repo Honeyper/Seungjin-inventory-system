@@ -10212,7 +10212,7 @@ body {
 
 #shippingScreen .shipping-product-details[open] {
   margin: 1px 0 0;
-  padding: 0;
+  padding: 10px 0 0;
   border-color: #dbe4ef;
   border-radius: 0;
   background: transparent;
