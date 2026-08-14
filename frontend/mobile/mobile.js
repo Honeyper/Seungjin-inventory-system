@@ -2032,6 +2032,7 @@ async function openShippingBoxPicker(item, mode = "edit", source = "card") {
     return;
   }
 
+  syncClientToneClass(elements.shippingBoxPickerModal, item.clientName);
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = getShippingProductGroupKey(item);
   state.boxPickerMode = mode;
@@ -2081,6 +2082,7 @@ function openShippingCompletionPicker(item) {
   }
 
   const groupedItem = groupScannedShippingRows(targetItems)[0] || targetItems[0];
+  syncClientToneClass(elements.shippingBoxPickerModal, groupedItem.clientName);
   state.boxPickerProduct = groupedItem;
   state.boxPickerEditingGroupKey = getShippingProductGroupKey(groupedItem);
   state.boxPickerTargetItems = targetItems;
@@ -2121,6 +2123,7 @@ function closeShippingBoxPicker() {
   }
 
   elements.shippingBoxPickerModal.hidden = true;
+  syncClientToneClass(elements.shippingBoxPickerModal, "", { clear: true });
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = "";
   state.boxPickerTargetItems = [];
@@ -6533,6 +6536,20 @@ function getClientToneClass(clientName) {
     hash = ((hash * 31) + character.codePointAt(0)) >>> 0;
   }
   return CLIENT_TONE_CLASS_NAMES[hash % CLIENT_TONE_CLASS_NAMES.length];
+}
+
+function syncClientToneClass(element, clientName, options = {}) {
+  if (!element) {
+    return;
+  }
+
+  Array.from(element.classList)
+    .filter((className) => className.startsWith("client-tone-"))
+    .forEach((className) => element.classList.remove(className));
+
+  if (!options.clear) {
+    element.classList.add(getClientToneClass(clientName));
+  }
 }
 
 function parseNumber(value) {
