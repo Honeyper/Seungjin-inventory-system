@@ -5353,6 +5353,7 @@ function openShippingQuantityEditorModal(items) {
   state.quantityEditorSelectedIndex = 0;
 
   const firstItem = editableItems[0];
+  syncClientToneClass(elements.shippingQuantityModal, firstItem.clientName);
   elements.shippingQuantityClientName.textContent = normalizeDisplay(firstItem.clientName || "-");
   elements.shippingQuantityProductName.textContent = normalizeDisplay(firstItem.productName || "-");
   elements.shippingQuantityBoxCount.textContent = `${formatNumber(editableItems.length)}개 박스`;
@@ -5482,6 +5483,7 @@ function closeShippingQuantityEditor() {
   }
 
   elements.shippingQuantityModal.hidden = true;
+  syncClientToneClass(elements.shippingQuantityModal, "", { clear: true });
   state.quantityEditorItems = [];
   state.quantityEditorSelectedIndex = -1;
   elements.shippingQuantityBoxList.innerHTML = "";

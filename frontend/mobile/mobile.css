@@ -10688,7 +10688,7 @@ body {
 .quantity-editor-product {
   padding: 12px 13px;
   border: 1px solid var(--operations-line);
-  border-left: 3px solid var(--operations-gold);
+  border-left: 3px solid var(--client-accent, var(--operations-gold));
   border-radius: 11px;
   background: #fff;
 }
@@ -10700,7 +10700,7 @@ body {
 
 .quantity-editor-product span {
   margin-bottom: 3px;
-  color: #6c7890;
+  color: var(--client-label-ink, #6c7890);
   font-size: 11px;
   font-weight: 500;
 }
@@ -10747,8 +10747,8 @@ body {
   flex: 0 0 auto;
   padding: 5px 8px;
   border-radius: 7px;
-  color: #845709;
-  background: #fff3d8;
+  color: var(--client-label-ink, #845709);
+  background: var(--client-label-bg, #fff3d8);
   font-size: 10px;
   font-weight: 500;
 }
@@ -10789,9 +10789,10 @@ body {
 }
 
 .quantity-editor-box-option:has(input:checked) {
-  border-color: #d6a643;
-  background: #fffaf0;
-  box-shadow: 0 0 0 2px rgba(211, 154, 34, 0.12);
+  border-color: var(--client-accent, #d6a643);
+  background: var(--client-label-bg, #fffaf0);
+  background: color-mix(in srgb, var(--client-accent, #d6a643) 16%, #fff);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--client-accent, #d6a643) 20%, transparent);
 }
 
 .quantity-editor-box-option:active {
@@ -10822,8 +10823,8 @@ body {
 }
 
 .quantity-editor-box-option:has(input:checked) .quantity-editor-box-number {
-  color: #fff;
-  background: var(--operations-navy);
+  color: var(--client-label-bg, #fff);
+  background: var(--client-label-ink, var(--operations-navy));
 }
 
 .quantity-editor-box-copy,
