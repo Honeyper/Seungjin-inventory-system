@@ -9638,7 +9638,7 @@ body {
   left: auto;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   width: min(100%, 430px);
-  min-height: calc(76px + env(safe-area-inset-bottom));
+  min-height: calc(82px + env(safe-area-inset-bottom));
   padding: 7px 7px env(safe-area-inset-bottom);
   transform: translateX(50%);
   border-top: 1px solid var(--operations-line);
@@ -9648,22 +9648,23 @@ body {
 }
 
 .bottom-nav button {
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
-  min-height: 62px;
-  padding: 6px 2px;
+  min-height: 68px;
+  padding: 7px 2px;
   border-radius: 12px;
   color: #78849a;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.18;
 }
 
 .bottom-nav button span {
   display: block;
-  max-width: 66px;
-  min-height: 21px;
+  max-width: 78px;
+  min-height: 14px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .bottom-nav button.active {
@@ -9676,8 +9677,8 @@ body {
 }
 
 .bottom-nav .bottom-nav-icon {
-  width: 25px;
-  height: 25px;
+  width: 30px;
+  height: 30px;
 }
 
 @media (max-width: 370px) {
@@ -9894,8 +9895,8 @@ body {
 
 .bottom-nav img.bottom-nav-icon {
   display: block;
-  width: 25px;
-  height: 25px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
@@ -9907,6 +9908,21 @@ body {
   #homeScreen .menu-icon .menu-generated-icon {
     width: 36px;
     height: 36px;
+  }
+
+  .bottom-nav button {
+    font-size: 10px;
+    letter-spacing: -0.04em;
+  }
+
+  .bottom-nav button span {
+    max-width: 68px;
+  }
+
+  .bottom-nav .bottom-nav-icon,
+  .bottom-nav img.bottom-nav-icon {
+    width: 28px;
+    height: 28px;
   }
 }
 
