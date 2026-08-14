@@ -9441,8 +9441,7 @@ body {
   white-space: nowrap;
 }
 
-.shipping-primary-action.shipping-cancel-button,
-.status-partial .shipping-primary-action {
+.shipping-primary-action.shipping-cancel-button {
   color: var(--operations-navy);
   background: #fff;
 }
