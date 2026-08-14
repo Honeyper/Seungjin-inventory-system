@@ -5732,6 +5732,65 @@ function applyProductsResult(result) {
   renderClientFilterOptions();
   renderInboundProductPicker();
   applyFilters();
+  syncRegisteredFinalProcessesFromProducts();
+}
+
+function findMasterProductForRegisteredRow(row) {
+  const productId = String(row?.productId || row?.productCode || "").trim();
+
+  if (productId) {
+    const matchedById = state.products.find((product) => (
+      String(product.productId || product.productCode || "").trim() === productId
+    ));
+
+    if (matchedById) {
+      return matchedById;
+    }
+  }
+
+  const productName = normalizeSearchText(row?.productName || "");
+  const clientName = normalizeSearchText(row?.clientName || "");
+
+  if (!productName) {
+    return null;
+  }
+
+  return state.products.find((product) => (
+    normalizeSearchText(product.productName || "") === productName
+    && (!clientName || normalizeSearchText(product.clientName || "") === clientName)
+  )) || null;
+}
+
+function applyMasterFinalProcess(row) {
+  const product = findMasterProductForRegisteredRow(row);
+  const finalProcess = String(product?.finalProcess || "").trim();
+
+  if (!finalProcess || (row.finalProcess === finalProcess && row.process === finalProcess)) {
+    return row;
+  }
+
+  return {
+    ...row,
+    finalProcess,
+    process: finalProcess
+  };
+}
+
+function syncRegisteredFinalProcessesFromProducts() {
+  if (!state.products.length) {
+    return;
+  }
+
+  if (state.todayInbounds.length) {
+    state.todayInbounds = state.todayInbounds.map(applyMasterFinalProcess);
+    renderTodayInbounds();
+  }
+
+  if (state.inventoryLoaded && state.inventoryRows.length) {
+    state.inventoryRows = state.inventoryRows.map(applyMasterFinalProcess);
+    applyInventoryFilters();
+    renderShippingTable();
+  }
 }
 
 async function ensureProductsLoaded() {
@@ -5771,7 +5830,8 @@ async function loadTodayInbounds() {
 }
 
 function applyTodayInboundsResult(result, message = "") {
-  state.todayInbounds = Array.isArray(result?.inbounds) ? result.inbounds : [];
+  state.todayInbounds = (Array.isArray(result?.inbounds) ? result.inbounds : [])
+    .map(applyMasterFinalProcess);
   renderTodayInbounds(message);
 }
 
@@ -5846,7 +5906,8 @@ async function loadInventoryDashboard(showLoadingToast = true) {
 
 function applyInventoryDashboardResult(result) {
   state.inventoryLoaded = true;
-  state.inventoryRows = normalizeInventoryRows(Array.isArray(result?.rows) ? result.rows : []);
+  state.inventoryRows = normalizeInventoryRows(Array.isArray(result?.rows) ? result.rows : [])
+    .map(applyMasterFinalProcess);
   state.inventoryLocationBoxStats = Array.isArray(result?.locationBoxStats) ? result.locationBoxStats : [];
   state.inventoryLocationQuantityStats = Array.isArray(result?.locationQuantityStats) ? result.locationQuantityStats : [];
   renderInventorySummary(result?.summary || {}, buildInventoryAttentionSummary(state.inventoryRows, result?.attention || {}));
