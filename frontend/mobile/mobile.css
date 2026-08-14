@@ -10995,6 +10995,112 @@ body {
   }
 }
 
+/* Keep box selection actions aligned with the quantity editor layout. */
+
+#shippingBoxPickerModal {
+  z-index: 260;
+  align-items: end;
+  padding: 0;
+  background: rgba(4, 17, 39, 0.58);
+  backdrop-filter: blur(8px);
+}
+
+#shippingBoxPickerModal .mobile-box-picker {
+  display: flex;
+  width: min(100%, 430px);
+  max-height: min(90dvh, 720px);
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid #d8e1ec;
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  color: var(--operations-ink);
+  background: #f7f9fc;
+  box-shadow: 0 -24px 64px rgba(4, 29, 70, 0.26);
+  animation: quantity-editor-enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#shippingBoxPickerModal .box-picker-header {
+  min-height: 76px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--operations-line);
+  background: #fff;
+}
+
+#shippingBoxPickerModal .box-picker-header span {
+  color: #91600a;
+  font-size: 10px;
+}
+
+#shippingBoxPickerModal .box-picker-header h2 {
+  margin-top: 3px;
+  color: var(--operations-ink);
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+#shippingBoxPickerModal .box-picker-header button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--operations-line);
+  border-radius: 12px;
+  color: var(--operations-navy);
+  background: #fff;
+}
+
+#shippingBoxPickerModal .box-picker-box-stage {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding: 14px 16px 18px;
+  overscroll-behavior: contain;
+}
+
+#shippingBoxPickerModal .box-picker-selected-product {
+  margin-top: 0;
+  padding: 12px 13px;
+  border-radius: 11px;
+}
+
+#shippingBoxPickerModal .box-picker-section-header {
+  margin: 16px 2px 9px;
+}
+
+#shippingBoxPickerModal .box-picker-check-card {
+  min-height: 108px;
+  padding: 10px;
+  border-radius: 11px;
+}
+
+#shippingBoxPickerModal .box-picker-footer {
+  position: static;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(74px, 0.72fr) minmax(120px, 1.28fr);
+  gap: 8px;
+  align-items: center;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 11px 16px calc(11px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--operations-line);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 -10px 24px rgba(6, 31, 76, 0.06);
+}
+
+#shippingBoxPickerModal .box-picker-footer .primary-action,
+#shippingBoxPickerModal .box-picker-footer .secondary-action {
+  min-height: 50px;
+  margin: 0;
+  border-radius: 11px;
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #shippingBoxPickerModal .mobile-box-picker {
+    animation: none;
+  }
+}
+
 /* 2026-08-07 unified medium typography and compact shipping metrics */
 
 #mobileApp :is(strong, b, h1, h2, h3, h4, h5, h6) {
