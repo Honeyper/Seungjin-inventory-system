@@ -10427,7 +10427,7 @@ body {
 .action-dialog-product {
   padding: 12px 13px;
   border: 1px solid var(--operations-line);
-  border-left: 3px solid var(--operations-gold);
+  border-left: 3px solid var(--client-accent, var(--operations-gold));
   border-radius: 11px;
   background: #fff;
 }
@@ -10439,7 +10439,7 @@ body {
 
 .action-dialog-product span {
   margin-bottom: 4px;
-  color: #778399;
+  color: var(--client-label-ink, #778399);
   font-size: 10px;
   font-weight: 500;
 }

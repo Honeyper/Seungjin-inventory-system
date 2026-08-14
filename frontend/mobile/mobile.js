@@ -2976,6 +2976,7 @@ function openCallbackConfirm({
   state.selectedConfirmMode = "callback";
   state.selectedConfirmCallback = onConfirm;
   state.selectedShippingItem = null;
+  syncClientToneClass(elements.confirmModal, "", { clear: true });
   setConfirmPresentation({ eyebrow, icon, tone, subjectLabel });
   elements.confirmTitle.textContent = title;
   elements.confirmMessage.textContent = message;
@@ -2992,6 +2993,7 @@ function openConfirmModal(item, action = "complete") {
   state.selectedConfirmMode = "item";
   state.selectedShippingItem = item;
   state.selectedShippingAction = action;
+  syncClientToneClass(elements.confirmModal, item?.clientName);
   const scannedBoxLabel = getScannedBoxLabel(item);
   const boxes = getActiveBoxes(item);
   const boxText = Array.isArray(item.scannedItems)
@@ -3020,7 +3022,7 @@ function openConfirmModal(item, action = "complete") {
           : isPendingAction
             ? "ti-clock-check"
             : "ti-truck-delivery",
-    tone: isCancelAction ? "danger" : isInventoryReturnAction ? "move" : isPendingAction ? "pending" : "primary",
+    tone: isInventoryReturnAction ? "move" : isPendingAction ? "pending" : "primary",
     subjectLabel: isInventoryReturnAction ? "복귀 대상" : "선택 제품"
   });
   if (elements.confirmTitle) {
@@ -3087,6 +3089,7 @@ function openScannedShippingConfirmModal(action = "complete") {
   state.selectedConfirmMode = "scannerBatch";
   state.selectedShippingItem = null;
   state.selectedShippingAction = action;
+  syncClientToneClass(elements.confirmModal, "", { clear: true });
 
   setConfirmPresentation({
     eyebrow: "QR 스캔 목록",
@@ -3150,6 +3153,7 @@ function closeConfirmModal() {
     elements.mobileTransferReturnMessage.textContent = "";
   }
   setConfirmPresentation();
+  syncClientToneClass(elements.confirmModal, "", { clear: true });
   elements.confirmModal.hidden = true;
   document.body.classList.remove("modal-open");
   const returnFocus = confirmDialogReturnFocus;
