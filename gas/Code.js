@@ -3771,6 +3771,17 @@ function adjustMissingInventory(payload) {
   }
 }
 
+function isProtectedInventoryAdjustmentRow_(row, indexes) {
+  const inventoryCategory = normalizeInventoryIdentityPart_(
+    pickCell_(row, indexes, ['재고 구분', '재고구분'])
+  );
+  const status = normalizeInventoryIdentityPart_(
+    pickCell_(row, indexes, ['상태', '재고 상태'])
+  );
+  return inventoryCategory === normalizeInventoryIdentityPart_('자사재고')
+    || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
+}
+
 function validateMissingInventoryAdjustmentTargets_(sheet, adjustments) {
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
@@ -3799,6 +3810,10 @@ function validateMissingInventoryAdjustmentTargets_(sheet, adjustments) {
         : matchedBoxNumber;
       if (!expectedBoxes.has(sequence)) {
         continue;
+      }
+
+      if (isProtectedInventoryAdjustmentRow_(values[rowIndex], indexes)) {
+        throw new Error(`${adjustment.productName} ${sequence}번 박스는 사출·인쇄재고로 등록되어 재고조정할 수 없습니다.`);
       }
 
       const status = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
@@ -4509,6 +4524,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     const isAlreadyShipped = /출고완료/.test(rowStatus);
     const isSelectedBox = selectedBoxNumbers.has(sequence);
     const currentQuantity = currentQuantityIndex >= 0 ? displayQuantityToNumber_(values[rowIndex][currentQuantityIndex]) : 0;
+    const isProtectedInventoryAdjustment = isProtectedInventoryAdjustmentRow_(values[rowIndex], indexes);
     const canCancelCompleted = data.status === '보관'
       && data.allowCancelCompleted === true
       && isSelectedBox
@@ -4520,6 +4536,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       && data.allowInventoryAdjustment === true
       && isSelectedBox
       && currentQuantity > 0
+      && !isProtectedInventoryAdjustment
       && !/출고완료|폐기/.test(rowStatus);
     const shouldUpdate = data.status === '출고완료'
       ? canCompleteShipping || canAdjustInventory
