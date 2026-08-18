@@ -109,6 +109,7 @@ const state = {
     direction: "desc"
   },
   shippingListPeriodOnly: false,
+  inboundPage: 1,
   inboundPageSize: 10,
   query: "",
   clientFilter: "",
@@ -584,18 +585,22 @@ inboundSubmitButton?.addEventListener("click", saveInbound);
 refreshInboundListButton?.addEventListener("click", refreshTodayInbounds);
 inboundListSearch?.addEventListener("input", (event) => {
   state.inboundListQuery = normalizeSearchText(event.target.value);
+  state.inboundPage = 1;
   renderTodayInbounds();
 });
 inboundPageSizeSelect?.addEventListener("change", (event) => {
   state.inboundPageSize = Number(event.target.value) || 10;
+  state.inboundPage = 1;
   renderTodayInbounds();
 });
 inboundListStartDate?.addEventListener("change", () => {
   normalizeInboundListDateRange("start");
+  state.inboundPage = 1;
   refreshTodayInbounds();
 });
 inboundListEndDate?.addEventListener("change", () => {
   normalizeInboundListDateRange("end");
+  state.inboundPage = 1;
   refreshTodayInbounds();
 });
 inventorySearch?.addEventListener("input", (event) => {
@@ -4758,7 +4763,12 @@ function renderTodayInbounds(message = "") {
 
   const sourceCount = state.todayInbounds.length;
   const inbounds = getFilteredInbounds();
-  const visibleInbounds = inbounds.slice(0, state.inboundPageSize);
+  const pageSize = Number(inboundPageSizeSelect?.value) || state.inboundPageSize || 10;
+  const pageCount = Math.max(1, Math.ceil(inbounds.length / pageSize));
+  state.inboundPageSize = pageSize;
+  state.inboundPage = Math.min(Math.max(1, state.inboundPage), pageCount);
+  const pageStart = (state.inboundPage - 1) * pageSize;
+  const visibleInbounds = inbounds.slice(pageStart, pageStart + pageSize);
 
   if (!sourceCount) {
     inboundTableBody.innerHTML = `
@@ -4822,17 +4832,28 @@ function renderTodayInbounds(message = "") {
     ? `검색 ${inbounds.length.toLocaleString("ko-KR")}건 / 전체 ${sourceCount.toLocaleString("ko-KR")}건`
     : `전체 ${sourceCount.toLocaleString("ko-KR")}건`;
 
-  if (inboundPagination) {
-    inboundPagination.innerHTML = `
-      <button type="button" disabled aria-label="이전">
-        <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
-      </button>
-      <button type="button" class="active">1</button>
-      <button type="button" disabled aria-label="다음">
-        <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
-      </button>
-    `;
+  renderInboundPagination(pageCount);
+}
+
+function renderInboundPagination(pageCount) {
+  if (!inboundPagination) {
+    return;
   }
+
+  const pages = getPageNumbers(pageCount, state.inboundPage);
+  const controls = [
+    pageButton("이전", Math.max(1, state.inboundPage - 1), state.inboundPage === 1, "left"),
+    ...pages.map((page) => pageButton(String(page), page, false, null, page === state.inboundPage)),
+    pageButton("다음", Math.min(pageCount, state.inboundPage + 1), state.inboundPage === pageCount, "right")
+  ];
+
+  inboundPagination.innerHTML = controls.join("");
+  inboundPagination.querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.inboundPage = Number(button.dataset.page) || 1;
+      renderTodayInbounds();
+    });
+  });
 }
 
 function formatInboundDateTime(date, time) {
