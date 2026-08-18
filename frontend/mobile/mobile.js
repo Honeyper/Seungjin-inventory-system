@@ -3637,6 +3637,18 @@ function getInventoryAuditBoxKey(item, box = getScannedBox(item)) {
   return managementId && boxNumber ? `${managementId}|${boxNumber}` : "";
 }
 
+function isProtectedInventoryAdjustmentBox(item, box) {
+  const inventoryCategory = normalizeScanValue(
+    box?.inventoryCategory
+      || box?.["재고 구분"]
+      || item?.inventoryCategory
+      || item?.["재고 구분"]
+  );
+  const status = normalizeScanValue(box?.rawStatus || box?.status);
+  return inventoryCategory === normalizeScanValue("자사재고")
+    || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
+}
+
 function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
   const scannedRows = state.scannedMoveRows;
   const targetProductKeys = new Set(
@@ -3676,6 +3688,7 @@ function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
   const adjustmentGroups = new Map();
   const seenActiveBoxKeys = new Set();
   let invalidBoxCount = 0;
+  let protectedBoxCount = 0;
 
   state.dashboard.forEach((row) => {
     const productKey = getInventoryAuditProductKey(row);
@@ -3695,6 +3708,11 @@ function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
         return;
       }
       seenActiveBoxKeys.add(boxKey);
+
+      if (isProtectedInventoryAdjustmentBox(row, box)) {
+        protectedBoxCount += 1;
+        return;
+      }
 
       if (scannedBoxKeys.has(boxKey)) {
         return;
@@ -3742,6 +3760,7 @@ function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
   return {
     adjustments,
     invalidBoxCount,
+    protectedBoxCount,
     productKeys: Array.from(targetProductKeys),
     productSummaries: Array.from(productSummaries.values()).map((summary) => ({
       ...summary,
@@ -3769,7 +3788,9 @@ function openMissingInventoryAdjustmentConfirm(selectedItem = null) {
   }
 
   if (!plan.adjustmentBoxCount) {
-    showToast("미스캔 박스가 없습니다. 전산 재고와 실재고가 일치합니다.");
+    showToast(plan.protectedBoxCount > 0
+      ? "조정할 일반재고가 없습니다. 사출·인쇄재고는 조정 대상에서 제외됩니다."
+      : "미스캔 박스가 없습니다. 전산 재고와 실재고가 일치합니다.");
     return;
   }
 
@@ -3782,9 +3803,14 @@ function openMissingInventoryAdjustmentConfirm(selectedItem = null) {
     message: "실물 확인을 모두 마친 뒤 진행해주세요. 같은 제품의 활성 전산 재고 중 이번 조사에서 스캔하지 않은 박스를 재고 없음으로 처리합니다.",
     subject: `${formatNumber(productCount)}개 제품 · ${formatNumber(plan.adjustmentBoxCount)}박스`,
     subjectLabel: "조정 대상",
-    meta: plan.productSummaries.map((summary) => (
-      `${summary.productName} · 스캔 ${formatNumber(summary.scannedBoxCount)}박스 · 조정 ${formatNumber(summary.adjustmentBoxCount)}박스 / ${formatNumber(summary.adjustmentQuantity)}ea`
-    )),
+    meta: [
+      ...plan.productSummaries.map((summary) => (
+        `${summary.productName} · 스캔 ${formatNumber(summary.scannedBoxCount)}박스 · 조정 ${formatNumber(summary.adjustmentBoxCount)}박스 / ${formatNumber(summary.adjustmentQuantity)}ea`
+      )),
+      ...(plan.protectedBoxCount > 0
+        ? [`사출·인쇄재고 ${formatNumber(plan.protectedBoxCount)}박스는 조정 대상에서 제외`]
+        : [])
+    ],
     acceptLabel: "재고조정 처리",
     onConfirm: () => completeMissingInventoryAdjustment(plan)
   });
