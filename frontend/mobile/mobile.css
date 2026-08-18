@@ -8269,6 +8269,33 @@ body {
   border-right: 1px solid rgba(255, 255, 255, 0.22);
 }
 
+.scanner-bottom.four-actions,
+.scanner-list-panel .scanner-bottom.four-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.scanner-bottom.four-actions button {
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 8px;
+  border-right: 0;
+  font-size: 12.5px;
+  line-height: 1.2;
+}
+
+.scanner-bottom.four-actions button:nth-child(odd) {
+  border-right: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.scanner-bottom.four-actions button:nth-child(-n + 2) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.scanner-bottom.four-actions button:last-child {
+  color: #fff1ee;
+  background: #7f2630;
+}
+
 #inventoryMoveScreen .shipping-card-actions {
   grid-template-columns: 1fr 1fr;
 }

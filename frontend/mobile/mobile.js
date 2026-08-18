@@ -287,6 +287,7 @@ const elements = {
   scannerPendingButton: document.querySelector("#scannerPendingButton"),
   scannerDoneButton: document.querySelector("#scannerDoneButton"),
   scannerInjectionButton: document.querySelector("#scannerInjectionButton"),
+  scannerInventoryAuditButton: document.querySelector("#scannerInventoryAuditButton"),
   toast: document.querySelector("#mobileToast")
 };
 
@@ -372,6 +373,7 @@ function bindEvents() {
   elements.scannerPendingButton?.addEventListener("click", handleScannerPendingAction);
   elements.scannerDoneButton?.addEventListener("click", handleScannerDoneAction);
   elements.scannerInjectionButton?.addEventListener("click", handleScannerInjectionAction);
+  elements.scannerInventoryAuditButton?.addEventListener("click", handleScannerInventoryAuditAction);
   elements.toggleFlashButton?.addEventListener("click", () => {
     showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
   });
@@ -2407,6 +2409,7 @@ function renderInventoryMoveItem(item) {
             </span>
             <div class="shipping-card-menu-popover" role="menu" aria-label="재고 수정 작업">
               <button type="button" role="menuitem" data-inventory-move-action="injection" data-inventory-move-key="${escapeHtml(key)}"><i class="ti ti-packages"></i>사출재고 등록</button>
+              <button type="button" role="menuitem" data-inventory-move-action="audit" data-inventory-move-key="${escapeHtml(key)}"><i class="ti ti-clipboard-check"></i>미스캔 재고조정</button>
               <button type="button" role="menuitem" class="danger" data-inventory-move-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
             </div>
           </details>
@@ -2519,6 +2522,11 @@ function handleInventoryMoveListChange(event) {
 }
 
 async function handleInventoryMoveCardAction(item, mode = "single") {
+  if (mode === "audit") {
+    openMissingInventoryAdjustmentConfirm(item);
+    return;
+  }
+
   const currentStorage = getInventoryMoveCurrentStorage(item);
   const targetStorage = item.targetStorageConfirmed === true ? normalizeDisplay(item.targetStorage) : "-";
   const isInjectionAction = mode === "injection";
@@ -3420,6 +3428,14 @@ function handleScannerInjectionAction() {
   openScannedInventoryMoveConfirmModal("injection");
 }
 
+function handleScannerInventoryAuditAction() {
+  if (state.activeWorkflow !== "inventoryMove") {
+    return;
+  }
+
+  openMissingInventoryAdjustmentConfirm();
+}
+
 async function completeShippingItems(items, action = "complete") {
   const groups = groupScannedShippingRows(items);
   const results = await mapWithConcurrency(groups, SHIPPING_ACTION_CONCURRENCY, async (group) => {
@@ -3602,6 +3618,226 @@ async function completeShippingItem(item, selectedBoxes, action = "complete", se
   });
 }
 
+function getInventoryAuditProductKey(item) {
+  const productId = normalizeScanValue(item?.productId);
+  if (productId) {
+    return `product-id:${productId}`;
+  }
+
+  return [
+    "product-name",
+    normalizeScanValue(item?.clientName) || "-",
+    normalizeScanValue(item?.productName) || "-"
+  ].join(":");
+}
+
+function getInventoryAuditBoxKey(item, box = getScannedBox(item)) {
+  const managementId = normalizeScanValue(item?.managementId);
+  const boxNumber = String(box?.number || box?.sequence || item?.scannedBoxNumber || "").trim();
+  return managementId && boxNumber ? `${managementId}|${boxNumber}` : "";
+}
+
+function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
+  const scannedRows = state.scannedMoveRows;
+  const targetProductKeys = new Set(
+    (selectedItem ? [selectedItem] : scannedRows)
+      .map(getInventoryAuditProductKey)
+      .filter(Boolean)
+  );
+  const scannedBoxKeys = new Set();
+  const productSummaries = new Map();
+
+  scannedRows.forEach((row) => {
+    const productKey = getInventoryAuditProductKey(row);
+    if (!targetProductKeys.has(productKey)) {
+      return;
+    }
+
+    const boxKey = getInventoryAuditBoxKey(row);
+    if (boxKey) {
+      scannedBoxKeys.add(boxKey);
+    }
+
+    if (!productSummaries.has(productKey)) {
+      productSummaries.set(productKey, {
+        productKey,
+        clientName: normalizeDisplay(row.clientName || "-"),
+        productName: normalizeDisplay(row.productName || "-"),
+        scannedBoxKeys: new Set(),
+        adjustmentBoxCount: 0,
+        adjustmentQuantity: 0
+      });
+    }
+    if (boxKey) {
+      productSummaries.get(productKey).scannedBoxKeys.add(boxKey);
+    }
+  });
+
+  const adjustmentGroups = new Map();
+  const seenActiveBoxKeys = new Set();
+  let invalidBoxCount = 0;
+
+  state.dashboard.forEach((row) => {
+    const productKey = getInventoryAuditProductKey(row);
+    if (!targetProductKeys.has(productKey)) {
+      return;
+    }
+
+    getMovableBoxes(row).forEach((box) => {
+      const boxNumber = String(box?.number || box?.sequence || "").trim();
+      if (!boxNumber) {
+        invalidBoxCount += 1;
+        return;
+      }
+
+      const boxKey = getInventoryAuditBoxKey(row, box);
+      if (!boxKey || seenActiveBoxKeys.has(boxKey)) {
+        return;
+      }
+      seenActiveBoxKeys.add(boxKey);
+
+      if (scannedBoxKeys.has(boxKey)) {
+        return;
+      }
+
+      const managementId = String(row?.managementId || "").trim();
+      if (!managementId) {
+        invalidBoxCount += 1;
+        return;
+      }
+
+      const groupKey = `${managementId}|${productKey}`;
+      if (!adjustmentGroups.has(groupKey)) {
+        adjustmentGroups.set(groupKey, {
+          managementId,
+          productId: row.productId || "",
+          clientName: row.clientName || "",
+          productName: row.productName || "",
+          selectedBoxes: [],
+          adjustmentQuantity: 0,
+          productKey
+        });
+      }
+
+      const quantity = getBoxCurrentQuantity(box, row);
+      const group = adjustmentGroups.get(groupKey);
+      group.selectedBoxes.push(boxNumber);
+      group.adjustmentQuantity += quantity;
+
+      const summary = productSummaries.get(productKey);
+      if (summary) {
+        summary.adjustmentBoxCount += 1;
+        summary.adjustmentQuantity += quantity;
+      }
+    });
+  });
+
+  const adjustments = Array.from(adjustmentGroups.values()).map((group) => ({
+    ...group,
+    selectedBoxes: group.selectedBoxes
+      .slice()
+      .sort((left, right) => parseNumber(left) - parseNumber(right))
+  }));
+
+  return {
+    adjustments,
+    invalidBoxCount,
+    productKeys: Array.from(targetProductKeys),
+    productSummaries: Array.from(productSummaries.values()).map((summary) => ({
+      ...summary,
+      scannedBoxCount: summary.scannedBoxKeys.size
+    })),
+    adjustmentBoxCount: adjustments.reduce((sum, group) => sum + group.selectedBoxes.length, 0),
+    adjustmentQuantity: adjustments.reduce((sum, group) => sum + group.adjustmentQuantity, 0)
+  };
+}
+
+function openMissingInventoryAdjustmentConfirm(selectedItem = null) {
+  if (state.isCompletingShipping) {
+    return;
+  }
+
+  if (!state.scannedMoveRows.length) {
+    showToast("실물로 확인한 박스를 먼저 스캔해주세요.");
+    return;
+  }
+
+  const plan = buildMissingInventoryAdjustmentPlan(selectedItem);
+  if (plan.invalidBoxCount > 0) {
+    showToast("박스 번호를 확인할 수 없는 전산 재고가 있어 조정을 중단했습니다.");
+    return;
+  }
+
+  if (!plan.adjustmentBoxCount) {
+    showToast("미스캔 박스가 없습니다. 전산 재고와 실재고가 일치합니다.");
+    return;
+  }
+
+  const productCount = plan.productSummaries.length;
+  openCallbackConfirm({
+    eyebrow: "재고 조사",
+    icon: "ti-clipboard-check",
+    tone: "danger",
+    title: "미스캔 재고조정 확인",
+    message: "실물 확인을 모두 마친 뒤 진행해주세요. 같은 제품의 활성 전산 재고 중 이번 조사에서 스캔하지 않은 박스를 재고 없음으로 처리합니다.",
+    subject: `${formatNumber(productCount)}개 제품 · ${formatNumber(plan.adjustmentBoxCount)}박스`,
+    subjectLabel: "조정 대상",
+    meta: plan.productSummaries.map((summary) => (
+      `${summary.productName} · 스캔 ${formatNumber(summary.scannedBoxCount)}박스 · 조정 ${formatNumber(summary.adjustmentBoxCount)}박스 / ${formatNumber(summary.adjustmentQuantity)}ea`
+    )),
+    acceptLabel: "재고조정 처리",
+    onConfirm: () => completeMissingInventoryAdjustment(plan)
+  });
+}
+
+async function completeMissingInventoryAdjustment(plan) {
+  if (state.isCompletingShipping || !plan?.adjustments?.length) {
+    return;
+  }
+
+  state.isCompletingShipping = true;
+  [
+    elements.scannerPendingButton,
+    elements.scannerDoneButton,
+    elements.scannerInjectionButton,
+    elements.scannerInventoryAuditButton
+  ].forEach((button) => {
+    if (button) {
+      button.disabled = true;
+    }
+  });
+
+  try {
+    const result = await requestApi("adjustMissingInventory", {
+      adjustments: plan.adjustments,
+      userName: state.user?.name || "Admin"
+    });
+    const updatedBoxCount = parseNumber(result?.updatedBoxRows);
+    if (updatedBoxCount <= 0) {
+      throw new Error("서버에서 재고조정된 박스를 확인하지 못했습니다.");
+    }
+
+    const completedProductKeys = new Set(plan.productKeys);
+    state.scannedMoveRows = state.scannedMoveRows.filter((row) => (
+      !completedProductKeys.has(getInventoryAuditProductKey(row))
+    ));
+    saveScannedMoveRows();
+    renderInventoryMoveList();
+    renderScannerScannedList();
+    triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
+    showToast(`${formatNumber(updatedBoxCount)}개 미스캔 박스를 재고조정 처리했습니다.`);
+    if (!state.scannedMoveRows.length && !elements.scannerScreen?.hidden) {
+      closeScanner();
+    }
+    await loadShippingDashboard({ silent: true });
+  } catch (error) {
+    showToast(error.message || "미스캔 재고조정 중 문제가 발생했습니다.");
+  } finally {
+    state.isCompletingShipping = false;
+    updateScannerActionLabels();
+  }
+}
+
 function openScannedInventoryMoveConfirmModal(mode = "single") {
   if (state.isCompletingShipping) {
     return;
@@ -3702,6 +3938,9 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
   if (elements.scannerInjectionButton) {
     elements.scannerInjectionButton.disabled = true;
   }
+  if (elements.scannerInventoryAuditButton) {
+    elements.scannerInventoryAuditButton.disabled = true;
+  }
   const activeButton = isInjectionAction
     ? elements.scannerInjectionButton
     : mode === "single"
@@ -3740,6 +3979,9 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
     }
     if (elements.scannerInjectionButton) {
       elements.scannerInjectionButton.disabled = false;
+    }
+    if (elements.scannerInventoryAuditButton) {
+      elements.scannerInventoryAuditButton.disabled = false;
     }
     updateScannerActionLabels();
   }
@@ -3984,7 +4226,10 @@ async function startScannerCamera() {
 }
 
 function updateScannerActionLabels() {
-  if (!elements.scannerPendingButton || !elements.scannerDoneButton || !elements.scannerInjectionButton) {
+  if (!elements.scannerPendingButton
+    || !elements.scannerDoneButton
+    || !elements.scannerInjectionButton
+    || !elements.scannerInventoryAuditButton) {
     return;
   }
 
@@ -3993,8 +4238,10 @@ function updateScannerActionLabels() {
     const hasScannedMoveRows = state.scannedMoveRows.length > 0;
     elements.scannerPendingButton.hidden = false;
     elements.scannerInjectionButton.hidden = false;
+    elements.scannerInventoryAuditButton.hidden = false;
     scannerBottom?.classList.remove("single-action");
-    scannerBottom?.classList.add("three-actions");
+    scannerBottom?.classList.remove("three-actions");
+    scannerBottom?.classList.add("four-actions");
     elements.scannerPendingButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M8 7h12"></path><path d="M8 12h12"></path><path d="M8 17h12"></path><path d="M4 7h.01"></path><path d="M4 12h.01"></path><path d="M4 17h.01"></path></svg>
       스캔 박스 이동
@@ -4007,16 +4254,23 @@ function updateScannerActionLabels() {
       <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
       사출재고 등록
     `;
+    elements.scannerInventoryAuditButton.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"></path><path d="M5 4h14v16H5z"></path><path d="M8 17h8"></path></svg>
+      미스캔 재고조정
+    `;
     elements.scannerPendingButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     elements.scannerDoneButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     elements.scannerInjectionButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
+    elements.scannerInventoryAuditButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     return;
   }
 
   elements.scannerPendingButton.hidden = false;
   elements.scannerInjectionButton.hidden = true;
+  elements.scannerInventoryAuditButton.hidden = true;
   scannerBottom?.classList.remove("single-action");
   scannerBottom?.classList.remove("three-actions");
+  scannerBottom?.classList.remove("four-actions");
   const scannerRows = getScannerSessionShippingRows();
   elements.scannerPendingButton.innerHTML = `
     <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
