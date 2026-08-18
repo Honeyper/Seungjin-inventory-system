@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260818-remove-list-blur" />
+    <link rel="stylesheet" href="./mobile.css?v=20260818-missing-inventory-audit" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -563,6 +563,10 @@
               <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
               사출재고 등록
             </button>
+            <button id="scannerInventoryAuditButton" type="button" hidden>
+              <svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"></path><path d="M5 4h14v16H5z"></path><path d="M8 17h8"></path></svg>
+              미스캔 재고조정
+            </button>
           </div>
         </div>
       </section>
@@ -587,6 +591,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260818-remove-list-blur"></script>
+    <script src="./mobile.js?v=20260818-missing-inventory-audit"></script>
   </body>
 </html>
