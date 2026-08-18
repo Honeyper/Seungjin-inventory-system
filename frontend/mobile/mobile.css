@@ -10067,7 +10067,7 @@ body {
   padding-left: 12px;
 }
 
-/* 2026-08-07 progressive blur at scrollable list edges */
+/* Scrollable list sizing */
 
 .scroll-veil-shell {
   position: relative;
@@ -10078,45 +10078,6 @@ body {
 
 .scroll-veil-shell > .shipping-list-panel {
   height: 100%;
-}
-
-.edge-veil-blur {
-  position: absolute;
-  z-index: 12;
-  left: 0;
-  width: 100%;
-  height: 52px;
-  pointer-events: none;
-  opacity: 0;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: opacity 180ms ease;
-  will-change: opacity, backdrop-filter;
-}
-
-.edge-veil-blur-top {
-  top: 0;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%);
-  mask-image: linear-gradient(to bottom, black 46%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 46%, transparent 100%);
-}
-
-.edge-veil-blur-bottom {
-  bottom: 0;
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%);
-  mask-image: linear-gradient(to top, black 46%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to top, black 46%, transparent 100%);
-}
-
-.scroll-veil-shell.has-scroll-above > .edge-veil-blur-top,
-.scroll-veil-shell.has-scroll-below > .edge-veil-blur-bottom {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .edge-veil-blur {
-    transition: none;
-  }
 }
 
 /* 2026-08-07 spring split interaction for product details */

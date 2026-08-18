@@ -314,7 +314,6 @@ function initializeMobileApp() {
 }
 
 function bindEvents() {
-  bindScrollVeils();
   elements.loginForm?.addEventListener("submit", handleAdminLogin);
   elements.togglePassword?.addEventListener("click", togglePassword);
   elements.accountId?.addEventListener("input", syncLoginFieldStates);
@@ -877,60 +876,6 @@ function handleShippingCardMenuKeydown(event) {
   });
   items[nextIndex]?.focus({ preventScroll: true });
   summary?.setAttribute("aria-expanded", "true");
-}
-
-function bindScrollVeils() {
-  document.querySelectorAll("[data-scroll-veil]").forEach((shell) => {
-    const scrollPanel = shell.querySelector(".shipping-list-panel");
-    if (!scrollPanel || shell.dataset.scrollVeilBound === "true") {
-      return;
-    }
-
-    shell.dataset.scrollVeilBound = "true";
-    let animationFrame = 0;
-    const sync = () => {
-      animationFrame = 0;
-      syncScrollVeil(scrollPanel);
-    };
-    const queueSync = () => {
-      if (animationFrame) {
-        return;
-      }
-      animationFrame = window.requestAnimationFrame(sync);
-    };
-
-    scrollPanel.addEventListener("scroll", queueSync, { passive: true });
-    const mutationObserver = new MutationObserver(queueSync);
-    mutationObserver.observe(scrollPanel, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["open"]
-    });
-
-    if (typeof ResizeObserver === "function") {
-      const resizeObserver = new ResizeObserver(queueSync);
-      resizeObserver.observe(scrollPanel);
-    } else {
-      window.addEventListener("resize", queueSync);
-    }
-
-    queueSync();
-  });
-}
-
-function syncScrollVeil(scrollPanel) {
-  const shell = scrollPanel?.closest("[data-scroll-veil]");
-  if (!shell) {
-    return;
-  }
-
-  const overflowDistance = scrollPanel.scrollHeight - scrollPanel.clientHeight;
-  shell.classList.toggle("has-scroll-above", scrollPanel.scrollTop > 3);
-  shell.classList.toggle(
-    "has-scroll-below",
-    overflowDistance > 3 && scrollPanel.scrollTop < overflowDistance - 3
-  );
 }
 
 function bindScannerSheetEvents() {
