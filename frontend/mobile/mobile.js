@@ -8,9 +8,7 @@ const PERSISTENT_SCANNED_ROWS_KEY = "seungjinMobilePersistentScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
 const SCANNER_MODE_KEY = "seungjinMobileScannerMode";
 const DASHBOARD_CACHE_KEY = `seungjinMobileDashboardCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
-const SCANNER_LOOKUP_CACHE_KEY = `seungjinMobileScannerLookupCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const DASHBOARD_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
-const SCANNER_LOOKUP_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const DASHBOARD_BACKGROUND_REFRESH_MS = 45 * 1000;
 const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
 const SCANNER_DEVICE_MEMORY_GB = Number(navigator.deviceMemory) || 8;
@@ -57,7 +55,7 @@ const KOREAN_SCANNER_COMPATIBILITY_KEYS = new Map([
   ["ㅛ", "y"], ["ㅜ", "n"], ["ㅝ", "nj"], ["ㅞ", "np"], ["ㅟ", "nl"], ["ㅠ", "b"],
   ["ㅡ", "m"], ["ㅢ", "ml"], ["ㅣ", "l"]
 ]);
-const SHIPPING_CLOCK_INTERVAL_MS = 10000;
+const SHIPPING_CLOCK_INTERVAL_MS = 1000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
 const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
@@ -89,15 +87,42 @@ const SHIPPING_SORT_OPTIONS = [
   { key: "scannedBoxes", label: "최근 스캔순" },
   { key: "quantity", label: "수량 많은 순" }
 ];
+const CLIENT_TONE_CLASS_NAMES = [
+  "client-tone-sky",
+  "client-tone-violet",
+  "client-tone-emerald",
+  "client-tone-coral",
+  "client-tone-amber",
+  "client-tone-teal",
+  "client-tone-rose"
+];
+const CLIENT_TONE_BY_KEY = {
+  미지정: "client-tone-unassigned",
+  아이원아이텍: "client-tone-iwon",
+  리치코스: "client-tone-richcos",
+  장업시스템: "client-tone-jangeop",
+  anp: "client-tone-anp",
+  정훈: "client-tone-jeonghun",
+  케이알: "client-tone-kr",
+  코스엔텍: "client-tone-cosentec",
+  금호eng: "client-tone-kumho",
+  뉴파트너스: "client-tone-newpartners",
+  필립텍: "client-tone-philiptech",
+  이루팩: "client-tone-irupack",
+  디엠: "client-tone-dm",
+  보경: "client-tone-bogyeong",
+  cpi: "client-tone-cpi",
+  더승진2공장: "client-tone-seungjin2",
+  sj패키지: "client-tone-sjpackage",
+  에스제이패키지: "client-tone-sjpackage",
+  명신코스텍: "client-tone-myeongsin"
+};
 
 const state = {
   user: null,
   dashboard: [],
   dashboardLoadedAt: 0,
   dashboardLoadPromise: null,
-  scannerLookupRows: [],
-  scannerLookupIndex: new Map(),
-  scannerLookupSavedAt: 0,
   filteredRows: [],
   scannedShippingRows: [],
   scannerSessionShippingKeys: [],
@@ -113,6 +138,7 @@ const state = {
   activeTransferReturnMode: "transfer",
   selectedInventoryMoveMode: "single",
   selectedConfirmMode: "item",
+  selectedConfirmCallback: null,
   isCompletingShipping: false,
   scannerStream: null,
   scannerTimer: null,
@@ -144,9 +170,15 @@ const state = {
   boxPickerTargetItems: [],
   boxPickerMode: "edit",
   boxPickerSource: "card",
+  quantityEditorItems: [],
+  quantityEditorSelectedIndex: -1,
   manualShippingQuery: "",
   manualShippingViewportBaseHeight: 0
 };
+
+let activeShippingCardMenu = null;
+let quantityEditorReturnFocus = null;
+let confirmDialogReturnFocus = null;
 
 const elements = {
   loginScreen: document.querySelector("#loginScreen"),
@@ -194,6 +226,20 @@ const elements = {
   boxPickerBoxList: document.querySelector("#boxPickerBoxList"),
   boxPickerSelectedCount: document.querySelector("#boxPickerSelectedCount"),
   confirmShippingBoxPickerButton: document.querySelector("#confirmShippingBoxPickerButton"),
+  shippingQuantityModal: document.querySelector("#shippingQuantityModal"),
+  shippingQuantityForm: document.querySelector("#shippingQuantityForm"),
+  closeShippingQuantityButton: document.querySelector("#closeShippingQuantityButton"),
+  cancelShippingQuantityButton: document.querySelector("#cancelShippingQuantityButton"),
+  confirmShippingQuantityButton: document.querySelector("#confirmShippingQuantityButton"),
+  shippingQuantityClientName: document.querySelector("#shippingQuantityClientName"),
+  shippingQuantityProductName: document.querySelector("#shippingQuantityProductName"),
+  shippingQuantityBoxCount: document.querySelector("#shippingQuantityBoxCount"),
+  shippingQuantityBoxList: document.querySelector("#shippingQuantityBoxList"),
+  shippingQuantitySelectedBox: document.querySelector("#shippingQuantitySelectedBox"),
+  shippingQuantityInput: document.querySelector("#shippingQuantityInput"),
+  shippingQuantityMessage: document.querySelector("#shippingQuantityMessage"),
+  decreaseShippingQuantityButton: document.querySelector("#decreaseShippingQuantityButton"),
+  increaseShippingQuantityButton: document.querySelector("#increaseShippingQuantityButton"),
   inventoryMoveSearchInput: document.querySelector("#inventoryMoveSearchInput"),
   inventoryMoveLiveDate: document.querySelector("#inventoryMoveLiveDate"),
   inventoryMoveLiveTime: document.querySelector("#inventoryMoveLiveTime"),
@@ -202,8 +248,11 @@ const elements = {
   inventoryMoveListPanel: document.querySelector("#inventoryMoveListPanel"),
   openInventoryScannerButton: document.querySelector("#openInventoryScannerButton"),
   confirmModal: document.querySelector("#confirmModal"),
+  confirmEyebrow: document.querySelector("#confirmEyebrow"),
+  confirmIcon: document.querySelector("#confirmIcon"),
   confirmTitle: document.querySelector("#confirmTitle"),
   confirmMessage: document.querySelector("#confirmMessage"),
+  confirmSubjectLabel: document.querySelector("#confirmSubjectLabel"),
   confirmProductName: document.querySelector("#confirmProductName"),
   confirmMetaList: document.querySelector("#confirmMetaList"),
   mobileTransferReturnControls: document.querySelector("#mobileTransferReturnControls"),
@@ -215,6 +264,7 @@ const elements = {
   mobileTransferReturnStoredLabel: document.querySelector("#mobileTransferReturnStoredLabel"),
   mobileTransferReturnPendingHelp: document.querySelector("#mobileTransferReturnPendingHelp"),
   mobileTransferReturnMessage: document.querySelector("#mobileTransferReturnMessage"),
+  closeConfirmButton: document.querySelector("#closeConfirmButton"),
   cancelConfirmButton: document.querySelector("#cancelConfirmButton"),
   acceptConfirmButton: document.querySelector("#acceptConfirmButton"),
   scannerScreen: document.querySelector("#scannerScreen"),
@@ -236,6 +286,7 @@ const elements = {
   scannerModeToggleButton: document.querySelector("#scannerModeToggleButton"),
   scannerPendingButton: document.querySelector("#scannerPendingButton"),
   scannerDoneButton: document.querySelector("#scannerDoneButton"),
+  scannerInjectionButton: document.querySelector("#scannerInjectionButton"),
   toast: document.querySelector("#mobileToast")
 };
 
@@ -247,13 +298,13 @@ function initializeMobileApp() {
   bindEvents();
   updateShippingClock();
   const loginPreferences = restoreLoginPreferences();
+  syncLoginFieldStates();
 
   const savedSession = readSavedSession(loginPreferences);
   if (savedSession) {
     state.user = savedSession;
     state.scannedShippingRows = readSavedScannedRows();
     state.scannedMoveRows = readSavedMoveRows();
-    restoreScannerLookupCache();
     restoreCachedDashboard();
     restoreSavedRoute();
     return;
@@ -263,8 +314,11 @@ function initializeMobileApp() {
 }
 
 function bindEvents() {
+  bindScrollVeils();
   elements.loginForm?.addEventListener("submit", handleAdminLogin);
   elements.togglePassword?.addEventListener("click", togglePassword);
+  elements.accountId?.addEventListener("input", syncLoginFieldStates);
+  elements.password?.addEventListener("input", syncLoginFieldStates);
   elements.saveAccount?.addEventListener("change", handleLoginPreferenceChange);
   elements.savePassword?.addEventListener("change", handleLoginPreferenceChange);
   elements.autoLogin?.addEventListener("change", handleLoginPreferenceChange);
@@ -294,6 +348,14 @@ function bindEvents() {
   elements.boxPickerBoxList?.addEventListener("change", handleBoxPickerBoxChange);
   elements.boxPickerSelectAll?.addEventListener("change", handleBoxPickerSelectAll);
   elements.confirmShippingBoxPickerButton?.addEventListener("click", updateSelectedShippingBoxes);
+  elements.closeShippingQuantityButton?.addEventListener("click", closeShippingQuantityEditor);
+  elements.cancelShippingQuantityButton?.addEventListener("click", closeShippingQuantityEditor);
+  elements.shippingQuantityForm?.addEventListener("submit", handleShippingQuantitySubmit);
+  elements.shippingQuantityBoxList?.addEventListener("change", handleShippingQuantityBoxChange);
+  elements.shippingQuantityInput?.addEventListener("input", syncShippingQuantityValidation);
+  elements.shippingQuantityInput?.addEventListener("focus", (event) => event.target.select());
+  elements.decreaseShippingQuantityButton?.addEventListener("click", () => adjustShippingQuantity(-1));
+  elements.increaseShippingQuantityButton?.addEventListener("click", () => adjustShippingQuantity(1));
   elements.openInventoryScannerButton?.addEventListener("click", openInventoryMoveScanner);
   elements.refreshInventoryMoveButton?.addEventListener("click", handleRefreshInventoryMove);
   elements.inventoryMoveSearchInput?.addEventListener("input", (event) => {
@@ -310,10 +372,12 @@ function bindEvents() {
   elements.scannerScannedList?.addEventListener("change", handleScannerListChange);
   elements.scannerPendingButton?.addEventListener("click", handleScannerPendingAction);
   elements.scannerDoneButton?.addEventListener("click", handleScannerDoneAction);
+  elements.scannerInjectionButton?.addEventListener("click", handleScannerInjectionAction);
   elements.toggleFlashButton?.addEventListener("click", () => {
     showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
   });
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
+  elements.closeConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
   elements.mobileTransferReturnBoxList?.addEventListener("change", syncMobileTransferReturnSummary);
   bindScannerSheetEvents();
@@ -321,7 +385,14 @@ function bindEvents() {
   document.addEventListener("compositionend", handleHardwareScannerCompositionEnd);
   document.addEventListener("paste", handleHardwareScannerPaste);
   document.addEventListener("visibilitychange", handlePageVisibilityChange);
+  window.addEventListener("focus", resumeShippingClock);
+  window.addEventListener("pageshow", resumeShippingClock);
   document.addEventListener("click", closeShippingSortMenu);
+  document.addEventListener("click", handleShippingCardMenuDocumentClick);
+  document.addEventListener("keydown", handleShippingCardMenuKeydown);
+  document.addEventListener("keydown", handleShippingQuantityKeydown);
+  document.addEventListener("keydown", handleConfirmDialogKeydown);
+  document.addEventListener("error", handleProductImageError, true);
   window.addEventListener("pagehide", releaseScannerStream);
   window.addEventListener("resize", syncManualShippingViewport);
   window.visualViewport?.addEventListener("resize", syncManualShippingViewport);
@@ -332,6 +403,26 @@ function bindEvents() {
   });
 
   elements.shippingListPanel?.addEventListener("click", (event) => {
+    const menuSummary = event.target.closest(".shipping-card-menu > summary");
+    if (menuSummary) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleShippingCardMenu(menuSummary.parentElement);
+      return;
+    }
+
+    const menuItem = event.target.closest(".shipping-card-menu-popover [role='menuitem']");
+    if (menuItem) {
+      closeShippingCardMenu(menuItem.closest(".shipping-card-menu"));
+    }
+
+    const detailsSummary = event.target.closest(".shipping-product-details > summary");
+    if (detailsSummary) {
+      event.preventDefault();
+      toggleShippingProductDetails(detailsSummary.parentElement);
+      return;
+    }
+
     const addButton = event.target.closest("[data-mobile-shipping-add]");
     if (addButton) {
       const item = state.filteredRows.find((row) => getShippingKey(row) === addButton.dataset.mobileShippingAdd);
@@ -373,11 +464,15 @@ function bindEvents() {
     if (item) {
       if (action === "complete") {
         openShippingCompletionPicker(item);
+      } else if (action === "cancelPending") {
+        openShippingPendingCancellationPicker(item);
       } else {
         openConfirmModal(item, action);
       }
     }
   });
+
+  elements.shippingListPanel?.addEventListener("keydown", handleShippingDetailsKeydown);
 
   elements.inventoryMoveListPanel?.addEventListener("click", handleInventoryMoveListClick);
   elements.inventoryMoveListPanel?.addEventListener("change", handleInventoryMoveListChange);
@@ -397,6 +492,445 @@ function bindEvents() {
       closeManualShippingPicker();
     }
   });
+  elements.shippingQuantityModal?.addEventListener("click", (event) => {
+    if (event.target === elements.shippingQuantityModal) {
+      closeShippingQuantityEditor();
+    }
+  });
+}
+
+function toggleShippingProductDetails(details) {
+  if (!(details instanceof HTMLDetailsElement) || details.dataset.detailsAnimating === "true") {
+    return;
+  }
+
+  if (details.open) {
+    void setShippingProductDetailsOpen(details, false);
+    return;
+  }
+
+  openShippingProductDetails(details);
+}
+
+function openShippingProductDetails(details, options = {}) {
+  if (!(details instanceof HTMLDetailsElement)) {
+    return;
+  }
+
+  elements.shippingListPanel?.querySelectorAll(".shipping-product-details[open]").forEach((candidate) => {
+    if (candidate !== details) {
+      void setShippingProductDetailsOpen(candidate, false);
+    }
+  });
+
+  void setShippingProductDetailsOpen(details, true).then(() => {
+    if (options.scroll) {
+      details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  });
+}
+
+function setShippingProductDetailsOpen(details, shouldOpen) {
+  const content = details.querySelector(".shipping-product-details-content");
+  if (!content) {
+    return Promise.resolve();
+  }
+
+  if (details.dataset.detailsAnimating === "true") {
+    const currentTargetIsOpen = details.dataset.detailsAnimationTarget === "open";
+    const currentAnimation = details.shippingDetailsAnimationPromise || Promise.resolve();
+    if (currentTargetIsOpen === shouldOpen) {
+      return currentAnimation;
+    }
+    return currentAnimation.then(() => setShippingProductDetailsOpen(details, shouldOpen));
+  }
+
+  if (details.open === shouldOpen) {
+    return Promise.resolve();
+  }
+
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reduceMotion || typeof content.animate !== "function") {
+    details.open = shouldOpen;
+    return Promise.resolve();
+  }
+
+  details.dataset.detailsAnimating = "true";
+  details.dataset.detailsAnimationTarget = shouldOpen ? "open" : "closed";
+  content.getAnimations().forEach((animation) => animation.cancel());
+
+  if (shouldOpen) {
+    content.style.height = "0px";
+    content.style.opacity = "0";
+    content.style.transform = "translateY(-6px)";
+    details.open = true;
+  }
+
+  const contentHeight = content.scrollHeight;
+  const animation = content.animate(
+    shouldOpen
+      ? [
+          { height: "0px", opacity: 0, transform: "translateY(-6px)" },
+          { height: `${Math.round(contentHeight * 1.02)}px`, opacity: 1, transform: "translateY(1px)", offset: 0.78 },
+          { height: `${contentHeight}px`, opacity: 1, transform: "translateY(0)" }
+        ]
+      : [
+          { height: `${contentHeight}px`, opacity: 1, transform: "translateY(0)" },
+          { height: "0px", opacity: 0, transform: "translateY(-5px)" }
+        ],
+    {
+      duration: shouldOpen ? 500 : 340,
+      easing: shouldOpen ? "cubic-bezier(0.16, 1, 0.3, 1)" : "cubic-bezier(0.4, 0, 0.2, 1)",
+      fill: "both"
+    }
+  );
+
+  const animationPromise = new Promise((resolve) => {
+    const finish = () => {
+      if (!shouldOpen) {
+        details.open = false;
+      }
+      content.style.removeProperty("height");
+      content.style.removeProperty("opacity");
+      content.style.removeProperty("transform");
+      delete details.dataset.detailsAnimating;
+      delete details.dataset.detailsAnimationTarget;
+      delete details.shippingDetailsAnimationPromise;
+      resolve();
+    };
+    animation.addEventListener("finish", finish, { once: true });
+    animation.addEventListener("cancel", finish, { once: true });
+  });
+  details.shippingDetailsAnimationPromise = animationPromise;
+  return animationPromise;
+}
+
+function handleShippingDetailsKeydown(event) {
+  const summary = event.target.closest(".shipping-product-details > summary");
+  if (!summary) {
+    return;
+  }
+
+  const details = summary.parentElement;
+  if (event.key === "Escape" && details?.open) {
+    event.preventDefault();
+    summary.focus();
+    void setShippingProductDetailsOpen(details, false);
+    return;
+  }
+
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    return;
+  }
+
+  const summaries = Array.from(elements.shippingListPanel.querySelectorAll(".shipping-product-details > summary"));
+  const currentIndex = summaries.indexOf(summary);
+  if (currentIndex < 0 || !summaries.length) {
+    return;
+  }
+
+  event.preventDefault();
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowDown") {
+    nextIndex = (currentIndex + 1) % summaries.length;
+  } else if (event.key === "ArrowUp") {
+    nextIndex = (currentIndex - 1 + summaries.length) % summaries.length;
+  } else if (event.key === "Home") {
+    nextIndex = 0;
+  } else if (event.key === "End") {
+    nextIndex = summaries.length - 1;
+  }
+  summaries[nextIndex]?.focus();
+}
+
+function toggleShippingCardMenu(menu) {
+  if (!(menu instanceof HTMLDetailsElement) || menu.dataset.menuAnimating === "true") {
+    return;
+  }
+
+  if (menu.open) {
+    closeShippingCardMenu(menu, { restoreFocus: true });
+    return;
+  }
+
+  openShippingCardMenu(menu);
+}
+
+function openShippingCardMenu(menu) {
+  if (!(menu instanceof HTMLDetailsElement)) {
+    return;
+  }
+
+  if (activeShippingCardMenu && activeShippingCardMenu !== menu) {
+    closeShippingCardMenu(activeShippingCardMenu, { immediate: true });
+  }
+
+  const summary = menu.querySelector(":scope > summary");
+  const popover = menu.querySelector(":scope > .shipping-card-menu-popover");
+  const gooLayer = menu.querySelector(":scope > .shipping-card-menu-goo");
+  const gooMorph = gooLayer?.querySelector(".shipping-card-menu-goo-morph");
+  if (!summary || !popover || !gooLayer || !gooMorph) {
+    menu.open = true;
+    return;
+  }
+
+  activeShippingCardMenu = menu;
+  menu.open = true;
+  menu.dataset.menuAnimating = "true";
+  menu.dataset.menuState = "opening";
+  summary.setAttribute("aria-expanded", "true");
+
+  const items = Array.from(popover.querySelectorAll("[role='menuitem']"));
+  items.forEach((item, index) => {
+    item.tabIndex = index === 0 ? 0 : -1;
+    item.style.setProperty("--menu-item-index", index);
+  });
+
+  const panelWidth = Math.ceil(popover.getBoundingClientRect().width);
+  const panelHeight = Math.ceil(popover.scrollHeight);
+  const triggerSize = Math.ceil(summary.getBoundingClientRect().width);
+  const panelTop = 46;
+  const layerHeight = panelTop + panelHeight;
+  const closedClip = `inset(0px 0px ${layerHeight - triggerSize}px ${panelWidth - triggerSize}px round ${triggerSize / 2}px)`;
+  const bridgeClip = `inset(0px 0px ${Math.max(0, layerHeight - panelTop - 18)}px ${Math.max(0, panelWidth - triggerSize - 10)}px round 17px)`;
+  const openClip = `inset(${panelTop}px 0px 0px 0px round 18px)`;
+
+  menu.style.setProperty("--shipping-menu-width", `${panelWidth}px`);
+  menu.style.setProperty("--shipping-menu-height", `${panelHeight}px`);
+  menu.style.setProperty("--shipping-menu-layer-height", `${layerHeight}px`);
+  gooMorph.style.clipPath = closedClip;
+
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reduceMotion || typeof popover.animate !== "function") {
+    gooMorph.style.clipPath = openClip;
+    menu.dataset.menuState = "open";
+    delete menu.dataset.menuAnimating;
+    items[0]?.focus({ preventScroll: true });
+    return;
+  }
+
+  gooMorph.getAnimations().forEach((animation) => animation.cancel());
+  popover.getAnimations().forEach((animation) => animation.cancel());
+  gooLayer.getAnimations().forEach((animation) => animation.cancel());
+
+  const gooAnimation = gooMorph.animate(
+    [
+      { clipPath: closedClip },
+      { clipPath: bridgeClip, offset: 0.42 },
+      { clipPath: openClip, offset: 0.84 },
+      { clipPath: openClip }
+    ],
+    { duration: 430, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "both" }
+  );
+  gooLayer.animate(
+    [
+      { transform: "scale(0.985)", opacity: 0.72 },
+      { transform: "scale(1.012)", opacity: 1, offset: 0.74 },
+      { transform: "scale(1)", opacity: 1 }
+    ],
+    { duration: 440, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "both" }
+  );
+  popover.animate(
+    [
+      {
+        clipPath: `inset(0px 0px ${Math.max(0, panelHeight - triggerSize)}px ${Math.max(0, panelWidth - triggerSize)}px round 16px)`,
+        opacity: 0,
+        transform: "translateY(-8px) scale(0.97)"
+      },
+      { opacity: 0.42, offset: 0.38 },
+      { clipPath: "inset(0px 0px 0px 0px round 18px)", opacity: 1, transform: "translateY(1px) scale(1.006)", offset: 0.82 },
+      { clipPath: "inset(0px 0px 0px 0px round 18px)", opacity: 1, transform: "translateY(0) scale(1)" }
+    ],
+    { duration: 430, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "both" }
+  );
+
+  const finishOpen = () => {
+    if (!menu.open || menu.dataset.menuState !== "opening") {
+      return;
+    }
+    menu.dataset.menuState = "open";
+    delete menu.dataset.menuAnimating;
+    gooMorph.style.clipPath = openClip;
+    items[0]?.focus({ preventScroll: true });
+  };
+  gooAnimation.addEventListener("finish", finishOpen, { once: true });
+  gooAnimation.addEventListener("cancel", finishOpen, { once: true });
+}
+
+function closeShippingCardMenu(menu, options = {}) {
+  if (!(menu instanceof HTMLDetailsElement) || !menu.open) {
+    return;
+  }
+
+  const summary = menu.querySelector(":scope > summary");
+  const popover = menu.querySelector(":scope > .shipping-card-menu-popover");
+  const gooLayer = menu.querySelector(":scope > .shipping-card-menu-goo");
+  const gooMorph = gooLayer?.querySelector(".shipping-card-menu-goo-morph");
+  const shouldRestoreFocus = options.restoreFocus === true;
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+  const finishClose = () => {
+    menu.open = false;
+    summary?.setAttribute("aria-expanded", "false");
+    delete menu.dataset.menuAnimating;
+    delete menu.dataset.menuState;
+    menu.style.removeProperty("--shipping-menu-height");
+    menu.style.removeProperty("--shipping-menu-layer-height");
+    popover?.getAnimations().forEach((animation) => animation.cancel());
+    gooLayer?.getAnimations().forEach((animation) => animation.cancel());
+    gooMorph?.getAnimations().forEach((animation) => animation.cancel());
+    if (activeShippingCardMenu === menu) {
+      activeShippingCardMenu = null;
+    }
+    if (shouldRestoreFocus) {
+      summary?.focus({ preventScroll: true });
+    }
+  };
+
+  if (options.immediate || reduceMotion || !popover || !gooMorph || typeof popover.animate !== "function") {
+    finishClose();
+    return;
+  }
+
+  if (menu.dataset.menuAnimating === "true") {
+    popover.getAnimations().forEach((animation) => animation.cancel());
+    gooLayer?.getAnimations().forEach((animation) => animation.cancel());
+    gooMorph.getAnimations().forEach((animation) => animation.cancel());
+  }
+
+  menu.dataset.menuAnimating = "true";
+  menu.dataset.menuState = "closing";
+  const panelWidth = Math.ceil(popover.getBoundingClientRect().width);
+  const panelHeight = Math.ceil(popover.scrollHeight);
+  const triggerSize = Math.ceil(summary?.getBoundingClientRect().width || 32);
+  const panelTop = 46;
+  const layerHeight = panelTop + panelHeight;
+  const openClip = `inset(${panelTop}px 0px 0px 0px round 18px)`;
+  const closedClip = `inset(0px 0px ${layerHeight - triggerSize}px ${panelWidth - triggerSize}px round ${triggerSize / 2}px)`;
+
+  const closeAnimation = gooMorph.animate(
+    [
+      { clipPath: openClip },
+      { clipPath: closedClip }
+    ],
+    { duration: 250, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "both" }
+  );
+  popover.animate(
+    [
+      { clipPath: "inset(0px 0px 0px 0px round 18px)", opacity: 1, transform: "translateY(0) scale(1)" },
+      {
+        clipPath: `inset(0px 0px ${Math.max(0, panelHeight - triggerSize)}px ${Math.max(0, panelWidth - triggerSize)}px round 16px)`,
+        opacity: 0,
+        transform: "translateY(-7px) scale(0.97)"
+      }
+    ],
+    { duration: 230, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "both" }
+  );
+  closeAnimation.addEventListener("finish", finishClose, { once: true });
+}
+
+function handleShippingCardMenuDocumentClick(event) {
+  if (!activeShippingCardMenu || activeShippingCardMenu.contains(event.target)) {
+    return;
+  }
+  closeShippingCardMenu(activeShippingCardMenu);
+}
+
+function handleShippingCardMenuKeydown(event) {
+  const menu = event.target.closest?.(".shipping-card-menu");
+  if (!(menu instanceof HTMLDetailsElement) || !menu.open) {
+    return;
+  }
+
+  const summary = menu.querySelector(":scope > summary");
+  const items = Array.from(menu.querySelectorAll(".shipping-card-menu-popover [role='menuitem']"));
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeShippingCardMenu(menu, { restoreFocus: true });
+    return;
+  }
+
+  if (event.key === "Tab") {
+    closeShippingCardMenu(menu);
+    return;
+  }
+
+  if (!items.length || !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    return;
+  }
+
+  event.preventDefault();
+  const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowDown") {
+    nextIndex = (currentIndex + 1) % items.length;
+  } else if (event.key === "ArrowUp") {
+    nextIndex = (currentIndex - 1 + items.length) % items.length;
+  } else if (event.key === "Home") {
+    nextIndex = 0;
+  } else if (event.key === "End") {
+    nextIndex = items.length - 1;
+  }
+  items.forEach((item, index) => {
+    item.tabIndex = index === nextIndex ? 0 : -1;
+  });
+  items[nextIndex]?.focus({ preventScroll: true });
+  summary?.setAttribute("aria-expanded", "true");
+}
+
+function bindScrollVeils() {
+  document.querySelectorAll("[data-scroll-veil]").forEach((shell) => {
+    const scrollPanel = shell.querySelector(".shipping-list-panel");
+    if (!scrollPanel || shell.dataset.scrollVeilBound === "true") {
+      return;
+    }
+
+    shell.dataset.scrollVeilBound = "true";
+    let animationFrame = 0;
+    const sync = () => {
+      animationFrame = 0;
+      syncScrollVeil(scrollPanel);
+    };
+    const queueSync = () => {
+      if (animationFrame) {
+        return;
+      }
+      animationFrame = window.requestAnimationFrame(sync);
+    };
+
+    scrollPanel.addEventListener("scroll", queueSync, { passive: true });
+    const mutationObserver = new MutationObserver(queueSync);
+    mutationObserver.observe(scrollPanel, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["open"]
+    });
+
+    if (typeof ResizeObserver === "function") {
+      const resizeObserver = new ResizeObserver(queueSync);
+      resizeObserver.observe(scrollPanel);
+    } else {
+      window.addEventListener("resize", queueSync);
+    }
+
+    queueSync();
+  });
+}
+
+function syncScrollVeil(scrollPanel) {
+  const shell = scrollPanel?.closest("[data-scroll-veil]");
+  if (!shell) {
+    return;
+  }
+
+  const overflowDistance = scrollPanel.scrollHeight - scrollPanel.clientHeight;
+  shell.classList.toggle("has-scroll-above", scrollPanel.scrollTop > 3);
+  shell.classList.toggle(
+    "has-scroll-below",
+    overflowDistance > 3 && scrollPanel.scrollTop < overflowDistance - 3
+  );
 }
 
 function bindScannerSheetEvents() {
@@ -527,7 +1061,6 @@ async function attemptAdminLogin() {
     if (!state.scannedMoveRows.length) {
       state.scannedMoveRows = readSavedMoveRows();
     }
-    restoreScannerLookupCache();
     restoreCachedDashboard();
     showHome();
   } catch (error) {
@@ -604,9 +1137,6 @@ function logout() {
   state.dashboard = [];
   state.dashboardLoadedAt = 0;
   state.dashboardLoadPromise = null;
-  state.scannerLookupRows = [];
-  state.scannerLookupIndex = new Map();
-  state.scannerLookupSavedAt = 0;
   state.filteredRows = [];
   state.scannedShippingRows = [];
   state.scannedMoveRows = [];
@@ -710,6 +1240,16 @@ function handlePageVisibilityChange() {
   }
 }
 
+function resumeShippingClock() {
+  if (!elements.shippingScreen?.classList.contains("active")
+    && !elements.inventoryMoveScreen?.classList.contains("active")) {
+    return;
+  }
+
+  stopShippingClock();
+  startShippingClock();
+}
+
 function restoreSavedRoute() {
   const route = sessionStorage.getItem(ROUTE_KEY);
   if (route === "shipping") {
@@ -748,8 +1288,6 @@ async function loadShippingDashboard(options = {}) {
       const data = await requestApi("getInventoryDashboard");
       state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
       state.dashboardLoadedAt = Date.now();
-      replaceScannerLookupRows(state.dashboard, state.dashboardLoadedAt);
-      saveScannerLookupCache();
       syncPendingShippingRowsFromDashboard();
       syncScannedMoveRowsFromDashboard();
       applyShippingFilters();
@@ -1146,6 +1684,122 @@ function isMobileShippingCandidate(row) {
   return hasActiveShippingBox || (status.includes("출고대기") && activeBoxes.length > 0);
 }
 
+function getProductImageUrl(item) {
+  const items = Array.isArray(item?.scannedItems) ? [item, ...item.scannedItems] : [item];
+  const keys = [
+    "productImageUrl",
+    "productPhotoUrl",
+    "productThumbnailUrl",
+    "thumbnailUrl",
+    "imageUrl",
+    "photoUrl"
+  ];
+
+  for (const candidate of items) {
+    for (const key of keys) {
+      const value = normalizeText(candidate?.[key]);
+      if (/^(https?:|data:image\/|blob:)/i.test(value)) {
+        return value;
+      }
+    }
+  }
+
+  return "";
+}
+
+function renderProductVisual(item) {
+  const productImageUrl = getProductImageUrl(item);
+  const productName = normalizeDisplay(item?.productName || "제품");
+  if (!productImageUrl) {
+    return `
+      <span class="shipping-product-visual is-placeholder" aria-label="등록된 제품 이미지 없음">
+        <i class="ti ti-photo-off" aria-hidden="true"></i>
+        <small>이미지 없음</small>
+      </span>
+    `;
+  }
+
+  return `
+    <span class="shipping-product-visual has-photo">
+      <img
+        src="${escapeHtml(productImageUrl)}"
+        data-product-image
+        alt="${escapeHtml(productName)} 제품 사진"
+        loading="lazy"
+      />
+    </span>
+  `;
+}
+
+function handleProductImageError(event) {
+  const image = event.target;
+  if (!(image instanceof HTMLImageElement) || !image.matches("[data-product-image]")) {
+    return;
+  }
+
+  if (image.dataset.fallbackApplied === "true") {
+    return;
+  }
+
+  image.dataset.fallbackApplied = "true";
+  const visual = image.closest(".shipping-product-visual");
+  if (!visual) {
+    return;
+  }
+  visual.classList.remove("has-photo");
+  visual.classList.add("is-placeholder");
+  visual.setAttribute("aria-label", "등록된 제품 이미지 없음");
+  const fallbackIcon = document.createElement("i");
+  fallbackIcon.className = "ti ti-photo-off";
+  fallbackIcon.setAttribute("aria-hidden", "true");
+  const fallbackLabel = document.createElement("small");
+  fallbackLabel.textContent = "이미지 없음";
+  visual.replaceChildren(fallbackIcon, fallbackLabel);
+}
+
+function normalizeMobileShippingStatusLabel(value) {
+  const status = normalizeText(value);
+  if (/일부\s*출고|부분\s*출고/.test(status)) {
+    return "부분출고";
+  }
+  return normalizeDisplay(status);
+}
+
+function getShippingCardStatus(item, isPending, isCompleted) {
+  if (isCompleted) {
+    return "출고완료";
+  }
+
+  const itemStatus = normalizeMobileShippingStatusLabel(item?.stockStatus || item?.processStatus || "");
+  const sourceItems = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+  const shippedBoxes = sourceItems.flatMap((row) => {
+    return Array.isArray(row?.shippedShippingBoxes) ? row.shippedShippingBoxes : [];
+  });
+  if (itemStatus === "부분출고" || shippedBoxes.length > 0) {
+    return "부분출고";
+  }
+  if (isPending) {
+    return "출고대기";
+  }
+  if (itemStatus && itemStatus !== "-") {
+    return itemStatus;
+  }
+  return "보관";
+}
+
+function getShippingStatusTone(status) {
+  if (status === "부분출고") {
+    return "partial";
+  }
+  if (status === "보관") {
+    return "stored";
+  }
+  if (status === "출고완료") {
+    return "completed";
+  }
+  return "pending";
+}
+
 function renderShippingList(rows) {
   elements.mobileShippingCount.textContent = String(rows.length);
 
@@ -1156,7 +1810,7 @@ function renderShippingList(rows) {
       <div class="empty-state">
         <div>
           <span class="empty-state-icon" aria-hidden="true">
-            <img src="${SHIPPING_BOX_ICON_SRC}" alt="" />
+            <i class="ti ti-package"></i>
           </span>
           <h2>${hasHiddenCompletedBoxes ? "출고할 박스가 없습니다" : "등록된 제품이 없습니다"}</h2>
           <p>${hasHiddenCompletedBoxes ? "출고완료 박스는 현재 숨겨져 있습니다." : "출고할 제품을 등록해 주세요."}</p>
@@ -1180,12 +1834,6 @@ function renderShippingList(rows) {
 function renderShippingProductGroup(group) {
   return `
     <section class="shipping-product-group" data-shipping-product-group="${escapeHtml(group.key)}">
-      <header class="shipping-product-group-header">
-        <div class="shipping-product-group-copy">
-          <span>${escapeHtml(normalizeDisplay(group.clientName || "-"))}</span>
-          <h2>${escapeHtml(normalizeDisplay(group.productName || "-"))}</h2>
-        </div>
-      </header>
       <div class="shipping-product-group-items">
         ${group.items.map(renderShippingItem).join("")}
       </div>
@@ -1351,6 +1999,7 @@ async function openShippingBoxPicker(item, mode = "edit", source = "card") {
     return;
   }
 
+  syncClientToneClass(elements.shippingBoxPickerModal, item.clientName);
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = getShippingProductGroupKey(item);
   state.boxPickerMode = mode;
@@ -1400,6 +2049,7 @@ function openShippingCompletionPicker(item) {
   }
 
   const groupedItem = groupScannedShippingRows(targetItems)[0] || targetItems[0];
+  syncClientToneClass(elements.shippingBoxPickerModal, groupedItem.clientName);
   state.boxPickerProduct = groupedItem;
   state.boxPickerEditingGroupKey = getShippingProductGroupKey(groupedItem);
   state.boxPickerTargetItems = targetItems;
@@ -1411,6 +2061,36 @@ function openShippingCompletionPicker(item) {
   elements.shippingBoxPickerTitle.textContent = "출고 박스 확인";
   elements.boxPickerSectionTitle.textContent = "이번 출고 박스";
   elements.boxPickerSectionDescription.textContent = "출고하지 않을 박스는 체크를 해제해주세요. 선택한 박스만 출고됩니다.";
+  elements.boxPickerClientName.textContent = normalizeDisplay(groupedItem.clientName || "-");
+  elements.boxPickerProductName.textContent = normalizeDisplay(groupedItem.productName || "-");
+  elements.boxPickerProductMeta.textContent = `출고대기 ${formatNumber(targetItems.length)}박스`;
+  renderBoxPickerBoxes();
+}
+
+function openShippingPendingCancellationPicker(item) {
+  if (!elements.shippingBoxPickerModal) {
+    return;
+  }
+
+  const targetItems = getShippingCompletionPickerItems(item).filter(isShippingItemPending);
+  if (!targetItems.length) {
+    showToast("취소할 수 있는 출고대기 박스가 없습니다.");
+    return;
+  }
+
+  const groupedItem = groupScannedShippingRows(targetItems)[0] || targetItems[0];
+  syncClientToneClass(elements.shippingBoxPickerModal, groupedItem.clientName);
+  state.boxPickerProduct = groupedItem;
+  state.boxPickerEditingGroupKey = getShippingProductGroupKey(groupedItem);
+  state.boxPickerTargetItems = targetItems;
+  state.boxPickerMode = "cancelPending";
+  state.boxPickerSource = "shippingCancelPending";
+
+  elements.shippingBoxPickerModal.hidden = false;
+  document.body.classList.add("modal-open");
+  elements.shippingBoxPickerTitle.textContent = "출고대기 취소";
+  elements.boxPickerSectionTitle.textContent = "취소할 박스 선택";
+  elements.boxPickerSectionDescription.textContent = "보관 상태로 되돌릴 박스만 선택해주세요. 선택하지 않은 박스는 출고대기를 유지합니다.";
   elements.boxPickerClientName.textContent = normalizeDisplay(groupedItem.clientName || "-");
   elements.boxPickerProductName.textContent = normalizeDisplay(groupedItem.productName || "-");
   elements.boxPickerProductMeta.textContent = `출고대기 ${formatNumber(targetItems.length)}박스`;
@@ -1440,6 +2120,7 @@ function closeShippingBoxPicker() {
   }
 
   elements.shippingBoxPickerModal.hidden = true;
+  syncClientToneClass(elements.shippingBoxPickerModal, "", { clear: true });
   state.boxPickerProduct = null;
   state.boxPickerEditingGroupKey = "";
   state.boxPickerTargetItems = [];
@@ -1483,7 +2164,9 @@ function renderBoxPickerBoxes() {
   }
 
   const isCompletionMode = state.boxPickerMode === "complete";
-  const boxes = (isCompletionMode
+  const isCancelPendingMode = state.boxPickerMode === "cancelPending";
+  const isShippingActionMode = isCompletionMode || isCancelPendingMode;
+  const boxes = (isShippingActionMode
     ? state.boxPickerTargetItems.map(getScannedBox).filter(Boolean)
     : getKnownBoxes(row).filter((box) => (
       state.boxPickerSource !== "manual" || isManualShippingBoxAvailable(box, row)
@@ -1497,7 +2180,7 @@ function renderBoxPickerBoxes() {
     ? `${clientName} · 입고일 ${formatManualShippingInboundDate(row.inboundDate)}`
     : clientName;
   elements.boxPickerProductName.textContent = normalizeDisplay(row.productName || "-");
-  elements.boxPickerProductMeta.textContent = isCompletionMode
+  elements.boxPickerProductMeta.textContent = isShippingActionMode
     ? `출고대기 ${formatNumber(boxes.length)}박스`
     : state.boxPickerSource === "manual"
     ? `최초 총 ${formatNumber(getShippingTotalBoxCount(row))}박스`
@@ -1513,10 +2196,12 @@ function renderBoxPickerBoxes() {
     const status = normalizeText(box?.rawStatus || box?.status);
     const isCompleted = /출고완료|폐기/.test(status) || quantity <= 0;
     const isAdded = addedKeys.has(key);
-    const isChecked = isCompletionMode || isAdded;
-    const isDisabled = isCompletionMode ? false : isCompleted || (isAddMode && isAdded);
-    const statusLabel = isCompletionMode
-      ? "출고 선택"
+    const isChecked = isShippingActionMode || isAdded;
+    const isDisabled = isShippingActionMode ? false : isCompleted || (isAddMode && isAdded);
+    const statusLabel = isCancelPendingMode
+      ? "취소 선택"
+      : isCompletionMode
+        ? "출고 선택"
       : isAdded
       ? (isAddMode ? "등록됨" : "선택됨")
       : isCompleted ? (status.includes("폐기") ? "폐기" : "출고완료") : normalizeDisplay(box?.status || "보관");
@@ -1530,7 +2215,7 @@ function renderBoxPickerBoxes() {
             ? `${formatNumber(quantity)} ea`
             : `${escapeHtml(normalizeDisplay(box?.storage || row.storage || "미지정"))} · ${formatNumber(quantity)} ea`}</small>
           <span class="box-picker-quantity-field">
-            <input type="number" min="1" step="1" inputmode="numeric" value="${quantity}" data-box-picker-quantity="${escapeHtml(key)}" aria-label="${escapeHtml(number)}번 박스 수량" ${isCompletionMode ? "readonly" : isDisabled ? "disabled" : ""} />
+            <input type="number" min="1" step="1" inputmode="numeric" value="${quantity}" data-box-picker-quantity="${escapeHtml(key)}" aria-label="${escapeHtml(number)}번 박스 수량" ${isShippingActionMode ? "readonly" : isDisabled ? "disabled" : ""} />
             <em>ea</em>
           </span>
         </span>
@@ -1566,8 +2251,10 @@ function syncBoxPickerSelection() {
     if (!input.disabled) {
       const status = card?.querySelector("b");
       if (status) {
-        status.textContent = state.boxPickerMode === "complete"
-          ? (input.checked ? "출고 선택" : "출고 제외")
+        status.textContent = state.boxPickerMode === "cancelPending"
+          ? (input.checked ? "취소 선택" : "취소 제외")
+          : state.boxPickerMode === "complete"
+            ? (input.checked ? "출고 선택" : "출고 제외")
           : input.checked ? "선택됨" : input.dataset.boxStatus || "보관";
       }
     }
@@ -1575,9 +2262,12 @@ function syncBoxPickerSelection() {
   const selectable = checkboxes.filter((input) => !input.disabled);
   const selected = selectable.filter((input) => input.checked);
   elements.boxPickerSelectedCount.textContent = String(selected.length);
-  elements.confirmShippingBoxPickerButton.disabled = state.boxPickerMode === "complete" && selected.length === 0;
-  elements.confirmShippingBoxPickerButton.textContent = state.boxPickerMode === "complete"
-    ? "선택 박스 출고"
+  const isShippingActionMode = state.boxPickerMode === "complete" || state.boxPickerMode === "cancelPending";
+  elements.confirmShippingBoxPickerButton.disabled = isShippingActionMode && selected.length === 0;
+  elements.confirmShippingBoxPickerButton.textContent = state.boxPickerMode === "cancelPending"
+    ? "선택 박스 취소"
+    : state.boxPickerMode === "complete"
+      ? "선택 박스 출고"
     : state.boxPickerMode === "add" ? "선택 박스 추가" : "수정 완료";
   elements.boxPickerSelectAll.disabled = selectable.length === 0;
   elements.boxPickerSelectAll.checked = selectable.length > 0 && selected.length === selectable.length;
@@ -1593,23 +2283,24 @@ function updateSelectedShippingBoxes() {
   const selectedInputs = Array.from(elements.boxPickerBoxList.querySelectorAll("[data-box-picker-box]:checked:not(:disabled)"));
   const isAddMode = state.boxPickerMode === "add";
   const isCompletionMode = state.boxPickerMode === "complete";
+  const isCancelPendingMode = state.boxPickerMode === "cancelPending";
 
-  if (isCompletionMode) {
+  if (isCompletionMode || isCancelPendingMode) {
     if (!selectedInputs.length) {
-      showToast("출고할 박스를 한 개 이상 선택해주세요.");
+      showToast(isCancelPendingMode ? "출고대기를 취소할 박스를 한 개 이상 선택해주세요." : "출고할 박스를 한 개 이상 선택해주세요.");
       return;
     }
 
     const selectedKeys = new Set(selectedInputs.map((input) => input.dataset.boxPickerBox));
     const targetItems = state.boxPickerTargetItems.filter((item) => selectedKeys.has(getShippingCompositeBoxKey(item)));
     if (!targetItems.length) {
-      showToast("선택한 출고대기 박스를 찾지 못했습니다.");
+      showToast(isCancelPendingMode ? "선택한 취소 대상 박스를 찾지 못했습니다." : "선택한 출고대기 박스를 찾지 못했습니다.");
       return;
     }
 
     const groupedItem = groupScannedShippingRows(targetItems)[0] || targetItems[0];
     closeShippingBoxPicker();
-    openConfirmModal(groupedItem, "complete");
+    openConfirmModal(groupedItem, isCancelPendingMode ? "cancelPending" : "complete");
     return;
   }
 
@@ -1713,7 +2404,7 @@ function renderInventoryMoveList() {
       <div class="empty-state">
         <div>
           <span class="empty-state-icon" aria-hidden="true">
-            <img src="${SHIPPING_BOX_ICON_SRC}" alt="" />
+            <i class="ti ti-package-export"></i>
           </span>
           <h2>이동할 박스가 없습니다</h2>
           <p>QR 스캔으로 재고 위치를 수정할 박스를 등록해주세요.</p>
@@ -1745,29 +2436,37 @@ function renderInventoryMoveItem(item) {
     }, 0);
 
   return `
-    <article class="shipping-item inventory-move-item" data-inventory-move-item="${escapeHtml(key)}">
-      <div class="shipping-item-top">
-        <span class="shipping-box-art" aria-hidden="true">
-          <img src="${SHIPPING_BOX_ICON_SRC}" alt="" loading="lazy" />
-        </span>
+    <article class="shipping-item shipping-product-card inventory-move-item ${getClientToneClass(item.clientName)}" data-inventory-move-item="${escapeHtml(key)}">
+      <div class="shipping-card-head inventory-move-card-head">
+        ${renderProductVisual(item)}
         <div class="shipping-item-copy">
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
           </div>
+          <div class="shipping-card-meta">
+            <span>${escapeHtml(batch)}</span>
+            <span>${escapeHtml(process)}</span>
+            <span>${formatNumber(scannedBoxCount)}박스 스캔</span>
+          </div>
         </div>
-        <div class="shipping-meta-stack">
-          <span class="process-pill">${escapeHtml(process)}</span>
-          <span class="shipping-meta-pill">${escapeHtml(batch)}</span>
-          <span class="shipping-meta-pill">${formatNumber(scannedBoxCount)}박스 스캔</span>
-        </div>
-        <div class="shipping-card-actions">
-          <button class="shipping-remove-button" type="button" data-inventory-move-remove="${escapeHtml(key)}">삭제</button>
-          <button class="ship-pending-button" type="button" data-inventory-move-action="single" data-inventory-move-key="${escapeHtml(key)}">자리이동</button>
-          <button class="ship-now-button" type="button" data-inventory-move-action="all" data-inventory-move-key="${escapeHtml(key)}">전량 이동</button>
+        <div class="shipping-card-status-actions">
+          <span class="shipping-status-badge inventory">재고 수정</span>
+          <details class="shipping-card-menu">
+            <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기" aria-haspopup="menu" aria-expanded="false">
+              <i class="ti ti-dots" aria-hidden="true"></i>
+            </summary>
+            <span class="shipping-card-menu-goo" aria-hidden="true">
+              <span class="shipping-card-menu-goo-trigger"></span>
+              <span class="shipping-card-menu-goo-morph"></span>
+            </span>
+            <div class="shipping-card-menu-popover" role="menu" aria-label="재고 수정 작업">
+              <button type="button" role="menuitem" data-inventory-move-action="injection" data-inventory-move-key="${escapeHtml(key)}"><i class="ti ti-packages"></i>사출재고 등록</button>
+              <button type="button" role="menuitem" class="danger" data-inventory-move-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
+            </div>
+          </details>
         </div>
       </div>
-      <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(state.user?.name || item.registrant || item.inspector || "-"))}</p>
       <div class="inventory-storage-grid">
         <span class="storage-card">
           <small>현재 보관 장소</small>
@@ -1780,29 +2479,27 @@ function renderInventoryMoveItem(item) {
           </select>
         </label>
       </div>
-      <div class="item-metrics inventory-move-metrics">
-        <span class="metric">
-          <span>스캔 박스</span>
-          <span class="metric-value-row">
-            <strong>${formatNumber(scannedBoxCount)}</strong>
-            <small>Box</small>
+      <div class="inventory-move-summary">
+        <div class="item-metrics inventory-move-metrics">
+          <span class="metric">
+            <span>스캔 박스</span>
+            <span class="metric-value-row"><strong>${formatNumber(scannedBoxCount)}</strong><small>박스</small></span>
           </span>
-        </span>
-        <span class="metric">
-          <span>전체 박스</span>
-          <span class="metric-value-row">
-            <strong>${formatNumber(totalBoxCount)}</strong>
-            <small>Box</small>
+          <span class="metric">
+            <span>전체 박스</span>
+            <span class="metric-value-row"><strong>${formatNumber(totalBoxCount)}</strong><small>박스</small></span>
           </span>
-        </span>
-        <span class="metric">
-          <span>현재 수량</span>
-          <span class="metric-value-row">
-            <strong class="blue">${formatNumber(quantity)}</strong>
-            <small>ea</small>
+          <span class="metric">
+            <span>현재 수량</span>
+            <span class="metric-value-row"><strong class="blue">${formatNumber(quantity)}</strong><small>ea</small></span>
           </span>
-        </span>
+        </div>
+        <div class="inventory-move-primary-actions">
+          <button class="ship-pending-button" type="button" data-inventory-move-action="single" data-inventory-move-key="${escapeHtml(key)}">자리이동</button>
+          <button class="ship-now-button" type="button" data-inventory-move-action="all" data-inventory-move-key="${escapeHtml(key)}">박스 전량 이동</button>
+        </div>
       </div>
+      <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(state.user?.name || item.registrant || item.inspector || "-"))}</p>
     </article>
   `;
 }
@@ -1821,6 +2518,19 @@ function renderStorageOptions(selectedStorage, currentStorage = "") {
 }
 
 function handleInventoryMoveListClick(event) {
+  const menuSummary = event.target.closest(".shipping-card-menu > summary");
+  if (menuSummary) {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleShippingCardMenu(menuSummary.parentElement);
+    return;
+  }
+
+  const menuItem = event.target.closest(".shipping-card-menu-popover [role='menuitem']");
+  if (menuItem) {
+    closeShippingCardMenu(menuItem.closest(".shipping-card-menu"));
+  }
+
   const removeButton = event.target.closest("[data-inventory-move-remove]");
   if (removeButton) {
     confirmRemoveScannedMoveGroup(removeButton.dataset.inventoryMoveRemove);
@@ -1866,38 +2576,55 @@ function handleInventoryMoveListChange(event) {
 async function handleInventoryMoveCardAction(item, mode = "single") {
   const currentStorage = getInventoryMoveCurrentStorage(item);
   const targetStorage = item.targetStorageConfirmed === true ? normalizeDisplay(item.targetStorage) : "-";
+  const isInjectionAction = mode === "injection";
   const selectedBoxes = mode === "all" ? getInventoryMoveAllBoxNumbers(item) : getSelectedBoxNumbers(item);
-  const actionLabel = mode === "all" ? "전량 이동" : "자리이동";
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "박스 전량 이동" : "자리이동";
 
   if (!selectedBoxes.length) {
-    showToast("이동할 박스 번호가 없습니다.");
+    showToast(isInjectionAction ? "사출재고로 등록할 박스 번호가 없습니다." : "이동할 박스 번호가 없습니다.");
     return;
   }
 
-  if (!isInventoryMoveTargetReady(item)) {
+  if (!isInjectionAction && !isInventoryMoveTargetReady(item)) {
     showToast("이동할 장소를 먼저 선택해주세요.");
     return;
   }
 
-  const ok = window.confirm(`${normalizeDisplay(item.productName)}\n${normalizeDisplay(currentStorage)} → ${targetStorage}\n${formatNumber(selectedBoxes.length)}개 박스를 ${actionLabel} 처리하시겠습니까?`);
-  if (!ok) {
-    return;
-  }
-
-  try {
-    const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
-    applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mode, result);
-    if (mode === "all") {
-      removeMovedInventoryGroup(item);
-    } else {
-      removeScannedMoveGroup(getInventoryMoveKey(item));
+  openCallbackConfirm({
+    eyebrow: "재고 수정",
+    icon: isInjectionAction ? "ti-building-warehouse" : "ti-arrows-exchange",
+    tone: "move",
+    title: `${actionLabel} 확인`,
+    message: isInjectionAction
+      ? "선택한 박스를 사출재고로 구분합니다. 현재 수량과 보관 위치는 유지됩니다."
+      : "선택한 박스의 보관 위치를 변경합니다.",
+    subject: normalizeDisplay(item.productName),
+    subjectLabel: "선택 제품",
+    meta: isInjectionAction
+      ? [`${formatNumber(selectedBoxes.length)}박스`, `현재 위치 ${normalizeDisplay(currentStorage)}`]
+      : [`${normalizeDisplay(currentStorage)} → ${targetStorage}`, `${formatNumber(selectedBoxes.length)}박스`],
+    acceptLabel: actionLabel,
+    onConfirm: async () => {
+      try {
+        const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
+        if (isInjectionAction) {
+          applyInventoryStockResultLocally(item, selectedBoxes, "사출재고");
+        } else {
+          applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mode, result);
+        }
+        if (mode === "all") {
+          removeMovedInventoryGroup(item);
+        } else {
+          removeScannedMoveGroup(getInventoryMoveKey(item));
+        }
+        renderInventoryMoveList();
+        showToast(`${actionLabel}이 완료되었습니다.`);
+        void loadShippingDashboard({ silent: true });
+      } catch (error) {
+        showToast(error.message || `${actionLabel} 중 문제가 발생했습니다.`);
+      }
     }
-    renderInventoryMoveList();
-    showToast(`${actionLabel}이 완료되었습니다.`);
-    void loadShippingDashboard({ silent: true });
-  } catch (error) {
-    showToast(error.message || `${actionLabel} 중 문제가 발생했습니다.`);
-  }
+  });
 }
 
 function isTransferredShippingBox(box) {
@@ -2063,7 +2790,7 @@ function renderShippingItem(item) {
       : parseNumber(item.currentTotalQuantity);
   const process = normalizeDisplay(item.finalProcess || "-");
   const batch = normalizeDisplay(item.batch || "-");
-  const boxLabel = isProductGroup ? `${formatNumber(boxCount)}박스 등록` : getScannedBoxLabel(item);
+  const pendingBoxCount = getShippingPendingBoxCount(item);
   const isPending = isShippingItemPending(item);
   const isCompleted = isShippingItemCompleted(item);
   const isTransferred = getTransferredShippingBoxes(item).length > 0;
@@ -2073,9 +2800,22 @@ function renderShippingItem(item) {
     : isTakenOut
       ? { action: "returnTakeout", label: "재입고" }
       : { action: "cancelCompleted", label: "출고 취소" };
-  const metaParts = [batch, boxLabel].filter((value) => value && value !== "-");
-  const processClass = /2|3/.test(process) ? "green" : "";
   const registeredAt = formatRegistrationDate(item.registeredAt);
+  const status = getShippingCardStatus(item, isPending, isCompleted);
+  const statusTone = getShippingStatusTone(status);
+  const pendingRegistrationLabel = status === "부분출고"
+    ? pendingBoxCount > 0
+      ? pendingBoxCount < boxCount
+        ? `출고대기 ${formatNumber(pendingBoxCount)}/${formatNumber(boxCount)}박스`
+        : `출고대기 ${formatNumber(pendingBoxCount)}박스`
+      : "출고대기 미등록"
+    : "";
+  const primaryAction = isCompleted
+    ? completedReturnAction
+    : !isPending
+      ? { action: "pending", label: "출고대기 등록" }
+      : { action: "complete", label: "출고" };
+  const metaParts = [batch, process].filter((value) => value && value !== "-");
   const productDetails = [
     ["관리 ID", normalizeDisplay(item.managementId || "-")],
     ["제품 ID", normalizeDisplay(item.productId || "-")],
@@ -2083,88 +2823,83 @@ function renderShippingItem(item) {
     ["보관 장소", normalizeDisplay(item.storage || "-")],
     ["차수", batch],
     ["최종공정", process],
+    ["등록 박스", `${formatNumber(boxCount)} box / 전체 ${formatNumber(totalBoxCount)} box`],
     ["박스당 수량", normalizeDisplay(item.boxQuantity || "-")],
-    ["재고 상태", normalizeDisplay(item.stockStatus || item.processStatus || "-")]
+    ["현재 수량", `${formatNumber(currentQuantity)} ea`],
+    ["재고 상태", normalizeMobileShippingStatusLabel(item.stockStatus || item.processStatus || status)],
+    ["등록자", normalizeDisplay(item.registrant || item.inspector || "-")],
+    ["등록일", registeredAt]
   ];
 
   return `
-    <article class="shipping-item">
-      <div class="shipping-item-top">
-        <span class="shipping-box-art" aria-hidden="true">
-          <img src="${SHIPPING_BOX_ICON_SRC}" alt="" loading="lazy" />
-        </span>
+    <article class="shipping-item shipping-product-card status-${escapeHtml(statusTone)} ${getClientToneClass(item.clientName)}">
+      <div class="shipping-card-head">
+        ${renderProductVisual(item)}
         <div class="shipping-item-copy">
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
-            <small class="shipping-management-id">${escapeHtml(normalizeDisplay(item.managementId || item.productId || "-"))}</small>
+          </div>
+          <div class="shipping-card-meta">
+            ${metaParts.map((part) => `<span>${escapeHtml(part)}</span>`).join("")}
           </div>
         </div>
-        <div class="shipping-meta-stack">
-          <span class="process-pill ${processClass}">${escapeHtml(process)}</span>
-          ${metaParts.map((part) => `<span class="shipping-meta-pill">${escapeHtml(part)}</span>`).join("")}
-          ${isCompleted
-            ? '<span class="shipping-meta-pill shipping-complete-pill">출고완료</span>'
-            : isPending ? '<span class="shipping-meta-pill">출고대기</span>' : ""}
+        <div class="shipping-card-status-actions">
+          <span class="shipping-status-stack">
+            <span class="shipping-status-badge">${escapeHtml(status)}</span>
+            ${pendingRegistrationLabel ? `<span class="shipping-pending-state-badge ${pendingBoxCount > 0 ? "is-registered" : "is-unregistered"}">${escapeHtml(pendingRegistrationLabel)}</span>` : ""}
+          </span>
+          ${isCompleted ? "" : `
+            <details class="shipping-card-menu">
+              <summary aria-label="${escapeHtml(normalizeDisplay(item.productName || "제품"))} 더보기" aria-haspopup="menu" aria-expanded="false">
+                <i class="ti ti-dots" aria-hidden="true"></i>
+              </summary>
+              <span class="shipping-card-menu-goo" aria-hidden="true">
+                <span class="shipping-card-menu-goo-trigger"></span>
+                <span class="shipping-card-menu-goo-morph"></span>
+              </span>
+              <div class="shipping-card-menu-popover" role="menu" aria-label="출고 관리 작업">
+                <button type="button" role="menuitem" data-mobile-shipping-add="${escapeHtml(key)}"><i class="ti ti-package-import"></i>박스 추가</button>
+                <button type="button" role="menuitem" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}"><i class="ti ti-clock-edit"></i>${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
+                <button type="button" role="menuitem" data-mobile-shipping-quantity="${escapeHtml(key)}"><i class="ti ti-adjustments"></i>수량 변경</button>
+                <button type="button" role="menuitem" class="danger" data-mobile-shipping-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
+              </div>
+            </details>
+          `}
         </div>
-        <div class="shipping-card-actions">
-          <button class="shipping-add-button" type="button" data-mobile-shipping-add="${escapeHtml(key)}" ${isCompleted ? "disabled" : ""}>박스 추가</button>
-          <button class="shipping-remove-button" type="button" data-mobile-shipping-remove="${escapeHtml(key)}" ${isCompleted ? "disabled" : ""}>등록 취소</button>
-          ${isCompleted
-            ? `<button class="ship-pending-button" type="button" disabled>출고대기 등록</button>
-              <button class="ship-now-button shipping-cancel-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${completedReturnAction.action}">${completedReturnAction.label}</button>`
-            : `
-              <button class="ship-pending-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="${isPending ? "cancelPending" : "pending"}">${isPending ? "출고대기 취소" : "출고대기 등록"}</button>
-              <button class="ship-now-button" type="button" data-mobile-shipping="${escapeHtml(key)}" data-mobile-shipping-action="complete">출고</button>
-            `}
+      </div>
+      <div class="shipping-card-footer">
+        <div class="shipping-card-metrics">
+          <span class="metric">
+            <span class="metric-label">등록 박스 수</span>
+            <span class="metric-value-row"><strong>${formatNumber(boxCount)}</strong><small>박스</small></span>
+          </span>
+          <span class="metric">
+            <span class="metric-label">출고 가능 수량</span>
+            <span class="metric-value-row"><strong>${formatNumber(totalQuantity)}</strong><small>ea</small></span>
+          </span>
         </div>
+        <button
+          class="shipping-primary-action${isCompleted ? " shipping-cancel-button" : ""}${primaryAction.action === "pending" ? " shipping-pending-register-button" : ""}"
+          type="button"
+          data-mobile-shipping="${escapeHtml(key)}"
+          data-mobile-shipping-action="${escapeHtml(primaryAction.action)}"
+        >${escapeHtml(primaryAction.label)}</button>
       </div>
-      <div class="item-registration-info">
-        <p class="item-worker"><span>등록자</span>${escapeHtml(normalizeDisplay(item.registrant || item.inspector || "-"))}</p>
-        <p class="item-registered-date"><span>등록일</span>${escapeHtml(registeredAt)}</p>
-      </div>
-      <div class="item-metrics">
-        <span class="metric">
-          <span class="metric-label">등록 박스</span>
-          <span class="metric-value-row">
-            <strong>${formatNumber(boxCount)}</strong>
-            <small>Box</small>
-          </span>
-          <span class="metric-support-row">총 ${formatNumber(totalBoxCount)}박스</span>
-        </span>
-        <span class="metric">
-          <span class="metric-label">출고 가능 수량</span>
-          <span class="metric-value-row">
-            <strong>${formatNumber(totalQuantity)}</strong>
-            <small>ea</small>
-          </span>
-          <span class="metric-support-row" aria-hidden="true"></span>
-        </span>
-        <span class="metric">
-          <span class="metric-label">현재 수량</span>
-          <span class="metric-value-row">
-            <strong class="blue">${formatNumber(currentQuantity)}</strong>
-            <small>ea</small>
-          </span>
-          <span class="metric-action-row">
-            ${isCompleted ? "" : `<button class="metric-quantity-button" type="button" data-mobile-shipping-quantity="${escapeHtml(key)}">수량 변경</button>`}
-          </span>
-        </span>
-      </div>
-      <details class="shipping-product-details">
+      <details class="shipping-product-details" data-shipping-details-panel="${escapeHtml(key)}">
         <summary>
           <span class="shipping-product-details-title">제품 상세정보</span>
-          <svg class="shipping-product-details-chevron" viewBox="0 0 10 6" aria-hidden="true">
-            <path d="M1 1l4 4 4-4"></path>
-          </svg>
+          <i class="ti ti-chevron-down shipping-product-details-chevron" aria-hidden="true"></i>
         </summary>
-        <div class="shipping-product-details-grid">
-          ${productDetails.map(([label, value]) => `
-            <div class="shipping-product-detail-item">
-              <span>${escapeHtml(label)}</span>
-              <strong>${escapeHtml(value)}</strong>
-            </div>
-          `).join("")}
+        <div class="shipping-product-details-content">
+          <div class="shipping-product-details-grid">
+            ${productDetails.map(([label, value]) => `
+              <div class="shipping-product-detail-item">
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(value)}</strong>
+              </div>
+            `).join("")}
+          </div>
         </div>
       </details>
     </article>
@@ -2177,7 +2912,7 @@ function renderShippingLoading() {
     <div class="empty-state">
       <div>
         <span class="empty-state-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
+          <i class="ti ti-loader-2"></i>
         </span>
         <h2>불러오는 중입니다</h2>
         <p>출고 목록을 확인하고 있습니다.</p>
@@ -2192,7 +2927,7 @@ function renderShippingError(message) {
     <div class="empty-state">
       <div>
         <span class="empty-state-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>
+          <i class="ti ti-alert-triangle"></i>
         </span>
         <h2>목록을 불러오지 못했습니다</h2>
         <p>${escapeHtml(message)}</p>
@@ -2203,10 +2938,69 @@ function renderShippingError(message) {
   document.querySelector("#retryShippingButton")?.addEventListener("click", loadShippingDashboard);
 }
 
+function setConfirmPresentation({ eyebrow = "출고 관리", icon = "ti-truck-delivery", tone = "primary", subjectLabel = "선택 제품" } = {}) {
+  if (elements.confirmEyebrow) {
+    elements.confirmEyebrow.textContent = eyebrow;
+  }
+  if (elements.confirmIcon) {
+    elements.confirmIcon.className = `ti ${icon}`;
+  }
+  if (elements.confirmSubjectLabel) {
+    elements.confirmSubjectLabel.textContent = subjectLabel;
+  }
+  if (elements.confirmModal) {
+    elements.confirmModal.dataset.confirmTone = tone;
+  }
+}
+
+function showConfirmDialog() {
+  if (!elements.confirmModal) {
+    return;
+  }
+
+  confirmDialogReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  elements.confirmModal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.requestAnimationFrame(() => elements.closeConfirmButton?.focus({ preventScroll: true }));
+}
+
+function openCallbackConfirm({
+  title,
+  message,
+  subject,
+  meta = [],
+  acceptLabel = "확인",
+  eyebrow = "작업 확인",
+  icon = "ti-check",
+  tone = "primary",
+  subjectLabel = "선택 내용",
+  onConfirm
+}) {
+  if (typeof onConfirm !== "function" || !elements.confirmModal) {
+    return;
+  }
+
+  state.selectedConfirmMode = "callback";
+  state.selectedConfirmCallback = onConfirm;
+  state.selectedShippingItem = null;
+  syncClientToneClass(elements.confirmModal, "", { clear: true });
+  setConfirmPresentation({ eyebrow, icon, tone, subjectLabel });
+  elements.confirmTitle.textContent = title;
+  elements.confirmMessage.textContent = message;
+  elements.confirmProductName.textContent = subject;
+  elements.acceptConfirmButton.textContent = acceptLabel;
+  renderConfirmMeta(meta);
+  if (elements.mobileTransferReturnControls) {
+    elements.mobileTransferReturnControls.hidden = true;
+  }
+  showConfirmDialog();
+}
+
 function openConfirmModal(item, action = "complete") {
   state.selectedConfirmMode = "item";
   state.selectedShippingItem = item;
   state.selectedShippingAction = action;
+  syncClientToneClass(elements.confirmModal, item?.clientName);
   const scannedBoxLabel = getScannedBoxLabel(item);
   const boxes = getActiveBoxes(item);
   const boxText = Array.isArray(item.scannedItems)
@@ -2223,12 +3017,33 @@ function openConfirmModal(item, action = "complete") {
   const isTransferReturnAction = action === "returnTransfer";
   const isTakeoutReturnAction = action === "returnTakeout";
   const isInventoryReturnAction = isTransferReturnAction || isTakeoutReturnAction;
+  const isCancelAction = isCancelPendingAction || isCancelCompletedAction;
+  setConfirmPresentation({
+    eyebrow: isInventoryReturnAction ? "재고 복귀" : "출고 관리",
+    icon: isTakeoutReturnAction
+      ? "ti-package-import"
+      : isTransferReturnAction
+        ? "ti-transfer-in"
+        : isCancelAction
+          ? "ti-arrow-back-up"
+          : isPendingAction
+            ? "ti-clock-check"
+            : "ti-truck-delivery",
+    tone: isInventoryReturnAction ? "move" : isPendingAction ? "pending" : "primary",
+    subjectLabel: isInventoryReturnAction ? "복귀 대상" : "선택 제품"
+  });
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = isTakeoutReturnAction
       ? "재입고"
       : isTransferReturnAction
         ? "이관 복귀"
-        : "출고 확인";
+        : isCancelCompletedAction
+          ? "출고 취소 확인"
+          : isCancelPendingAction
+            ? "출고대기 취소 확인"
+            : isPendingAction
+              ? "출고대기 등록 확인"
+              : "출고 확인";
   }
   if (elements.confirmMessage) {
     elements.confirmMessage.textContent = isTakeoutReturnAction
@@ -2236,12 +3051,12 @@ function openConfirmModal(item, action = "complete") {
       : isTransferReturnAction
         ? "돌아온 이관 박스와 보관 위치를 확인해주세요."
       : isCancelCompletedAction
-      ? "해당 박스의 출고를 취소하고 보관 상태로 변경하시겠습니까?"
+      ? "선택한 박스의 출고 기록을 취소하고 보관 상태로 되돌립니다."
       : isCancelPendingAction
-      ? "해당 박스의 출고대기를 취소하고 보관 상태로 변경하시겠습니까?"
+      ? "선택한 박스의 출고대기를 취소하고 보관 상태로 되돌립니다."
       : isPendingAction
-        ? "해당 제품을 출고대기로 등록하시겠습니까?"
-        : "해당 제품을 출고 처리하시겠습니까?";
+        ? "선택한 박스를 출고대기로 등록합니다. 제품과 박스 정보를 확인해주세요."
+        : "선택한 박스만 출고 처리합니다. 제품과 박스 정보를 한 번 더 확인해주세요.";
   }
   elements.acceptConfirmButton.textContent = isTakeoutReturnAction
     ? "재입고 처리"
@@ -2260,7 +3075,7 @@ function openConfirmModal(item, action = "complete") {
   if (elements.mobileTransferReturnControls) {
     elements.mobileTransferReturnControls.hidden = !isInventoryReturnAction;
   }
-  elements.confirmModal.hidden = false;
+  showConfirmDialog();
 }
 
 function openScannedShippingConfirmModal(action = "complete") {
@@ -2281,6 +3096,17 @@ function openScannedShippingConfirmModal(action = "complete") {
   state.selectedConfirmMode = "scannerBatch";
   state.selectedShippingItem = null;
   state.selectedShippingAction = action;
+  syncClientToneClass(elements.confirmModal, "", { clear: true });
+
+  setConfirmPresentation({
+    eyebrow: "QR 스캔 목록",
+    icon: isPendingAction ? "ti-clock-check" : "ti-truck-delivery",
+    tone: isPendingAction ? "pending" : "primary",
+    subjectLabel: "선택 박스"
+  });
+  if (elements.confirmTitle) {
+    elements.confirmTitle.textContent = `${actionLabel} 확인`;
+  }
 
   if (elements.confirmMessage) {
     elements.confirmMessage.textContent = `스캔한 ${formatNumber(boxCount)}개 박스를 ${actionLabel} 처리하시겠습니까?`;
@@ -2290,7 +3116,7 @@ function openScannedShippingConfirmModal(action = "complete") {
   renderConfirmMeta(totalQuantity
     ? [`총 ${formatNumber(boxCount)}box`, `${formatNumber(totalQuantity)}ea`]
     : [`총 ${formatNumber(boxCount)}box`]);
-  elements.confirmModal.hidden = false;
+  showConfirmDialog();
 }
 
 function renderConfirmMeta(parts = []) {
@@ -2319,6 +3145,7 @@ function closeConfirmModal() {
   state.activeTransferReturnMode = "transfer";
   state.selectedInventoryMoveMode = "single";
   state.selectedConfirmMode = "item";
+  state.selectedConfirmCallback = null;
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = "출고 확인";
   }
@@ -2332,12 +3159,29 @@ function closeConfirmModal() {
   if (elements.mobileTransferReturnMessage) {
     elements.mobileTransferReturnMessage.textContent = "";
   }
+  setConfirmPresentation();
+  syncClientToneClass(elements.confirmModal, "", { clear: true });
   elements.confirmModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  const returnFocus = confirmDialogReturnFocus;
+  confirmDialogReturnFocus = null;
+  if (returnFocus?.isConnected && returnFocus.offsetParent !== null) {
+    window.requestAnimationFrame(() => returnFocus.focus({ preventScroll: true }));
+  }
   if (shouldResumeInventoryScanner) {
     window.requestAnimationFrame(() => {
       void startScannerCamera();
     });
   }
+}
+
+function handleConfirmDialogKeydown(event) {
+  if (event.key !== "Escape" || elements.confirmModal?.hidden) {
+    return;
+  }
+
+  event.preventDefault();
+  closeConfirmModal();
 }
 
 async function handleReturnTransferredInventory(item) {
@@ -2434,14 +3278,27 @@ async function handleReturnTransferredInventory(item) {
 }
 
 async function handleConfirmShipping() {
+  if (state.selectedConfirmMode === "callback") {
+    const callback = state.selectedConfirmCallback;
+    if (typeof callback !== "function") {
+      closeConfirmModal();
+      return;
+    }
+
+    closeConfirmModal();
+    await callback();
+    return;
+  }
+
   if (state.selectedConfirmMode === "inventoryMoveBatch") {
     if (state.isCompletingShipping) {
       return;
     }
 
     const mode = state.selectedInventoryMoveMode || "single";
+    const isInjectionAction = mode === "injection";
     elements.acceptConfirmButton.disabled = true;
-    elements.acceptConfirmButton.textContent = "이동 중";
+    elements.acceptConfirmButton.textContent = isInjectionAction ? "등록 중" : "이동 중";
     try {
       await handleCompleteScannedInventoryMove(mode);
       closeConfirmModal();
@@ -2610,6 +3467,14 @@ function handleScannerDoneAction() {
   openScannedShippingConfirmModal("complete");
 }
 
+function handleScannerInjectionAction() {
+  if (state.activeWorkflow !== "inventoryMove") {
+    return;
+  }
+
+  openScannedInventoryMoveConfirmModal("injection");
+}
+
 async function completeShippingItems(items, action = "complete") {
   const groups = groupScannedShippingRows(items);
   const results = await mapWithConcurrency(groups, SHIPPING_ACTION_CONCURRENCY, async (group) => {
@@ -2663,7 +3528,6 @@ function markShippingItemsPending(items, failedItems = []) {
     item.stockStatus = "출고대기";
     item.processStatus = "출고대기";
   });
-  updateScannerLookupItems(items, failedItems, { status: "출고대기" });
 }
 
 function markShippingItemsCompleted(items, failedItems = []) {
@@ -2683,7 +3547,6 @@ function markShippingItemsCompleted(items, failedItems = []) {
     item.processStatus = "출고완료";
     item.syncedFromPending = false;
   });
-  updateScannerLookupItems(items, failedItems, { status: "출고완료" });
 }
 
 function markShippingItemsAvailable(items, failedItems = []) {
@@ -2702,50 +3565,6 @@ function markShippingItemsAvailable(items, failedItems = []) {
     item.stockStatus = "보관";
     item.processStatus = "보관";
   });
-  updateScannerLookupItems(items, failedItems, { status: "보관" });
-}
-
-function updateScannerLookupItems(items, failedItems = [], updates = {}) {
-  const failedSet = new Set(failedItems);
-  let changed = false;
-
-  items.forEach((item) => {
-    const sourceItems = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
-    sourceItems.forEach((sourceItem) => {
-      if (!sourceItem || failedSet.has(sourceItem) || failedSet.has(item)) {
-        return;
-      }
-
-      const box = getScannedBox(sourceItem);
-      const parsed = {
-        boxId: normalizeScanValue(sourceItem?.scannedBoxId || box?.boxId),
-        managementId: normalizeScanValue(sourceItem?.managementId),
-        productId: normalizeScanValue(sourceItem?.productId),
-        boxNumber: String(sourceItem?.scannedBoxNumber || box?.number || box?.sequence || "").trim()
-      };
-      for (const key of getScannerLookupKeys(parsed)) {
-        const match = state.scannerLookupIndex.get(key);
-        if (!match) {
-          continue;
-        }
-        if (updates.status) {
-          match.box.status = updates.status;
-          match.box.rawStatus = updates.status;
-        }
-        if (updates.storage) {
-          match.box.storage = updates.storage;
-          match.box.storageLocation = updates.storage;
-        }
-        changed = true;
-        break;
-      }
-    });
-  });
-
-  if (changed) {
-    state.scannerLookupSavedAt = Date.now();
-    saveScannerLookupCache();
-  }
 }
 
 function isShippingItemCompleted(item) {
@@ -2753,12 +3572,18 @@ function isShippingItemCompleted(item) {
   return items.length > 0 && items.every(isCompletedShippingItem);
 }
 
+function getShippingPendingBoxCount(item) {
+  const items = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
+  return items.reduce((count, row) => {
+    const box = getScannedBox(row);
+    const status = normalizeText(box?.rawStatus || box?.status || row?.stockStatus);
+    return count + (status.includes("출고대기") ? 1 : 0);
+  }, 0);
+}
+
 function isShippingItemPending(item) {
   const items = Array.isArray(item?.scannedItems) ? item.scannedItems : [item];
-  return items.length > 0 && items.every((row) => {
-    const box = getScannedBox(row);
-    return normalizeText(box?.rawStatus || box?.status || row?.stockStatus).includes("출고대기");
-  });
+  return items.length > 0 && getShippingPendingBoxCount(item) === items.length;
 }
 
 async function mapWithConcurrency(items, concurrency, callback) {
@@ -2839,13 +3664,14 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
 
   const items = groupScannedInventoryMoveRows(state.scannedMoveRows);
   const scannedBoxCount = state.scannedMoveRows.length;
+  const isInjectionAction = mode === "injection";
   if (!scannedBoxCount) {
-    showToast("이동할 박스를 먼저 스캔해주세요.");
+    showToast(isInjectionAction ? "사출재고로 등록할 박스를 먼저 스캔해주세요." : "이동할 박스를 먼저 스캔해주세요.");
     return;
   }
 
-  const actionLabel = mode === "all" ? "전량 이동" : "자리이동";
-  const missingTarget = items.find((item) => !isInventoryMoveTargetReady(item));
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "박스 전량 이동" : "자리이동";
+  const missingTarget = !isInjectionAction && items.find((item) => !isInventoryMoveTargetReady(item));
   if (missingTarget) {
     setScannerSheetExpanded(true);
     showToast("각 제품의 이동할 장소를 먼저 선택해주세요.");
@@ -2860,19 +3686,28 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
   state.selectedInventoryMoveMode = mode;
   state.selectedShippingItem = null;
 
+  setConfirmPresentation({
+    eyebrow: "재고 수정",
+    icon: isInjectionAction ? "ti-building-warehouse" : "ti-arrows-exchange",
+    tone: "move",
+    subjectLabel: "이동 대상"
+  });
+
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = `${actionLabel} 확인`;
   }
   if (elements.confirmMessage) {
-    elements.confirmMessage.textContent = mode === "all"
-      ? "현재 위치에 있는 같은 제품의 전체 박스를 이동합니다."
-      : "QR로 스캔한 박스만 이동합니다.";
+    elements.confirmMessage.textContent = isInjectionAction
+      ? "QR로 스캔한 박스만 사출재고로 등록합니다. 수량과 보관 위치는 유지됩니다."
+      : mode === "all"
+        ? "현재 위치에 있는 같은 제품의 전체 박스를 이동합니다."
+        : "QR로 스캔한 박스만 이동합니다.";
   }
   elements.confirmProductName.textContent = `${formatNumber(moveBoxCount)}개 박스 · ${formatNumber(items.length)}개 제품`;
   elements.acceptConfirmButton.textContent = actionLabel;
   renderInventoryMoveConfirmRoutes(items, mode);
   pauseScannerDetection();
-  elements.confirmModal.hidden = false;
+  showConfirmDialog();
 }
 
 function renderInventoryMoveConfirmRoutes(items, mode) {
@@ -2882,9 +3717,10 @@ function renderInventoryMoveConfirmRoutes(items, mode) {
 
   elements.confirmMetaList.hidden = false;
   elements.confirmMetaList.classList.add("inventory-move-confirm-routes");
+  const isInjectionAction = mode === "injection";
   elements.confirmMetaList.innerHTML = items.map((item) => {
     const currentStorage = getInventoryMoveCurrentStorage(item);
-    const targetStorage = normalizeDisplay(item.targetStorage);
+    const targetStorage = isInjectionAction ? "사출재고" : normalizeDisplay(item.targetStorage);
     const selectedBoxes = mode === "all" ? getInventoryMoveAllBoxNumbers(item) : getSelectedBoxNumbers(item);
     return `
       <span>
@@ -2903,12 +3739,13 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
 
   const items = groupScannedInventoryMoveRows(state.scannedMoveRows);
   const scannedBoxCount = state.scannedMoveRows.length;
-  if (!scannedBoxCount || items.some((item) => !isInventoryMoveTargetReady(item))) {
-    showToast("이동할 박스와 장소를 다시 확인해주세요.");
+  const isInjectionAction = mode === "injection";
+  if (!scannedBoxCount || (!isInjectionAction && items.some((item) => !isInventoryMoveTargetReady(item)))) {
+    showToast(isInjectionAction ? "사출재고로 등록할 박스를 다시 확인해주세요." : "이동할 박스와 장소를 다시 확인해주세요.");
     return;
   }
 
-  const actionLabel = mode === "all" ? "전량 이동" : "자리이동";
+  const actionLabel = isInjectionAction ? "사출재고 등록" : mode === "all" ? "박스 전량 이동" : "자리이동";
 
   state.isCompletingShipping = true;
   if (elements.scannerPendingButton) {
@@ -2917,9 +3754,16 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
   if (elements.scannerDoneButton) {
     elements.scannerDoneButton.disabled = true;
   }
-  const activeButton = mode === "single" ? elements.scannerPendingButton : elements.scannerDoneButton;
+  if (elements.scannerInjectionButton) {
+    elements.scannerInjectionButton.disabled = true;
+  }
+  const activeButton = isInjectionAction
+    ? elements.scannerInjectionButton
+    : mode === "single"
+      ? elements.scannerPendingButton
+      : elements.scannerDoneButton;
   if (activeButton) {
-    activeButton.textContent = "이동 중";
+    activeButton.textContent = isInjectionAction ? "등록 중" : "이동 중";
   }
 
   try {
@@ -2931,13 +3775,15 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
       saveScannedMoveRows();
       renderInventoryMoveList();
       renderScannerScannedList();
-      showToast(failedItems.length ? `${completedCount}개 박스 이동 완료, ${failedItems.length}건 실패` : `${completedCount}개 박스 이동 완료`);
+      showToast(failedItems.length
+        ? `${completedCount}개 박스 ${actionLabel} 완료, ${failedItems.length}건 실패`
+        : `${completedCount}개 박스 ${actionLabel} 완료`);
       if (!failedItems.length) {
         closeScanner();
       }
       void loadShippingDashboard({ silent: true });
     } else {
-      showToast("이동 처리할 박스가 없습니다.");
+      showToast(isInjectionAction ? "사출재고로 등록된 박스가 없습니다." : "이동 처리할 박스가 없습니다.");
     }
   } finally {
     state.isCompletingShipping = false;
@@ -2946,6 +3792,9 @@ async function handleCompleteScannedInventoryMove(mode = "single") {
     }
     if (elements.scannerDoneButton) {
       elements.scannerDoneButton.disabled = false;
+    }
+    if (elements.scannerInjectionButton) {
+      elements.scannerInjectionButton.disabled = false;
     }
     updateScannerActionLabels();
   }
@@ -2963,14 +3812,19 @@ async function completeInventoryMoveItems(items, mode = "single") {
         continue;
       }
       const result = await completeInventoryMoveItem(item, selectedBoxes, mode);
-      applyInventoryMoveResultLocally(
-        item,
-        selectedBoxes,
-        normalizeDisplay(item.targetStorage),
-        mode,
-        result
-      );
-      completedCount += selectedBoxes.length;
+      if (mode === "injection") {
+        applyInventoryStockResultLocally(item, selectedBoxes, "사출재고");
+      } else {
+        applyInventoryMoveResultLocally(
+          item,
+          selectedBoxes,
+          normalizeDisplay(item.targetStorage),
+          mode,
+          result
+        );
+      }
+      const updatedCount = parseNumber(result?.updatedBoxRows);
+      completedCount += updatedCount > 0 ? updatedCount : selectedBoxes.length;
     } catch (error) {
       failedItems.push(item);
     }
@@ -2982,12 +3836,14 @@ async function completeInventoryMoveItems(items, mode = "single") {
 async function completeInventoryMoveItem(item, selectedBoxes, mode = "single") {
   const currentStorage = getInventoryMoveCurrentStorage(item);
   const targetStorage = item.targetStorageConfirmed === true ? normalizeDisplay(item.targetStorage) : "-";
+  const isInjectionAction = mode === "injection";
 
-  if (!isInventoryMoveTargetReady(item)) {
+  if (!isInjectionAction && !isInventoryMoveTargetReady(item)) {
     throw new Error("이동할 장소를 먼저 선택해주세요.");
   }
 
   return requestApi("updateInventoryBoxMove", {
+    inventoryAction: isInjectionAction ? "setInjectionStock" : "move",
     managementId: item.managementId,
     productId: item.productId,
     clientName: item.clientName,
@@ -2997,7 +3853,7 @@ async function completeInventoryMoveItem(item, selectedBoxes, mode = "single") {
     storage: currentStorage,
     currentStorage,
     targetStorage,
-    status: "보관",
+    status: isInjectionAction ? "사출재고" : "보관",
     userName: state.user?.name || "Admin",
     selectedBoxes,
     moveAllBoxes: mode === "all"
@@ -3035,7 +3891,31 @@ function applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mod
       row.storageLocation = targetStorage;
     }
   });
-  updateScannerLookupItems([item], [], { storage: targetStorage });
+}
+
+function applyInventoryStockResultLocally(item, selectedBoxes, status) {
+  const managementId = normalizeScanValue(item?.managementId);
+  const productId = normalizeScanValue(item?.productId);
+  const selectedBoxNumbers = new Set(
+    selectedBoxes.map((value) => String(value || "").trim()).filter(Boolean)
+  );
+
+  state.dashboard.forEach((row) => {
+    if (normalizeScanValue(row?.managementId) !== managementId) {
+      return;
+    }
+    if (productId && normalizeScanValue(row?.productId) !== productId) {
+      return;
+    }
+
+    getKnownBoxes(row).forEach((box) => {
+      const boxNumber = String(box?.number || box?.sequence || "").trim();
+      if (selectedBoxNumbers.has(boxNumber)) {
+        box.status = status;
+        box.rawStatus = status;
+      }
+    });
+  });
 }
 
 function openInventoryMoveScanner() {
@@ -3159,7 +4039,7 @@ async function startScannerCamera() {
 }
 
 function updateScannerActionLabels() {
-  if (!elements.scannerPendingButton || !elements.scannerDoneButton) {
+  if (!elements.scannerPendingButton || !elements.scannerDoneButton || !elements.scannerInjectionButton) {
     return;
   }
 
@@ -3167,22 +4047,31 @@ function updateScannerActionLabels() {
   if (state.activeWorkflow === "inventoryMove") {
     const hasScannedMoveRows = state.scannedMoveRows.length > 0;
     elements.scannerPendingButton.hidden = false;
+    elements.scannerInjectionButton.hidden = false;
     scannerBottom?.classList.remove("single-action");
+    scannerBottom?.classList.add("three-actions");
     elements.scannerPendingButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M8 7h12"></path><path d="M8 12h12"></path><path d="M8 17h12"></path><path d="M4 7h.01"></path><path d="M4 12h.01"></path><path d="M4 17h.01"></path></svg>
       스캔 박스 이동
     `;
     elements.scannerDoneButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M4 12h14"></path><path d="m13 5 7 7-7 7"></path></svg>
-      현재 위치 전량
+      박스 전량 이동
+    `;
+    elements.scannerInjectionButton.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+      사출재고 등록
     `;
     elements.scannerPendingButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     elements.scannerDoneButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
+    elements.scannerInjectionButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     return;
   }
 
   elements.scannerPendingButton.hidden = false;
+  elements.scannerInjectionButton.hidden = true;
   scannerBottom?.classList.remove("single-action");
+  scannerBottom?.classList.remove("three-actions");
   const scannerRows = getScannerSessionShippingRows();
   elements.scannerPendingButton.innerHTML = `
     <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
@@ -3204,19 +4093,12 @@ async function getScannerStream() {
     return reusableStream;
   }
 
-  const videoConstraints = IS_LOW_POWER_SCANNER
-    ? {
-        facingMode: { ideal: "environment" },
-        width: { min: 640, ideal: 960, max: 1280 },
-        height: { min: 480, ideal: 540, max: 720 },
-        frameRate: { ideal: 20, max: 24 }
-      }
-    : {
-        facingMode: { ideal: "environment" },
-        width: { min: 640, ideal: 1280, max: 1280 },
-        height: { min: 480, ideal: 720, max: 720 },
-        frameRate: { ideal: 24, max: 24 }
-      };
+  const videoConstraints = {
+    facingMode: { ideal: "environment" },
+    width: { min: 1280, ideal: 1920, max: 1920 },
+    height: { min: 720, ideal: 1080, max: 1080 },
+    frameRate: { ideal: 30, max: 30 }
+  };
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -3987,7 +4869,10 @@ async function handleQrValue(rawValue) {
   state.scannerLastValue = value;
 
   try {
-    const matched = await resolveInventoryItemByQrValue(value);
+    await ensureDashboardLoaded();
+    const matched = state.activeWorkflow === "inventoryMove"
+      ? findInventoryMoveByQrValue(value)
+      : findShippingByQrValue(value);
 
     if (!matched) {
       setScannerHelp(state.activeWorkflow === "inventoryMove" ? "이동할 박스를 찾지 못했습니다. QR 또는 보관 상태를 확인해주세요." : "일치하는 박스를 찾지 못했습니다. QR 또는 박스 정보를 확인해주세요.");
@@ -4064,226 +4949,6 @@ async function handleQrValue(rawValue) {
   }
 }
 
-async function resolveInventoryItemByQrValue(value) {
-  const scannerCacheMatch = findScannerLookupByQrValue(value);
-  if (scannerCacheMatch) {
-    return scannerCacheMatch;
-  }
-
-  const localMatch = state.activeWorkflow === "inventoryMove"
-    ? findInventoryMoveByQrValue(value)
-    : findShippingByQrValue(value);
-  if (localMatch) {
-    return localMatch;
-  }
-
-  const parsed = parseQrValue(value);
-  try {
-    const lookup = await requestApi("getInventoryByQr", {
-      rawValue: value,
-      boxId: parsed.boxId,
-      managementId: parsed.managementId,
-      productId: parsed.productId,
-      boxNumber: parsed.boxNumber
-    });
-    if (!lookup?.row) {
-      return null;
-    }
-
-    upsertDashboardQrLookupRow(lookup.row);
-    upsertScannerLookupRow(lookup.row);
-    saveScannerLookupCache();
-    const box = lookup.box || findMatchedBox(getKnownBoxes(lookup.row), parsed);
-    if (state.activeWorkflow === "inventoryMove") {
-      const movableBoxes = getMovableBoxes(lookup.row);
-      const movableBox = box && isInventoryMoveLookupBoxAvailable(box, lookup.row)
-        ? box
-        : movableBoxes[0];
-      return movableBox
-        ? buildInventoryMoveItem(lookup.row, movableBox, parsed, value)
-        : null;
-    }
-
-    return buildScannedBoxItem(
-      lookup.row,
-      box || createParsedBox(parsed),
-      parsed,
-      value
-    );
-  } catch (error) {
-    await ensureDashboardLoaded();
-    return state.activeWorkflow === "inventoryMove"
-      ? findInventoryMoveByQrValue(value)
-      : findShippingByQrValue(value);
-  }
-}
-
-function upsertDashboardQrLookupRow(row) {
-  const managementId = normalizeScanValue(row?.managementId);
-  const productId = normalizeScanValue(row?.productId);
-  const existingIndex = state.dashboard.findIndex((candidate) => {
-    return normalizeScanValue(candidate?.managementId) === managementId
-      && normalizeScanValue(candidate?.productId) === productId;
-  });
-
-  if (existingIndex >= 0) {
-    state.dashboard[existingIndex] = row;
-    return;
-  }
-
-  state.dashboard.push(row);
-}
-
-function findScannerLookupByQrValue(rawValue) {
-  const parsed = parseQrValue(rawValue);
-  const lookupKeys = getScannerLookupKeys(parsed);
-  let match = null;
-
-  for (const key of lookupKeys) {
-    const candidate = state.scannerLookupIndex.get(key);
-    if (!candidate) {
-      continue;
-    }
-    if (parsed.managementId && normalizeScanValue(candidate.row?.managementId) !== parsed.managementId) {
-      continue;
-    }
-    if (parsed.productId && normalizeScanValue(candidate.row?.productId) !== parsed.productId) {
-      continue;
-    }
-    match = candidate;
-    break;
-  }
-
-  if (!match) {
-    return null;
-  }
-
-  if (state.activeWorkflow === "inventoryMove") {
-    return isInventoryMoveLookupBoxAvailable(match.box, match.row)
-      ? buildInventoryMoveItem(match.row, match.box, parsed, rawValue)
-      : null;
-  }
-
-  return buildScannedBoxItem(match.row, match.box, parsed, rawValue);
-}
-
-function getScannerLookupKeys(parsed) {
-  const keys = [];
-  if (parsed.boxId) {
-    keys.push(`box:${parsed.boxId}`);
-  }
-  if (parsed.managementId && parsed.boxNumber) {
-    keys.push(`management:${parsed.managementId}:box:${parsed.boxNumber}`);
-  }
-  if (parsed.productId && parsed.boxNumber) {
-    keys.push(`product:${parsed.productId}:box:${parsed.boxNumber}`);
-  }
-  return keys;
-}
-
-function getScannerLookupKeysForBox(row, box) {
-  return getScannerLookupKeys({
-    boxId: normalizeScanValue(box?.boxId || box?.id || box?.qrId),
-    managementId: normalizeScanValue(row?.managementId),
-    productId: normalizeScanValue(row?.productId),
-    boxNumber: String(box?.number || box?.sequence || "").trim()
-  });
-}
-
-function rebuildScannerLookupIndex() {
-  const index = new Map();
-  state.scannerLookupRows.forEach((row) => {
-    getKnownBoxes(row).forEach((box) => {
-      getScannerLookupKeysForBox(row, box).forEach((key) => {
-        if (key && !index.has(key)) {
-          index.set(key, { row, box });
-        }
-      });
-    });
-  });
-  state.scannerLookupIndex = index;
-}
-
-function compactScannerLookupBox(box) {
-  return {
-    boxId: box?.boxId || box?.id || box?.qrId || "",
-    number: box?.number || box?.sequence || "",
-    quantity: box?.quantity || box?.currentQuantity || "",
-    status: box?.status || "",
-    rawStatus: box?.rawStatus || box?.status || "",
-    storage: box?.storage || box?.storageLocation || "",
-    storageLocation: box?.storageLocation || box?.storage || "",
-    inventoryCategory: box?.inventoryCategory || ""
-  };
-}
-
-function compactCompletedScannerLookupBox(box) {
-  return {
-    boxId: box?.boxId || box?.id || box?.qrId || "",
-    number: box?.number || box?.sequence || "",
-    status: box?.status || "출고완료",
-    rawStatus: box?.rawStatus || box?.status || "출고완료"
-  };
-}
-
-function compactScannerLookupRow(row) {
-  return {
-    managementId: row?.managementId || "",
-    productId: row?.productId || "",
-    clientName: row?.clientName || "",
-    productName: row?.productName || "",
-    stockStatus: row?.stockStatus || "",
-    processStatus: row?.processStatus || "",
-    registrant: row?.registrant || "",
-    inspector: row?.inspector || "",
-    registeredAt: row?.registeredAt || "",
-    inboundDate: row?.inboundDate || "",
-    batch: row?.batch || "",
-    finalProcess: row?.finalProcess || "",
-    storage: row?.storage || "",
-    boxQuantity: row?.boxQuantity || "",
-    trayQuantity: row?.trayQuantity || "",
-    currentBoxCount: row?.currentBoxCount || row?.boxTotalCount || "",
-    boxTotalCount: row?.boxTotalCount || row?.currentBoxCount || "",
-    currentTotalQuantity: row?.currentTotalQuantity || "",
-    completedShippingType: row?.completedShippingType || "",
-    countsAsInventory: row?.countsAsInventory !== false,
-    activeShippingBoxes: (Array.isArray(row?.activeShippingBoxes) ? row.activeShippingBoxes : []).map(compactScannerLookupBox),
-    shippedShippingBoxes: (Array.isArray(row?.shippedShippingBoxes) ? row.shippedShippingBoxes : []).map(compactCompletedScannerLookupBox)
-  };
-}
-
-function replaceScannerLookupRows(rows, savedAt = Date.now()) {
-  state.scannerLookupRows = (Array.isArray(rows) ? rows : [])
-    .map(compactScannerLookupRow)
-    .filter((row) => getKnownBoxes(row).length > 0);
-  state.scannerLookupSavedAt = Number(savedAt) || Date.now();
-  rebuildScannerLookupIndex();
-}
-
-function upsertScannerLookupRow(row) {
-  const compactRow = compactScannerLookupRow(row);
-  const managementId = normalizeScanValue(compactRow.managementId);
-  const productId = normalizeScanValue(compactRow.productId);
-  const existingIndex = state.scannerLookupRows.findIndex((candidate) => {
-    return normalizeScanValue(candidate?.managementId) === managementId
-      && normalizeScanValue(candidate?.productId) === productId;
-  });
-
-  if (existingIndex >= 0) {
-    state.scannerLookupRows[existingIndex] = compactRow;
-  } else {
-    state.scannerLookupRows.push(compactRow);
-  }
-  state.scannerLookupSavedAt = Date.now();
-  rebuildScannerLookupIndex();
-}
-
-function isInventoryMoveLookupBoxAvailable(box, item) {
-  const status = normalizeText(box?.rawStatus || box?.status);
-  return getBoxCurrentQuantity(box, item) > 0 && !/출고완료|폐기/.test(status);
-}
-
 function restoreHardwareScannerQrValue(rawValue) {
   const text = String(rawValue || "")
     .trim()
@@ -4358,37 +5023,15 @@ function syncPendingShippingRowsFromDashboard() {
   state.scannedShippingRows.forEach((row) => {
     const key = getShippingKey(row);
     const pendingRow = pendingByKey.get(key);
+    if (row.syncedFromPending && !pendingRow) {
+      return;
+    }
 
     if (pendingRow) {
-      mergedRows.push({
-        ...pendingRow,
-        scannedQrValue: row.scannedQrValue || pendingRow.scannedQrValue || "",
-        syncedFromPending: true
-      });
-      mergedKeys.add(key);
-      return;
+      Object.assign(row, pendingRow);
     }
-
-    if (row.syncedFromPending) {
-      return;
-    }
-
-    const match = findSavedShippingRowInDashboard(row);
-    if (!match) {
-      return;
-    }
-
-    const refreshedRow = buildScannedBoxItem(match.row, match.box, {
-      boxId: normalizeScanValue(match.box?.boxId || match.box?.id || match.box?.qrId || row.scannedBoxId),
-      managementId: normalizeScanValue(match.row.managementId),
-      productId: normalizeScanValue(match.row.productId),
-      boxNumber: String(match.box?.number || match.box?.sequence || row.scannedBoxNumber || "").trim()
-    }, row.scannedQrValue || "");
-    const refreshedKey = getShippingKey(refreshedRow);
-    if (!mergedKeys.has(refreshedKey)) {
-      mergedRows.push({ ...refreshedRow, syncedFromPending: false });
-      mergedKeys.add(refreshedKey);
-    }
+    mergedRows.push(row);
+    mergedKeys.add(key);
   });
 
   pendingRows.forEach((row) => {
@@ -4401,40 +5044,6 @@ function syncPendingShippingRowsFromDashboard() {
 
   state.scannedShippingRows = mergedRows;
   saveScannedShippingRows();
-}
-
-function findSavedShippingRowInDashboard(savedRow) {
-  const managementId = normalizeScanValue(savedRow?.managementId);
-  const productId = normalizeScanValue(savedRow?.productId);
-  const productName = normalizeScanValue(savedRow?.productName);
-  const clientName = normalizeScanValue(savedRow?.clientName);
-  const parsed = {
-    boxId: normalizeScanValue(savedRow?.scannedBoxId || savedRow?.scannedBox?.boxId),
-    boxNumber: String(savedRow?.scannedBoxNumber || savedRow?.scannedBox?.number || "").trim()
-  };
-
-  const candidates = state.dashboard.filter((row) => {
-    if (managementId && normalizeScanValue(row?.managementId) !== managementId) {
-      return false;
-    }
-    if (productId && normalizeScanValue(row?.productId) !== productId) {
-      return false;
-    }
-    if (!managementId && !productId) {
-      return normalizeScanValue(row?.productName) === productName
-        && (!clientName || normalizeScanValue(row?.clientName) === clientName);
-    }
-    return true;
-  });
-
-  for (const row of candidates) {
-    const box = findMatchedBox(getKnownBoxes(row), parsed);
-    if (box) {
-      return { row, box };
-    }
-  }
-
-  return null;
 }
 
 function findShippingByQrValue(rawValue) {
@@ -4710,27 +5319,7 @@ function openShippingQuantityEditor(key) {
     return;
   }
 
-  if (items.length === 1) {
-    editScannedBoxQuantity(items[0]);
-    return;
-  }
-
-  const list = items.map((item, index) => {
-    const label = getScannedBoxLabel(item) || `${index + 1}번 박스`;
-    return `${index + 1}. ${label} - ${formatNumber(getEditableBoxQuantity(item))}ea`;
-  }).join("\n");
-  const selected = window.prompt(`수량을 변경할 박스를 선택하세요.\n\n${list}`, "1");
-  if (selected === null) {
-    return;
-  }
-
-  const selectedIndex = Number.parseInt(selected, 10) - 1;
-  if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= items.length) {
-    showToast("박스 번호를 다시 확인해주세요.");
-    return;
-  }
-
-  editScannedBoxQuantity(items[selectedIndex]);
+  openShippingQuantityEditorModal(items);
 }
 
 function getShippingQuantityItems(key) {
@@ -4751,20 +5340,144 @@ function getShippingQuantityItems(key) {
 }
 
 function editScannedBoxQuantity(item) {
+  if (!item) {
+    return;
+  }
+
+  openShippingQuantityEditorModal([item]);
+}
+
+function openShippingQuantityEditorModal(items) {
+  if (!elements.shippingQuantityModal || !elements.shippingQuantityBoxList || !elements.shippingQuantityInput) {
+    showToast("수량 변경 화면을 열지 못했습니다.");
+    return;
+  }
+
+  const editableItems = items.filter(Boolean);
+  if (!editableItems.length) {
+    showToast("수량을 변경할 박스를 찾지 못했습니다.");
+    return;
+  }
+
+  quantityEditorReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  state.quantityEditorItems = editableItems;
+  state.quantityEditorSelectedIndex = 0;
+
+  const firstItem = editableItems[0];
+  syncClientToneClass(elements.shippingQuantityModal, firstItem.clientName);
+  elements.shippingQuantityClientName.textContent = normalizeDisplay(firstItem.clientName || "-");
+  elements.shippingQuantityProductName.textContent = normalizeDisplay(firstItem.productName || "-");
+  elements.shippingQuantityBoxCount.textContent = `${formatNumber(editableItems.length)}개 박스`;
+  elements.shippingQuantityBoxList.innerHTML = editableItems.map((item, index) => {
+    const label = getShippingQuantityBoxLabel(item, index);
+    const quantity = getEditableBoxQuantity(item);
+    return `
+      <label class="quantity-editor-box-option">
+        <input type="radio" name="shippingQuantityBox" value="${index}" data-shipping-quantity-box="${index}" ${index === 0 ? "checked" : ""} />
+        <span class="quantity-editor-box-number">${formatNumber(index + 1)}</span>
+        <span class="quantity-editor-box-copy">
+          <strong>${escapeHtml(label)}</strong>
+          <small>현재 수량</small>
+        </span>
+        <b>${formatNumber(quantity)}<small>ea</small></b>
+      </label>
+    `;
+  }).join("");
+
+  elements.shippingQuantityModal.hidden = false;
+  document.body.classList.add("modal-open");
+  selectShippingQuantityItem(0);
+
+  if (editableItems.length === 1) {
+    window.requestAnimationFrame(() => {
+      elements.shippingQuantityInput.focus({ preventScroll: true });
+      elements.shippingQuantityInput.select();
+    });
+  }
+}
+
+function getShippingQuantityBoxLabel(item, index) {
+  return getScannedBoxLabel(item) || `${index + 1}번 박스`;
+}
+
+function handleShippingQuantityBoxChange(event) {
+  const input = event.target.closest("[data-shipping-quantity-box]");
+  if (!input) {
+    return;
+  }
+
+  selectShippingQuantityItem(Number(input.dataset.shippingQuantityBox), { focusInput: true });
+}
+
+function selectShippingQuantityItem(index, { focusInput = false } = {}) {
+  const item = state.quantityEditorItems[index];
+  if (!item || !elements.shippingQuantityInput) {
+    return;
+  }
+
+  state.quantityEditorSelectedIndex = index;
   const currentQuantity = getEditableBoxQuantity(item);
-  const label = getScannedBoxLabel(item) || "선택한 박스";
-  const input = window.prompt(`${label} 수량을 입력하세요.`, currentQuantity ? String(currentQuantity) : "");
-  if (input === null) {
+  const label = getShippingQuantityBoxLabel(item, index);
+  elements.shippingQuantityInput.value = currentQuantity ? String(currentQuantity) : "";
+  elements.shippingQuantitySelectedBox.textContent = `${label} · 현재 ${formatNumber(currentQuantity)} ea`;
+  syncShippingQuantityValidation();
+
+  if (focusInput) {
+    window.requestAnimationFrame(() => {
+      elements.shippingQuantityInput.focus({ preventScroll: true });
+      elements.shippingQuantityInput.select();
+    });
+  }
+}
+
+function syncShippingQuantityValidation() {
+  if (!elements.shippingQuantityInput || !elements.shippingQuantityMessage || !elements.confirmShippingQuantityButton) {
     return;
   }
 
-  const nextQuantity = parseNumber(input);
-  if (!nextQuantity || nextQuantity < 1) {
-    showToast("수량은 1 이상으로 입력해주세요.");
+  const item = state.quantityEditorItems[state.quantityEditorSelectedIndex];
+  const currentQuantity = item ? getEditableBoxQuantity(item) : 0;
+  const nextQuantity = parseNumber(elements.shippingQuantityInput.value);
+  const isValid = Boolean(item) && Number.isInteger(nextQuantity) && nextQuantity >= 1;
+
+  elements.shippingQuantityInput.setAttribute("aria-invalid", String(!isValid));
+  elements.confirmShippingQuantityButton.disabled = !isValid;
+  elements.shippingQuantityMessage.classList.toggle("is-error", !isValid);
+  elements.shippingQuantityMessage.classList.toggle("is-changed", isValid && nextQuantity !== currentQuantity);
+  elements.shippingQuantityMessage.textContent = !isValid
+    ? "수량은 1 이상의 숫자로 입력해주세요."
+    : nextQuantity === currentQuantity
+      ? "현재 등록된 수량과 같습니다."
+      : `${formatNumber(currentQuantity)} ea에서 ${formatNumber(nextQuantity)} ea로 변경합니다.`;
+}
+
+function adjustShippingQuantity(delta) {
+  if (!elements.shippingQuantityInput) {
     return;
   }
 
+  const item = state.quantityEditorItems[state.quantityEditorSelectedIndex];
+  const fallbackQuantity = item ? getEditableBoxQuantity(item) : 1;
+  const currentValue = parseNumber(elements.shippingQuantityInput.value) || fallbackQuantity || 1;
+  elements.shippingQuantityInput.value = String(Math.max(1, currentValue + delta));
+  syncShippingQuantityValidation();
+}
+
+function handleShippingQuantitySubmit(event) {
+  event.preventDefault();
+  const index = state.quantityEditorSelectedIndex;
+  const item = state.quantityEditorItems[index];
+  const nextQuantity = parseNumber(elements.shippingQuantityInput?.value);
+
+  if (!item || !Number.isInteger(nextQuantity) || nextQuantity < 1) {
+    syncShippingQuantityValidation();
+    elements.shippingQuantityInput?.focus();
+    return;
+  }
+
+  const label = getShippingQuantityBoxLabel(item, index);
   setScannedBoxQuantity(item, nextQuantity);
+  closeShippingQuantityEditor();
   saveScannedShippingRows();
   if (!elements.scannerScreen?.hidden) {
     state.scannerViewDirty = true;
@@ -4773,6 +5486,37 @@ function editScannedBoxQuantity(item) {
     applyShippingFilters();
   }
   showToast(`${label} 수량을 ${formatNumber(nextQuantity)}ea로 변경했습니다.`);
+}
+
+function closeShippingQuantityEditor() {
+  if (!elements.shippingQuantityModal || elements.shippingQuantityModal.hidden) {
+    return;
+  }
+
+  elements.shippingQuantityModal.hidden = true;
+  syncClientToneClass(elements.shippingQuantityModal, "", { clear: true });
+  state.quantityEditorItems = [];
+  state.quantityEditorSelectedIndex = -1;
+  elements.shippingQuantityBoxList.innerHTML = "";
+  elements.shippingQuantityInput.value = "";
+  elements.shippingQuantityMessage.textContent = "";
+  elements.shippingQuantityMessage.classList.remove("is-error", "is-changed");
+  document.body.classList.remove("modal-open");
+
+  const returnFocus = quantityEditorReturnFocus;
+  quantityEditorReturnFocus = null;
+  if (returnFocus?.isConnected && returnFocus.offsetParent !== null) {
+    window.requestAnimationFrame(() => returnFocus.focus({ preventScroll: true }));
+  }
+}
+
+function handleShippingQuantityKeydown(event) {
+  if (event.key !== "Escape" || elements.shippingQuantityModal?.hidden) {
+    return;
+  }
+
+  event.preventDefault();
+  closeShippingQuantityEditor();
 }
 
 function getEditableBoxQuantity(item) {
@@ -4830,12 +5574,18 @@ function confirmRemoveScannedShippingGroup(key) {
   }
 
   const representative = items[0];
-  const ok = window.confirm(`${normalizeDisplay(representative.productName)}\n스캔한 ${formatNumber(items.length)}개 박스를 출고 등록 목록에서 삭제하시겠습니까?`);
-  if (!ok) {
-    return;
-  }
-
-  removeScannedShippingGroup(key);
+  openCallbackConfirm({
+    eyebrow: "출고 관리",
+    icon: "ti-trash",
+    tone: "danger",
+    title: "등록 목록에서 삭제",
+    message: "스캔한 박스를 출고 등록 목록에서만 제거합니다. 실제 재고는 변경되지 않습니다.",
+    subject: normalizeDisplay(representative.productName),
+    subjectLabel: "삭제 대상",
+    meta: [`${formatNumber(items.length)}박스`],
+    acceptLabel: "목록에서 삭제",
+    onConfirm: () => removeScannedShippingGroup(key)
+  });
 }
 
 function removeScannedShippingGroup(key) {
@@ -4860,14 +5610,28 @@ function startShippingClock() {
   if (state.clockTimer) {
     return;
   }
-  state.clockTimer = window.setInterval(updateShippingClock, SHIPPING_CLOCK_INTERVAL_MS);
+  scheduleShippingClockTick();
+}
+
+function scheduleShippingClockTick() {
+  const delay = SHIPPING_CLOCK_INTERVAL_MS - (Date.now() % SHIPPING_CLOCK_INTERVAL_MS) + 20;
+  state.clockTimer = window.setTimeout(() => {
+    state.clockTimer = null;
+    updateShippingClock();
+
+    const isClockScreenActive = elements.shippingScreen?.classList.contains("active")
+      || elements.inventoryMoveScreen?.classList.contains("active");
+    if (!document.hidden && isClockScreenActive) {
+      scheduleShippingClockTick();
+    }
+  }, delay);
 }
 
 function stopShippingClock() {
   if (!state.clockTimer) {
     return;
   }
-  window.clearInterval(state.clockTimer);
+  window.clearTimeout(state.clockTimer);
   state.clockTimer = null;
 }
 
@@ -4997,44 +5761,6 @@ function getMobileCacheUserKey() {
   return String(state.user?.accountId || state.user?.name || "").trim();
 }
 
-function restoreScannerLookupCache() {
-  try {
-    const cached = JSON.parse(localStorage.getItem(SCANNER_LOOKUP_CACHE_KEY) || "null");
-    const currentUserKey = getMobileCacheUserKey();
-    const savedAt = Number(cached?.savedAt) || 0;
-    const isExpired = !savedAt || Date.now() - savedAt > SCANNER_LOOKUP_CACHE_MAX_AGE_MS;
-    const isDifferentUser = cached?.userKey && currentUserKey && cached.userKey !== currentUserKey;
-    if (!Array.isArray(cached?.rows) || isExpired || isDifferentUser) {
-      if (cached) {
-        localStorage.removeItem(SCANNER_LOOKUP_CACHE_KEY);
-      }
-      return false;
-    }
-
-    replaceScannerLookupRows(cached.rows, savedAt);
-    return state.scannerLookupIndex.size > 0;
-  } catch (error) {
-    return false;
-  }
-}
-
-function saveScannerLookupCache() {
-  if (!state.scannerLookupRows.length) {
-    return false;
-  }
-
-  try {
-    localStorage.setItem(SCANNER_LOOKUP_CACHE_KEY, JSON.stringify({
-      userKey: getMobileCacheUserKey(),
-      savedAt: state.scannerLookupSavedAt || Date.now(),
-      rows: state.scannerLookupRows
-    }));
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
 function restoreCachedDashboard() {
   try {
     const cached = JSON.parse(localStorage.getItem(DASHBOARD_CACHE_KEY) || "null");
@@ -5051,8 +5777,6 @@ function restoreCachedDashboard() {
 
     state.dashboard = cached.rows;
     state.dashboardLoadedAt = savedAt;
-    replaceScannerLookupRows(state.dashboard, savedAt);
-    saveScannerLookupCache();
     syncPendingShippingRowsFromDashboard();
     syncScannedMoveRowsFromDashboard();
     return true;
@@ -5076,7 +5800,6 @@ function saveDashboardCache() {
 function clearPersistentMobileData() {
   try {
     localStorage.removeItem(DASHBOARD_CACHE_KEY);
-    localStorage.removeItem(SCANNER_LOOKUP_CACHE_KEY);
     localStorage.removeItem(PERSISTENT_SCANNED_ROWS_KEY);
   } catch (error) {
     // Private browsing or device policy can block persistent storage.
@@ -5278,6 +6001,46 @@ function setLoginMessage(message, type = "error") {
   elements.loginMessage.textContent = message;
   elements.loginMessage.classList.toggle("success", type === "success");
   elements.loginMessage.classList.toggle("info", type === "info");
+  elements.loginMessage.classList.toggle("error", Boolean(message) && type === "error");
+
+  if (!message || type !== "error") {
+    elements.loginForm?.classList.remove("has-login-error");
+    return;
+  }
+
+  const missingAccount = !elements.accountId?.value.trim();
+  const missingPassword = !elements.password?.value.trim();
+  elements.accountId?.closest(".field-control")?.classList.toggle("is-invalid", missingAccount);
+  elements.password?.closest(".field-control")?.classList.toggle("is-invalid", missingPassword);
+  elements.accountId?.setAttribute("aria-invalid", String(missingAccount));
+  elements.password?.setAttribute("aria-invalid", String(missingPassword));
+
+  elements.loginForm?.classList.remove("has-login-error");
+  void elements.loginForm?.offsetWidth;
+  elements.loginForm?.classList.add("has-login-error");
+}
+
+function syncLoginFieldStates() {
+  [elements.accountId, elements.password].forEach((input) => {
+    if (!input) {
+      return;
+    }
+
+    const fieldControl = input.closest(".field-control");
+    const hasValue = Boolean(input.value.trim());
+    fieldControl?.classList.toggle("is-filled", hasValue);
+    if (hasValue) {
+      fieldControl?.classList.remove("is-invalid");
+      input.setAttribute("aria-invalid", "false");
+    }
+  });
+
+  if (elements.accountId?.value.trim() && elements.password?.value.trim()
+    && elements.loginMessage?.classList.contains("error")) {
+    elements.loginMessage.textContent = "";
+    elements.loginMessage.classList.remove("error");
+    elements.loginForm?.classList.remove("has-login-error");
+  }
 }
 
 function showToast(message) {
@@ -5701,12 +6464,18 @@ function confirmRemoveScannedMoveGroup(key) {
   }
 
   const scannedBoxCount = parseNumber(item.scannedBoxCount) || getSelectedBoxNumbers(item).length || 1;
-  const ok = window.confirm(`${normalizeDisplay(item.productName)}\n스캔한 ${formatNumber(scannedBoxCount)}개 박스를 재고 수정 목록에서 삭제하시겠습니까?`);
-  if (!ok) {
-    return;
-  }
-
-  removeScannedMoveGroup(key);
+  openCallbackConfirm({
+    eyebrow: "재고 수정",
+    icon: "ti-trash",
+    tone: "danger",
+    title: "수정 목록에서 삭제",
+    message: "스캔한 박스를 재고 수정 목록에서만 제거합니다. 실제 재고는 변경되지 않습니다.",
+    subject: normalizeDisplay(item.productName),
+    subjectLabel: "삭제 대상",
+    meta: [`${formatNumber(scannedBoxCount)}박스`],
+    acceptLabel: "목록에서 삭제",
+    onConfirm: () => removeScannedMoveGroup(key)
+  });
 }
 
 function removeScannedMoveGroup(key) {
@@ -5758,6 +6527,41 @@ function normalizeText(value) {
 function normalizeDisplay(value) {
   const text = normalizeText(value);
   return text && text !== "-" ? text : "-";
+}
+
+function getClientToneClass(clientName) {
+  const key = String(clientName || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\(주\)|㈜|주식회사/g, "")
+    .replace(/[^0-9a-z가-힣]/g, "");
+  if (!key) {
+    return "client-tone-unassigned";
+  }
+
+  if (CLIENT_TONE_BY_KEY[key]) {
+    return CLIENT_TONE_BY_KEY[key];
+  }
+
+  let hash = 0;
+  for (const character of key) {
+    hash = ((hash * 31) + character.codePointAt(0)) >>> 0;
+  }
+  return CLIENT_TONE_CLASS_NAMES[hash % CLIENT_TONE_CLASS_NAMES.length];
+}
+
+function syncClientToneClass(element, clientName, options = {}) {
+  if (!element) {
+    return;
+  }
+
+  Array.from(element.classList)
+    .filter((className) => className.startsWith("client-tone-"))
+    .forEach((className) => element.classList.remove(className));
+
+  if (!options.clear) {
+    element.classList.add(getClientToneClass(clientName));
+  }
 }
 
 function parseNumber(value) {
