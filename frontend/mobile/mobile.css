@@ -10400,6 +10400,116 @@ body {
   grid-column: 1 / -1;
 }
 
+.mobile-inventory-audit-scope {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--operations-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mobile-inventory-audit-scope-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.mobile-inventory-audit-scope-heading strong {
+  color: var(--operations-ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mobile-inventory-audit-scope-heading span {
+  color: #7a879a;
+  font-size: 10px;
+}
+
+.mobile-inventory-audit-scope-list {
+  display: grid;
+  gap: 8px;
+}
+
+.mobile-inventory-audit-scope-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-height: 72px;
+  padding: 11px;
+  border: 1px solid #d9e2ed;
+  border-radius: 11px;
+  background: #f9fbfe;
+}
+
+.mobile-inventory-audit-scope-option:has(input:checked) {
+  border-color: #8db4ea;
+  background: #f1f7ff;
+  box-shadow: 0 0 0 1px rgba(39, 96, 177, 0.08);
+}
+
+.mobile-inventory-audit-scope-option.danger:has(input:checked) {
+  border-color: #e0a099;
+  background: #fff7f6;
+}
+
+.mobile-inventory-audit-scope-option.disabled {
+  opacity: 0.52;
+  background: #f3f5f8;
+}
+
+.mobile-inventory-audit-scope-option input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--operations-navy-2);
+}
+
+.mobile-inventory-audit-scope-option > span,
+.mobile-inventory-audit-scope-option strong,
+.mobile-inventory-audit-scope-option small,
+.mobile-inventory-audit-scope-option em {
+  display: block;
+  min-width: 0;
+}
+
+.mobile-inventory-audit-scope-option strong {
+  color: var(--operations-ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mobile-inventory-audit-scope-option small {
+  margin-top: 3px;
+  color: #66748a;
+  font-size: 10px;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+.mobile-inventory-audit-scope-option em {
+  margin-top: 6px;
+  color: #2760b1;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.mobile-inventory-audit-scope-option.danger em {
+  color: #aa3128;
+}
+
+.mobile-inventory-audit-scope > p {
+  margin: 10px 1px 0;
+  color: #78869a;
+  font-size: 10px;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
 .action-dialog-body .confirm-meta-list.inventory-move-confirm-routes {
   grid-template-columns: minmax(0, 1fr);
   max-height: 238px;
