@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260818-missing-inventory-audit" />
+    <link rel="stylesheet" href="./mobile.css?v=20260819-inventory-audit-scope" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -343,6 +343,14 @@
               <strong id="confirmProductName">-</strong>
             </section>
             <div class="confirm-meta-list" id="confirmMetaList" aria-label="작업 상세"></div>
+            <section class="mobile-inventory-audit-scope" id="mobileInventoryAuditScopeControls" hidden>
+              <div class="mobile-inventory-audit-scope-heading">
+                <strong>재고 정리 범위</strong>
+                <span>정리할 범위를 선택해주세요.</span>
+              </div>
+              <div class="mobile-inventory-audit-scope-list" id="mobileInventoryAuditScopeList"></div>
+              <p>사출재고·인쇄재고·자사재고는 모든 범위에서 자동으로 제외됩니다.</p>
+            </section>
             <section class="mobile-transfer-return-controls" id="mobileTransferReturnControls" hidden>
               <div class="mobile-transfer-return-heading">
                 <strong id="mobileTransferReturnHeading">복귀할 이관 박스</strong>
@@ -565,7 +573,7 @@
             </button>
             <button id="scannerInventoryAuditButton" type="button" hidden>
               <svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"></path><path d="M5 4h14v16H5z"></path><path d="M8 17h8"></path></svg>
-              미스캔 재고조정
+              재고 정리
             </button>
           </div>
         </div>
@@ -591,6 +599,6 @@
 
     <script src="../config.js"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260818-missing-inventory-audit"></script>
+    <script src="./mobile.js?v=20260819-inventory-audit-scope"></script>
   </body>
 </html>

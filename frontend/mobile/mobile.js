@@ -137,6 +137,8 @@ const state = {
   activeTransferReturnBoxes: [],
   activeTransferReturnMode: "transfer",
   selectedInventoryMoveMode: "single",
+  selectedInventoryAuditScope: "management",
+  selectedInventoryAuditAnchor: null,
   selectedConfirmMode: "item",
   selectedConfirmCallback: null,
   isCompletingShipping: false,
@@ -255,6 +257,8 @@ const elements = {
   confirmSubjectLabel: document.querySelector("#confirmSubjectLabel"),
   confirmProductName: document.querySelector("#confirmProductName"),
   confirmMetaList: document.querySelector("#confirmMetaList"),
+  mobileInventoryAuditScopeControls: document.querySelector("#mobileInventoryAuditScopeControls"),
+  mobileInventoryAuditScopeList: document.querySelector("#mobileInventoryAuditScopeList"),
   mobileTransferReturnControls: document.querySelector("#mobileTransferReturnControls"),
   mobileTransferReturnHeading: document.querySelector("#mobileTransferReturnHeading"),
   mobileTransferReturnBoxList: document.querySelector("#mobileTransferReturnBoxList"),
@@ -380,6 +384,7 @@ function bindEvents() {
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.closeConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
+  elements.mobileInventoryAuditScopeList?.addEventListener("change", handleInventoryAuditScopeChange);
   elements.mobileTransferReturnBoxList?.addEventListener("change", syncMobileTransferReturnSummary);
   bindScannerSheetEvents();
   document.addEventListener("keydown", handleHardwareScannerKeydown);
@@ -2409,7 +2414,7 @@ function renderInventoryMoveItem(item) {
             </span>
             <div class="shipping-card-menu-popover" role="menu" aria-label="재고 수정 작업">
               <button type="button" role="menuitem" data-inventory-move-action="injection" data-inventory-move-key="${escapeHtml(key)}"><i class="ti ti-packages"></i>사출재고 등록</button>
-              <button type="button" role="menuitem" data-inventory-move-action="audit" data-inventory-move-key="${escapeHtml(key)}"><i class="ti ti-clipboard-check"></i>미스캔 재고조정</button>
+              <button type="button" role="menuitem" data-inventory-move-action="audit" data-inventory-move-key="${escapeHtml(key)}"><i class="ti ti-clipboard-check"></i>재고 정리</button>
               <button type="button" role="menuitem" class="danger" data-inventory-move-remove="${escapeHtml(key)}"><i class="ti ti-trash"></i>등록 취소</button>
             </div>
           </details>
@@ -2523,7 +2528,7 @@ function handleInventoryMoveListChange(event) {
 
 async function handleInventoryMoveCardAction(item, mode = "single") {
   if (mode === "audit") {
-    openMissingInventoryAdjustmentConfirm(item);
+    openMissingInventoryAdjustmentScopePicker(item);
     return;
   }
 
@@ -2943,6 +2948,9 @@ function openCallbackConfirm({
   elements.confirmProductName.textContent = subject;
   elements.acceptConfirmButton.textContent = acceptLabel;
   renderConfirmMeta(meta);
+  if (elements.mobileInventoryAuditScopeControls) {
+    elements.mobileInventoryAuditScopeControls.hidden = true;
+  }
   if (elements.mobileTransferReturnControls) {
     elements.mobileTransferReturnControls.hidden = true;
   }
@@ -3103,6 +3111,9 @@ function closeConfirmModal() {
     elements.confirmTitle.textContent = "출고 확인";
   }
   renderConfirmMeta([]);
+  if (elements.mobileInventoryAuditScopeControls) {
+    elements.mobileInventoryAuditScopeControls.hidden = true;
+  }
   if (elements.mobileTransferReturnControls) {
     elements.mobileTransferReturnControls.hidden = true;
   }
@@ -3433,7 +3444,7 @@ function handleScannerInventoryAuditAction() {
     return;
   }
 
-  openMissingInventoryAdjustmentConfirm();
+  openMissingInventoryAdjustmentScopePicker();
 }
 
 async function completeShippingItems(items, action = "complete") {
@@ -3649,39 +3660,95 @@ function isProtectedInventoryAdjustmentBox(item, box) {
     || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
 }
 
-function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
+const INVENTORY_AUDIT_SCOPE_DEFINITIONS = [
+  { value: "management", label: "현재 입고 건만" },
+  { value: "product", label: "이 제품 전체" },
+  { value: "scannedProducts", label: "스캔한 모든 제품" },
+  { value: "allInventory", label: "전체 일반재고" }
+];
+
+function normalizeInventoryAuditScope(value) {
+  return INVENTORY_AUDIT_SCOPE_DEFINITIONS.some((option) => option.value === value)
+    ? value
+    : "management";
+}
+
+function getInventoryAuditAnchorItem(selectedItem = null) {
+  if (selectedItem) {
+    const selectedManagementId = normalizeScanValue(selectedItem.managementId);
+    const exactScan = state.scannedMoveRows.find((row) => (
+      normalizeScanValue(row.managementId) === selectedManagementId
+    ));
+    if (exactScan) {
+      return exactScan;
+    }
+
+    const selectedProductKey = getInventoryAuditProductKey(selectedItem);
+    const productScan = state.scannedMoveRows.find((row) => (
+      getInventoryAuditProductKey(row) === selectedProductKey
+    ));
+    if (productScan) {
+      return productScan;
+    }
+  }
+
+  return state.scannedMoveRows[state.scannedMoveRows.length - 1] || null;
+}
+
+function isInventoryAuditItemInScope(item, scope, anchorItem, scannedProductKeys) {
+  if (scope === "allInventory") {
+    return true;
+  }
+  if (scope === "scannedProducts") {
+    return scannedProductKeys.has(getInventoryAuditProductKey(item));
+  }
+  if (scope === "product") {
+    return getInventoryAuditProductKey(item) === getInventoryAuditProductKey(anchorItem);
+  }
+  return normalizeScanValue(item?.managementId)
+    === normalizeScanValue(anchorItem?.managementId);
+}
+
+function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedItem = null } = {}) {
   const scannedRows = state.scannedMoveRows;
-  const targetProductKeys = new Set(
-    (selectedItem ? [selectedItem] : scannedRows)
-      .map(getInventoryAuditProductKey)
-      .filter(Boolean)
+  const normalizedScope = normalizeInventoryAuditScope(scope);
+  const anchorItem = getInventoryAuditAnchorItem(selectedItem);
+  const scannedProductKeys = new Set(scannedRows.map(getInventoryAuditProductKey).filter(Boolean));
+  const isInScope = (item) => isInventoryAuditItemInScope(
+    item,
+    normalizedScope,
+    anchorItem,
+    scannedProductKeys
   );
   const scannedBoxKeys = new Set();
   const productSummaries = new Map();
 
-  scannedRows.forEach((row) => {
+  const ensureProductSummary = (row) => {
     const productKey = getInventoryAuditProductKey(row);
-    if (!targetProductKeys.has(productKey)) {
-      return;
-    }
-
-    const boxKey = getInventoryAuditBoxKey(row);
-    if (boxKey) {
-      scannedBoxKeys.add(boxKey);
-    }
-
     if (!productSummaries.has(productKey)) {
       productSummaries.set(productKey, {
         productKey,
-        clientName: normalizeDisplay(row.clientName || "-"),
-        productName: normalizeDisplay(row.productName || "-"),
+        clientName: normalizeDisplay(row?.clientName || "-"),
+        productName: normalizeDisplay(row?.productName || "-"),
         scannedBoxKeys: new Set(),
+        activeBoxCount: 0,
         adjustmentBoxCount: 0,
         adjustmentQuantity: 0
       });
     }
+    return productSummaries.get(productKey);
+  };
+
+  scannedRows.forEach((row) => {
+    if (!isInScope(row)) {
+      return;
+    }
+
+    const summary = ensureProductSummary(row);
+    const boxKey = getInventoryAuditBoxKey(row);
     if (boxKey) {
-      productSummaries.get(productKey).scannedBoxKeys.add(boxKey);
+      scannedBoxKeys.add(boxKey);
+      summary.scannedBoxKeys.add(boxKey);
     }
   });
 
@@ -3689,13 +3756,15 @@ function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
   const seenActiveBoxKeys = new Set();
   let invalidBoxCount = 0;
   let protectedBoxCount = 0;
+  let activeBoxCount = 0;
 
   state.dashboard.forEach((row) => {
-    const productKey = getInventoryAuditProductKey(row);
-    if (!targetProductKeys.has(productKey)) {
+    if (!isInScope(row)) {
       return;
     }
 
+    const productKey = getInventoryAuditProductKey(row);
+    const summary = ensureProductSummary(row);
     getMovableBoxes(row).forEach((box) => {
       const boxNumber = String(box?.number || box?.sequence || "").trim();
       if (!boxNumber) {
@@ -3713,6 +3782,9 @@ function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
         protectedBoxCount += 1;
         return;
       }
+
+      activeBoxCount += 1;
+      summary.activeBoxCount += 1;
 
       if (scannedBoxKeys.has(boxKey)) {
         return;
@@ -3742,11 +3814,8 @@ function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
       group.selectedBoxes.push(boxNumber);
       group.adjustmentQuantity += quantity;
 
-      const summary = productSummaries.get(productKey);
-      if (summary) {
-        summary.adjustmentBoxCount += 1;
-        summary.adjustmentQuantity += quantity;
-      }
+      summary.adjustmentBoxCount += 1;
+      summary.adjustmentQuantity += quantity;
     });
   });
 
@@ -3757,21 +3826,85 @@ function buildMissingInventoryAdjustmentPlan(selectedItem = null) {
       .sort((left, right) => parseNumber(left) - parseNumber(right))
   }));
 
+  const summarizedProducts = Array.from(productSummaries.values()).map((summary) => ({
+    ...summary,
+    scannedBoxCount: summary.scannedBoxKeys.size
+  }));
+  const affectedProducts = summarizedProducts.filter((summary) => summary.adjustmentBoxCount > 0);
+
   return {
+    scope: normalizedScope,
+    scopeLabel: INVENTORY_AUDIT_SCOPE_DEFINITIONS.find((option) => option.value === normalizedScope)?.label || "재고 정리",
+    anchorItem,
     adjustments,
     invalidBoxCount,
     protectedBoxCount,
-    productKeys: Array.from(targetProductKeys),
-    productSummaries: Array.from(productSummaries.values()).map((summary) => ({
-      ...summary,
-      scannedBoxCount: summary.scannedBoxKeys.size
-    })),
+    activeBoxCount,
+    scannedBoxKeys: Array.from(scannedBoxKeys),
+    productKeys: summarizedProducts.map((summary) => summary.productKey),
+    productSummaries: summarizedProducts,
+    affectedProductCount: affectedProducts.length,
     adjustmentBoxCount: adjustments.reduce((sum, group) => sum + group.selectedBoxes.length, 0),
     adjustmentQuantity: adjustments.reduce((sum, group) => sum + group.adjustmentQuantity, 0)
   };
 }
 
-function openMissingInventoryAdjustmentConfirm(selectedItem = null) {
+function getInventoryAuditScopeDescription(scope, plan) {
+  if (scope === "management") {
+    return `관리 ID ${normalizeDisplay(plan.anchorItem?.managementId || "-")}의 박스만 정리합니다.`;
+  }
+  if (scope === "product") {
+    return `${normalizeDisplay(plan.anchorItem?.productName || "선택 제품")}의 모든 입고 건을 정리합니다.`;
+  }
+  if (scope === "scannedProducts") {
+    return `이번에 QR을 찍은 ${formatNumber(plan.productSummaries.length)}개 제품을 함께 정리합니다.`;
+  }
+  return "QR을 찍지 않은 다른 제품까지 전체 일반재고를 정리합니다.";
+}
+
+function handleInventoryAuditScopeChange(event) {
+  const input = event.target.closest('input[name="mobileInventoryAuditScope"]');
+  if (input) {
+    state.selectedInventoryAuditScope = normalizeInventoryAuditScope(input.value);
+  }
+}
+
+function renderInventoryAuditScopeOptions(anchorItem, preparedPlans = null) {
+  if (!elements.mobileInventoryAuditScopeControls || !elements.mobileInventoryAuditScopeList) {
+    return [];
+  }
+
+  const plans = preparedPlans || INVENTORY_AUDIT_SCOPE_DEFINITIONS.map((option) => ({
+    ...option,
+    plan: buildMissingInventoryAdjustmentPlan({ scope: option.value, selectedItem: anchorItem })
+  }));
+  const availablePlans = plans.filter(({ plan }) => plan.adjustmentBoxCount > 0 && plan.invalidBoxCount === 0);
+  const selectedScope = availablePlans.some(({ value }) => value === state.selectedInventoryAuditScope)
+    ? state.selectedInventoryAuditScope
+    : availablePlans[0]?.value || "management";
+  state.selectedInventoryAuditScope = selectedScope;
+
+  elements.mobileInventoryAuditScopeList.innerHTML = plans.map(({ value, label, plan }) => {
+    const disabled = plan.adjustmentBoxCount <= 0 || plan.invalidBoxCount > 0;
+    const metric = disabled
+      ? "정리할 미스캔 일반재고 없음"
+      : `${formatNumber(plan.activeBoxCount)}박스 범위 · 조정 ${formatNumber(plan.adjustmentBoxCount)}박스 / ${formatNumber(plan.adjustmentQuantity)}ea`;
+    return `
+      <label class="mobile-inventory-audit-scope-option ${value === "allInventory" ? "danger" : ""} ${disabled ? "disabled" : ""}">
+        <input type="radio" name="mobileInventoryAuditScope" value="${value}" ${value === selectedScope ? "checked" : ""} ${disabled ? "disabled" : ""} />
+        <span>
+          <strong>${escapeHtml(label)}</strong>
+          <small>${escapeHtml(getInventoryAuditScopeDescription(value, plan))}</small>
+          <em>${escapeHtml(metric)}</em>
+        </span>
+      </label>
+    `;
+  }).join("");
+  elements.mobileInventoryAuditScopeControls.hidden = false;
+  return availablePlans;
+}
+
+function openMissingInventoryAdjustmentScopePicker(selectedItem = null) {
   if (state.isCompletingShipping) {
     return;
   }
@@ -3781,7 +3914,41 @@ function openMissingInventoryAdjustmentConfirm(selectedItem = null) {
     return;
   }
 
-  const plan = buildMissingInventoryAdjustmentPlan(selectedItem);
+  const anchorItem = getInventoryAuditAnchorItem(selectedItem);
+  state.selectedInventoryAuditAnchor = anchorItem;
+  state.selectedInventoryAuditScope = "management";
+  const previewPlans = INVENTORY_AUDIT_SCOPE_DEFINITIONS.map((option) => ({
+    ...option,
+    plan: buildMissingInventoryAdjustmentPlan({ scope: option.value, selectedItem: anchorItem })
+  }));
+  if (!previewPlans.some(({ plan }) => plan.adjustmentBoxCount > 0 && plan.invalidBoxCount === 0)) {
+    const protectedBoxCount = Math.max(...previewPlans.map(({ plan }) => plan.protectedBoxCount), 0);
+    showToast(protectedBoxCount > 0
+      ? "조정할 일반재고가 없습니다. 사출·인쇄재고는 조정 대상에서 제외됩니다."
+      : "미스캔 박스가 없습니다. 전산 재고와 실재고가 일치합니다.");
+    return;
+  }
+
+  openCallbackConfirm({
+    eyebrow: "재고 조사",
+    icon: "ti-adjustments-horizontal",
+    tone: "move",
+    title: "재고 정리 범위 선택",
+    message: "QR로 확인한 실재고를 기준으로 어느 범위까지 전산 재고를 정리할지 선택해주세요.",
+    subject: normalizeDisplay(anchorItem?.productName || "스캔 제품"),
+    subjectLabel: "기준으로 스캔한 제품",
+    meta: [`스캔 ${formatNumber(state.scannedMoveRows.length)}박스`, "다음 화면에서 최종 대상을 다시 확인합니다."],
+    acceptLabel: "정리 대상 확인",
+    onConfirm: () => openMissingInventoryAdjustmentConfirm({
+      scope: state.selectedInventoryAuditScope,
+      selectedItem: state.selectedInventoryAuditAnchor
+    })
+  });
+  renderInventoryAuditScopeOptions(anchorItem, previewPlans);
+}
+
+function openMissingInventoryAdjustmentConfirm({ scope = "management", selectedItem = null } = {}) {
+  const plan = buildMissingInventoryAdjustmentPlan({ scope, selectedItem });
   if (plan.invalidBoxCount > 0) {
     showToast("박스 번호를 확인할 수 없는 전산 재고가 있어 조정을 중단했습니다.");
     return;
@@ -3794,24 +3961,30 @@ function openMissingInventoryAdjustmentConfirm(selectedItem = null) {
     return;
   }
 
-  const productCount = plan.productSummaries.length;
+  const affectedProducts = plan.productSummaries.filter((summary) => summary.adjustmentBoxCount > 0);
+  const visibleProducts = affectedProducts.slice(0, 4);
+  const remainingProductCount = Math.max(0, affectedProducts.length - visibleProducts.length);
+  const scopeMessage = plan.scope === "allInventory"
+    ? "제품군과 QR 스캔 여부에 관계없이 모든 일반재고 중 스캔하지 않은 박스를 재고 없음으로 처리합니다. 전체 범위를 반드시 다시 확인해주세요."
+    : `${plan.scopeLabel} 범위에서 이번 조사 중 스캔하지 않은 박스를 재고 없음으로 처리합니다.`;
   openCallbackConfirm({
     eyebrow: "재고 조사",
     icon: "ti-clipboard-check",
     tone: "danger",
-    title: "미스캔 재고조정 확인",
-    message: "실물 확인을 모두 마친 뒤 진행해주세요. 같은 제품의 활성 전산 재고 중 이번 조사에서 스캔하지 않은 박스를 재고 없음으로 처리합니다.",
-    subject: `${formatNumber(productCount)}개 제품 · ${formatNumber(plan.adjustmentBoxCount)}박스`,
+    title: "재고 정리 최종 확인",
+    message: scopeMessage,
+    subject: `${plan.scopeLabel} · ${formatNumber(plan.affectedProductCount)}개 제품 · ${formatNumber(plan.adjustmentBoxCount)}박스`,
     subjectLabel: "조정 대상",
     meta: [
-      ...plan.productSummaries.map((summary) => (
+      ...visibleProducts.map((summary) => (
         `${summary.productName} · 스캔 ${formatNumber(summary.scannedBoxCount)}박스 · 조정 ${formatNumber(summary.adjustmentBoxCount)}박스 / ${formatNumber(summary.adjustmentQuantity)}ea`
       )),
+      ...(remainingProductCount > 0 ? [`외 ${formatNumber(remainingProductCount)}개 제품 포함`] : []),
       ...(plan.protectedBoxCount > 0
         ? [`사출·인쇄재고 ${formatNumber(plan.protectedBoxCount)}박스는 조정 대상에서 제외`]
         : [])
     ],
-    acceptLabel: "재고조정 처리",
+    acceptLabel: "재고 정리 처리",
     onConfirm: () => completeMissingInventoryAdjustment(plan)
   });
 }
@@ -3843,9 +4016,9 @@ async function completeMissingInventoryAdjustment(plan) {
       throw new Error("서버에서 재고조정된 박스를 확인하지 못했습니다.");
     }
 
-    const completedProductKeys = new Set(plan.productKeys);
+    const completedScannedBoxKeys = new Set(plan.scannedBoxKeys || []);
     state.scannedMoveRows = state.scannedMoveRows.filter((row) => (
-      !completedProductKeys.has(getInventoryAuditProductKey(row))
+      !completedScannedBoxKeys.has(getInventoryAuditBoxKey(row))
     ));
     saveScannedMoveRows();
     renderInventoryMoveList();
@@ -3857,7 +4030,7 @@ async function completeMissingInventoryAdjustment(plan) {
     }
     await loadShippingDashboard({ silent: true });
   } catch (error) {
-    showToast(error.message || "미스캔 재고조정 중 문제가 발생했습니다.");
+    showToast(error.message || "재고 정리 중 문제가 발생했습니다.");
   } finally {
     state.isCompletingShipping = false;
     updateScannerActionLabels();
@@ -4282,7 +4455,7 @@ function updateScannerActionLabels() {
     `;
     elements.scannerInventoryAuditButton.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"></path><path d="M5 4h14v16H5z"></path><path d="M8 17h8"></path></svg>
-      미스캔 재고조정
+      재고 정리
     `;
     elements.scannerPendingButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
     elements.scannerDoneButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
