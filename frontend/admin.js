@@ -7803,6 +7803,10 @@ function renderInboundQrStandardLabel({
   inboundDate
 }, variantClass = "") {
   const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
+  const boxQuantity = Math.max(0, Math.round(parseShippingSettlementNumber(
+    box?.currentQuantity || box?.boxQuantity || 0
+  )));
+  const boxQuantityLabel = `박스당 수량 : ${formatNumber(boxQuantity)}ea`;
   const hasAdditionalProcess = additionalProcesses.length > 0;
 
   return `
@@ -7821,7 +7825,7 @@ function renderInboundQrStandardLabel({
             <span class="box-qr-standard-product-name">
               <strong>${escapeHtml(productName)}</strong>
             </span>
-            <small>승진 관리 시스템</small>
+            <strong class="box-qr-standard-box-quantity">${escapeHtml(boxQuantityLabel)}</strong>
           </div>
         </div>
         <div class="box-qr-standard-media">

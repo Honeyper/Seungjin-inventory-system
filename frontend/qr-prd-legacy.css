@@ -141,11 +141,12 @@
   -webkit-line-clamp: 3;
 }
 
-.box-qr-standard-product small {
-  color: #8f98a5;
-  font-size: 6.7pt;
-  font-weight: 700;
+.box-qr-standard-box-quantity {
+  color: #050505;
+  font-size: 7pt;
+  font-weight: 900;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .box-qr-standard-media {
