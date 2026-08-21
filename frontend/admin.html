@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260821-inventory-detail-audit" />
+    <link rel="stylesheet" href="./styles.css?v=20260821-inventory-select-nowrap" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -1556,8 +1556,12 @@
               <strong id="remainingInventoryInboundDate">-</strong>
             </div>
             <div>
-              <span id="remainingInventoryLatestShippingLabel">최종 출고일</span>
+              <span>최종 출고일</span>
               <strong id="remainingInventoryLatestShippingDate">-</strong>
+            </div>
+            <div id="remainingInventoryCurrentStockField" hidden>
+              <span>현재 재고</span>
+              <strong id="remainingInventoryCurrentStock">-</strong>
             </div>
           </section>
 
@@ -2477,6 +2481,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260821-inventory-detail-audit"></script>
+    <script src="./admin.js?v=20260821-inventory-audit-summary"></script>
   </body>
 </html>

@@ -420,8 +420,9 @@ const remainingInventoryRecordId = document.querySelector("#remainingInventoryRe
 const remainingInventoryProduct = document.querySelector("#remainingInventoryProduct");
 const remainingInventoryClient = document.querySelector("#remainingInventoryClient");
 const remainingInventoryInboundDate = document.querySelector("#remainingInventoryInboundDate");
-const remainingInventoryLatestShippingLabel = document.querySelector("#remainingInventoryLatestShippingLabel");
 const remainingInventoryLatestShippingDate = document.querySelector("#remainingInventoryLatestShippingDate");
+const remainingInventoryCurrentStockField = document.querySelector("#remainingInventoryCurrentStockField");
+const remainingInventoryCurrentStock = document.querySelector("#remainingInventoryCurrentStock");
 const remainingInventoryCategorySection = document.querySelector("#remainingInventoryCategorySection");
 const remainingInventoryBoxTitle = document.querySelector("#remainingInventoryBoxTitle");
 const remainingInventoryBoxHelp = document.querySelector("#remainingInventoryBoxHelp");
@@ -2502,6 +2503,7 @@ function openRemainingInventoryModal(source, mode = "classify") {
   }
 
   const isAudit = mode === "audit";
+  remainingInventoryModal.classList.toggle("is-audit", isAudit);
   const targetBoxes = isAudit
     ? getInventoryAuditTargetBoxes(source)
     : getRemainingInventoryTargetBoxes(source);
@@ -2524,7 +2526,7 @@ function openRemainingInventoryModal(source, mode = "classify") {
   }
   if (remainingInventoryDescription) {
     remainingInventoryDescription.textContent = isAudit
-      ? "실물 재고에서 확인되지 않은 박스를 선택해 재고조정 처리합니다."
+      ? "정리가 필요한 재고를 선택해 재고조정 처리합니다."
       : "부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.";
   }
   if (remainingInventoryCategorySection) {
@@ -2535,7 +2537,7 @@ function openRemainingInventoryModal(source, mode = "classify") {
   }
   if (remainingInventoryBoxHelp) {
     remainingInventoryBoxHelp.textContent = isAudit
-      ? "실제로 없어진 박스만 선택해주세요. 사출·인쇄·자사재고는 제외되며, 선택한 박스는 출고완료(재고조정)로 처리됩니다."
+      ? "정리가 필요한 재고를 선택해주세요. 사출·인쇄·자사재고는 제외되며, 선택한 박스는 출고완료(재고조정)로 처리됩니다."
       : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
   }
 
@@ -2565,25 +2567,27 @@ function openRemainingInventoryModal(source, mode = "classify") {
     remainingInventoryInboundDate.textContent = toDateInputValue(inboundDate) || "-";
   }
   if (remainingInventoryLatestShippingDate) {
-    if (remainingInventoryLatestShippingLabel) {
-      remainingInventoryLatestShippingLabel.textContent = isAudit ? "현재 재고" : "최종 출고일";
-    }
-    if (isAudit) {
-      const currentBoxCount = parseShippingSettlementNumber(source.currentBoxCount) || targetBoxes.length;
-      const currentTotalQuantity = parseShippingSettlementNumber(source.currentTotalQuantity)
-        || targetBoxes.reduce((sum, box) => sum + box.quantity, 0);
-      remainingInventoryLatestShippingDate.textContent = `${formatNumber(currentBoxCount)} box · ${formatNumber(currentTotalQuantity)} ea`;
-    } else {
-      const shippedBoxes = getShippingRowBoxes(source, "shippedShippingBoxes");
-      const shippingDates = shippedBoxes
-        .map((box) => toDateInputValue(box.shippingDate))
-        .filter(Boolean)
-        .sort();
-      const latestShippingDate = shippingDates[shippingDates.length - 1] || "";
-      remainingInventoryLatestShippingDate.textContent = latestShippingDate
-        || toDateInputValue(source.dataset.shippingDate)
-        || "-";
-    }
+    const shippedBoxes = isAudit
+      ? getShippedShippingBoxes(source)
+      : getShippingRowBoxes(source, "shippedShippingBoxes");
+    const shippingDates = shippedBoxes
+      .map((box) => toDateInputValue(box.shippingDate))
+      .filter(Boolean)
+      .sort();
+    const latestShippingDate = shippingDates[shippingDates.length - 1] || "";
+    const fallbackShippingDate = isAudit ? source.shippingDate : source.dataset.shippingDate;
+    remainingInventoryLatestShippingDate.textContent = latestShippingDate
+      || toDateInputValue(fallbackShippingDate)
+      || "-";
+  }
+  if (remainingInventoryCurrentStockField) {
+    remainingInventoryCurrentStockField.hidden = !isAudit;
+  }
+  if (remainingInventoryCurrentStock && isAudit) {
+    const currentBoxCount = parseShippingSettlementNumber(source.currentBoxCount) || targetBoxes.length;
+    const currentTotalQuantity = parseShippingSettlementNumber(source.currentTotalQuantity)
+      || targetBoxes.reduce((sum, box) => sum + box.quantity, 0);
+    remainingInventoryCurrentStock.textContent = `${formatNumber(currentBoxCount)} box · ${formatNumber(currentTotalQuantity)} ea`;
   }
   if (remainingInventorySelectAll) {
     remainingInventorySelectAll.checked = !isAudit;
@@ -2638,6 +2642,7 @@ function closeRemainingInventoryModal() {
   }
 
   remainingInventoryModal.hidden = true;
+  remainingInventoryModal.classList.remove("is-audit");
   state.activeRemainingInventoryRow = null;
   state.activeRemainingInventoryMode = "classify";
   state.isSavingRemainingInventory = false;
