@@ -11126,7 +11126,8 @@ input {
 #productDetailModal .detail-actions .primary-modal-action,
 #productDetailModal .detail-actions .secondary-modal-action,
 #inboundDetailModal:not(.is-editing) .detail-actions .primary-modal-action,
-#inboundDetailModal:not(.is-editing) .detail-actions .secondary-modal-action {
+#inboundDetailModal:not(.is-editing) .detail-actions .secondary-modal-action,
+.inventory-audit-detail-button {
   min-width: 7.5rem;
   height: 2.65rem;
   border-radius: 0.42rem;
@@ -11136,6 +11137,29 @@ input {
 #productDetailModal .detail-actions .primary-modal-action,
 #inboundDetailModal:not(.is-editing) .detail-actions .primary-modal-action {
   background: #082e6c;
+}
+
+.inventory-audit-detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  padding: 0 1rem;
+  color: #fff;
+  border: 1px solid #b88322;
+  background: #b88322;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.inventory-audit-detail-button:hover {
+  border-color: #946817;
+  background: #946817;
+}
+
+.inventory-audit-detail-button[hidden] {
+  display: none;
 }
 
 #inboundDetailModal:not(.is-editing) .shipping-history-list {
