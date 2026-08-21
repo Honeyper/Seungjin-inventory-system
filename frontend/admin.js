@@ -128,6 +128,7 @@ const state = {
   activeDetailInboundProductId: "",
   activeDetailInboundRecord: null,
   activeShippingDetailItem: null,
+  activeDetailInboundSource: "inbound",
   activeQrInboundId: "",
   activeQrInboundProductId: "",
   activeMenuProductCode: "",
@@ -146,6 +147,7 @@ const state = {
   activeShippingWaitingRow: null,
   activeRemainingInventoryRow: null,
   activeRemainingInventoryMode: "classify",
+  returnToInventoryDetailAfterAudit: false,
   isSavingShippingWaiting: false,
   isSavingRemainingInventory: false,
   isSavingShippingInspection: false,
@@ -216,6 +218,7 @@ const inboundDetailTitle = document.querySelector("#inboundDetailTitle");
 const inboundDetailDescription = document.querySelector("#inboundDetailTitle")?.nextElementSibling;
 const closeInboundDetailButton = document.querySelector("#closeInboundDetailButton");
 const editInboundFromDetailButton = document.querySelector("#editInboundFromDetailButton");
+const inventoryAuditFromDetailButton = document.querySelector("#inventoryAuditFromDetailButton");
 const saveInboundEditButton = document.querySelector("#saveInboundEditButton");
 const inboundQrModal = document.querySelector("#inboundQrModal");
 const inboundQrTitle = document.querySelector("#inboundQrTitle");
@@ -430,6 +433,8 @@ const remainingInventoryClient = document.querySelector("#remainingInventoryClie
 const remainingInventoryInboundDate = document.querySelector("#remainingInventoryInboundDate");
 const remainingInventoryLatestShippingLabel = document.querySelector("#remainingInventoryLatestShippingLabel");
 const remainingInventoryLatestShippingDate = document.querySelector("#remainingInventoryLatestShippingDate");
+const remainingInventoryCurrentStockField = document.querySelector("#remainingInventoryCurrentStockField");
+const remainingInventoryCurrentStock = document.querySelector("#remainingInventoryCurrentStock");
 const remainingInventoryCategorySection = document.querySelector("#remainingInventoryCategorySection");
 const remainingInventoryBoxTitle = document.querySelector("#remainingInventoryBoxTitle");
 const remainingInventoryBoxHelp = document.querySelector("#remainingInventoryBoxHelp");
@@ -1040,6 +1045,7 @@ document.querySelector("#editProductFromDetailButton").addEventListener("click",
 document.querySelector("#closeInboundDetailModal").addEventListener("click", closeInboundDetailModal);
 closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
 editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
+inventoryAuditFromDetailButton?.addEventListener("click", openInventoryAuditFromDetail);
 saveInboundEditButton?.addEventListener("click", saveInboundEdit);
 inboundDetailContent?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-cancel-discarded-boxes]");
@@ -2531,55 +2537,102 @@ function getRemainingInventoryAdjustmentTargetBoxes(row) {
     .filter((box) => Number.isFinite(box.number) && box.number > 0);
 }
 
-function openRemainingInventoryModal(row, mode = "classify") {
-  if (!row || !remainingInventoryModal) {
-    return;
+function isProtectedInventoryAuditBox(item, box) {
+  const inventoryCategory = normalizeSearchText(
+    box?.inventoryCategory
+      || box?.["재고 구분"]
+      || item?.inventoryCategory
+      || item?.["재고 구분"]
+  );
+  const status = normalizeSearchText(box?.rawStatus || box?.status || "");
+  return inventoryCategory === normalizeSearchText("자사재고")
+    || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
+}
+
+function getInventoryAuditTargetBoxes(item) {
+  const activeBoxes = Array.isArray(item?.activeShippingBoxes) && item.activeShippingBoxes.length
+    ? item.activeShippingBoxes
+    : Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : [];
+
+  return activeBoxes
+    .filter((box) => {
+      const status = normalizeInventoryStockStatus(box?.rawStatus || box?.status || "보관");
+      return parseShippingSettlementNumber(box?.quantity) > 0
+        && !/출고완료|폐기/.test(status)
+        && !isProtectedInventoryAuditBox(item, box);
+    })
+    .map((box, index) => ({
+      ...box,
+      number: Number(box.number) || index + 1,
+      quantity: parseShippingSettlementNumber(box.quantity)
+    }))
+    .filter((box) => Number.isFinite(box.number) && box.number > 0)
+    .sort((left, right) => left.number - right.number);
+}
+
+function openRemainingInventoryModal(source, mode = "classify") {
+  if (!source || !remainingInventoryModal) {
+    return false;
   }
 
+  const isAudit = mode === "audit";
   const isAdjustment = mode === "adjust";
-  const hasPreviousShipping = getShippingRowBoxes(row, "shippedShippingBoxes").length > 0;
-  const isDirectClassification = !isAdjustment && !hasPreviousShipping;
-  const targetBoxes = isAdjustment
-    ? getRemainingInventoryAdjustmentTargetBoxes(row)
-    : getRemainingInventoryTargetBoxes(row);
+  const shippedBoxes = isAudit
+    ? getShippedShippingBoxes(source)
+    : getShippingRowBoxes(source, "shippedShippingBoxes");
+  const isDirectClassification = !isAudit && !isAdjustment && !shippedBoxes.length;
+  const targetBoxes = isAudit
+    ? getInventoryAuditTargetBoxes(source)
+    : isAdjustment
+      ? getRemainingInventoryAdjustmentTargetBoxes(source)
+      : getRemainingInventoryTargetBoxes(source);
   if (!targetBoxes.length) {
-    showToast(isAdjustment
-      ? "재고 조정할 수 있는 보관 박스가 없습니다."
-      : "등록할 수 있는 남은 박스가 없습니다.");
-    return;
+    showToast(
+      isAudit
+        ? "재고 정리할 수 있는 일반재고 박스가 없습니다. 사출·인쇄·자사재고는 제외됩니다."
+        : isAdjustment ? "재고 조정할 수 있는 보관 박스가 없습니다." : "등록할 수 있는 남은 박스가 없습니다."
+    );
+    return false;
   }
 
-  state.activeRemainingInventoryRow = row;
-  state.activeRemainingInventoryMode = isAdjustment ? "adjust" : "classify";
+  remainingInventoryModal.classList.toggle("is-audit", isAudit);
+  state.activeRemainingInventoryRow = source;
+  state.activeRemainingInventoryMode = isAudit ? "audit" : isAdjustment ? "adjust" : "classify";
   state.isSavingRemainingInventory = false;
 
   if (remainingInventoryKicker) {
-    remainingInventoryKicker.textContent = isAdjustment ? "재고 조사" : "보관 재고";
+    remainingInventoryKicker.textContent = isAudit || isAdjustment ? "재고 조사" : "보관 재고";
   }
   if (remainingInventoryTitle) {
-    remainingInventoryTitle.textContent = isAdjustment ? "재고 조정" : "보관 재고 등록";
+    remainingInventoryTitle.textContent = isAudit
+      ? "재고 정리"
+      : isAdjustment ? "재고 조정" : "보관 재고 등록";
   }
   if (remainingInventoryDescription) {
-    remainingInventoryDescription.textContent = isAdjustment
-      ? "재고 조사 중 확인된 출고 누락 박스를 선택해 출고완료(재고조정)로 처리합니다."
-      : isDirectClassification
-        ? "출고대기 등록 없이 현재 보관 박스를 자사재고 또는 사출 보관재고로 구분합니다."
-        : "부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.";
+    remainingInventoryDescription.textContent = isAudit
+      ? "정리가 필요한 재고를 선택해 재고조정 처리합니다."
+      : isAdjustment
+        ? "재고 조사 중 확인된 출고 누락 박스를 선택해 출고완료(재고조정)로 처리합니다."
+        : isDirectClassification
+          ? "출고대기 등록 없이 현재 보관 박스를 자사재고 또는 사출 보관재고로 구분합니다."
+          : "부분출고 후 남은 박스를 자사재고 또는 사출 보관재고로 구분합니다.";
   }
   if (remainingInventoryCategorySection) {
-    remainingInventoryCategorySection.hidden = isAdjustment;
+    remainingInventoryCategorySection.hidden = isAudit || isAdjustment;
   }
   if (remainingInventoryBoxTitle) {
-    remainingInventoryBoxTitle.textContent = isAdjustment
-      ? "조정할 박스"
-      : isDirectClassification ? "등록할 보관 박스" : "등록할 남은 박스";
+    remainingInventoryBoxTitle.textContent = isAudit
+      ? "정리할 박스"
+      : isAdjustment ? "조정할 박스" : isDirectClassification ? "등록할 보관 박스" : "등록할 남은 박스";
   }
   if (remainingInventoryBoxHelp) {
-    remainingInventoryBoxHelp.textContent = isAdjustment
-      ? "재고 조사 결과 실제로 출고되었거나 재고에서 확인되지 않은 박스만 선택해주세요."
-      : isDirectClassification
-        ? "보관재고로 구분할 박스만 선택해주세요. 수량과 QR 정보는 바뀌지 않습니다."
-        : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
+    remainingInventoryBoxHelp.textContent = isAudit
+      ? "정리가 필요한 재고를 선택해주세요. 사출·인쇄·자사재고는 제외되며, 선택한 박스는 출고완료(재고조정)로 처리됩니다."
+      : isAdjustment
+        ? "재고 조사 결과 실제로 출고되었거나 재고에서 확인되지 않은 박스만 선택해주세요."
+        : isDirectClassification
+          ? "보관재고로 구분할 박스만 선택해주세요. 수량과 QR 정보는 바뀌지 않습니다."
+          : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
   }
   if (remainingInventoryNoteField) {
     remainingInventoryNoteField.hidden = !isAdjustment;
@@ -2588,20 +2641,31 @@ function openRemainingInventoryModal(row, mode = "classify") {
     remainingInventoryNote.value = "";
   }
 
+  const managementId = isAudit
+    ? source.managementId || "-"
+    : source.dataset.managementId || source.children[1]?.textContent.trim() || "-";
+  const clientName = isAudit
+    ? source.clientName || "-"
+    : source.children[2]?.textContent.trim() || "-";
+  const productName = isAudit
+    ? source.productName || "-"
+    : source.children[3]?.textContent.trim() || "-";
+  const inboundDate = isAudit
+    ? source.inboundDate || "-"
+    : source.dataset.inboundDate || "-";
   if (remainingInventoryRecordId) {
-    remainingInventoryRecordId.textContent = row.dataset.managementId || row.children[1]?.textContent.trim() || "-";
+    remainingInventoryRecordId.textContent = managementId;
   }
   if (remainingInventoryClient) {
-    remainingInventoryClient.textContent = row.children[2]?.textContent.trim() || "-";
+    remainingInventoryClient.textContent = clientName;
   }
   if (remainingInventoryProduct) {
-    remainingInventoryProduct.textContent = row.children[3]?.textContent.trim() || "-";
+    remainingInventoryProduct.textContent = productName;
   }
   if (remainingInventoryInboundDate) {
-    remainingInventoryInboundDate.textContent = toDateInputValue(row.dataset.inboundDate) || "-";
+    remainingInventoryInboundDate.textContent = toDateInputValue(inboundDate) || "-";
   }
   if (remainingInventoryLatestShippingDate) {
-    const shippedBoxes = getShippingRowBoxes(row, "shippedShippingBoxes");
     const shippingDates = shippedBoxes
       .map((box) => toDateInputValue(box.shippingDate))
       .filter(Boolean)
@@ -2610,12 +2674,22 @@ function openRemainingInventoryModal(row, mode = "classify") {
     if (remainingInventoryLatestShippingLabel) {
       remainingInventoryLatestShippingLabel.textContent = isDirectClassification ? "출고 이력" : "최종 출고일";
     }
+    const fallbackShippingDate = isAudit ? source.shippingDate : source.dataset.shippingDate;
     remainingInventoryLatestShippingDate.textContent = isDirectClassification
       ? "없음"
-      : latestShippingDate || toDateInputValue(row.dataset.shippingDate) || "-";
+      : latestShippingDate || toDateInputValue(fallbackShippingDate) || "-";
+  }
+  if (remainingInventoryCurrentStockField) {
+    remainingInventoryCurrentStockField.hidden = !isAudit;
+  }
+  if (remainingInventoryCurrentStock && isAudit) {
+    const currentBoxCount = parseShippingSettlementNumber(source.currentBoxCount) || targetBoxes.length;
+    const currentTotalQuantity = parseShippingSettlementNumber(source.currentTotalQuantity)
+      || targetBoxes.reduce((sum, box) => sum + box.quantity, 0);
+    remainingInventoryCurrentStock.textContent = `${formatNumber(currentBoxCount)} box · ${formatNumber(currentTotalQuantity)} ea`;
   }
   if (remainingInventorySelectAll) {
-    remainingInventorySelectAll.checked = true;
+    remainingInventorySelectAll.checked = !isAudit;
     remainingInventorySelectAll.indeterminate = false;
   }
   if (remainingInventoryMessage) {
@@ -2623,10 +2697,14 @@ function openRemainingInventoryModal(row, mode = "classify") {
   }
   if (saveRemainingInventoryButton) {
     saveRemainingInventoryButton.disabled = false;
-    saveRemainingInventoryButton.textContent = isAdjustment ? "재고 조정 처리" : "재고 구분 저장";
+    saveRemainingInventoryButton.textContent = isAudit
+      ? "선택 박스 재고 정리"
+      : isAdjustment ? "재고 조정 처리" : "재고 구분 저장";
   }
 
-  remainingInventoryForm?.querySelector('input[name="remainingInventoryCategory"][value="자사재고"]')?.click();
+  if (!isAudit && !isAdjustment) {
+    remainingInventoryForm?.querySelector('input[name="remainingInventoryCategory"][value="자사재고"]')?.click();
+  }
 
   if (remainingInventoryBoxList) {
     remainingInventoryBoxList.innerHTML = targetBoxes.map((box) => {
@@ -2640,11 +2718,11 @@ function openRemainingInventoryModal(row, mode = "classify") {
             value="${box.number}"
             data-box-id="${escapeAttribute(box.boxId || "")}"
             data-quantity="${box.quantity}"
-            checked
+            ${isAudit ? "" : "checked"}
           />
           <span>
             <strong>${formatNumber(box.number)}번 박스</strong>
-            <small>${escapeHtml(status)} · ${escapeHtml(category)}</small>
+            <small>${escapeHtml(status)}${category !== "미분류" ? ` · ${escapeHtml(category)}` : ""}</small>
           </span>
           ${isAdjustment ? `
             <span class="remaining-inventory-quantity-field">
@@ -2669,6 +2747,7 @@ function openRemainingInventoryModal(row, mode = "classify") {
   remainingInventoryModal.hidden = false;
   resetModalScrollPosition(remainingInventoryModal);
   document.body.classList.add("modal-open");
+  return true;
 }
 
 function closeRemainingInventoryModal() {
@@ -2677,17 +2756,27 @@ function closeRemainingInventoryModal() {
   }
 
   remainingInventoryModal.hidden = true;
+  remainingInventoryModal.classList.remove("is-audit");
   state.activeRemainingInventoryRow = null;
   state.activeRemainingInventoryMode = "classify";
   state.isSavingRemainingInventory = false;
   if (remainingInventoryBoxList) {
     remainingInventoryBoxList.innerHTML = "";
   }
+  if (state.returnToInventoryDetailAfterAudit && state.activeDetailInboundRecord) {
+    state.returnToInventoryDetailAfterAudit = false;
+    inboundDetailModal.hidden = false;
+    resetModalScrollPosition(inboundDetailModal);
+    focusModalDialog(inboundDetailModal);
+    return;
+  }
+
   if (
     shippingInspectionModal?.hidden !== false &&
     shippingCompletionModal?.hidden !== false &&
     shippingWaitingConfirmModal?.hidden !== false &&
-    shippingHoldGuideModal?.hidden !== false
+    shippingHoldGuideModal?.hidden !== false &&
+    inboundDetailModal?.hidden !== false
   ) {
     document.body.classList.remove("modal-open");
   }
@@ -2721,13 +2810,15 @@ function syncRemainingInventoryBoxState() {
   if (remainingInventoryBoxSummary) {
     remainingInventoryBoxSummary.textContent = inputs.length
       ? `${inputs.length}개 중 ${checkedInputs.length}개 선택 · ${formatNumber(selectedQuantity)} ea`
-      : "등록할 남은 박스를 선택해주세요.";
+      : state.activeRemainingInventoryMode === "audit"
+        ? "정리할 박스를 선택해주세요."
+        : "등록할 남은 박스를 선택해주세요.";
   }
 }
 
 async function saveRemainingInventory() {
-  const row = state.activeRemainingInventoryRow;
-  if (!row || state.isSavingRemainingInventory) {
+  const source = state.activeRemainingInventoryRow;
+  if (!source || state.isSavingRemainingInventory) {
     return;
   }
 
@@ -2737,8 +2828,18 @@ async function saveRemainingInventory() {
   const category = remainingInventoryForm
     ?.querySelector('input[name="remainingInventoryCategory"]:checked')
     ?.value || "";
+  const isAudit = state.activeRemainingInventoryMode === "audit";
   const isAdjustment = state.activeRemainingInventoryMode === "adjust";
   const selectedBoxQuantities = {};
+
+  if (!selectedInputs.length) {
+    if (remainingInventoryMessage) {
+      remainingInventoryMessage.textContent = isAudit
+        ? "정리할 재고를 하나 이상 선택해주세요."
+        : isAdjustment ? "조정할 박스를 하나 이상 선택해주세요." : "등록할 남은 박스를 하나 이상 선택해주세요.";
+    }
+    return;
+  }
 
   if (isAdjustment) {
     const hasInvalidQuantity = selectedInputs.some((input) => {
@@ -2758,62 +2859,90 @@ async function saveRemainingInventory() {
       return;
     }
   }
-
-  if (!selectedInputs.length) {
-    if (remainingInventoryMessage) {
-      remainingInventoryMessage.textContent = isAdjustment
-        ? "조정할 박스를 하나 이상 선택해주세요."
-        : "등록할 남은 박스를 하나 이상 선택해주세요.";
-    }
-    return;
+  if (isAudit) {
+    selectedInputs.forEach((input) => {
+      selectedBoxQuantities[input.value] = 0;
+    });
   }
-  if (!isAdjustment && !category) {
+
+  if (!isAudit && !isAdjustment && !category) {
     if (remainingInventoryMessage) {
       remainingInventoryMessage.textContent = "재고 구분을 선택해주세요.";
     }
     return;
   }
 
+  const selectedBoxes = selectedInputs.map((input) => Number(input.value)).filter(Number.isFinite);
+  const selectedQuantity = selectedInputs.reduce(
+    (sum, input) => sum + parseShippingSettlementNumber(input.dataset.quantity || ""),
+    0
+  );
+  if (isAudit && !window.confirm(
+    `${source.productName || "선택 제품"}의 ${formatNumber(selectedBoxes.length)}개 박스, ${formatNumber(selectedQuantity)}ea를 재고에서 정리하시겠습니까?\n처리 후 선택 박스는 출고완료(재고조정) 상태가 됩니다.`
+  )) {
+    return;
+  }
+
   state.isSavingRemainingInventory = true;
   if (saveRemainingInventoryButton) {
     saveRemainingInventoryButton.disabled = true;
-    saveRemainingInventoryButton.textContent = isAdjustment ? "조정 중" : "저장 중";
+    saveRemainingInventoryButton.textContent = isAudit ? "정리 중" : isAdjustment ? "조정 중" : "저장 중";
   }
   if (remainingInventoryMessage) {
     remainingInventoryMessage.textContent = "";
   }
 
   try {
-    const result = await requestApi(isAdjustment ? "adjustRemainingInventory" : "classifyRemainingInventory", {
-      managementId: row.dataset.managementId || row.children[1]?.textContent.trim() || "",
-      productId: row.dataset.productId || "",
-      productName: row.children[3]?.textContent.trim() || "",
-      clientName: row.children[2]?.textContent.trim() || "",
-      batch: row.children[4]?.textContent.trim() || "",
-      finalProcess: row.children[5]?.textContent.trim() || "",
+    const managementId = isAudit
+      ? source.managementId || ""
+      : source.dataset.managementId || source.children[1]?.textContent.trim() || "";
+    const productId = isAudit ? source.productId || "" : source.dataset.productId || "";
+    const productName = isAudit ? source.productName || "" : source.children[3]?.textContent.trim() || "";
+    const clientName = isAudit ? source.clientName || "" : source.children[2]?.textContent.trim() || "";
+    const batch = isAudit ? source.batch || "" : source.children[4]?.textContent.trim() || "";
+    const finalProcess = isAudit ? source.finalProcess || "" : source.children[5]?.textContent.trim() || "";
+    const isInventoryAdjustment = isAudit || isAdjustment;
+    const result = await requestApi(isInventoryAdjustment ? "adjustRemainingInventory" : "classifyRemainingInventory", {
+      managementId,
+      productId,
+      productName,
+      clientName,
+      batch,
+      finalProcess,
       inventoryCategory: category,
-      adjustmentDate: isAdjustment ? getLocalDateInputValue() : "",
-      boxQuantities: isAdjustment ? selectedBoxQuantities : {},
-      note: isAdjustment ? remainingInventoryNote?.value.trim() || "" : "",
-      selectedBoxes: selectedInputs.map((input) => Number(input.value)).filter(Number.isFinite),
+      adjustmentDate: isInventoryAdjustment ? getLocalDateInputValue() : "",
+      boxQuantities: isInventoryAdjustment ? selectedBoxQuantities : {},
+      note: isAudit ? "재고 정리" : isAdjustment ? remainingInventoryNote?.value.trim() || "" : "",
+      selectedBoxes,
       selectedBoxIds: selectedInputs.map((input) => input.dataset.boxId || "").filter(Boolean),
+      protectClassifiedInventory: isAudit,
       userName: signedInAdminName
     });
 
+    state.returnToInventoryDetailAfterAudit = false;
     closeRemainingInventoryModal();
+    if (isAudit) {
+      closeInboundDetailModal();
+    }
     await loadInventoryDashboard(false);
-    showToast(isAdjustment
-      ? `재고 조정으로 ${formatNumber(result?.updatedBoxRows || selectedInputs.length)}개 박스를 출고 완료 처리했습니다.`
+    showToast(isAudit
+      ? `${formatNumber(result?.updatedBoxRows || selectedBoxes.length)}개 박스를 재고 정리했습니다.`
+      : isAdjustment
+        ? `재고 조정으로 ${formatNumber(result?.updatedBoxRows || selectedInputs.length)}개 박스를 출고 완료 처리했습니다.`
       : `${category}로 ${formatNumber(result?.updatedRows || selectedInputs.length)}개 박스를 등록했습니다.`);
   } catch (error) {
     state.isSavingRemainingInventory = false;
     if (saveRemainingInventoryButton) {
       saveRemainingInventoryButton.disabled = false;
-      saveRemainingInventoryButton.textContent = isAdjustment ? "재고 조정 처리" : "재고 구분 저장";
+      saveRemainingInventoryButton.textContent = isAudit
+        ? "선택 박스 재고 정리"
+        : isAdjustment ? "재고 조정 처리" : "재고 구분 저장";
     }
     if (remainingInventoryMessage) {
       remainingInventoryMessage.textContent = error.message
-        || (isAdjustment ? "재고 조정 중 문제가 발생했습니다." : "보관 재고 등록 중 문제가 발생했습니다.");
+        || (isAudit
+          ? "재고 정리 중 문제가 발생했습니다."
+          : isAdjustment ? "재고 조정 중 문제가 발생했습니다." : "보관 재고 등록 중 문제가 발생했습니다.");
     }
   }
 }
@@ -6906,7 +7035,7 @@ function renderInventoryTable(message = "") {
       const inbound = getInboundByManagementId(button.dataset.inventoryDetail, button.dataset.inventoryDetailProduct);
 
       if (!inbound) {
-        showToast("입고 상세 정보를 찾을 수 없습니다.");
+        showToast("재고 상세 정보를 찾을 수 없습니다.");
         return;
       }
 
@@ -7014,10 +7143,12 @@ function renderInventoryDueBadge(item) {
 }
 
 function openInventoryInboundDetail(inbound) {
-  const detailInbound = normalizeInboundDetailRecord(inbound);
+  const inventoryRecord = getInventoryRecordByManagementId(inbound?.managementId, inbound?.productId);
+  const detailInbound = normalizeInboundDetailRecord(inventoryRecord || inbound);
   state.activeDetailInboundId = detailInbound.managementId;
   state.activeDetailInboundProductId = detailInbound.productId || "";
   state.activeDetailInboundRecord = detailInbound;
+  state.activeDetailInboundSource = "inventory";
   setInboundDetailMode("view");
   renderInboundDetail(detailInbound);
   inboundDetailModal.hidden = false;
@@ -7031,6 +7162,7 @@ function openShippingDetail(item) {
   state.activeDetailInboundProductId = item.productId || "";
   state.activeDetailInboundRecord = null;
   state.activeShippingDetailItem = item;
+  state.activeDetailInboundSource = "shipping";
   if (inboundDetailTitle) {
     inboundDetailTitle.textContent = "출고 상세보기";
   }
@@ -7042,6 +7174,9 @@ function openShippingDetail(item) {
   }
   if (editInboundFromDetailButton) {
     editInboundFromDetailButton.hidden = true;
+  }
+  if (inventoryAuditFromDetailButton) {
+    inventoryAuditFromDetailButton.hidden = true;
   }
   inboundDetailModal.classList.remove("is-editing");
   renderShippingDetail(item);
@@ -7550,6 +7685,7 @@ function openActiveInboundDetail() {
   state.activeDetailInboundId = inbound.managementId;
   state.activeDetailInboundProductId = inbound.productId || "";
   state.activeDetailInboundRecord = inbound;
+  state.activeDetailInboundSource = "inbound";
   setInboundDetailMode("view");
   renderInboundDetail(inbound);
   inboundDetailModal.hidden = false;
@@ -7566,6 +7702,8 @@ function closeInboundDetailModal() {
   state.activeDetailInboundRecord = null;
   state.activeShippingDetailItem = null;
   state.isCancelingDiscardedBoxes = false;
+  state.activeDetailInboundSource = "inbound";
+  state.returnToInventoryDetailAfterAudit = false;
   state.inboundEditDefectReasons = [];
   setInboundDetailMode("view");
 
@@ -7954,6 +8092,7 @@ function openActiveInboundEdit() {
   state.activeDetailInboundId = inbound.managementId;
   state.activeDetailInboundProductId = inbound.productId || "";
   state.activeDetailInboundRecord = inbound;
+  state.activeDetailInboundSource = "inbound";
   setInboundDetailMode("edit");
   renderInboundEditForm(inbound);
   inboundDetailModal.hidden = false;
@@ -7998,6 +8137,20 @@ function getInboundByManagementId(managementId, productId = "") {
   return normalizeInboundDetailRecord(matched || (!targetProductId ? candidates[0] : null));
 }
 
+function getInventoryRecordByManagementId(managementId, productId = "") {
+  const targetManagementId = String(managementId || "").trim();
+  const targetProductId = String(productId || "").trim();
+  if (!targetManagementId) {
+    return null;
+  }
+
+  const rows = Array.isArray(state.inventoryRows) ? state.inventoryRows : [];
+  return rows.find((item) => (
+    String(item.managementId || "").trim() === targetManagementId
+      && (!targetProductId || String(item.productId || "").trim() === targetProductId)
+  )) || null;
+}
+
 function normalizeInboundDetailRecord(inbound) {
   if (!inbound) {
     return null;
@@ -8015,16 +8168,21 @@ function normalizeInboundDetailRecord(inbound) {
 
 function setInboundDetailMode(mode) {
   const isEdit = mode === "edit";
+  const isInventoryDetail = !isEdit && state.activeDetailInboundSource === "inventory";
   inboundDetailModal?.classList.toggle("is-editing", isEdit);
 
   if (inboundDetailTitle) {
-    inboundDetailTitle.textContent = isEdit ? "입고 수정" : "입고 상세보기";
+    inboundDetailTitle.textContent = isEdit
+      ? "입고 수정"
+      : isInventoryDetail ? "재고 상세보기" : "입고 상세보기";
   }
 
   if (inboundDetailDescription) {
     inboundDetailDescription.textContent = isEdit
       ? "수정 가능한 입고 정보와 수량 정보를 변경할 수 있습니다."
-      : "등록된 입고 정보와 수량 정보를 확인할 수 있습니다.";
+      : isInventoryDetail
+        ? "현재 보관 중인 재고와 최초 입고 정보를 함께 확인할 수 있습니다."
+        : "등록된 입고 정보와 수량 정보를 확인할 수 있습니다.";
   }
 
   if (closeInboundDetailButton) {
@@ -8033,12 +8191,36 @@ function setInboundDetailMode(mode) {
 
   if (editInboundFromDetailButton) {
     editInboundFromDetailButton.hidden = isEdit;
+    editInboundFromDetailButton.textContent = isInventoryDetail ? "정보 수정" : "수정하기";
+  }
+
+  if (inventoryAuditFromDetailButton) {
+    inventoryAuditFromDetailButton.hidden = !isInventoryDetail;
   }
 
   if (saveInboundEditButton) {
     saveInboundEditButton.hidden = !isEdit;
     saveInboundEditButton.disabled = false;
     saveInboundEditButton.textContent = "저장";
+  }
+}
+
+function openInventoryAuditFromDetail() {
+  const item = getInventoryRecordByManagementId(
+    state.activeDetailInboundId,
+    state.activeDetailInboundProductId
+  );
+  if (!item) {
+    showToast("재고 정리할 상세 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  state.returnToInventoryDetailAfterAudit = true;
+  inboundDetailModal.hidden = true;
+  if (!openRemainingInventoryModal(item, "audit")) {
+    state.returnToInventoryDetailAfterAudit = false;
+    inboundDetailModal.hidden = false;
+    focusModalDialog(inboundDetailModal);
   }
 }
 
@@ -8132,6 +8314,7 @@ function renderProductDetail(product) {
 }
 
 function renderInboundDetail(inbound) {
+  const isInventoryDetail = state.activeDetailInboundSource === "inventory";
   const remainderQuantities = getInboundRecordRemainderQuantities(inbound);
   const remainderDetail = remainderQuantities
     .map((value, index) => `${index + 1}번 ${Number(value).toLocaleString("ko-KR")} ea`)
@@ -8139,14 +8322,20 @@ function renderInboundDetail(inbound) {
 
   inboundDetailContent.innerHTML = `
     ${renderDetailOverview({
-      label: "입고 제품",
+      label: isInventoryDetail ? "재고 제품" : "입고 제품",
       title: inbound.productName,
       meta: [inbound.clientName, inbound.managementId],
-      stats: [
-        { label: "입고 총 수량", value: formatDetailMetric(inbound.inboundTotalQuantity, "ea") },
-        { label: "박스 총 수량", value: formatDetailMetric(inbound.boxTotalCount, "box") },
-        { label: "보관 위치", value: inbound.storage }
-      ]
+      stats: isInventoryDetail
+        ? [
+          { label: "현재 박스 수", value: formatDetailMetric(inbound.currentBoxCount, "box") },
+          { label: "현재 수량", value: formatDetailMetric(inbound.currentTotalQuantity, "ea") },
+          { label: "보관 위치", value: inbound.storage }
+        ]
+        : [
+          { label: "입고 총 수량", value: formatDetailMetric(inbound.inboundTotalQuantity, "ea") },
+          { label: "박스 총 수량", value: formatDetailMetric(inbound.boxTotalCount, "box") },
+          { label: "보관 위치", value: inbound.storage }
+        ]
     })}
 
     <section class="detail-section" aria-labelledby="inboundDetailBaseTitle">
@@ -8176,6 +8365,8 @@ function renderInboundDetail(inbound) {
     <section class="detail-section" aria-labelledby="inboundDetailQuantityTitle">
       <h3 id="inboundDetailQuantityTitle">수량 정보</h3>
       <div class="detail-grid">
+        ${isInventoryDetail ? detailItem("현재 박스 수", formatDetailMetric(inbound.currentBoxCount, "box")) : ""}
+        ${isInventoryDetail ? detailItem("현재 수량", formatDetailMetric(inbound.currentTotalQuantity, "ea")) : ""}
         ${detailItem("박스당 수량", inbound.boxQuantity)}
         ${detailItem("완박스 수", inbound.inboundBoxCount)}
         ${detailItem("잔량", inbound.remainQuantity)}
@@ -8851,7 +9042,9 @@ async function saveInboundEdit() {
     state.activeDetailInboundProductId = payload.productId || state.activeDetailInboundProductId || "";
     setInboundDetailMode("view");
 
-    const detailInbound = getInboundByManagementId(payload.managementId, state.activeDetailInboundProductId);
+    const detailInbound = state.activeDetailInboundSource === "inventory"
+      ? normalizeInboundDetailRecord(getInventoryRecordByManagementId(payload.managementId, state.activeDetailInboundProductId))
+      : getInboundByManagementId(payload.managementId, state.activeDetailInboundProductId);
     if (detailInbound) {
       state.activeDetailInboundRecord = detailInbound;
       renderInboundDetail(detailInbound);

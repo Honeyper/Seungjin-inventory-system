@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260813-shipping-table-fixed-columns" />
+    <link rel="stylesheet" href="./styles.css?v=20260821-inventory-select-nowrap" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260820-qr-box-quantity" />
   </head>
   <body class="admin-body">
@@ -1560,6 +1560,10 @@
               <span id="remainingInventoryLatestShippingLabel">최종 출고일</span>
               <strong id="remainingInventoryLatestShippingDate">-</strong>
             </div>
+            <div id="remainingInventoryCurrentStockField" hidden>
+              <span>현재 재고</span>
+              <strong id="remainingInventoryCurrentStock">-</strong>
+            </div>
           </section>
 
           <section class="form-section remaining-inventory-category-section" id="remainingInventoryCategorySection" aria-labelledby="remainingInventoryCategoryTitle">
@@ -2303,6 +2307,10 @@
 
         <div class="modal-actions detail-actions">
           <button class="secondary-modal-action" type="button" id="closeInboundDetailButton">닫기</button>
+          <button class="inventory-audit-detail-button" type="button" id="inventoryAuditFromDetailButton" hidden>
+            <i class="ti ti-clipboard-check" aria-hidden="true"></i>
+            재고 정리
+          </button>
           <button class="primary-modal-action" type="button" id="editInboundFromDetailButton">수정하기</button>
           <button class="primary-modal-action" type="button" id="saveInboundEditButton" hidden>저장</button>
         </div>
@@ -2570,6 +2578,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260820-qr-box-quantity"></script>
+    <script src="./admin.js?v=20260821-inventory-audit-summary"></script>
   </body>
 </html>

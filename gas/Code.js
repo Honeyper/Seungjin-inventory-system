@@ -4126,6 +4126,7 @@ function adjustRemainingInventory(payload) {
       note,
       forceCompleteShipping: true,
       inventoryAdjustment: true,
+      protectClassifiedInventory: payload.protectClassifiedInventory === true,
       ignoreStorage: true
     });
     const finalStatus = boxUpdateResult.remainingActiveRows > 0
@@ -4916,6 +4917,9 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     const sequence = sequenceIndex >= 0 ? displayQuantityToNumber_(row[sequenceIndex]) : matchedBoxNumber;
     const rawRowStatus = statusIndex >= 0 ? String(row[statusIndex] || '').trim() : '';
     let rowStatus = statusIndex >= 0 ? normalizeStockStatusText_(row[statusIndex]) : '보관';
+    const inventoryCategory = String(pickCell_(row, indexes, ['재고 구분', '재고구분']) || '').trim();
+    const isProtectedInventory = data.protectClassifiedInventory === true
+      && (inventoryCategory === '자사재고' || /사출|인쇄/.test(`${inventoryCategory} ${rawRowStatus}`));
     const isAlreadyShipped = /출고완료/.test(rowStatus);
     // A box ID identifies the exact row. Sequence numbers are only a fallback
     // for legacy rows that do not send box IDs.
@@ -4939,6 +4943,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
         forceCompleteShipping
           ? !isAlreadyShipped
             && !/폐기/.test(rowStatus)
+            && !isProtectedInventory
             && (!allowedSourceStatuses.size || allowedSourceStatuses.has(rowStatus))
           : isShippingCompletionReadyBoxRow_(row, indexes, rawRowStatus)
       );
