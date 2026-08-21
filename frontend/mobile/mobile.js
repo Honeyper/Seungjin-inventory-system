@@ -2358,7 +2358,7 @@ function renderInventoryMoveList() {
           <span class="empty-state-icon" aria-hidden="true">
             <i class="ti ti-package-export"></i>
           </span>
-          <h2>이동할 박스가 없습니다</h2>
+          <h2>등록된 박스가 없습니다</h2>
           <p>QR 스캔으로 재고 위치를 수정할 박스를 등록해주세요.</p>
           <button class="primary-action" type="button" id="emptyInventoryScanButton">QR 스캔</button>
         </div>
