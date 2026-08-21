@@ -137,6 +137,7 @@ const state = {
   activeTransferReturnBoxes: [],
   activeTransferReturnMode: "transfer",
   selectedInventoryMoveMode: "single",
+  inventoryMoveBoxScopes: {},
   selectedInventoryAuditScope: "management",
   selectedInventoryAuditAnchor: null,
   selectedConfirmMode: "item",
@@ -2386,6 +2387,10 @@ function renderInventoryMoveItem(item) {
       });
       return sum + getBoxCurrentQuantity(box, item);
     }, 0);
+  const boxScope = getInventoryMoveBoxScope(item);
+  const managementBoxOverview = buildInventoryMoveBoxOverview(item, "management");
+  const productBoxOverview = buildInventoryMoveBoxOverview(item, "product");
+  const boxOverview = boxScope === "product" ? productBoxOverview : managementBoxOverview;
 
   return `
     <article class="shipping-item shipping-product-card inventory-move-item ${getClientToneClass(item.clientName)}" data-inventory-move-item="${escapeHtml(key)}">
@@ -2432,6 +2437,13 @@ function renderInventoryMoveItem(item) {
           </select>
         </label>
       </div>
+      ${renderInventoryMoveBoxOverview({
+        key,
+        scope: boxScope,
+        overview: boxOverview,
+        managementBoxCount: managementBoxOverview.boxCount,
+        productBoxCount: productBoxOverview.boxCount
+      })}
       <div class="inventory-move-summary">
         <div class="item-metrics inventory-move-metrics">
           <span class="metric">
@@ -2484,6 +2496,19 @@ function handleInventoryMoveListClick(event) {
     closeShippingCardMenu(menuItem.closest(".shipping-card-menu"));
   }
 
+  const scopeButton = event.target.closest("[data-inventory-box-scope]");
+  if (scopeButton) {
+    const key = scopeButton.dataset.inventoryMoveKey;
+    const item = findInventoryMoveGroupByKey(key);
+    if (!item) {
+      showToast("박스 현황을 확인할 제품을 찾지 못했습니다.");
+      return;
+    }
+    state.inventoryMoveBoxScopes[key] = normalizeInventoryMoveBoxScope(scopeButton.dataset.inventoryBoxScope);
+    renderInventoryMoveList();
+    return;
+  }
+
   const removeButton = event.target.closest("[data-inventory-move-remove]");
   if (removeButton) {
     confirmRemoveScannedMoveGroup(removeButton.dataset.inventoryMoveRemove);
@@ -2528,7 +2553,7 @@ function handleInventoryMoveListChange(event) {
 
 async function handleInventoryMoveCardAction(item, mode = "single") {
   if (mode === "audit") {
-    openMissingInventoryAdjustmentScopePicker(item);
+    openMissingInventoryAdjustmentScopePicker(item, getInventoryMoveBoxScope(item));
     return;
   }
 
@@ -3444,7 +3469,8 @@ function handleScannerInventoryAuditAction() {
     return;
   }
 
-  openMissingInventoryAdjustmentScopePicker();
+  const anchorItem = getInventoryAuditAnchorItem();
+  openMissingInventoryAdjustmentScopePicker(anchorItem, getInventoryMoveBoxScope(anchorItem));
 }
 
 async function completeShippingItems(items, action = "complete") {
@@ -3646,6 +3672,121 @@ function getInventoryAuditBoxKey(item, box = getScannedBox(item)) {
   const managementId = normalizeScanValue(item?.managementId);
   const boxNumber = String(box?.number || box?.sequence || item?.scannedBoxNumber || "").trim();
   return managementId && boxNumber ? `${managementId}|${boxNumber}` : "";
+}
+
+function normalizeInventoryMoveBoxScope(value) {
+  return value === "product" ? "product" : "management";
+}
+
+function getInventoryMoveBoxScope(item) {
+  return normalizeInventoryMoveBoxScope(
+    state.inventoryMoveBoxScopes[getInventoryMoveKey(item)]
+  );
+}
+
+function buildInventoryMoveBoxOverview(anchorItem, scope = "management") {
+  const normalizedScope = normalizeInventoryMoveBoxScope(scope);
+  const anchorManagementId = normalizeScanValue(anchorItem?.managementId);
+  const anchorProductKey = getInventoryAuditProductKey(anchorItem);
+  const scannedBoxKeys = new Set(
+    state.scannedMoveRows.map((row) => getInventoryAuditBoxKey(row)).filter(Boolean)
+  );
+  const seenBoxKeys = new Set();
+  const boxes = [];
+
+  state.dashboard.forEach((row) => {
+    const isInScope = normalizedScope === "product"
+      ? getInventoryAuditProductKey(row) === anchorProductKey
+      : normalizeScanValue(row?.managementId) === anchorManagementId;
+    if (!isInScope) {
+      return;
+    }
+
+    getMovableBoxes(row).forEach((box) => {
+      const boxKey = getInventoryAuditBoxKey(row, box);
+      if (!boxKey || seenBoxKeys.has(boxKey) || isProtectedInventoryAdjustmentBox(row, box)) {
+        return;
+      }
+
+      seenBoxKeys.add(boxKey);
+      boxes.push({
+        boxKey,
+        boxNumber: String(box?.number || box?.sequence || "").trim(),
+        quantity: getBoxCurrentQuantity(box, row),
+        storage: normalizeDisplay(box?.storage || row?.storage || "미지정"),
+        inboundDate: formatManualShippingInboundDate(row?.inboundDate),
+        managementId: normalizeDisplay(row?.managementId || "-"),
+        isScanned: scannedBoxKeys.has(boxKey)
+      });
+    });
+  });
+
+  boxes.sort((left, right) => {
+    const dateOrder = String(right.inboundDate).localeCompare(String(left.inboundDate), "ko", { numeric: true });
+    if (dateOrder !== 0) {
+      return dateOrder;
+    }
+    const managementOrder = left.managementId.localeCompare(right.managementId, "ko", { numeric: true });
+    if (managementOrder !== 0) {
+      return managementOrder;
+    }
+    return parseNumber(left.boxNumber) - parseNumber(right.boxNumber);
+  });
+
+  return {
+    scope: normalizedScope,
+    boxes,
+    boxCount: boxes.length,
+    quantity: boxes.reduce((sum, box) => sum + box.quantity, 0),
+    scannedBoxCount: boxes.filter((box) => box.isScanned).length
+  };
+}
+
+function renderInventoryMoveBoxOverview({
+  key,
+  scope,
+  overview,
+  managementBoxCount,
+  productBoxCount
+}) {
+  const scopeLabel = scope === "product" ? "같은 SKU 전체" : "해당 입고 건";
+  const boxCards = overview.boxes.length
+    ? overview.boxes.map((box) => `
+      <article class="inventory-remaining-box ${box.isScanned ? "is-scanned" : ""}">
+        <span class="inventory-remaining-box-head">
+          <strong>${escapeHtml(normalizeDisplay(box.boxNumber))}번 박스</strong>
+          <em>${box.isScanned ? "QR 확인" : "미확인"}</em>
+        </span>
+        <b>${formatNumber(box.quantity)} <small>ea</small></b>
+        <span class="inventory-remaining-box-meta">입고 ${escapeHtml(box.inboundDate)} · ${escapeHtml(box.storage)}</span>
+        <small class="inventory-remaining-box-management">${escapeHtml(box.managementId)}</small>
+      </article>
+    `).join("")
+    : '<p class="inventory-remaining-box-empty">선택한 범위에 보관 중인 일반재고 박스가 없습니다.</p>';
+
+  return `
+    <section class="inventory-box-overview" aria-label="${escapeHtml(scopeLabel)} 남은 박스 현황">
+      <div class="inventory-box-overview-head">
+        <span>
+          <small>남은 박스 현황</small>
+          <strong>${formatNumber(overview.boxCount)}박스 · ${formatNumber(overview.quantity)}ea</strong>
+        </span>
+        <em>QR 확인 ${formatNumber(overview.scannedBoxCount)}</em>
+      </div>
+      <div class="inventory-box-scope-switch" role="group" aria-label="남은 박스 조회 범위">
+        <button type="button" data-inventory-box-scope="management" data-inventory-move-key="${escapeHtml(key)}" aria-pressed="${scope === "management"}">
+          <span>해당 입고 건</span>
+          <small>${formatNumber(managementBoxCount)}박스</small>
+        </button>
+        <button type="button" data-inventory-box-scope="product" data-inventory-move-key="${escapeHtml(key)}" aria-pressed="${scope === "product"}">
+          <span>같은 SKU 전체</span>
+          <small>${formatNumber(productBoxCount)}박스</small>
+        </button>
+      </div>
+      <div class="inventory-remaining-box-list">${boxCards}</div>
+      <p class="inventory-box-overview-guide">QR로 확인한 박스와 아직 확인하지 않은 박스를 구분해 보여드립니다.</p>
+    </section>
+  `;
 }
 
 function isProtectedInventoryAdjustmentBox(item, box) {
@@ -3904,7 +4045,7 @@ function renderInventoryAuditScopeOptions(anchorItem, preparedPlans = null) {
   return availablePlans;
 }
 
-function openMissingInventoryAdjustmentScopePicker(selectedItem = null) {
+function openMissingInventoryAdjustmentScopePicker(selectedItem = null, preferredScope = "management") {
   if (state.isCompletingShipping) {
     return;
   }
@@ -3916,7 +4057,7 @@ function openMissingInventoryAdjustmentScopePicker(selectedItem = null) {
 
   const anchorItem = getInventoryAuditAnchorItem(selectedItem);
   state.selectedInventoryAuditAnchor = anchorItem;
-  state.selectedInventoryAuditScope = "management";
+  state.selectedInventoryAuditScope = normalizeInventoryMoveBoxScope(preferredScope);
   const previewPlans = INVENTORY_AUDIT_SCOPE_DEFINITIONS.map((option) => ({
     ...option,
     plan: buildMissingInventoryAdjustmentPlan({ scope: option.value, selectedItem: anchorItem })
@@ -5611,7 +5752,28 @@ function renderScannerScannedList() {
     return;
   }
 
-  elements.scannerScannedList.innerHTML = rows.map((item, index) => {
+  let inventoryBoxOverview = "";
+  if (isInventoryMove) {
+    const latestGroup = groupScannedInventoryMoveRows(rows)[0];
+    const key = getInventoryMoveKey(latestGroup);
+    const scope = getInventoryMoveBoxScope(latestGroup);
+    const managementOverview = buildInventoryMoveBoxOverview(latestGroup, "management");
+    const productOverview = buildInventoryMoveBoxOverview(latestGroup, "product");
+    inventoryBoxOverview = `
+      <div class="scanner-inventory-box-overview">
+        <p>방금 스캔한 제품의 재고를 확인해주세요.</p>
+        ${renderInventoryMoveBoxOverview({
+          key,
+          scope,
+          overview: scope === "product" ? productOverview : managementOverview,
+          managementBoxCount: managementOverview.boxCount,
+          productBoxCount: productOverview.boxCount
+        })}
+      </div>
+    `;
+  }
+
+  elements.scannerScannedList.innerHTML = inventoryBoxOverview + rows.map((item, index) => {
     const scannedBox = getScannedBox(item);
     const boxLabel = getScannedBoxLabel(item) || "박스 정보 없음";
     const boxQuantity = scannedBox ? parseNumber(scannedBox.quantity || scannedBox.currentQuantity) : 0;
@@ -5654,6 +5816,19 @@ function renderScannerScannedList() {
 }
 
 function handleScannerListClick(event) {
+  const scopeButton = event.target.closest("[data-inventory-box-scope]");
+  if (scopeButton && state.activeWorkflow === "inventoryMove") {
+    const key = scopeButton.dataset.inventoryMoveKey;
+    const item = findInventoryMoveGroupByKey(key);
+    if (!item) {
+      showToast("박스 현황을 확인할 제품을 찾지 못했습니다.");
+      return;
+    }
+    state.inventoryMoveBoxScopes[key] = normalizeInventoryMoveBoxScope(scopeButton.dataset.inventoryBoxScope);
+    renderScannerScannedList();
+    return;
+  }
+
   const quantityButton = event.target.closest("[data-scanner-quantity]");
   if (quantityButton) {
     if (state.activeWorkflow === "inventoryMove") {
