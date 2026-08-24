@@ -5468,7 +5468,7 @@ async function handleQrValue(rawValue) {
     triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
     if (state.activeWorkflow === "inventoryMove") {
       setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
-      showToast("이동할 박스를 등록했습니다.");
+      showToast("박스가 성공적으로 등록되었습니다.");
     } else {
       const successMessage = "스캔 완료. 목록에 성공적으로 추가했습니다.";
       setScannerHelp(successMessage);
