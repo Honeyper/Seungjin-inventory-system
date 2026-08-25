@@ -132,6 +132,7 @@ function doPost(e) {
       adjustRemainingInventory,
       updateShippingStatus,
       adjustMissingInventory,
+      ensureInventoryAuditColumns,
       returnTransferredInventory,
       returnTakenOutInventory,
       updateInventoryBoxMove,
@@ -737,6 +738,7 @@ function isApiMutationAction_(action) {
     'classifyRemainingInventory',
     'adjustRemainingInventory',
     'adjustMissingInventory',
+    'ensureInventoryAuditColumns',
     'updateShippingStatus',
     'returnTransferredInventory',
     'returnTakenOutInventory',
@@ -1251,7 +1253,7 @@ function setupSheets() {
     }
   });
   ensureProductCommonContainerHeaders_(getProductSheet_());
-  ensureBoxDbShippingInspectionHeaders_(
+  ensureBoxDbInventoryCheckHeader_(
     getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB')
   );
 
@@ -2788,6 +2790,44 @@ function ensureBoxDbShippingInspectionHeaders_(sheet) {
     existingHeaders.push(header);
     nextColumn += 1;
   });
+}
+
+function ensureBoxDbInventoryCheckHeader_(sheet) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['박스ID', '관리ID', '제품명']);
+
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const header = '최종재고 확인일시';
+  const existingHeaders = headerInfo.headers.map((value) => String(value || '').trim());
+  const existingIndex = findHeaderIndex_(indexHeaders_(headerInfo.headers), [header, '최종 재고 확인일시']);
+  if (existingIndex >= 0) {
+    return {
+      created: false,
+      columnNumber: existingIndex + 1
+    };
+  }
+
+  const columnNumber = existingHeaders.length + 1;
+  sheet.getRange(headerInfo.rowIndex + 1, columnNumber).setValue(header);
+  sheet.setColumnWidth(columnNumber, 170);
+  return {
+    created: true,
+    columnNumber
+  };
+}
+
+function ensureInventoryAuditColumns() {
+  const sheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const result = ensureBoxDbInventoryCheckHeader_(sheet);
+  return {
+    env: CONFIG.ENV,
+    sheetName: sheet.getName(),
+    header: '최종재고 확인일시',
+    ...result
+  };
 }
 
 function appendBoxManagementRows_(sheet, boxRecords) {
