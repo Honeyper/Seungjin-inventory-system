@@ -1130,7 +1130,8 @@ function setupSheets() {
       '불량률',
       '불량 사진',
       '폐기 전 수량',
-      '비고'
+      '비고',
+      '최종재고 확인일시'
     ],
     [CONFIG.SHEETS.INVENTORY]: [
       '관리ID',
@@ -1554,6 +1555,12 @@ function getInventoryDashboard() {
       defectPhotoCount: boxSummary.defectPhotoCount || 0,
       shippingInspectionDate: boxSummary.shippingInspectionDate || '',
       shippingDate: boxSummary.shippingDate || getObjectCell_(stockRow, ['출고일']),
+      shippingUpdatedAt: boxSummary.shippingUpdatedAt || '',
+      lastInventoryCheckedAt: boxSummary.lastInventoryCheckedAt || '',
+      inventoryCheckedBoxCount: boxSummary.inventoryCheckedBoxCount || 0,
+      inventoryAdjustmentBoxCount: boxSummary.inventoryAdjustmentBoxCount || 0,
+      inventoryAdjustmentQuantity: boxSummary.inventoryAdjustmentQuantity || 0,
+      lastInventoryAdjustmentAt: boxSummary.lastInventoryAdjustmentAt || '',
       completedShippingType,
       inventoryCategories,
       inventoryCategoryStats,
@@ -1593,9 +1600,7 @@ function getInventoryDashboard() {
   const totalBoxes = activeRows.reduce((sum, row) => sum + displayQuantityToNumber_(row.currentBoxCount), 0);
   const totalQuantity = activeRows.reduce((sum, row) => sum + displayQuantityToNumber_(row.currentTotalQuantity), 0);
   const dueSoonCount = activeRows.filter((row) => Number.isFinite(row.dueDays) && row.dueDays <= 3).length;
-  const printWaitingBoxes = activeRows
-    .filter((row) => normalizeStockStatusText_(row.stockStatus) === '보관')
-    .reduce((sum, row) => sum + displayQuantityToNumber_(row.currentBoxCount), 0);
+  const physicalMissingCount = visibleRows.filter((row) => row.inventoryAdjustmentBoxCount > 0).length;
   const unspecifiedStorageCount = activeRows.filter((row) => isUnspecifiedStorage_(row.storage)).length;
   const holdOrDiscardCount = rows.filter(isHoldOrDiscardInventoryRow_).length;
   const stockStatuses = uniqueSorted_(visibleRows.reduce((statuses, row) => (
@@ -1618,7 +1623,7 @@ function getInventoryDashboard() {
     locationBoxStats,
     locationQuantityStats,
     attention: {
-      printWaitingBoxes,
+      physicalMissingCount,
       unspecifiedStorageCount,
       holdOrDiscardCount
     },
@@ -2765,7 +2770,8 @@ function ensureBoxDbShippingInspectionHeaders_(sheet) {
     '출고 수정일시',
     '재고 구분',
     '재고 구분일시',
-    '재고 구분자'
+    '재고 구분자',
+    '최종재고 확인일시'
   ];
   const existingHeaders = headerInfo.headers.map((header) => String(header || '').trim());
   let nextColumn = existingHeaders.length + 1;
@@ -4370,44 +4376,50 @@ function updateShippingStatus(payload) {
 
 function adjustMissingInventory(payload) {
   const rawAdjustments = Array.isArray(payload.adjustments) ? payload.adjustments : [];
-  if (!rawAdjustments.length) {
-    throw new Error('재고조정할 미스캔 박스가 없습니다.');
+  const rawConfirmedBoxes = Array.isArray(payload.confirmedBoxes) ? payload.confirmedBoxes : [];
+  if (!rawAdjustments.length && !rawConfirmedBoxes.length) {
+    throw new Error('재고 실물 확인 또는 재고조정할 박스가 없습니다.');
   }
 
-  const groupedAdjustments = new Map();
-  rawAdjustments.forEach((item) => {
-    const managementId = String(item.managementId || '').trim();
-    const productId = String(item.productId || '').trim();
-    const productName = String(item.productName || '').trim();
-    const selectedBoxes = (Array.isArray(item.selectedBoxes) ? item.selectedBoxes : [])
-      .map((value) => Number(value))
-      .filter((value) => Number.isFinite(value) && value > 0);
+  const normalizeGroups = (rawGroups, targetLabel) => {
+    const grouped = new Map();
+    rawGroups.forEach((item) => {
+      const managementId = String(item.managementId || '').trim();
+      const productId = String(item.productId || '').trim();
+      const productName = String(item.productName || '').trim();
+      const selectedBoxes = (Array.isArray(item.selectedBoxes) ? item.selectedBoxes : [])
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0);
 
-    if (!managementId || (!productId && !productName) || !selectedBoxes.length) {
-      throw new Error('재고조정 대상의 관리 ID, 제품 또는 박스 번호를 확인해주세요.');
-    }
+      if (!managementId || (!productId && !productName) || !selectedBoxes.length) {
+        throw new Error(`${targetLabel} 대상의 관리 ID, 제품 또는 박스 번호를 확인해주세요.`);
+      }
 
-    const groupKey = [
-      managementId,
-      normalizeInventoryIdentityPart_(productId),
-      normalizeInventoryIdentityPart_(productName)
-    ].join('|');
-    if (!groupedAdjustments.has(groupKey)) {
-      groupedAdjustments.set(groupKey, {
+      const groupKey = [
         managementId,
-        productId,
-        productName,
-        clientName: String(item.clientName || '').trim(),
-        selectedBoxes: new Set()
-      });
-    }
-    selectedBoxes.forEach((boxNumber) => groupedAdjustments.get(groupKey).selectedBoxes.add(boxNumber));
-  });
+        normalizeInventoryIdentityPart_(productId),
+        normalizeInventoryIdentityPart_(productName)
+      ].join('|');
+      if (!grouped.has(groupKey)) {
+        grouped.set(groupKey, {
+          managementId,
+          productId,
+          productName,
+          clientName: String(item.clientName || '').trim(),
+          selectedBoxes: new Set()
+        });
+      }
+      selectedBoxes.forEach((boxNumber) => grouped.get(groupKey).selectedBoxes.add(boxNumber));
+    });
 
-  const adjustments = Array.from(groupedAdjustments.values()).map((item) => ({
-    ...item,
-    selectedBoxes: Array.from(item.selectedBoxes).sort((left, right) => left - right)
-  }));
+    return Array.from(grouped.values()).map((item) => ({
+      ...item,
+      selectedBoxes: Array.from(item.selectedBoxes).sort((left, right) => left - right)
+    }));
+  };
+
+  const adjustments = normalizeGroups(rawAdjustments, '재고조정');
+  const confirmedBoxes = normalizeGroups(rawConfirmedBoxes, '재고 실물 확인');
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
 
@@ -4422,6 +4434,13 @@ function adjustMissingInventory(payload) {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     ensureBoxDbShippingInspectionHeaders_(boxSheet);
     validateMissingInventoryAdjustmentTargets_(boxSheet, adjustments);
+    validateInventoryConfirmationTargets_(boxSheet, confirmedBoxes);
+
+    const confirmedBoxRows = updateInventoryConfirmationRows_(
+      boxSheet,
+      confirmedBoxes,
+      adjustmentUpdatedAt
+    );
 
     let updatedBoxRows = 0;
     let updatedStockRows = 0;
@@ -4468,6 +4487,8 @@ function adjustMissingInventory(payload) {
     return {
       updatedBoxRows,
       updatedStockRows,
+      confirmedBoxRows,
+      inventoryCheckedAt: adjustmentUpdatedAt,
       adjustmentDate,
       adjustmentTime,
       results
@@ -4475,6 +4496,101 @@ function adjustMissingInventory(payload) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function validateInventoryConfirmationTargets_(sheet, confirmations) {
+  if (!confirmations.length) {
+    return;
+  }
+
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const statusIndex = findHeaderIndex_(indexes, ['상태', '재고 상태']);
+  const quantityIndex = findHeaderIndex_(indexes, ['현재 수량', '현재수량']);
+  const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+
+  confirmations.forEach((confirmation) => {
+    const expectedBoxes = new Set(confirmation.selectedBoxes);
+    const foundBoxes = new Set();
+    let matchedBoxNumber = 0;
+
+    for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+      if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리ID', '관리 ID'], confirmation.managementId, confirmation)) {
+        continue;
+      }
+
+      matchedBoxNumber += 1;
+      const sequence = sequenceIndex >= 0
+        ? displayQuantityToNumber_(values[rowIndex][sequenceIndex])
+        : matchedBoxNumber;
+      if (!expectedBoxes.has(sequence)) {
+        continue;
+      }
+
+      if (isProtectedInventoryAdjustmentRow_(values[rowIndex], indexes)) {
+        throw new Error(`${confirmation.productName} ${sequence}번 박스는 사출·인쇄·자사재고로 실물 확인 대상에서 제외됩니다.`);
+      }
+
+      const status = statusIndex >= 0 ? normalizeStockStatusText_(values[rowIndex][statusIndex]) : '보관';
+      const quantity = quantityIndex >= 0 ? displayQuantityToNumber_(values[rowIndex][quantityIndex]) : 0;
+      if (quantity <= 0 || /출고완료|폐기/.test(status)) {
+        throw new Error(`${confirmation.productName} ${sequence}번 박스는 현재 실물 확인할 수 없는 상태입니다.`);
+      }
+      foundBoxes.add(sequence);
+    }
+
+    const missingBoxes = Array.from(expectedBoxes).filter((boxNumber) => !foundBoxes.has(boxNumber));
+    if (missingBoxes.length) {
+      throw new Error(`${confirmation.productName}의 ${missingBoxes.join(', ')}번 박스를 전산 재고에서 찾지 못했습니다.`);
+    }
+  });
+}
+
+function updateInventoryConfirmationRows_(sheet, confirmations, checkedAt) {
+  if (!confirmations.length) {
+    return 0;
+  }
+
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리ID', '제품명']) || findHeaderRow_(values, ['관리 ID', '제품명']);
+  const indexes = indexHeaders_(headerInfo.headers);
+  const sequenceIndex = findHeaderIndex_(indexes, ['박스순번', '박스 순번', '박스 번호']);
+  let updatedRows = 0;
+
+  confirmations.forEach((confirmation) => {
+    const selectedBoxes = new Set(confirmation.selectedBoxes);
+    let matchedBoxNumber = 0;
+
+    for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+      if (!isMatchingInventoryRow_(values[rowIndex], indexes, ['관리ID', '관리 ID'], confirmation.managementId, confirmation)) {
+        continue;
+      }
+
+      matchedBoxNumber += 1;
+      const sequence = sequenceIndex >= 0
+        ? displayQuantityToNumber_(values[rowIndex][sequenceIndex])
+        : matchedBoxNumber;
+      if (!selectedBoxes.has(sequence)) {
+        continue;
+      }
+
+      setSheetCellByHeader_(
+        sheet,
+        rowIndex,
+        indexes,
+        ['최종재고 확인일시', '최종 재고 확인일시'],
+        checkedAt
+      );
+      updatedRows += 1;
+    }
+  });
+
+  return updatedRows;
 }
 
 function isProtectedInventoryAdjustmentRow_(row, indexes) {
@@ -5706,6 +5822,11 @@ function mergeInventoryBoxSummaries_(summaries, identity) {
     shippingInspectionDateCounts: {},
     shippingDateCounts: {},
     shippingUpdatedAt: '',
+    lastInventoryCheckedAt: '',
+    inventoryCheckedBoxCount: 0,
+    inventoryAdjustmentBoxCount: 0,
+    inventoryAdjustmentQuantity: 0,
+    lastInventoryAdjustmentAt: '',
     statusCounts: {},
     storageCounts: {},
     allShippingBoxes: [],
@@ -5722,6 +5843,9 @@ function mergeInventoryBoxSummaries_(summaries, identity) {
     merged.shippingInspectionCount += displayQuantityToNumber_(summary.shippingInspectionCount);
     merged.shippingInspectionQuantity += displayQuantityToNumber_(summary.shippingInspectionQuantity);
     merged.shippingDefectQuantity += displayQuantityToNumber_(summary.shippingDefectQuantity);
+    merged.inventoryCheckedBoxCount += displayQuantityToNumber_(summary.inventoryCheckedBoxCount);
+    merged.inventoryAdjustmentBoxCount += displayQuantityToNumber_(summary.inventoryAdjustmentBoxCount);
+    merged.inventoryAdjustmentQuantity += displayQuantityToNumber_(summary.inventoryAdjustmentQuantity);
     merged.shippingDefectRateTotal += displayQuantityToNumber_(summary.shippingDefectRateTotal);
     merged.shippingDefectRateCount += displayQuantityToNumber_(summary.shippingDefectRateCount);
     mergeInventoryCountMap_(merged.shippingDefectReasonCounts, summary.shippingDefectReasonCounts);
@@ -5738,6 +5862,12 @@ function mergeInventoryBoxSummaries_(summaries, identity) {
 
     if (String(summary.shippingUpdatedAt || '') > merged.shippingUpdatedAt) {
       merged.shippingUpdatedAt = String(summary.shippingUpdatedAt || '');
+    }
+    if (String(summary.lastInventoryCheckedAt || '') > merged.lastInventoryCheckedAt) {
+      merged.lastInventoryCheckedAt = String(summary.lastInventoryCheckedAt || '');
+    }
+    if (String(summary.lastInventoryAdjustmentAt || '') > merged.lastInventoryAdjustmentAt) {
+      merged.lastInventoryAdjustmentAt = String(summary.lastInventoryAdjustmentAt || '');
     }
   });
 
@@ -5811,6 +5941,12 @@ function buildInventoryBoxSummaryMap_(boxRows) {
         defectPhotoUrlCounts: {},
         shippingInspectionDateCounts: {},
         shippingDateCounts: {},
+        shippingUpdatedAt: '',
+        lastInventoryCheckedAt: '',
+        inventoryCheckedBoxCount: 0,
+        inventoryAdjustmentBoxCount: 0,
+        inventoryAdjustmentQuantity: 0,
+        lastInventoryAdjustmentAt: '',
         statusCounts: {},
         storageCounts: {},
         allShippingBoxes: [],
@@ -5843,6 +5979,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
     const normalizedInventoryCategory = String(inventoryCategory || '').replace(/\s+/g, '');
     const isClassifiedRemainingInventory = status === '보관'
       && ['자사재고', '사출보관재고'].includes(normalizedInventoryCategory);
+    const lastInventoryCheckedAt = getObjectCell_(row, ['최종재고 확인일시', '최종 재고 확인일시']);
     const boxInfo = {
       number: sequence || summary.boxes.length + 1,
       boxId: getObjectCell_(row, ['박스ID', '박스 ID']),
@@ -5854,6 +5991,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       status,
       storage
     };
+    if (lastInventoryCheckedAt && lastInventoryCheckedAt !== '-') boxInfo.lastInventoryCheckedAt = lastInventoryCheckedAt;
     if (inventoryCategory && inventoryCategory !== '-') boxInfo.inventoryCategory = inventoryCategory;
     if (inventoryClassifiedAt && inventoryClassifiedAt !== '-') boxInfo.inventoryClassifiedAt = inventoryClassifiedAt;
     if (inventoryClassifier && inventoryClassifier !== '-') boxInfo.inventoryClassifier = inventoryClassifier;
@@ -5919,6 +6057,21 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       summary.shippedShippingBoxes.push(boxInfo);
     } else if (/폐기/.test(status)) {
       summary.discardedShippingBoxes.push(boxInfo);
+    }
+
+    if (lastInventoryCheckedAt && lastInventoryCheckedAt !== '-') {
+      summary.inventoryCheckedBoxCount += 1;
+      if (lastInventoryCheckedAt > summary.lastInventoryCheckedAt) {
+        summary.lastInventoryCheckedAt = lastInventoryCheckedAt;
+      }
+    }
+
+    if (/출고완료/.test(status) && normalizeInventoryIdentityPart_(shippingType) === normalizeInventoryIdentityPart_('재고조정')) {
+      summary.inventoryAdjustmentBoxCount += 1;
+      summary.inventoryAdjustmentQuantity += originalQuantity || shippingInspectionQuantity;
+      if (shippingUpdatedAt && shippingUpdatedAt > summary.lastInventoryAdjustmentAt) {
+        summary.lastInventoryAdjustmentAt = shippingUpdatedAt;
+      }
     }
 
     if (qrState && qrState !== '-') {

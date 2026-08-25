@@ -293,7 +293,7 @@ const inventoryTotalItems = document.querySelector("#inventoryTotalItems");
 const inventoryTotalBoxes = document.querySelector("#inventoryTotalBoxes");
 const inventoryTotalQuantity = document.querySelector("#inventoryTotalQuantity");
 const inventoryDueSoonCount = document.querySelector("#inventoryDueSoonCount");
-const inventoryPrintWaiting = document.querySelector("#inventoryPrintWaiting");
+const inventoryPhysicalMissing = document.querySelector("#inventoryPhysicalMissing");
 const inventoryUnspecifiedStorage = document.querySelector("#inventoryUnspecifiedStorage");
 const inventoryLongStorage = document.querySelector("#inventoryLongStorage");
 const inventoryHoldDiscard = document.querySelector("#inventoryHoldDiscard");
@@ -6101,8 +6101,8 @@ function renderInventorySummary(summary, attention) {
     inventoryDueSoonCount.textContent = formatNumber(summary.dueSoonCount);
   }
 
-  if (inventoryPrintWaiting) {
-    inventoryPrintWaiting.textContent = formatNumber(getInventoryBoxCountTotal(getInventoryAttentionRows("print")));
+  if (inventoryPhysicalMissing) {
+    inventoryPhysicalMissing.textContent = formatNumber(attention.physicalMissingCount);
   }
 
   if (inventoryUnspecifiedStorage) {
@@ -6358,7 +6358,7 @@ function buildInventoryFilterOptions(rows, fallback = {}) {
 function buildInventoryAttentionSummary(rows, fallback = {}) {
   return {
     ...fallback,
-    printWaitingBoxes: getInventoryBoxCountTotal(rows.filter(isInventoryPrintWaiting)),
+    physicalMissingCount: rows.filter(isInventoryPhysicalMissing).length,
     unspecifiedStorageCount: rows.filter(isInventoryUnspecifiedStorageTarget).length,
     longStorageCount: rows.filter(isLongStoredInventory).length,
     holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ""))).length
@@ -6500,13 +6500,13 @@ function renderInventoryLocationRow(item, config) {
 
 function getInventoryAttentionConfig(type) {
   const configs = {
-    print: {
-      title: "인쇄 대기 재고",
-      description: "현재 상태가 보관인 재고 목록입니다.",
+    audit: {
+      title: "실물 미확인 재고",
+      description: "재고 조사에서 실물이 확인되지 않아 재고조정된 제품 목록입니다.",
       tone: "purple",
-      metricLabel: "대기 박스",
-      metric: (item) => normalizeDisplayValue(item.currentBoxCount),
-      filter: isInventoryPrintWaiting
+      metricLabel: "미확인 박스",
+      metric: (item) => `${formatNumber(item.inventoryAdjustmentBoxCount)} box`,
+      filter: isInventoryPhysicalMissing
     },
     storage: {
       title: "미지정 보관 재고",
@@ -6534,7 +6534,7 @@ function getInventoryAttentionConfig(type) {
     }
   };
 
-  return configs[type] || configs.print;
+  return configs[type] || configs.audit;
 }
 
 function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(type)) {
@@ -6542,12 +6542,16 @@ function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(ty
     return [];
   }
 
-  return state.inventoryRows.filter(config.filter);
+  const rows = state.inventoryRows.filter(config.filter);
+  return type === "audit"
+    ? rows.slice().sort((left, right) => String(right.lastInventoryAdjustmentAt || "").localeCompare(String(left.lastInventoryAdjustmentAt || "")))
+    : rows;
 }
 
 function getInventoryAttentionDescription(type, rows, config) {
-  if (type === "print") {
-    return `${config.description} 총 ${formatNumber(getInventoryBoxCountTotal(rows))} box입니다.`;
+  if (type === "audit") {
+    const missingBoxes = rows.reduce((sum, item) => sum + Number(item.inventoryAdjustmentBoxCount || 0), 0);
+    return `${config.description} 총 ${formatNumber(rows.length)}건, ${formatNumber(missingBoxes)} box입니다.`;
   }
 
   return config.description;
@@ -6557,15 +6561,8 @@ function getInventoryBoxCountTotal(rows) {
   return rows.reduce((sum, row) => sum + getQuantityNumberFromText(row.currentBoxCount || row.boxTotalCount), 0);
 }
 
-function isInventoryPrintWaiting(item) {
-  const boxCount = getQuantityNumberFromText(item.currentBoxCount || item.boxTotalCount);
-
-  if (boxCount <= 0) {
-    return false;
-  }
-
-  const stockStatus = normalizeInventoryStockStatus(item.stockStatus || item.processStatus || "");
-  return stockStatus === "보관";
+function isInventoryPhysicalMissing(item) {
+  return Number(item?.inventoryAdjustmentBoxCount || 0) > 0;
 }
 
 function isLongStoredInventory(item) {
@@ -8381,6 +8378,7 @@ function renderInboundDetail(inbound) {
         ${detailItem("입고 시간", inbound.inboundTime)}
         ${detailItem("납기일", inbound.dueDate)}
         ${detailItem("등록자", inbound.registrant)}
+        ${isInventoryDetail ? detailItem("최종 재고 확인일시", inbound.lastInventoryCheckedAt, false, "full-span") : ""}
       </div>
     </section>
 
