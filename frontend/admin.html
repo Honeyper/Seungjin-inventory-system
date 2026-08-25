@@ -757,11 +757,11 @@
 
             <article class="inventory-attention-card">
               <h2>관리 필요 재고</h2>
-              <button class="attention-item purple" type="button" data-inventory-attention="print">
+              <button class="attention-item purple" type="button" data-inventory-attention="audit">
                 <span class="attention-icon" aria-hidden="true">
-                  <i class="ti ti-printer"></i>
+                  <i class="ti ti-clipboard-x"></i>
                 </span>
-                <span><b>인쇄 대기</b><strong><span id="inventoryPrintWaiting">-</span> <em>box</em></strong></span>
+                <span><b>실물 미확인</b><strong><span id="inventoryPhysicalMissing">-</span> <em>건</em></strong></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
               <button class="attention-item orange" type="button" data-inventory-attention="storage">
@@ -2481,6 +2481,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260825-inventory-detail-back"></script>
+    <script src="./admin.js?v=20260825-inventory-physical-check"></script>
   </body>
 </html>
