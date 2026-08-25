@@ -807,6 +807,9 @@ function setupSheets() {
     }
   });
   ensureProductOptionHeaders_(getProductSheet_());
+  ensureBoxDbShippingInspectionHeaders_(
+    getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB')
+  );
 
   return {
     createdOrCheckedSheets: Object.keys(headers)
