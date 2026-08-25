@@ -149,6 +149,8 @@ const state = {
   activeShippingWaitingRow: null,
   activeRemainingInventoryRow: null,
   activeRemainingInventoryMode: "classify",
+  inventoryAttentionDetailReturnType: "",
+  inventoryAttentionDetailReturnScrollTop: 0,
   returnToInventoryDetailAfterAudit: false,
   isSavingShippingWaiting: false,
   isSavingRemainingInventory: false,
@@ -216,6 +218,7 @@ const inboundDetailModal = document.querySelector("#inboundDetailModal");
 const inboundDetailContent = document.querySelector("#inboundDetailContent");
 const inboundDetailTitle = document.querySelector("#inboundDetailTitle");
 const inboundDetailDescription = document.querySelector("#inboundDetailTitle")?.nextElementSibling;
+const closeInboundDetailModalButton = document.querySelector("#closeInboundDetailModal");
 const closeInboundDetailButton = document.querySelector("#closeInboundDetailButton");
 const editInboundFromDetailButton = document.querySelector("#editInboundFromDetailButton");
 const inventoryAuditFromDetailButton = document.querySelector("#inventoryAuditFromDetailButton");
@@ -999,7 +1002,7 @@ document.querySelector("#cancelProductModal").addEventListener("click", closePro
 document.querySelector("#closeProductDetailModal").addEventListener("click", closeProductDetailModal);
 document.querySelector("#closeProductDetailButton").addEventListener("click", closeProductDetailModal);
 document.querySelector("#editProductFromDetailButton").addEventListener("click", openDetailProductEdit);
-document.querySelector("#closeInboundDetailModal").addEventListener("click", closeInboundDetailModal);
+closeInboundDetailModalButton?.addEventListener("click", closeInboundDetailModal);
 closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
 editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
 inventoryAuditFromDetailButton?.addEventListener("click", openInventoryAuditFromDetail);
@@ -5972,8 +5975,9 @@ function openInventoryAttentionModal(type) {
         return;
       }
 
+      const returnScrollTop = inventoryAttentionList.scrollTop;
       closeInventoryAttentionModal();
-      openInventoryInboundDetail(inbound);
+      openInventoryInboundDetail(inbound, { returnAttentionType: type, returnScrollTop });
     });
   });
 
@@ -6620,13 +6624,15 @@ function renderInventoryDueBadge(item) {
   return renderInventoryBadge(label, tone);
 }
 
-function openInventoryInboundDetail(inbound) {
+function openInventoryInboundDetail(inbound, { returnAttentionType = "", returnScrollTop = 0 } = {}) {
   const inventoryRecord = getInventoryRecordByManagementId(inbound?.managementId, inbound?.productId);
   const detailInbound = normalizeInboundDetailRecord(inventoryRecord || inbound);
   state.activeDetailInboundId = detailInbound.managementId;
   state.activeDetailInboundProductId = detailInbound.productId || "";
   state.activeDetailInboundRecord = detailInbound;
   state.activeDetailInboundSource = "inventory";
+  state.inventoryAttentionDetailReturnType = returnAttentionType;
+  state.inventoryAttentionDetailReturnScrollTop = returnScrollTop;
   setInboundDetailMode("view");
   renderInboundDetail(detailInbound);
   inboundDetailModal.hidden = false;
@@ -6640,6 +6646,8 @@ function openShippingDetail(item) {
   state.activeDetailInboundProductId = item.productId || "";
   state.activeDetailInboundRecord = null;
   state.activeDetailInboundSource = "shipping";
+  state.inventoryAttentionDetailReturnType = "";
+  state.inventoryAttentionDetailReturnScrollTop = 0;
   if (inboundDetailTitle) {
     inboundDetailTitle.textContent = "출고 상세보기";
   }
@@ -7166,6 +7174,8 @@ function openActiveInboundDetail() {
   state.activeDetailInboundProductId = inbound.productId || "";
   state.activeDetailInboundRecord = inbound;
   state.activeDetailInboundSource = "inbound";
+  state.inventoryAttentionDetailReturnType = "";
+  state.inventoryAttentionDetailReturnScrollTop = 0;
   setInboundDetailMode("view");
   renderInboundDetail(inbound);
   inboundDetailModal.hidden = false;
@@ -7175,15 +7185,27 @@ function openActiveInboundDetail() {
 }
 
 function closeInboundDetailModal() {
+  const returnAttentionType = state.inventoryAttentionDetailReturnType;
+  const returnScrollTop = state.inventoryAttentionDetailReturnScrollTop;
   inboundDetailModal.hidden = true;
   inboundDetailContent.innerHTML = "";
   state.activeDetailInboundId = "";
   state.activeDetailInboundProductId = "";
   state.activeDetailInboundRecord = null;
   state.activeDetailInboundSource = "inbound";
+  state.inventoryAttentionDetailReturnType = "";
+  state.inventoryAttentionDetailReturnScrollTop = 0;
   state.returnToInventoryDetailAfterAudit = false;
   state.inboundEditDefectReasons = [];
   setInboundDetailMode("view");
+
+  if (returnAttentionType) {
+    openInventoryAttentionModal(returnAttentionType);
+    if (inventoryAttentionList) {
+      inventoryAttentionList.scrollTop = returnScrollTop;
+    }
+    return;
+  }
 
   if (productModal.hidden && productDetailModal.hidden && inboundProductPickerModal.hidden && inboundQrModal?.hidden !== false) {
     document.body.classList.remove("modal-open");
@@ -7506,6 +7528,7 @@ function normalizeInboundDetailRecord(inbound) {
 function setInboundDetailMode(mode) {
   const isEdit = mode === "edit";
   const isInventoryDetail = !isEdit && state.activeDetailInboundSource === "inventory";
+  const returnsToAttentionList = !isEdit && Boolean(state.inventoryAttentionDetailReturnType);
   inboundDetailModal?.classList.toggle("is-editing", isEdit);
 
   if (inboundDetailTitle) {
@@ -7523,7 +7546,18 @@ function setInboundDetailMode(mode) {
   }
 
   if (closeInboundDetailButton) {
-    closeInboundDetailButton.textContent = isEdit ? "취소" : "닫기";
+    closeInboundDetailButton.textContent = isEdit ? "취소" : returnsToAttentionList ? "뒤로가기" : "닫기";
+  }
+
+  if (closeInboundDetailModalButton) {
+    const returnLabel = state.inventoryAttentionDetailReturnType === "aging"
+      ? "장기 보관 재고 목록으로 돌아가기"
+      : "관리 필요 재고 목록으로 돌아가기";
+    closeInboundDetailModalButton.setAttribute("aria-label", returnsToAttentionList ? returnLabel : "닫기");
+    const closeIcon = closeInboundDetailModalButton.querySelector("i");
+    if (closeIcon) {
+      closeIcon.className = returnsToAttentionList ? "ti ti-arrow-left" : "ti ti-x";
+    }
   }
 
   if (editInboundFromDetailButton) {
