@@ -4359,6 +4359,7 @@ function updateShippingStatus(payload) {
   const inspector = dash_(payload.inspector || shipper);
   const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
   const selectedBoxIds = Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : [];
+  const boxQuantities = payload.boxQuantities || payload.selectedBoxQuantities || {};
   const boxUpdateResult = updateShippingStatusBoxRows_(boxSheet, managementId, {
     productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
     productName: payload.productName || payload['제품명'],
@@ -4373,6 +4374,7 @@ function updateShippingStatus(payload) {
     shipper,
     selectedBoxes,
     selectedBoxIds,
+    boxQuantities,
     allowCancelCompleted: payload.allowCancelCompleted === true || String(payload.allowCancelCompleted || '').toLowerCase() === 'true',
     forceCompleteShipping: payload.forceCompleteShipping === true || String(payload.forceCompleteShipping || '').toLowerCase() === 'true',
     autoShippingInspection,
@@ -5283,6 +5285,14 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
     const currentQuantity = currentQuantityIndex >= 0 ? displayQuantityToNumber_(row[currentQuantityIndex]) : 0;
 
     if (shouldUpdate) {
+      const adjustedQuantity = selectedBoxQuantityMap[sequence];
+      const shouldPersistSelectedQuantity = ['출고대기', '출고완료'].includes(data.status)
+        && currentQuantityIndex >= 0
+        && Number.isInteger(adjustedQuantity)
+        && adjustedQuantity >= 0;
+      if (shouldPersistSelectedQuantity) {
+        row[currentQuantityIndex] = formatEa_(adjustedQuantity);
+      }
       rowStatus = data.status;
       const persistedStatus = data.status === '출고완료' && data.persistedCompleteStatus
         ? data.persistedCompleteStatus
@@ -5290,13 +5300,6 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       setRowValue_(row, indexes, ['상태', '재고 상태'], persistedStatus);
 
       if (data.status === '출고완료') {
-        const adjustedQuantity = selectedBoxQuantityMap[sequence];
-        if (data.inventoryAdjustment === true
-          && currentQuantityIndex >= 0
-          && Number.isFinite(adjustedQuantity)
-          && adjustedQuantity >= 0) {
-          row[currentQuantityIndex] = formatEa_(adjustedQuantity);
-        }
         row[shippingTypeIndex] = data.shippingType;
         setRowValue_(row, indexes, ['출고일'], data.shippingDate);
         setRowValue_(row, indexes, ['출고시간'], data.shippingTime);
