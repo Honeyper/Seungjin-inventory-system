@@ -3525,6 +3525,7 @@ function markShippingItemsPending(items, failedItems = []) {
     }
     item.stockStatus = "출고대기";
     item.processStatus = "출고대기";
+    item.scannedQuantityEdited = false;
   });
 }
 
@@ -3544,6 +3545,7 @@ function markShippingItemsCompleted(items, failedItems = []) {
     item.stockStatus = "출고완료";
     item.processStatus = "출고완료";
     item.syncedFromPending = false;
+    item.scannedQuantityEdited = false;
   });
 }
 
@@ -5616,7 +5618,13 @@ function syncPendingShippingRowsFromDashboard() {
     }
 
     if (pendingRow) {
+      const editedQuantity = row.scannedQuantityEdited === true
+        ? getEditableBoxQuantity(row)
+        : 0;
       Object.assign(row, pendingRow);
+      if (editedQuantity > 0) {
+        setScannedBoxQuantity(row, editedQuantity);
+      }
     }
     mergedRows.push(row);
     mergedKeys.add(key);
@@ -6552,7 +6560,8 @@ function compactScannedBoxRow(row) {
     scannedBoxId: scannedBox.boxId,
     scannedBoxNumber: scannedBox.number,
     scannedQrValue: row?.scannedQrValue || "",
-    syncedFromPending: row?.syncedFromPending === true
+    syncedFromPending: row?.syncedFromPending === true,
+    scannedQuantityEdited: row?.scannedQuantityEdited === true
   };
 }
 
@@ -6845,10 +6854,7 @@ function getSelectedBoxQuantities(item, selectedBoxes = []) {
   const quantities = {};
   const selectedSet = new Set(selectedBoxes.map((boxNumber) => String(boxNumber).trim()).filter(Boolean));
   const scannedBox = getScannedBox(item);
-  const candidates = [
-    scannedBox,
-    ...getKnownBoxes(item)
-  ].filter(Boolean);
+  const candidates = scannedBox ? [scannedBox] : getKnownBoxes(item);
 
   candidates.forEach((box) => {
     const number = String(box.number || box.sequence || item?.scannedBoxNumber || "").trim();

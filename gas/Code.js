@@ -3676,6 +3676,7 @@ function updateShippingStatus(payload) {
   const shipper = dash_(payload.shipper || payload.userName || 'Admin');
   const shippingUpdatedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
   const selectedBoxes = Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : [];
+  const boxQuantities = payload.boxQuantities || payload.selectedBoxQuantities || {};
   const boxUpdateResult = updateShippingStatusBoxRows_(boxSheet, managementId, {
     productId: payload.productId || payload['제품ID'] || payload['제품 ID'],
     productName: payload.productName || payload['제품명'],
@@ -3690,6 +3691,7 @@ function updateShippingStatus(payload) {
     shipper,
     shippingUpdatedAt,
     selectedBoxes,
+    boxQuantities,
     allowCancelCompleted: payload.allowCancelCompleted === true || String(payload.allowCancelCompleted || '').toLowerCase() === 'true',
     defectPhotoFolderUrl: payload.defectPhotoFolderUrl || '-'
   });
@@ -4650,6 +4652,7 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       .map((value) => Number(value))
       .filter((value) => Number.isFinite(value) && value > 0)
   );
+  const selectedBoxQuantityMap = buildBoxQuantityMap_(data.boxQuantities || data.selectedBoxQuantities);
   const requiresSelectedBoxes = ['출고대기', '출고대기(검수완료)', '검수완료', '출고완료'].includes(data.status)
     || (data.status === '보관' && data.allowCancelCompleted === true);
 
@@ -4701,6 +4704,14 @@ function updateShippingStatusBoxRows_(sheet, managementId, data) {
       : isSelectedBox && (!isAlreadyShipped || canCancelCompleted);
 
     if (shouldUpdate) {
+      const selectedQuantity = selectedBoxQuantityMap[sequence];
+      const shouldPersistSelectedQuantity = ['출고대기', '출고완료'].includes(data.status)
+        && currentQuantityIndex >= 0
+        && Number.isInteger(selectedQuantity)
+        && selectedQuantity >= 0;
+      if (shouldPersistSelectedQuantity) {
+        setSheetCellByHeader_(sheet, rowIndex, indexes, ['현재 수량', '현재수량'], formatEa_(selectedQuantity));
+      }
       const storedStatus = data.status === '출고완료' && data.allowInventoryAdjustment === true
         ? '출고완료(재고조정)'
         : data.status;
