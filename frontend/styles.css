@@ -5344,7 +5344,7 @@ input {
 
 /* Product create dialog: fixed shell with a compact, independently scrolling form. */
 #productModal {
-  z-index: 200;
+  z-index: 230;
   padding: clamp(0.75rem, 2vh, 1.25rem);
 }
 
@@ -7293,6 +7293,12 @@ input {
 .purchase-order-modal {
   width: min(48rem, calc(100vw - 2.5rem));
   overflow: hidden;
+}
+
+.purchase-order-product-field .field-with-button button:disabled {
+  color: #9aa6b5;
+  cursor: not-allowed;
+  background: #f3f5f8;
 }
 
 .purchase-order-form {

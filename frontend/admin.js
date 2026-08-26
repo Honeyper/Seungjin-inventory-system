@@ -284,6 +284,7 @@ const inboundProductPickerSearch = document.querySelector("#inboundProductPicker
 const inboundProductPickerCount = document.querySelector("#inboundProductPickerCount");
 const inboundProductPickerList = document.querySelector("#inboundProductPickerList");
 const inboundProductPickerEmpty = document.querySelector("#inboundProductPickerEmpty");
+const inboundProductPickerHint = document.querySelector("#inboundProductPickerHint");
 const createProductFromPickerButton = document.querySelector("#createProductFromPickerButton");
 const inboundInvoiceFile = document.querySelector("#inboundInvoiceFile");
 const inboundInvoiceUploadButton = document.querySelector("#inboundInvoiceUploadButton");
@@ -315,6 +316,8 @@ const purchaseOrderModalTitle = document.querySelector("#purchaseOrderModalTitle
 const purchaseOrderForm = document.querySelector("#purchaseOrderForm");
 const purchaseOrderId = document.querySelector("#purchaseOrderId");
 const purchaseOrderProduct = document.querySelector("#purchaseOrderProduct");
+const purchaseOrderProductName = document.querySelector("#purchaseOrderProductName");
+const purchaseOrderProductSearchButton = document.querySelector("#purchaseOrderProductSearchButton");
 const purchaseOrderClient = document.querySelector("#purchaseOrderClient");
 const purchaseOrderProductId = document.querySelector("#purchaseOrderProductId");
 const purchaseOrderRound = document.querySelector("#purchaseOrderRound");
@@ -566,8 +569,7 @@ document.querySelector("#newProductButton").addEventListener("click", () => {
   openProductModal();
 });
 
-newPurchaseOrderButton?.addEventListener("click", async () => {
-  await ensureProductsLoaded();
+newPurchaseOrderButton?.addEventListener("click", () => {
   openPurchaseOrderModal();
 });
 document.querySelector("#closePurchaseOrderModal")?.addEventListener("click", closePurchaseOrderModal);
@@ -576,7 +578,15 @@ purchaseOrderForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   savePurchaseOrder();
 });
-purchaseOrderProduct?.addEventListener("change", syncPurchaseOrderProductFields);
+purchaseOrderProductSearchButton?.addEventListener("click", openPurchaseOrderProductPicker);
+purchaseOrderProductName?.addEventListener("click", () => {
+  purchaseOrderProductSearchButton?.click();
+});
+purchaseOrderProductName?.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  await openPurchaseOrderProductPicker();
+});
 purchaseOrderSearch?.addEventListener("input", (event) => {
   state.purchaseOrderQuery = normalizeSearchText(event.target.value);
   applyPurchaseOrderFilters();
@@ -1186,6 +1196,11 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (!inboundProductPickerModal.hidden) {
+    closeInboundProductPicker();
+    return;
+  }
+
   if (purchaseOrderModal && !purchaseOrderModal.hidden) {
     closePurchaseOrderModal();
     return;
@@ -1203,11 +1218,6 @@ document.addEventListener("keydown", (event) => {
 
   if (!inboundDetailModal.hidden) {
     closeInboundDetailModal();
-    return;
-  }
-
-  if (!inboundProductPickerModal.hidden) {
-    closeInboundProductPicker();
     return;
   }
 
@@ -5240,15 +5250,34 @@ function setInboundLockedFieldEditable(input, button, isEditable) {
   }
 }
 
+async function openPurchaseOrderProductPicker() {
+  await ensureProductsLoaded();
+  if (!state.products.length) {
+    showToast("제품 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+    return;
+  }
+  openInboundProductPicker("purchaseOrder");
+}
+
 function openInboundProductPicker(target = "inbound") {
   state.inboundProductPickerTarget = target;
   state.inboundProductPickerQuery = "";
   inboundProductPickerSearch.value = "";
   const isExistingStockTarget = target === "existingStock";
+  const isPurchaseOrderTarget = target === "purchaseOrder";
   document.querySelector("#inboundProductPickerTitle").textContent = "제품 선택";
-  document.querySelector("#inboundProductPickerTitle").nextElementSibling.textContent = isExistingStockTarget
-    ? "제품관리에 등록된 제품 목록에서 기존 재고 제품을 선택하세요."
-    : "제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.";
+  document.querySelector("#inboundProductPickerTitle").nextElementSibling.textContent = isPurchaseOrderTarget
+    ? "제품관리에 등록된 제품 목록에서 발주할 제품을 선택하세요."
+    : isExistingStockTarget
+      ? "제품관리에 등록된 제품 목록에서 기존 재고 제품을 선택하세요."
+      : "제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.";
+  if (inboundProductPickerHint) {
+    inboundProductPickerHint.textContent = isPurchaseOrderTarget
+      ? "선택하면 발주 정보에 자동으로 반영됩니다."
+      : isExistingStockTarget
+        ? "선택하면 기존 재고 정보에 자동으로 반영됩니다."
+        : "선택하면 입고 정보에 자동으로 반영됩니다.";
+  }
   renderInboundProductPicker();
   inboundProductPickerModal.hidden = false;
   resetModalScrollPosition(inboundProductPickerModal);
@@ -5258,7 +5287,12 @@ function openInboundProductPicker(target = "inbound") {
 
 function closeInboundProductPicker() {
   inboundProductPickerModal.hidden = true;
-  if (productModal.hidden && productDetailModal.hidden && existingStockModal?.hidden !== false) {
+  if (
+    productModal.hidden
+    && productDetailModal.hidden
+    && existingStockModal?.hidden !== false
+    && purchaseOrderModal?.hidden !== false
+  ) {
     document.body.classList.remove("modal-open");
   }
 }
@@ -5320,6 +5354,8 @@ function renderInboundProductPicker() {
       if (product) {
         if (state.inboundProductPickerTarget === "existingStock") {
           selectExistingStockProduct(product);
+        } else if (state.inboundProductPickerTarget === "purchaseOrder") {
+          selectPurchaseOrderProduct(product);
         } else {
           selectInboundProduct(product);
         }
@@ -5745,19 +5781,24 @@ function getPurchaseOrderById(id) {
 
 function populatePurchaseOrderProductOptions(selectedProductId = "") {
   if (!purchaseOrderProduct) return;
-  const products = [...state.products].sort((left, right) => String(left.productName || "").localeCompare(String(right.productName || ""), "ko"));
-  purchaseOrderProduct.innerHTML = [
-    '<option value="">제품을 선택해주세요.</option>',
-    ...products.map((product) => `<option value="${escapeAttribute(product.productCode)}">${escapeHtml(product.productName)} · ${escapeHtml(product.clientName)} (${escapeHtml(product.productCode)})</option>`)
-  ].join("");
   purchaseOrderProduct.value = selectedProductId;
   syncPurchaseOrderProductFields();
 }
 
 function syncPurchaseOrderProductFields() {
   const product = getProductByCode(purchaseOrderProduct?.value || "");
+  if (purchaseOrderProductName) purchaseOrderProductName.value = product?.productName || "";
   if (purchaseOrderClient) purchaseOrderClient.value = product?.clientName || "";
   if (purchaseOrderProductId) purchaseOrderProductId.value = product?.productCode || "";
+}
+
+function selectPurchaseOrderProduct(product) {
+  if (!product || !purchaseOrderProduct) return;
+  purchaseOrderProduct.value = product.productCode || "";
+  syncPurchaseOrderProductFields();
+  purchaseOrderFormMessage.textContent = "";
+  closeInboundProductPicker();
+  window.setTimeout(() => purchaseOrderRound?.focus(), 0);
 }
 
 function openPurchaseOrderModal(order = null) {
@@ -5770,7 +5811,9 @@ function openPurchaseOrderModal(order = null) {
   purchaseOrderFormMessage.textContent = "";
   purchaseOrderStatusField.hidden = !order;
   populatePurchaseOrderProductOptions(order?.productId || "");
-  purchaseOrderProduct.disabled = Boolean(order && Number(order.accumulatedInboundQuantity || 0) > 0);
+  const isProductLocked = Boolean(order && Number(order.accumulatedInboundQuantity || 0) > 0);
+  purchaseOrderProductSearchButton.disabled = isProductLocked;
+  purchaseOrderProductName.setAttribute("aria-disabled", String(isProductLocked));
   purchaseOrderRound.value = order?.orderRound || "";
   purchaseOrderQuantity.value = order?.totalOrderQuantity || "";
   purchaseOrderStartDate.value = order?.startDate || getLocalDateInputValue();
@@ -5780,13 +5823,14 @@ function openPurchaseOrderModal(order = null) {
   purchaseOrderModal.hidden = false;
   document.body.classList.add("modal-open");
   resetModalScrollPosition(purchaseOrderModal);
-  window.setTimeout(() => purchaseOrderProduct.focus(), 0);
+  window.setTimeout(() => (isProductLocked ? purchaseOrderRound : purchaseOrderProductName).focus(), 0);
 }
 
 function closePurchaseOrderModal() {
   if (!purchaseOrderModal) return;
   purchaseOrderModal.hidden = true;
-  purchaseOrderProduct.disabled = false;
+  purchaseOrderProductSearchButton.disabled = false;
+  purchaseOrderProductName.removeAttribute("aria-disabled");
   if (productModal.hidden && productDetailModal.hidden && inboundProductPickerModal.hidden) {
     document.body.classList.remove("modal-open");
   }
@@ -9230,6 +9274,8 @@ async function saveProduct() {
     if (createdProduct) {
       if (returnTarget === "existingStock") {
         selectExistingStockProduct(createdProduct);
+      } else if (returnTarget === "purchaseOrder") {
+        selectPurchaseOrderProduct(createdProduct);
       } else {
         selectInboundProduct(createdProduct);
       }
