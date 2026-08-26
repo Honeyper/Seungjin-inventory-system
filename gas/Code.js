@@ -2870,7 +2870,7 @@ function getPurchaseOrderHeaders_() {
     '제품명',
     '발주 차수',
     '발주 시작일',
-    '발주 종료일',
+    '납기일',
     '총 발주량',
     '누적 입고량',
     '미입고 수량',
@@ -2955,8 +2955,8 @@ function ensurePurchaseOrderSheet_(ss) {
 
   const targetHeaderRange = sheet.getRange(headerRow, 1, 1, headers.length);
   const currentHeaders = targetHeaderRange.getDisplayValues()[0].map((value) => String(value || '').trim());
-  const hasUnexpectedHeaders = currentHeaders.some((value, index) => value && value !== headers[index]);
-  if (hasUnexpectedHeaders) {
+  const compatibleCurrentHeaders = currentHeaders.map((value) => value === '발주 종료일' ? '납기일' : value);
+  if (compatibleCurrentHeaders.some((value, index) => value && value !== headers[index])) {
     throw new Error(`${sheetName} 시트의 기존 헤더가 달라 자동 변경하지 않았습니다.`);
   }
 
@@ -3187,7 +3187,7 @@ function normalizePurchaseOrderPayload_(payload) {
     productName: String(payload.productName || payload['제품명'] || '').trim(),
     orderRound: String(payload.orderRound || payload.purchaseOrderRound || payload['발주 차수'] || '').trim(),
     startDate: normalizeDateKey_(payload.startDate || payload['발주 시작일']),
-    endDate: normalizeDateKey_(payload.endDate || payload['발주 종료일']),
+    endDate: normalizeDateKey_(payload.endDate || payload.dueDate || payload['납기일'] || payload['발주 종료일']),
     totalOrderQuantity: displayQuantityToNumber_(payload.totalOrderQuantity || payload['총 발주량']),
     status: String(payload.status || payload['상태'] || '').trim(),
     note: String(payload.note || payload['비고'] || '').trim(),
@@ -3201,16 +3201,15 @@ function validatePurchaseOrderPayload_(data) {
     ['clientName', '거래처명'],
     ['productName', '제품명'],
     ['orderRound', '발주 차수'],
-    ['startDate', '발주 시작일'],
-    ['endDate', '발주 종료일']
+    ['startDate', '발주 시작일']
   ];
   const missing = required.find(([key]) => !data[key]);
   if (missing) throw new Error(`${missing[1]} 값이 필요합니다.`);
   if (!Number.isInteger(data.totalOrderQuantity) || data.totalOrderQuantity <= 0) {
     throw new Error('총 발주량은 1 이상의 정수로 입력해주세요.');
   }
-  if (data.startDate > data.endDate) {
-    throw new Error('발주 종료일은 시작일보다 빠를 수 없습니다.');
+  if (data.endDate && data.startDate > data.endDate) {
+    throw new Error('납기일은 발주 시작일보다 빠를 수 없습니다.');
   }
 }
 
@@ -3238,7 +3237,7 @@ function readPurchaseOrders_(sheet, stockSheet, writeProgress) {
       productName: pickCell_(row, indexes, ['제품명']),
       orderRound: pickCell_(row, indexes, ['발주 차수']),
       startDate: normalizeDateKey_(pickCell_(row, indexes, ['발주 시작일'])),
-      endDate: normalizeDateKey_(pickCell_(row, indexes, ['발주 종료일'])),
+      endDate: normalizeDateKey_(pickCell_(row, indexes, ['납기일', '발주 종료일'])),
       totalOrderQuantity,
       accumulatedInboundQuantity,
       remainingQuantity,
@@ -3291,7 +3290,7 @@ function buildPurchaseOrderRow_(headers, order) {
   setRowValue_(row, indexes, ['제품명'], order.productName);
   setRowValue_(row, indexes, ['발주 차수'], order.orderRound);
   setRowValue_(row, indexes, ['발주 시작일'], order.startDate);
-  setRowValue_(row, indexes, ['발주 종료일'], order.endDate);
+  setRowValue_(row, indexes, ['납기일', '발주 종료일'], order.endDate);
   setRowValue_(row, indexes, ['총 발주량'], order.totalOrderQuantity);
   setRowValue_(row, indexes, ['누적 입고량'], order.accumulatedInboundQuantity);
   setRowValue_(row, indexes, ['미입고 수량'], order.remainingQuantity);
