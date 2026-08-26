@@ -255,7 +255,6 @@ const editInboundNoteButton = document.querySelector("#editInboundNoteButton");
 const inboundProductName = document.querySelector("#inboundProductName");
 const inboundProductId = document.querySelector("#inboundProductId");
 const inboundPurchaseOrder = document.querySelector("#inboundPurchaseOrder");
-const inboundPurchaseOrderHelp = document.querySelector("#inboundPurchaseOrderHelp");
 const inboundRegistrant = document.querySelector("#inboundRegistrant");
 const inboundBatch = document.querySelector("#inboundBatch");
 const inboundProcess = document.querySelector("#inboundProcess");
@@ -5749,7 +5748,7 @@ function renderPurchaseOrders(message = "") {
         <td><strong>${escapeHtml(order.orderRound || "-")}</strong><br><small>${escapeHtml(order.productId || "-")}</small></td>
         <td>${escapeHtml(order.clientName || "-")}</td>
         <td>${escapeHtml(order.productName || "-")}</td>
-        <td>${escapeHtml(order.startDate || "-")} ~ ${escapeHtml(order.endDate || "-")}</td>
+        <td>발주 ${escapeHtml(order.startDate || "-")}<br><small>납기 ${escapeHtml(order.endDate || "미정")}</small></td>
         <td>${formatPurchaseOrderQuantity(order.totalOrderQuantity)}</td>
         <td>${formatPurchaseOrderQuantity(order.accumulatedInboundQuantity)}</td>
         <td>${formatPurchaseOrderQuantity(order.remainingQuantity)}</td>
@@ -5856,12 +5855,12 @@ function getPurchaseOrderPayload() {
 async function savePurchaseOrder() {
   if (state.isSavingPurchaseOrder) return;
   const payload = getPurchaseOrderPayload();
-  if (!payload.productId || !payload.orderRound || !payload.startDate || !payload.endDate || payload.totalOrderQuantity <= 0) {
+  if (!payload.productId || !payload.orderRound || !payload.startDate || payload.totalOrderQuantity <= 0) {
     purchaseOrderFormMessage.textContent = "필수 항목을 모두 입력해주세요.";
     return;
   }
-  if (payload.startDate > payload.endDate) {
-    purchaseOrderFormMessage.textContent = "발주 종료일은 시작일보다 빠를 수 없습니다.";
+  if (payload.endDate && payload.startDate > payload.endDate) {
+    purchaseOrderFormMessage.textContent = "납기일은 발주 시작일보다 빠를 수 없습니다.";
     return;
   }
 
@@ -5907,11 +5906,9 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
   if (!productId) {
     inboundPurchaseOrder.innerHTML = '<option value="">제품을 먼저 선택해주세요.</option>';
     inboundPurchaseOrder.disabled = true;
-    setInboundPurchaseOrderHelp("선택한 제품의 진행 중인 발주를 불러옵니다.");
   } else if (!orders.length) {
     inboundPurchaseOrder.innerHTML = '<option value="">진행 중인 발주가 없습니다.</option>';
     inboundPurchaseOrder.disabled = true;
-    setInboundPurchaseOrderHelp("발주관리에서 해당 제품의 발주를 먼저 등록해주세요.", "warning");
   } else {
     inboundPurchaseOrder.innerHTML = [
       '<option value="">발주 차수를 선택해주세요.</option>',
@@ -5921,25 +5918,14 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
     inboundPurchaseOrder.value = orders.some((order) => order.purchaseOrderId === previousValue)
       ? previousValue
       : orders.length === 1 ? orders[0].purchaseOrderId : "";
-    setInboundPurchaseOrderHelp(`${orders.length}개의 진행 발주가 있습니다.`);
   }
   applySelectedInboundPurchaseOrder();
-}
-
-function setInboundPurchaseOrderHelp(message, tone = "") {
-  if (!inboundPurchaseOrderHelp) return;
-  inboundPurchaseOrderHelp.textContent = message;
-  if (tone) inboundPurchaseOrderHelp.dataset.tone = tone;
-  else delete inboundPurchaseOrderHelp.dataset.tone;
 }
 
 function applySelectedInboundPurchaseOrder() {
   const order = getInboundPurchaseOrder();
   inboundBatch.value = order?.orderRound || "";
   inboundDueDate.value = order?.endDate || "";
-  if (order) {
-    setInboundPurchaseOrderHelp(`총 ${Number(order.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea · 누적 ${Number(order.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")}ea · 미입고 ${Number(order.remainingQuantity || 0).toLocaleString("ko-KR")}ea`);
-  }
 }
 
 async function loadTodayInbounds() {

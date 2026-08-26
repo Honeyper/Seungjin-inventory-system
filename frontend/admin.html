@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260826-purchase-order-picker" />
+    <link rel="stylesheet" href="./styles.css?v=20260826-purchase-order-due-date" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -236,15 +236,11 @@
                     <select id="inboundPurchaseOrder" disabled>
                       <option value="">제품을 먼저 선택해주세요.</option>
                     </select>
-                    <small id="inboundPurchaseOrderHelp">선택한 제품의 진행 중인 발주를 불러옵니다.</small>
                   </label>
+                  <input id="inboundBatch" type="hidden" />
                   <label class="form-field">
                     <span>등록자</span>
                     <input type="text" id="inboundRegistrant" value="Admin" disabled />
-                  </label>
-                  <label class="form-field">
-                    <span>적용 발주 차수</span>
-                    <input id="inboundBatch" type="text" placeholder="발주 선택 시 자동 입력" disabled />
                   </label>
                   <label class="form-field">
                     <span>최종공정 <b>*</b></span>
@@ -743,7 +739,7 @@
                     <th>발주 차수</th>
                     <th>거래처명</th>
                     <th>제품명</th>
-                    <th>발주 기간</th>
+                    <th>발주일 / 납기일</th>
                     <th>총 발주량</th>
                     <th>누적 입고량</th>
                     <th>미입고 수량</th>
@@ -2509,7 +2505,7 @@
         <header class="modal-header">
           <div>
             <h2 id="purchaseOrderModalTitle">신규 발주 등록</h2>
-            <p>제품별 발주 기간과 총 발주량을 등록합니다.</p>
+            <p>제품별 총 발주량을 등록하고 납기일을 선택적으로 관리합니다.</p>
           </div>
           <button class="modal-close" type="button" id="closePurchaseOrderModal" aria-label="닫기">
             <i class="ti ti-x" aria-hidden="true"></i>
@@ -2557,8 +2553,8 @@
                 <input id="purchaseOrderStartDate" type="date" required />
               </label>
               <label class="form-field">
-                <span>발주 종료일 <b>*</b></span>
-                <input id="purchaseOrderEndDate" type="date" required />
+                <span>납기일</span>
+                <input id="purchaseOrderEndDate" type="date" />
               </label>
               <label class="form-field" id="purchaseOrderStatusField" hidden>
                 <span>상태</span>
@@ -2636,6 +2632,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260826-purchase-order-picker"></script>
+    <script src="./admin.js?v=20260826-purchase-order-due-date"></script>
   </body>
 </html>
