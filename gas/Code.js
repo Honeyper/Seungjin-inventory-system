@@ -40,6 +40,7 @@ function buildRuntimeConfig_() {
     },
     SHEETS: {
       PRODUCTS: '제품DB',
+      PURCHASE_ORDERS: '발주관리 DB',
       INBOUND: '입고내역',
       INBOUND_BOXES: '입고박스내역',
       STOCK_DB: '재고 DB',
@@ -2827,6 +2828,151 @@ function ensureInventoryAuditColumns() {
     sheetName: sheet.getName(),
     header: '최종재고 확인일시',
     ...result
+  };
+}
+
+function getPurchaseOrderHeaders_() {
+  return [
+    '발주ID',
+    '제품ID',
+    '업체명',
+    '제품명',
+    '발주 차수',
+    '발주 시작일',
+    '발주 종료일',
+    '총 발주량',
+    '누적 입고량',
+    '미입고 수량',
+    '입고율',
+    '상태',
+    '비고',
+    '등록자',
+    '등록일시',
+    '수정일시'
+  ];
+}
+
+function ensurePurchaseOrderSheet() {
+  const ss = getSpreadsheet_();
+  const sheetName = CONFIG.SHEETS.PURCHASE_ORDERS;
+  const existingSheet = ss.getSheetByName(sheetName);
+  const result = ensurePurchaseOrderSheet_(ss);
+  const sheet = result.sheet;
+  const headerCell = sheet.getRange(result.headerRow, 1);
+  const headerTextStyle = headerCell.getTextStyle();
+
+  return {
+    env: CONFIG.ENV,
+    sheetName,
+    sheetId: sheet.getSheetId(),
+    created: !existingSheet,
+    headerRow: result.headerRow,
+    columnCount: result.headers.length,
+    headers: result.headers,
+    frozenRows: sheet.getFrozenRows(),
+    filterEnabled: Boolean(sheet.getFilter()),
+    headerStyle: {
+      fontFamily: headerTextStyle.getFontFamily(),
+      fontSize: headerTextStyle.getFontSize(),
+      bold: headerTextStyle.isBold(),
+      background: headerCell.getBackground(),
+      horizontalAlignment: headerCell.getHorizontalAlignment(),
+      verticalAlignment: headerCell.getVerticalAlignment()
+    }
+  };
+}
+
+function ensurePurchaseOrderSheet_(ss) {
+  const sheetName = CONFIG.SHEETS.PURCHASE_ORDERS;
+  const headers = getPurchaseOrderHeaders_();
+  const referenceSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const referenceValues = referenceSheet.getDataRange().getDisplayValues();
+  const referenceHeaderInfo = findHeaderRow_(referenceValues, ['박스ID', '관리ID', '제품명']);
+
+  if (!referenceHeaderInfo) {
+    throw new Error('박스관리 DB에서 기준 헤더 서식을 찾을 수 없습니다.');
+  }
+
+  const headerRow = referenceHeaderInfo.rowIndex + 1;
+  let sheet = ss.getSheetByName(sheetName);
+
+  if (sheet) {
+    const targetValues = sheet.getDataRange().getDisplayValues();
+    const targetHeaderInfo = findHeaderRow_(targetValues, ['발주ID', '제품ID', '제품명']);
+    const hasOtherData = targetValues.some((row) => row.some((cell) => String(cell || '').trim()));
+
+    if (!targetHeaderInfo && hasOtherData) {
+      throw new Error(`${sheetName} 시트에 기존 데이터가 있어 자동 초기화하지 않았습니다.`);
+    }
+    if (targetHeaderInfo && targetHeaderInfo.rowIndex + 1 !== headerRow) {
+      throw new Error(`${sheetName} 시트의 기존 헤더 위치가 기준 시트와 달라 자동 변경하지 않았습니다.`);
+    }
+  } else {
+    sheet = ss.insertSheet(sheetName);
+  }
+
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  }
+  if (sheet.getMaxRows() <= headerRow) {
+    sheet.insertRowsAfter(sheet.getMaxRows(), headerRow + 1 - sheet.getMaxRows());
+  }
+
+  const targetHeaderRange = sheet.getRange(headerRow, 1, 1, headers.length);
+  const currentHeaders = targetHeaderRange.getDisplayValues()[0].map((value) => String(value || '').trim());
+  const hasUnexpectedHeaders = currentHeaders.some((value, index) => value && value !== headers[index]);
+  if (hasUnexpectedHeaders) {
+    throw new Error(`${sheetName} 시트의 기존 헤더가 달라 자동 변경하지 않았습니다.`);
+  }
+
+  if (headerRow > 1) {
+    referenceSheet
+      .getRange(1, 1, headerRow - 1, headers.length)
+      .copyFormatToRange(sheet, 1, headers.length, 1, headerRow - 1);
+  }
+  referenceSheet
+    .getRange(headerRow, 1, 1, headers.length)
+    .copyFormatToRange(sheet, 1, headers.length, headerRow, headerRow);
+
+  const bodyStartRow = headerRow + 1;
+  if (bodyStartRow <= sheet.getMaxRows()) {
+    referenceSheet
+      .getRange(bodyStartRow, 1, 1, headers.length)
+      .copyFormatToRange(sheet, 1, headers.length, bodyStartRow, sheet.getMaxRows());
+
+    const bodyRowCount = sheet.getMaxRows() - headerRow;
+    sheet.getRange(bodyStartRow, 6, bodyRowCount, 2).setNumberFormat('yyyy-mm-dd');
+    sheet.getRange(bodyStartRow, 8, bodyRowCount, 3).setNumberFormat('#,##0" ea"');
+    sheet.getRange(bodyStartRow, 11, bodyRowCount, 1).setNumberFormat('0%');
+    sheet.getRange(bodyStartRow, 15, bodyRowCount, 2).setNumberFormat('yyyy-mm-dd hh:mm:ss');
+  }
+
+  for (let column = 1; column <= headers.length; column += 1) {
+    sheet.setColumnWidth(column, referenceSheet.getColumnWidth(column));
+  }
+  for (let row = 1; row <= bodyStartRow; row += 1) {
+    sheet.setRowHeight(row, referenceSheet.getRowHeight(row));
+  }
+
+  targetHeaderRange.setValues([headers]);
+  sheet.setFrozenRows(referenceSheet.getFrozenRows() || headerRow);
+  sheet.setFrozenColumns(referenceSheet.getFrozenColumns());
+  sheet.setHiddenGridlines(referenceSheet.hasHiddenGridlines());
+  const tabColor = referenceSheet.getTabColor();
+  if (tabColor) {
+    sheet.setTabColor(tabColor);
+  }
+
+  const existingFilter = sheet.getFilter();
+  if (existingFilter) {
+    existingFilter.remove();
+  }
+  sheet.getRange(headerRow, 1, sheet.getMaxRows() - headerRow + 1, headers.length).createFilter();
+
+  return {
+    sheet,
+    headerRow,
+    headers
   };
 }
 
