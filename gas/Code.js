@@ -35,12 +35,16 @@ const DATA_MUTATION_ACTIONS = new Set([
   'updateShippingStatus',
   'adjustMissingInventory',
   'ensureInventoryAuditColumns',
+  'ensurePurchaseOrderSheet',
   'updateInventoryBoxMove',
   'returnTransferredInventory',
   'returnTakenOutInventory',
   'createProduct',
   'updateProduct',
   'deleteProduct',
+  'createPurchaseOrder',
+  'updatePurchaseOrder',
+  'deletePurchaseOrder',
   'createInbound',
   'updateInbound',
   'deleteInbound',
@@ -63,6 +67,7 @@ function buildRuntimeConfig_() {
     },
     SHEETS: {
       PRODUCTS: '제품DB',
+      PURCHASE_ORDERS: '발주관리 DB',
       INBOUND: '입고내역',
       INBOUND_BOXES: '입고박스내역',
       STOCK_DB: '재고 DB',
@@ -144,6 +149,7 @@ function doPost(e) {
       login,
       setupSheets,
       getProducts,
+      getPurchaseOrders,
       getTodayInbounds,
       getInventoryDashboard,
       getInboundBoxQrs,
@@ -154,12 +160,16 @@ function doPost(e) {
       updateShippingStatus,
       adjustMissingInventory,
       ensureInventoryAuditColumns,
+      ensurePurchaseOrderSheet,
       updateInventoryBoxMove,
       returnTransferredInventory,
       returnTakenOutInventory,
       createProduct,
       updateProduct,
       deleteProduct,
+      createPurchaseOrder,
+      updatePurchaseOrder,
+      deletePurchaseOrder,
       createInbound,
       updateInbound,
       deleteInbound,
@@ -812,9 +822,13 @@ function setupSheets() {
   ensureBoxDbInventoryCheckHeader_(
     getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB')
   );
+  ensurePurchaseOrderSheet_(ss);
+  ensureStockDbPurchaseOrderHeaders_(
+    getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB')
+  );
 
   return {
-    createdOrCheckedSheets: Object.keys(headers)
+    createdOrCheckedSheets: [...Object.keys(headers), CONFIG.SHEETS.PURCHASE_ORDERS]
   };
 }
 
@@ -1081,6 +1095,8 @@ function getInventoryDashboard() {
       inboundDate: getObjectCell_(stockRow, ['입고일']),
       inboundTime: getObjectCell_(stockRow, ['입고 시간', '입고시간']),
       inboundType: getObjectCell_(stockRow, ['입고 유형', '입고유형']),
+      purchaseOrderId: getObjectCell_(stockRow, ['발주ID', '발주 ID']),
+      purchaseOrderRound: getObjectCell_(stockRow, ['발주 차수']),
       batch: getObjectCell_(stockRow, ['차수']),
       finalProcess: getObjectCell_(stockRow, ['최종공정', '최종 공정']),
       storage: boxSummary.primaryStorage || stockStorage,
@@ -1416,6 +1432,8 @@ function getTodayInbounds(payload) {
         inboundDate: pickCell_(row, indexes, ['입고일']),
         inboundTime: pickCell_(row, indexes, ['입고 시간', '입고시간']),
         dueDate: pickCell_(row, indexes, ['납기일']) || productDueDateMap[productId] || '',
+        purchaseOrderId: pickCell_(row, indexes, ['발주ID', '발주 ID']),
+        purchaseOrderRound: pickCell_(row, indexes, ['발주 차수']),
         clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
         inboundType: pickCell_(row, indexes, ['입고 유형', '입고유형']),
         productId,
@@ -1705,6 +1723,8 @@ function deleteInbound(payload) {
       throw new Error('삭제할 입고 내역을 찾을 수 없습니다.');
     }
 
+    refreshPurchaseOrderProgressIfAvailable_(stockSheet);
+
     return {
       managementId,
       deletedStockRows,
@@ -1766,6 +1786,7 @@ function createInbound(payload) {
   payload.clientName = String(payload.clientName || payload['업체명'] || payload['거래처명'] || '').trim();
   payload.process = String(payload.process || payload['최종공정'] || payload['최종 공정'] || '').trim();
   payload.storage = String(payload.storage || payload.storageLocation || payload['보관위치'] || payload['보관 위치'] || '').trim();
+  payload.purchaseOrderId = String(payload.purchaseOrderId || payload['발주ID'] || '').trim();
 
   const category = normalizeInboundCategory_(payload);
   const isExistingStock = category === '기존재고';
@@ -1782,6 +1803,7 @@ function createInbound(payload) {
 
   if (!isExistingStock) {
     required.push(['defectReason', '불량 사유']);
+    required.push(['purchaseOrderId', '발주 차수']);
   }
 
   required.forEach(([key, label]) => {
@@ -1810,6 +1832,10 @@ function createInbound(payload) {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
     ensureStockDbAttachmentHeaders_(stockSheet);
+    ensureStockDbPurchaseOrderHeaders_(stockSheet);
+    const purchaseOrder = isExistingStock
+      ? null
+      : getPurchaseOrderForInbound_(payload.purchaseOrderId, payload.productId, stockSheet);
     const now = new Date();
     const timezone = 'Asia/Seoul';
     const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
@@ -1836,10 +1862,12 @@ function createInbound(payload) {
       inboundDate: dash_(payload.inboundDate),
       inboundTime: dash_(payload.inboundTime),
       inboundType: dash_(isExistingStock ? '기존 재고' : payload.inboundType),
-      dueDate: dash_(payload.dueDate),
+      dueDate: dash_(purchaseOrder?.endDate || payload.dueDate),
+      purchaseOrderId: purchaseOrder?.purchaseOrderId || '',
+      purchaseOrderRound: purchaseOrder?.orderRound || '',
       productId: dash_(payload.productId),
       productName: dash_(payload.productName),
-      batch: dash_(payload.batch),
+      batch: dash_(purchaseOrder?.orderRound || payload.batch),
       process: dash_(payload.process),
       storage: dash_(payload.storage),
       boxQuantity: formatEa_(boxQuantity),
@@ -1880,6 +1908,7 @@ function createInbound(payload) {
     }
 
     const boxStartRow = appendBoxManagementRows_(boxSheet, boxRecords);
+    refreshPurchaseOrderProgressIfAvailable_(stockSheet);
 
     return {
       managementId,
@@ -2043,6 +2072,7 @@ function updateInbound(payload) {
       invoiceFileUrl: finalInvoiceFileUrl,
       defectPhotoUrls: finalDefectPhotoUrls
     });
+    refreshPurchaseOrderProgressIfAvailable_(stockSheet);
 
     const boxRecords = [];
 
@@ -2149,6 +2179,8 @@ function appendStockDbRow_(sheet, record) {
   setRowValue_(row, indexes, ['입고 시간', '입고시간'], record.inboundTime);
   setRowValue_(row, indexes, ['입고 유형', '입고유형'], record.inboundType);
   setRowValue_(row, indexes, ['납기일'], record.dueDate);
+  setRowValue_(row, indexes, ['발주ID', '발주 ID'], record.purchaseOrderId || '');
+  setRowValue_(row, indexes, ['발주 차수'], record.purchaseOrderRound || '');
   setRowValue_(row, indexes, ['제품ID', '제품 ID'], record.productId);
   setRowValue_(row, indexes, ['제품명'], record.productName);
   setRowValue_(row, indexes, ['차수'], record.batch);
@@ -2265,6 +2297,466 @@ function ensureInventoryAuditColumns() {
     header: '최종재고 확인일시',
     ...result
   };
+}
+
+function getPurchaseOrderHeaders_() {
+  return [
+    '발주ID',
+    '제품ID',
+    '업체명',
+    '제품명',
+    '발주 차수',
+    '발주 시작일',
+    '발주 종료일',
+    '총 발주량',
+    '누적 입고량',
+    '미입고 수량',
+    '입고율',
+    '상태',
+    '비고',
+    '등록자',
+    '등록일시',
+    '수정일시'
+  ];
+}
+
+function ensurePurchaseOrderSheet() {
+  const ss = getSpreadsheet_();
+  const sheetName = CONFIG.SHEETS.PURCHASE_ORDERS;
+  const existingSheet = ss.getSheetByName(sheetName);
+  const result = ensurePurchaseOrderSheet_(ss);
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  const stockHeaders = ensureStockDbPurchaseOrderHeaders_(stockSheet);
+  SpreadsheetApp.flush();
+  const headerCell = result.sheet.getRange(result.headerRow, 1);
+  const headerStyle = headerCell.getTextStyle();
+
+  return {
+    env: CONFIG.ENV,
+    sheetName,
+    sheetId: result.sheet.getSheetId(),
+    created: !existingSheet,
+    headerRow: result.headerRow,
+    headers: result.headers,
+    stockHeaders,
+    frozenRows: result.sheet.getFrozenRows(),
+    filterEnabled: Boolean(result.sheet.getFilter()),
+    headerStyle: {
+      fontFamily: headerStyle.getFontFamily(),
+      fontSize: headerStyle.getFontSize(),
+      bold: headerStyle.isBold(),
+      background: headerCell.getBackground()
+    }
+  };
+}
+
+function ensurePurchaseOrderSheet_(ss) {
+  const sheetName = CONFIG.SHEETS.PURCHASE_ORDERS;
+  const headers = getPurchaseOrderHeaders_();
+  const referenceSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  const referenceValues = referenceSheet.getDataRange().getDisplayValues();
+  const referenceHeaderInfo = findHeaderRow_(referenceValues, ['박스ID', '관리ID', '제품명']);
+
+  if (!referenceHeaderInfo) {
+    throw new Error('박스관리 DB에서 기준 헤더 서식을 찾을 수 없습니다.');
+  }
+
+  const headerRow = referenceHeaderInfo.rowIndex + 1;
+  let sheet = ss.getSheetByName(sheetName);
+
+  if (sheet) {
+    const targetValues = sheet.getDataRange().getDisplayValues();
+    const targetHeaderInfo = findHeaderRow_(targetValues, ['발주ID', '제품ID', '제품명']);
+    const hasOtherData = targetValues.some((row) => row.some((cell) => String(cell || '').trim()));
+    if (!targetHeaderInfo && hasOtherData) {
+      throw new Error(`${sheetName} 시트에 기존 데이터가 있어 자동 초기화하지 않았습니다.`);
+    }
+    if (targetHeaderInfo && targetHeaderInfo.rowIndex + 1 !== headerRow) {
+      throw new Error(`${sheetName} 시트의 기존 헤더 위치가 기준 시트와 달라 자동 변경하지 않았습니다.`);
+    }
+  } else {
+    sheet = ss.insertSheet(sheetName);
+  }
+
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  }
+
+  const targetHeaderRange = sheet.getRange(headerRow, 1, 1, headers.length);
+  const currentHeaders = targetHeaderRange.getDisplayValues()[0].map((value) => String(value || '').trim());
+  if (currentHeaders.some((value, index) => value && value !== headers[index])) {
+    throw new Error(`${sheetName} 시트의 기존 헤더가 달라 자동 변경하지 않았습니다.`);
+  }
+
+  const referenceHeaderRange = referenceSheet.getRange(headerRow, 1, 1, referenceHeaderInfo.headers.length);
+  const backgrounds = referenceHeaderRange.getBackgrounds()[0];
+  const fontWeights = referenceHeaderRange.getFontWeights()[0];
+  const styleIndex = backgrounds.findIndex((background, index) => {
+    const normalized = String(background || '').toLowerCase();
+    return (normalized && normalized !== '#ffffff' && normalized !== 'white')
+      || String(fontWeights[index] || '').toLowerCase() === 'bold';
+  });
+  const styleColumn = Math.max(0, styleIndex) + 1;
+  referenceSheet.getRange(headerRow, styleColumn)
+    .copyFormatToRange(sheet, 1, headers.length, headerRow, headerRow);
+
+  const bodyStartRow = headerRow + 1;
+  if (bodyStartRow <= sheet.getMaxRows()) {
+    referenceSheet.getRange(bodyStartRow, 1, 1, headers.length)
+      .copyFormatToRange(sheet, 1, headers.length, bodyStartRow, sheet.getMaxRows());
+    const bodyRowCount = sheet.getMaxRows() - headerRow;
+    sheet.getRange(bodyStartRow, 6, bodyRowCount, 2).setNumberFormat('yyyy-mm-dd');
+    sheet.getRange(bodyStartRow, 8, bodyRowCount, 3).setNumberFormat('#,##0" ea"');
+    sheet.getRange(bodyStartRow, 11, bodyRowCount, 1).setNumberFormat('0%');
+    sheet.getRange(bodyStartRow, 15, bodyRowCount, 2).setNumberFormat('yyyy-mm-dd hh:mm:ss');
+  }
+
+  targetHeaderRange.setValues([headers]);
+  for (let column = 1; column <= headers.length; column += 1) {
+    sheet.setColumnWidth(column, referenceSheet.getColumnWidth(column));
+  }
+  sheet.setFrozenRows(referenceSheet.getFrozenRows() || headerRow);
+  sheet.setFrozenColumns(referenceSheet.getFrozenColumns());
+  sheet.setHiddenGridlines(referenceSheet.hasHiddenGridlines());
+  const tabColor = referenceSheet.getTabColor();
+  if (tabColor) sheet.setTabColor(tabColor);
+  if (sheet.getFilter()) sheet.getFilter().remove();
+  sheet.getRange(headerRow, 1, sheet.getMaxRows() - headerRow + 1, headers.length).createFilter();
+
+  return {
+    sheet,
+    headerRow,
+    headers,
+    referenceHeaderStyleColumn: styleColumn
+  };
+}
+
+function ensureStockDbPurchaseOrderHeaders_(sheet) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
+  if (!headerInfo) {
+    throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  }
+
+  const requiredHeaders = ['발주ID', '발주 차수'];
+  const existingHeaders = headerInfo.headers.map((header) => String(header || '').trim());
+  const createdHeaders = [];
+  let nextColumn = existingHeaders.length + 1;
+
+  requiredHeaders.forEach((header) => {
+    if (existingHeaders.includes(header)) return;
+    if (sheet.getMaxColumns() < nextColumn) {
+      sheet.insertColumnAfter(sheet.getMaxColumns());
+    }
+    const sourceColumn = Math.max(1, nextColumn - 1);
+    sheet.getRange(headerInfo.rowIndex + 1, sourceColumn)
+      .copyFormatToRange(sheet, nextColumn, nextColumn, headerInfo.rowIndex + 1, headerInfo.rowIndex + 1);
+    if (headerInfo.rowIndex + 2 <= sheet.getMaxRows()) {
+      sheet.getRange(headerInfo.rowIndex + 2, sourceColumn)
+        .copyFormatToRange(sheet, nextColumn, nextColumn, headerInfo.rowIndex + 2, sheet.getMaxRows());
+    }
+    sheet.getRange(headerInfo.rowIndex + 1, nextColumn).setValue(header);
+    sheet.setColumnWidth(nextColumn, 170);
+    existingHeaders.push(header);
+    createdHeaders.push(header);
+    nextColumn += 1;
+  });
+
+  return {
+    createdHeaders,
+    headers: requiredHeaders
+  };
+}
+
+function getPurchaseOrders() {
+  const setup = ensurePurchaseOrderSheet_(getSpreadsheet_());
+  const sheet = setup.sheet;
+  const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  ensureStockDbPurchaseOrderHeaders_(stockSheet);
+  const result = readPurchaseOrders_(sheet, stockSheet, true);
+  return {
+    purchaseOrders: result.orders
+  };
+}
+
+function createPurchaseOrder(payload) {
+  const data = normalizePurchaseOrderPayload_(payload);
+  validatePurchaseOrderPayload_(data);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const ss = getSpreadsheet_();
+    const setup = ensurePurchaseOrderSheet_(ss);
+    const sheet = setup.sheet;
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    ensureStockDbPurchaseOrderHeaders_(stockSheet);
+    const existing = readPurchaseOrders_(sheet, stockSheet, false).orders;
+    if (existing.some((order) => order.productId === data.productId && order.orderRound === data.orderRound)) {
+      throw new Error(`${data.productName}의 ${data.orderRound} 발주가 이미 등록되어 있습니다.`);
+    }
+
+    const now = new Date();
+    const timezone = 'Asia/Seoul';
+    const purchaseOrderId = generatePurchaseOrderId_(existing, data.productId, now);
+    const registeredAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
+    const row = buildPurchaseOrderRow_(setup.headers, {
+      ...data,
+      purchaseOrderId,
+      accumulatedInboundQuantity: 0,
+      remainingQuantity: data.totalOrderQuantity,
+      inboundRate: 0,
+      status: resolvePurchaseOrderStatus_(data, 0),
+      registeredAt,
+      updatedAt: registeredAt
+    });
+    const rowNumber = appendStyledRangeRow_(sheet, 1, row, setup.headerRow + 1);
+    return {
+      purchaseOrderId,
+      rowNumber
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updatePurchaseOrder(payload) {
+  const purchaseOrderId = String(payload.purchaseOrderId || payload['발주ID'] || '').trim();
+  if (!purchaseOrderId) throw new Error('수정할 발주 ID가 필요합니다.');
+  const data = normalizePurchaseOrderPayload_(payload);
+  validatePurchaseOrderPayload_(data);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const sheet = getSheet_(CONFIG.SHEETS.PURCHASE_ORDERS);
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    const result = readPurchaseOrders_(sheet, stockSheet, false);
+    const current = result.orders.find((order) => order.purchaseOrderId === purchaseOrderId);
+    if (!current) throw new Error('수정할 발주를 찾을 수 없습니다.');
+    if (current.accumulatedInboundQuantity > 0 && current.productId !== data.productId) {
+      throw new Error('입고가 연결된 발주는 제품을 변경할 수 없습니다.');
+    }
+    if (result.orders.some((order) => (
+      order.purchaseOrderId !== purchaseOrderId
+      && order.productId === data.productId
+      && order.orderRound === data.orderRound
+    ))) {
+      throw new Error(`${data.productName}의 ${data.orderRound} 발주가 이미 등록되어 있습니다.`);
+    }
+    if (data.totalOrderQuantity < current.accumulatedInboundQuantity) {
+      throw new Error('총 발주량은 현재 누적 입고량보다 작게 변경할 수 없습니다.');
+    }
+
+    const updatedAt = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
+    const next = {
+      ...data,
+      purchaseOrderId,
+      accumulatedInboundQuantity: current.accumulatedInboundQuantity,
+      remainingQuantity: Math.max(data.totalOrderQuantity - current.accumulatedInboundQuantity, 0),
+      inboundRate: data.totalOrderQuantity > 0 ? current.accumulatedInboundQuantity / data.totalOrderQuantity : 0,
+      status: data.status === '취소'
+        ? '취소'
+        : resolvePurchaseOrderStatus_(data, current.accumulatedInboundQuantity),
+      registeredAt: current.registeredAt,
+      updatedAt
+    };
+    const row = buildPurchaseOrderRow_(result.headers, next);
+    sheet.getRange(current.sheetRowNumber, 1, 1, result.headers.length).setValues([row]);
+    return { purchaseOrderId, updatedAt };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deletePurchaseOrder(payload) {
+  const purchaseOrderId = String(payload.purchaseOrderId || payload['발주ID'] || '').trim();
+  if (!purchaseOrderId) throw new Error('삭제할 발주 ID가 필요합니다.');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const sheet = getSheet_(CONFIG.SHEETS.PURCHASE_ORDERS);
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    const result = readPurchaseOrders_(sheet, stockSheet, false);
+    const order = result.orders.find((item) => item.purchaseOrderId === purchaseOrderId);
+    if (!order) throw new Error('삭제할 발주를 찾을 수 없습니다.');
+    if (order.accumulatedInboundQuantity > 0) {
+      throw new Error('입고 내역이 연결된 발주는 삭제할 수 없습니다. 상태를 취소로 변경해주세요.');
+    }
+    sheet.deleteRow(order.sheetRowNumber);
+    return { purchaseOrderId, deleted: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function normalizePurchaseOrderPayload_(payload) {
+  return {
+    productId: String(payload.productId || payload['제품ID'] || payload['제품 ID'] || '').trim(),
+    clientName: String(payload.clientName || payload['업체명'] || payload['거래처명'] || '').trim(),
+    productName: String(payload.productName || payload['제품명'] || '').trim(),
+    orderRound: String(payload.orderRound || payload.purchaseOrderRound || payload['발주 차수'] || '').trim(),
+    startDate: normalizeDateKey_(payload.startDate || payload['발주 시작일']),
+    endDate: normalizeDateKey_(payload.endDate || payload['발주 종료일']),
+    totalOrderQuantity: displayQuantityToNumber_(payload.totalOrderQuantity || payload['총 발주량']),
+    status: String(payload.status || payload['상태'] || '').trim(),
+    note: String(payload.note || payload['비고'] || '').trim(),
+    registrant: String(payload.registrant || payload.userName || payload['등록자'] || 'Admin').trim()
+  };
+}
+
+function validatePurchaseOrderPayload_(data) {
+  const required = [
+    ['productId', '제품'],
+    ['clientName', '거래처명'],
+    ['productName', '제품명'],
+    ['orderRound', '발주 차수'],
+    ['startDate', '발주 시작일'],
+    ['endDate', '발주 종료일']
+  ];
+  const missing = required.find(([key]) => !data[key]);
+  if (missing) throw new Error(`${missing[1]} 값이 필요합니다.`);
+  if (!Number.isInteger(data.totalOrderQuantity) || data.totalOrderQuantity <= 0) {
+    throw new Error('총 발주량은 1 이상의 정수로 입력해주세요.');
+  }
+  if (data.startDate > data.endDate) {
+    throw new Error('발주 종료일은 시작일보다 빠를 수 없습니다.');
+  }
+}
+
+function readPurchaseOrders_(sheet, stockSheet, writeProgress) {
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['발주ID', '제품ID', '제품명']);
+  if (!headerInfo) throw new Error(`${sheet.getName()} 시트의 헤더를 찾을 수 없습니다.`);
+  const indexes = indexHeaders_(headerInfo.headers);
+  const inboundMap = buildPurchaseOrderInboundQuantityMap_(stockSheet);
+  const orders = [];
+
+  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    if (!row.some((cell) => String(cell || '').trim())) continue;
+    const purchaseOrderId = String(pickCell_(row, indexes, ['발주ID', '발주 ID']) || '').trim();
+    if (!purchaseOrderId) continue;
+    const totalOrderQuantity = displayQuantityToNumber_(pickCell_(row, indexes, ['총 발주량']));
+    const accumulatedInboundQuantity = inboundMap[purchaseOrderId] || 0;
+    const remainingQuantity = Math.max(totalOrderQuantity - accumulatedInboundQuantity, 0);
+    const inboundRate = totalOrderQuantity > 0 ? accumulatedInboundQuantity / totalOrderQuantity : 0;
+    const base = {
+      purchaseOrderId,
+      productId: pickCell_(row, indexes, ['제품ID', '제품 ID']),
+      clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
+      productName: pickCell_(row, indexes, ['제품명']),
+      orderRound: pickCell_(row, indexes, ['발주 차수']),
+      startDate: normalizeDateKey_(pickCell_(row, indexes, ['발주 시작일'])),
+      endDate: normalizeDateKey_(pickCell_(row, indexes, ['발주 종료일'])),
+      totalOrderQuantity,
+      accumulatedInboundQuantity,
+      remainingQuantity,
+      inboundRate,
+      storedStatus: pickCell_(row, indexes, ['상태']),
+      note: pickCell_(row, indexes, ['비고']),
+      registrant: pickCell_(row, indexes, ['등록자']),
+      registeredAt: pickCell_(row, indexes, ['등록일시']),
+      updatedAt: pickCell_(row, indexes, ['수정일시']),
+      sheetRowNumber: rowIndex + 1
+    };
+    const status = base.storedStatus === '취소'
+      ? '취소'
+      : resolvePurchaseOrderStatus_(base, accumulatedInboundQuantity);
+    const order = { ...base, status };
+    orders.push(order);
+
+    if (writeProgress) {
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['누적 입고량'], accumulatedInboundQuantity);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['미입고 수량'], remainingQuantity);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['입고율'], inboundRate);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태'], status);
+    }
+  }
+
+  orders.sort((left, right) => String(right.registeredAt || '').localeCompare(String(left.registeredAt || '')));
+  return { orders, headers: headerInfo.headers };
+}
+
+function buildPurchaseOrderInboundQuantityMap_(stockSheet) {
+  const values = stockSheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['관리 ID', '입고일', '제품명']);
+  if (!headerInfo) return {};
+  const indexes = indexHeaders_(headerInfo.headers);
+  return values.slice(headerInfo.rowIndex + 1).reduce((map, row) => {
+    const purchaseOrderId = String(pickCell_(row, indexes, ['발주ID', '발주 ID']) || '').trim();
+    if (!purchaseOrderId || isExistingStockInboundType_(pickCell_(row, indexes, ['입고 유형', '입고유형']))) return map;
+    map[purchaseOrderId] = (map[purchaseOrderId] || 0)
+      + displayQuantityToNumber_(pickCell_(row, indexes, ['입고 총 수량', '입고총수량']));
+    return map;
+  }, {});
+}
+
+function buildPurchaseOrderRow_(headers, order) {
+  const row = new Array(headers.length).fill('');
+  const indexes = indexHeaders_(headers);
+  setRowValue_(row, indexes, ['발주ID'], order.purchaseOrderId);
+  setRowValue_(row, indexes, ['제품ID'], order.productId);
+  setRowValue_(row, indexes, ['업체명'], order.clientName);
+  setRowValue_(row, indexes, ['제품명'], order.productName);
+  setRowValue_(row, indexes, ['발주 차수'], order.orderRound);
+  setRowValue_(row, indexes, ['발주 시작일'], order.startDate);
+  setRowValue_(row, indexes, ['발주 종료일'], order.endDate);
+  setRowValue_(row, indexes, ['총 발주량'], order.totalOrderQuantity);
+  setRowValue_(row, indexes, ['누적 입고량'], order.accumulatedInboundQuantity);
+  setRowValue_(row, indexes, ['미입고 수량'], order.remainingQuantity);
+  setRowValue_(row, indexes, ['입고율'], order.inboundRate);
+  setRowValue_(row, indexes, ['상태'], order.status);
+  setRowValue_(row, indexes, ['비고'], order.note || '');
+  setRowValue_(row, indexes, ['등록자'], order.registrant || 'Admin');
+  setRowValue_(row, indexes, ['등록일시'], order.registeredAt);
+  setRowValue_(row, indexes, ['수정일시'], order.updatedAt);
+  return row;
+}
+
+function resolvePurchaseOrderStatus_(order, accumulatedInboundQuantity) {
+  const total = Number(order.totalOrderQuantity || 0);
+  if (total > 0 && accumulatedInboundQuantity >= total) return '입고완료';
+  const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  if (order.startDate && today < order.startDate) return '예정';
+  if (order.endDate && today > order.endDate) return '기간 경과';
+  return '진행 중';
+}
+
+function generatePurchaseOrderId_(orders, productId, now) {
+  const datePart = Utilities.formatDate(now, 'Asia/Seoul', 'yyMMdd');
+  const productPart = String(productId || 'PRODUCT').replace(/[^A-Za-z0-9-]/g, '').slice(0, 24) || 'PRODUCT';
+  const prefix = `PO-${datePart}-${productPart}-`;
+  const maxSequence = orders.reduce((max, order) => {
+    const id = String(order.purchaseOrderId || '');
+    if (!id.startsWith(prefix)) return max;
+    const sequence = Number(id.slice(prefix.length));
+    return Number.isInteger(sequence) ? Math.max(max, sequence) : max;
+  }, 0);
+  return `${prefix}${String(maxSequence + 1).padStart(3, '0')}`;
+}
+
+function getPurchaseOrderForInbound_(purchaseOrderId, productId, stockSheet) {
+  const sheet = getSheet_(CONFIG.SHEETS.PURCHASE_ORDERS);
+  const result = readPurchaseOrders_(sheet, stockSheet, false);
+  const order = result.orders.find((item) => item.purchaseOrderId === purchaseOrderId);
+  if (!order) {
+    throw new Error('선택한 발주 차수를 찾을 수 없습니다. 발주 목록을 새로고침해주세요.');
+  }
+  if (String(order.productId || '').trim() !== String(productId || '').trim()) {
+    throw new Error('선택한 발주와 입고 제품이 일치하지 않습니다.');
+  }
+  if (order.status === '취소') {
+    throw new Error('취소된 발주에는 입고를 등록할 수 없습니다.');
+  }
+  return order;
+}
+
+function refreshPurchaseOrderProgressIfAvailable_(stockSheet) {
+  const sheet = getSpreadsheet_().getSheetByName(CONFIG.SHEETS.PURCHASE_ORDERS);
+  if (!sheet) return;
+  readPurchaseOrders_(sheet, stockSheet, true);
 }
 
 function appendBoxManagementRows_(sheet, boxRecords) {

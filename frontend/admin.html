@@ -91,6 +91,14 @@
             </a>
           </div>
           <div class="side-nav-row">
+            <a class="side-nav-item" href="#purchase-orders" data-view-link="purchase-orders">
+              <span class="side-icon visual">
+                <i class="ti ti-clipboard-list" aria-hidden="true"></i>
+              </span>
+              발주관리
+            </a>
+          </div>
+          <div class="side-nav-row">
             <a class="side-nav-item" href="#inventory" data-view-link="inventory">
               <span class="side-icon visual">
                 <i class="ti ti-building-warehouse" aria-hidden="true"></i>
@@ -223,13 +231,20 @@
                     <span>제품 ID</span>
                     <input id="inboundProductId" type="text" placeholder="제품 선택 시 자동 입력" disabled />
                   </label>
+                  <label class="form-field inbound-purchase-order-field">
+                    <span>발주 차수 <b>*</b></span>
+                    <select id="inboundPurchaseOrder" disabled>
+                      <option value="">제품을 먼저 선택해주세요.</option>
+                    </select>
+                    <small id="inboundPurchaseOrderHelp">선택한 제품의 진행 중인 발주를 불러옵니다.</small>
+                  </label>
                   <label class="form-field">
                     <span>등록자</span>
                     <input type="text" id="inboundRegistrant" value="Admin" disabled />
                   </label>
                   <label class="form-field">
-                    <span>차수</span>
-                    <input id="inboundBatch" type="text" placeholder="차수를 입력하세요." />
+                    <span>적용 발주 차수</span>
+                    <input id="inboundBatch" type="text" placeholder="발주 선택 시 자동 입력" disabled />
                   </label>
                   <label class="form-field">
                     <span>최종공정 <b>*</b></span>
@@ -673,6 +688,75 @@
                   <option value="30">30개씩 보기</option>
                 </select>
               </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="page-view purchase-order-view" id="purchaseOrderView" data-view="purchase-orders" hidden>
+          <section class="page-heading management-page-heading">
+            <div class="management-heading-trail">
+              <p class="eyebrow">발주관리</p>
+              <h1>발주 현황</h1>
+            </div>
+            <button class="primary-action" type="button" id="newPurchaseOrderButton">
+              <i class="ti ti-plus" aria-hidden="true"></i>
+              신규 발주 등록
+            </button>
+          </section>
+
+          <section class="purchase-order-summary-grid" aria-label="발주 현황 요약">
+            <article><span>전체 발주</span><strong id="purchaseOrderTotal">0 <em>건</em></strong></article>
+            <article><span>진행 중</span><strong id="purchaseOrderActive">0 <em>건</em></strong></article>
+            <article><span>입고완료</span><strong id="purchaseOrderCompleted">0 <em>건</em></strong></article>
+            <article><span>미입고 수량</span><strong id="purchaseOrderRemaining">0 <em>ea</em></strong></article>
+          </section>
+
+          <section class="list-tools purchase-order-tools" aria-label="발주 검색 도구">
+            <label class="search-field">
+              <i class="ti ti-search" aria-hidden="true"></i>
+              <input id="purchaseOrderSearch" type="search" placeholder="제품명, 제품 ID, 거래처명, 발주 차수 검색" />
+            </label>
+            <label class="client-filter">
+              <span>발주 상태</span>
+              <select id="purchaseOrderStatusFilter">
+                <option value="">전체 상태</option>
+                <option>예정</option>
+                <option>진행 중</option>
+                <option>기간 경과</option>
+                <option>입고완료</option>
+                <option>취소</option>
+              </select>
+            </label>
+            <button class="secondary-action" type="button" id="refreshPurchaseOrdersButton">
+              <i class="ti ti-refresh" aria-hidden="true"></i>
+              새로고침
+            </button>
+          </section>
+
+          <section class="table-panel purchase-order-list-panel" aria-label="발주 목록">
+            <div class="table-status" id="purchaseOrderStatus">발주 정보를 불러오는 중입니다.</div>
+            <div class="table-scroll">
+              <table class="product-table purchase-order-table">
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>발주 차수</th>
+                    <th>거래처명</th>
+                    <th>제품명</th>
+                    <th>발주 기간</th>
+                    <th>총 발주량</th>
+                    <th>누적 입고량</th>
+                    <th>미입고 수량</th>
+                    <th>입고율</th>
+                    <th>상태</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody id="purchaseOrderTableBody"></tbody>
+              </table>
+            </div>
+            <div class="table-footer">
+              <span id="purchaseOrderCountLabel">전체 0건</span>
             </div>
           </section>
         </div>
@@ -2155,18 +2239,8 @@
               <span>제품 기준 정보</span>
             </h3>
             <div class="form-grid">
-              <label class="form-field">
-                <span>발주량</span>
-                <span class="unit-input">
-                  <input id="productOrderQuantity" type="number" min="1" step="1" placeholder="숫자를 입력하세요." />
-                  <i>EA</i>
-                </span>
-              </label>
-
-              <label class="form-field">
-                <span>납기일</span>
-                <input id="productDueDate" type="date" />
-              </label>
+              <input id="productOrderQuantity" type="hidden" />
+              <input id="productDueDate" type="hidden" />
 
               <label class="form-field">
                 <span>박스당 수량 <b>*</b></span>
@@ -2430,6 +2504,83 @@
       </section>
     </div>
 
+    <div class="modal-backdrop" id="purchaseOrderModal" hidden>
+      <section class="product-modal purchase-order-modal" role="dialog" aria-modal="true" aria-labelledby="purchaseOrderModalTitle">
+        <header class="modal-header">
+          <div>
+            <h2 id="purchaseOrderModalTitle">신규 발주 등록</h2>
+            <p>제품별 발주 기간과 총 발주량을 등록합니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closePurchaseOrderModal" aria-label="닫기">
+            <i class="ti ti-x" aria-hidden="true"></i>
+          </button>
+        </header>
+        <form class="product-form purchase-order-form" id="purchaseOrderForm">
+          <input id="purchaseOrderId" type="hidden" />
+          <div class="form-section">
+            <h3>
+              <span class="product-section-icon" aria-hidden="true"><i class="ti ti-clipboard-list"></i></span>
+              <span>발주 기본 정보</span>
+            </h3>
+            <div class="form-grid">
+              <label class="form-field full-span">
+                <span>제품 <b>*</b></span>
+                <select id="purchaseOrderProduct" required>
+                  <option value="">제품을 선택해주세요.</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span>거래처명</span>
+                <input id="purchaseOrderClient" type="text" disabled />
+              </label>
+              <label class="form-field">
+                <span>제품 ID</span>
+                <input id="purchaseOrderProductId" type="text" disabled />
+              </label>
+              <label class="form-field">
+                <span>발주 차수 <b>*</b></span>
+                <input id="purchaseOrderRound" type="text" placeholder="예: 3차" required />
+              </label>
+              <label class="form-field">
+                <span>총 발주량 <b>*</b></span>
+                <span class="unit-input">
+                  <input id="purchaseOrderQuantity" type="number" min="1" step="1" required />
+                  <i>ea</i>
+                </span>
+              </label>
+              <label class="form-field">
+                <span>발주 시작일 <b>*</b></span>
+                <input id="purchaseOrderStartDate" type="date" required />
+              </label>
+              <label class="form-field">
+                <span>발주 종료일 <b>*</b></span>
+                <input id="purchaseOrderEndDate" type="date" required />
+              </label>
+              <label class="form-field" id="purchaseOrderStatusField" hidden>
+                <span>상태</span>
+                <select id="purchaseOrderFormStatus">
+                  <option value="">자동 계산</option>
+                  <option value="취소">취소</option>
+                </select>
+              </label>
+              <label class="form-field full-span">
+                <span>비고</span>
+                <textarea id="purchaseOrderNote" rows="3" placeholder="발주 관련 내용을 입력하세요."></textarea>
+              </label>
+            </div>
+          </div>
+          <p class="form-message" id="purchaseOrderFormMessage" role="alert" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="secondary-modal-action" type="button" id="cancelPurchaseOrderModal">취소</button>
+            <button class="primary-modal-action" type="submit" id="savePurchaseOrderButton">
+              <i class="ti ti-device-floppy" aria-hidden="true"></i>
+              <span>저장</span>
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <div class="modal-backdrop" id="inventoryAttentionModal" hidden>
       <section class="product-modal inventory-attention-modal" role="dialog" aria-modal="true" aria-labelledby="inventoryAttentionTitle">
         <header class="modal-header">
@@ -2481,6 +2632,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260825-inventory-physical-check"></script>
+    <script src="./admin.js?v=20260826-purchase-orders"></script>
   </body>
 </html>
