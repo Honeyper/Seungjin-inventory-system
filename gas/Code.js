@@ -2860,6 +2860,7 @@ function ensurePurchaseOrderSheet() {
   const existingSheet = ss.getSheetByName(sheetName);
   const result = ensurePurchaseOrderSheet_(ss);
   const sheet = result.sheet;
+  SpreadsheetApp.flush();
   const headerCell = sheet.getRange(result.headerRow, 1);
   const headerTextStyle = headerCell.getTextStyle();
 
@@ -2869,6 +2870,7 @@ function ensurePurchaseOrderSheet() {
     sheetId: sheet.getSheetId(),
     created: !existingSheet,
     headerRow: result.headerRow,
+    referenceHeaderStyleColumn: result.referenceHeaderStyleColumn,
     columnCount: result.headers.length,
     headers: result.headers,
     frozenRows: sheet.getFrozenRows(),
@@ -2932,8 +2934,17 @@ function ensurePurchaseOrderSheet_(ss) {
       .getRange(1, 1, headerRow - 1, headers.length)
       .copyFormatToRange(sheet, 1, headers.length, 1, headerRow - 1);
   }
+  const referenceHeaderRange = referenceSheet.getRange(headerRow, 1, 1, referenceHeaderInfo.headers.length);
+  const referenceHeaderBackgrounds = referenceHeaderRange.getBackgrounds()[0];
+  const referenceHeaderFontWeights = referenceHeaderRange.getFontWeights()[0];
+  const referenceHeaderStyleIndex = referenceHeaderBackgrounds.findIndex((background, index) => {
+    const normalizedBackground = String(background || '').toLowerCase();
+    return (normalizedBackground && normalizedBackground !== '#ffffff' && normalizedBackground !== 'white')
+      || String(referenceHeaderFontWeights[index] || '').toLowerCase() === 'bold';
+  });
+  const referenceHeaderStyleColumn = Math.max(0, referenceHeaderStyleIndex) + 1;
   referenceSheet
-    .getRange(headerRow, 1, 1, headers.length)
+    .getRange(headerRow, referenceHeaderStyleColumn)
     .copyFormatToRange(sheet, 1, headers.length, headerRow, headerRow);
 
   const bodyStartRow = headerRow + 1;
@@ -2974,7 +2985,8 @@ function ensurePurchaseOrderSheet_(ss) {
   return {
     sheet,
     headerRow,
-    headers
+    headers,
+    referenceHeaderStyleColumn
   };
 }
 
