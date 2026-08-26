@@ -73,6 +73,14 @@ function writeAdminCache(name, data) {
 const state = {
   products: [],
   productsLoadPromise: null,
+  purchaseOrders: [],
+  filteredPurchaseOrders: [],
+  purchaseOrdersLoaded: false,
+  purchaseOrderQuery: "",
+  purchaseOrderStatusFilter: "",
+  purchaseOrderFormMode: "create",
+  editingPurchaseOrderId: "",
+  isSavingPurchaseOrder: false,
   filteredProducts: [],
   todayInbounds: [],
   inventoryRows: [],
@@ -246,6 +254,8 @@ const inboundNote = document.querySelector("#inboundNote");
 const editInboundNoteButton = document.querySelector("#editInboundNoteButton");
 const inboundProductName = document.querySelector("#inboundProductName");
 const inboundProductId = document.querySelector("#inboundProductId");
+const inboundPurchaseOrder = document.querySelector("#inboundPurchaseOrder");
+const inboundPurchaseOrderHelp = document.querySelector("#inboundPurchaseOrderHelp");
 const inboundRegistrant = document.querySelector("#inboundRegistrant");
 const inboundBatch = document.querySelector("#inboundBatch");
 const inboundProcess = document.querySelector("#inboundProcess");
@@ -289,6 +299,33 @@ const inboundDefectReasonValue = document.querySelector("#inboundDefectReasonVal
 const inboundDefectReasonInput = document.querySelector("#inboundDefectReason");
 const viewLinks = document.querySelectorAll("[data-view-link]");
 const pageViews = document.querySelectorAll("[data-view]");
+const newPurchaseOrderButton = document.querySelector("#newPurchaseOrderButton");
+const purchaseOrderTotal = document.querySelector("#purchaseOrderTotal");
+const purchaseOrderActive = document.querySelector("#purchaseOrderActive");
+const purchaseOrderCompleted = document.querySelector("#purchaseOrderCompleted");
+const purchaseOrderRemaining = document.querySelector("#purchaseOrderRemaining");
+const purchaseOrderSearch = document.querySelector("#purchaseOrderSearch");
+const purchaseOrderStatusFilter = document.querySelector("#purchaseOrderStatusFilter");
+const refreshPurchaseOrdersButton = document.querySelector("#refreshPurchaseOrdersButton");
+const purchaseOrderTableBody = document.querySelector("#purchaseOrderTableBody");
+const purchaseOrderCountLabel = document.querySelector("#purchaseOrderCountLabel");
+const purchaseOrderListStatus = document.querySelector("#purchaseOrderStatus");
+const purchaseOrderModal = document.querySelector("#purchaseOrderModal");
+const purchaseOrderModalTitle = document.querySelector("#purchaseOrderModalTitle");
+const purchaseOrderForm = document.querySelector("#purchaseOrderForm");
+const purchaseOrderId = document.querySelector("#purchaseOrderId");
+const purchaseOrderProduct = document.querySelector("#purchaseOrderProduct");
+const purchaseOrderClient = document.querySelector("#purchaseOrderClient");
+const purchaseOrderProductId = document.querySelector("#purchaseOrderProductId");
+const purchaseOrderRound = document.querySelector("#purchaseOrderRound");
+const purchaseOrderQuantity = document.querySelector("#purchaseOrderQuantity");
+const purchaseOrderStartDate = document.querySelector("#purchaseOrderStartDate");
+const purchaseOrderEndDate = document.querySelector("#purchaseOrderEndDate");
+const purchaseOrderStatusField = document.querySelector("#purchaseOrderStatusField");
+const purchaseOrderFormStatus = document.querySelector("#purchaseOrderFormStatus");
+const purchaseOrderNote = document.querySelector("#purchaseOrderNote");
+const purchaseOrderFormMessage = document.querySelector("#purchaseOrderFormMessage");
+const savePurchaseOrderButton = document.querySelector("#savePurchaseOrderButton");
 const inventoryTotalItems = document.querySelector("#inventoryTotalItems");
 const inventoryTotalBoxes = document.querySelector("#inventoryTotalBoxes");
 const inventoryTotalQuantity = document.querySelector("#inventoryTotalQuantity");
@@ -542,6 +579,50 @@ document.addEventListener("keydown", (event) => {
 
 document.querySelector("#newProductButton").addEventListener("click", () => {
   openProductModal();
+});
+
+newPurchaseOrderButton?.addEventListener("click", async () => {
+  await ensureProductsLoaded();
+  openPurchaseOrderModal();
+});
+document.querySelector("#closePurchaseOrderModal")?.addEventListener("click", closePurchaseOrderModal);
+document.querySelector("#cancelPurchaseOrderModal")?.addEventListener("click", closePurchaseOrderModal);
+purchaseOrderForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  savePurchaseOrder();
+});
+purchaseOrderProduct?.addEventListener("change", syncPurchaseOrderProductFields);
+purchaseOrderSearch?.addEventListener("input", (event) => {
+  state.purchaseOrderQuery = normalizeSearchText(event.target.value);
+  applyPurchaseOrderFilters();
+});
+purchaseOrderStatusFilter?.addEventListener("change", (event) => {
+  state.purchaseOrderStatusFilter = event.target.value;
+  applyPurchaseOrderFilters();
+});
+refreshPurchaseOrdersButton?.addEventListener("click", async () => {
+  refreshPurchaseOrdersButton.disabled = true;
+  try {
+    await loadPurchaseOrders();
+    showToast("발주 목록을 새로고침했습니다.");
+  } finally {
+    refreshPurchaseOrdersButton.disabled = false;
+  }
+});
+purchaseOrderTableBody?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-purchase-order-action]");
+  if (!button) return;
+  const order = getPurchaseOrderById(button.dataset.purchaseOrderId);
+  if (!order) return;
+  if (button.dataset.purchaseOrderAction === "edit") {
+    await ensureProductsLoaded();
+    openPurchaseOrderModal(order);
+  }
+  if (button.dataset.purchaseOrderAction === "delete") deletePurchaseOrder(order);
+});
+inboundPurchaseOrder?.addEventListener("change", () => {
+  applySelectedInboundPurchaseOrder();
+  updateInboundSummary();
 });
 
 viewLinks.forEach((link) => {
@@ -1154,6 +1235,11 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (purchaseOrderModal && !purchaseOrderModal.hidden) {
+    closePurchaseOrderModal();
+    return;
+  }
+
   if (!productDetailModal.hidden) {
     closeProductDetailModal();
     return;
@@ -1301,6 +1387,7 @@ setCurrentShippingSettlementDate();
 state.productsLoadPromise = loadProducts().finally(() => {
   state.productsLoadPromise = null;
 });
+loadPurchaseOrders();
 loadTodayInbounds();
 setCurrentInboundTime();
 setActiveView(getCurrentView());
@@ -1310,7 +1397,7 @@ renderInboundDefectReasons();
 
 function getCurrentView() {
   const view = location.hash.replace("#", "");
-  return ["inbound", "inventory", "shipping", "products"].includes(view) ? view : "inbound";
+  return ["inbound", "purchase-orders", "inventory", "shipping", "products"].includes(view) ? view : "inbound";
 }
 
 function setActiveView(view) {
@@ -1330,6 +1417,10 @@ function setActiveView(view) {
 
   if (view === "inventory" && !state.inventoryLoaded) {
     loadInventoryDashboard();
+  }
+
+  if (view === "purchase-orders" && !state.purchaseOrdersLoaded) {
+    loadPurchaseOrders();
   }
 
   if (view === "shipping") {
@@ -4903,10 +4994,11 @@ function updateInboundSummary() {
   }
 
   const selectedProduct = getProductByCode(inboundProductId?.value.trim());
-  const orderQuantity = selectedProduct ? getQuantityNumberFromText(selectedProduct.orderQuantity) : 0;
-  const accumulatedQuantity = selectedProduct ? getQuantityNumberFromText(selectedProduct.accumulatedInboundQuantity) : 0;
+  const selectedPurchaseOrder = getInboundPurchaseOrder();
+  const orderQuantity = selectedPurchaseOrder ? Number(selectedPurchaseOrder.totalOrderQuantity || 0) : 0;
+  const accumulatedQuantity = selectedPurchaseOrder ? Number(selectedPurchaseOrder.accumulatedInboundQuantity || 0) : 0;
   const progressRate = orderQuantity > 0 ? Math.round((accumulatedQuantity / orderQuantity) * 100) : 0;
-  const incomingQuantity = selectedProduct && hasQuantityValue ? currentInboundQuantity : 0;
+  const incomingQuantity = selectedPurchaseOrder && hasQuantityValue ? currentInboundQuantity : 0;
   const nextAccumulatedQuantity = accumulatedQuantity + incomingQuantity;
   const nextProgressRate = orderQuantity > 0 ? Math.round((nextAccumulatedQuantity / orderQuantity) * 100) : 0;
   const progressWidth = Math.max(0, Math.min(progressRate, 100));
@@ -4918,7 +5010,7 @@ function updateInboundSummary() {
   }
 
   if (accumulatedOrderQuantityOutput) {
-    accumulatedOrderQuantityOutput.textContent = selectedProduct ? accumulatedQuantity.toLocaleString("ko-KR") : "-";
+    accumulatedOrderQuantityOutput.textContent = selectedPurchaseOrder ? accumulatedQuantity.toLocaleString("ko-KR") : "-";
   }
 
   if (currentInboundQuantityOutput) {
@@ -4935,9 +5027,9 @@ function updateInboundSummary() {
   }
 
   if (orderProgressText) {
-    orderProgressText.innerHTML = selectedProduct
-      ? `입고량 대비 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""} 진행`
-      : "제품을 선택해주세요.";
+    orderProgressText.innerHTML = selectedPurchaseOrder
+      ? `${escapeHtml(selectedPurchaseOrder.orderRound)} 입고율 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""}`
+      : selectedProduct ? "발주 차수를 선택해주세요." : "제품을 선택해주세요.";
   }
 }
 
@@ -4991,6 +5083,7 @@ function getInboundPayload() {
     dueDate: inboundDueDate.value.trim(),
     productName: inboundProductName.value.trim(),
     productId: inboundProductId.value.trim(),
+    purchaseOrderId: inboundPurchaseOrder?.value || "",
     clientName: inboundClient.value.trim(),
     batch: inboundBatch.value.trim(),
     process: finalProcess,
@@ -5078,6 +5171,7 @@ function validateInboundPayload(payload) {
     ["inboundType", "입고 유형을 선택해주세요."],
     ["productName", "제품을 선택해주세요."],
     ["productId", "제품 ID를 확인해주세요."],
+    ["purchaseOrderId", "발주 차수를 선택해주세요."],
     ["clientName", "거래처명을 입력해주세요."],
     ["process", "제품관리에서 최종공정을 먼저 등록해주세요."],
     ["storage", "보관위치를 선택해주세요."],
@@ -5599,7 +5693,8 @@ function selectInboundProduct(product) {
     inboundTrayQty.value = trayQuantity;
   }
 
-  inboundDueDate.value = toDateInputValue(product.dueDate);
+  inboundDueDate.value = "";
+  populateInboundPurchaseOrders(product.productCode);
 
   setInboundLockedFieldEditable(inboundBoxQty, editInboundBoxQtyButton, false);
   setInboundLockedFieldEditable(inboundTrayQty, editInboundTrayQtyButton, false);
@@ -5960,6 +6055,270 @@ async function ensureProductsLoaded() {
   await state.productsLoadPromise;
 }
 
+async function loadPurchaseOrders() {
+  if (purchaseOrderListStatus) {
+    purchaseOrderListStatus.textContent = "발주 정보를 불러오는 중입니다.";
+    purchaseOrderListStatus.dataset.type = "";
+  }
+
+  try {
+    const result = await requestApi("getPurchaseOrders");
+    state.purchaseOrders = Array.isArray(result?.purchaseOrders) ? result.purchaseOrders : [];
+    state.purchaseOrdersLoaded = true;
+    applyPurchaseOrderFilters();
+    populateInboundPurchaseOrders(inboundProductId?.value.trim());
+    return true;
+  } catch (error) {
+    state.purchaseOrders = [];
+    state.filteredPurchaseOrders = [];
+    state.purchaseOrdersLoaded = false;
+    renderPurchaseOrders(error.message || "발주 정보를 불러오지 못했습니다.");
+    populateInboundPurchaseOrders(inboundProductId?.value.trim());
+    return false;
+  }
+}
+
+function applyPurchaseOrderFilters() {
+  const query = state.purchaseOrderQuery;
+  const status = state.purchaseOrderStatusFilter;
+  state.filteredPurchaseOrders = state.purchaseOrders.filter((order) => {
+    if (status && order.status !== status) return false;
+    if (!query) return true;
+    return [
+      order.purchaseOrderId,
+      order.productId,
+      order.clientName,
+      order.productName,
+      order.orderRound
+    ].some((value) => normalizeSearchText(value).includes(query));
+  });
+  renderPurchaseOrderSummary();
+  renderPurchaseOrders();
+}
+
+function renderPurchaseOrderSummary() {
+  const orders = state.purchaseOrders;
+  const activeCount = orders.filter((order) => ["진행 중", "기간 경과"].includes(order.status)).length;
+  const completedCount = orders.filter((order) => order.status === "입고완료").length;
+  const remaining = orders
+    .filter((order) => order.status !== "취소")
+    .reduce((sum, order) => sum + Number(order.remainingQuantity || 0), 0);
+  if (purchaseOrderTotal) purchaseOrderTotal.innerHTML = `${orders.length.toLocaleString("ko-KR")} <em>건</em>`;
+  if (purchaseOrderActive) purchaseOrderActive.innerHTML = `${activeCount.toLocaleString("ko-KR")} <em>건</em>`;
+  if (purchaseOrderCompleted) purchaseOrderCompleted.innerHTML = `${completedCount.toLocaleString("ko-KR")} <em>건</em>`;
+  if (purchaseOrderRemaining) purchaseOrderRemaining.innerHTML = `${remaining.toLocaleString("ko-KR")} <em>ea</em>`;
+}
+
+function renderPurchaseOrders(message = "") {
+  if (!purchaseOrderTableBody) return;
+  const orders = state.filteredPurchaseOrders;
+  if (purchaseOrderListStatus) {
+    purchaseOrderListStatus.textContent = message || (orders.length ? "발주 진행 현황입니다." : "등록된 발주가 없습니다.");
+    purchaseOrderListStatus.dataset.type = message ? "error" : "";
+  }
+  if (purchaseOrderCountLabel) {
+    purchaseOrderCountLabel.textContent = `전체 ${orders.length.toLocaleString("ko-KR")}건`;
+  }
+  if (!orders.length) {
+    purchaseOrderTableBody.innerHTML = `<tr><td class="empty-cell" colspan="11">${escapeHtml(message || "등록된 발주가 없습니다.")}</td></tr>`;
+    return;
+  }
+
+  purchaseOrderTableBody.innerHTML = orders.map((order, index) => {
+    const rate = Number(order.inboundRate || 0) * 100;
+    const clampedRate = Math.max(0, Math.min(rate, 100));
+    const displayRate = Math.round(rate);
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td><strong>${escapeHtml(order.orderRound || "-")}</strong><br><small>${escapeHtml(order.productId || "-")}</small></td>
+        <td>${escapeHtml(order.clientName || "-")}</td>
+        <td>${escapeHtml(order.productName || "-")}</td>
+        <td>${escapeHtml(order.startDate || "-")} ~ ${escapeHtml(order.endDate || "-")}</td>
+        <td>${formatPurchaseOrderQuantity(order.totalOrderQuantity)}</td>
+        <td>${formatPurchaseOrderQuantity(order.accumulatedInboundQuantity)}</td>
+        <td>${formatPurchaseOrderQuantity(order.remainingQuantity)}</td>
+        <td>
+          <span class="purchase-order-progress">
+            <span class="purchase-order-progress-track"><span style="width:${clampedRate}%"></span></span>
+            <b>${displayRate.toLocaleString("ko-KR")}%</b>
+          </span>
+        </td>
+        <td><span class="purchase-order-status-badge" data-status="${escapeAttribute(order.status || "")}">${escapeHtml(order.status || "-")}</span></td>
+        <td>
+          <span class="purchase-order-actions">
+            <button type="button" data-purchase-order-action="edit" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">수정</button>
+            <button type="button" data-purchase-order-action="delete" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">삭제</button>
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function formatPurchaseOrderQuantity(value) {
+  return `${Number(value || 0).toLocaleString("ko-KR")} ea`;
+}
+
+function getPurchaseOrderById(id) {
+  return state.purchaseOrders.find((order) => order.purchaseOrderId === id) || null;
+}
+
+function populatePurchaseOrderProductOptions(selectedProductId = "") {
+  if (!purchaseOrderProduct) return;
+  const products = [...state.products].sort((left, right) => String(left.productName || "").localeCompare(String(right.productName || ""), "ko"));
+  purchaseOrderProduct.innerHTML = [
+    '<option value="">제품을 선택해주세요.</option>',
+    ...products.map((product) => `<option value="${escapeAttribute(product.productCode)}">${escapeHtml(product.productName)} · ${escapeHtml(product.clientName)} (${escapeHtml(product.productCode)})</option>`)
+  ].join("");
+  purchaseOrderProduct.value = selectedProductId;
+  syncPurchaseOrderProductFields();
+}
+
+function syncPurchaseOrderProductFields() {
+  const product = getProductByCode(purchaseOrderProduct?.value || "");
+  if (purchaseOrderClient) purchaseOrderClient.value = product?.clientName || "";
+  if (purchaseOrderProductId) purchaseOrderProductId.value = product?.productCode || "";
+}
+
+function openPurchaseOrderModal(order = null) {
+  if (!purchaseOrderModal || !purchaseOrderForm) return;
+  purchaseOrderForm.reset();
+  state.purchaseOrderFormMode = order ? "edit" : "create";
+  state.editingPurchaseOrderId = order?.purchaseOrderId || "";
+  purchaseOrderId.value = order?.purchaseOrderId || "";
+  purchaseOrderModalTitle.textContent = order ? "발주 정보 수정" : "신규 발주 등록";
+  purchaseOrderFormMessage.textContent = "";
+  purchaseOrderStatusField.hidden = !order;
+  populatePurchaseOrderProductOptions(order?.productId || "");
+  purchaseOrderProduct.disabled = Boolean(order && Number(order.accumulatedInboundQuantity || 0) > 0);
+  purchaseOrderRound.value = order?.orderRound || "";
+  purchaseOrderQuantity.value = order?.totalOrderQuantity || "";
+  purchaseOrderStartDate.value = order?.startDate || getLocalDateInputValue();
+  purchaseOrderEndDate.value = order?.endDate || "";
+  purchaseOrderFormStatus.value = order?.status === "취소" ? "취소" : "";
+  purchaseOrderNote.value = order?.note || "";
+  purchaseOrderModal.hidden = false;
+  document.body.classList.add("modal-open");
+  resetModalScrollPosition(purchaseOrderModal);
+  window.setTimeout(() => purchaseOrderProduct.focus(), 0);
+}
+
+function closePurchaseOrderModal() {
+  if (!purchaseOrderModal) return;
+  purchaseOrderModal.hidden = true;
+  purchaseOrderProduct.disabled = false;
+  if (productModal.hidden && productDetailModal.hidden && inboundProductPickerModal.hidden) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function getPurchaseOrderPayload() {
+  const product = getProductByCode(purchaseOrderProduct.value);
+  return {
+    purchaseOrderId: purchaseOrderId.value.trim(),
+    productId: product?.productCode || purchaseOrderProductId.value.trim(),
+    clientName: product?.clientName || purchaseOrderClient.value.trim(),
+    productName: product?.productName || "",
+    orderRound: purchaseOrderRound.value.trim(),
+    startDate: purchaseOrderStartDate.value,
+    endDate: purchaseOrderEndDate.value,
+    totalOrderQuantity: Number(purchaseOrderQuantity.value || 0),
+    status: purchaseOrderFormStatus.value,
+    note: purchaseOrderNote.value.trim(),
+    registrant: session?.name || "Admin"
+  };
+}
+
+async function savePurchaseOrder() {
+  if (state.isSavingPurchaseOrder) return;
+  const payload = getPurchaseOrderPayload();
+  if (!payload.productId || !payload.orderRound || !payload.startDate || !payload.endDate || payload.totalOrderQuantity <= 0) {
+    purchaseOrderFormMessage.textContent = "필수 항목을 모두 입력해주세요.";
+    return;
+  }
+  if (payload.startDate > payload.endDate) {
+    purchaseOrderFormMessage.textContent = "발주 종료일은 시작일보다 빠를 수 없습니다.";
+    return;
+  }
+
+  state.isSavingPurchaseOrder = true;
+  savePurchaseOrderButton.disabled = true;
+  purchaseOrderFormMessage.textContent = "";
+  try {
+    const action = state.purchaseOrderFormMode === "edit" ? "updatePurchaseOrder" : "createPurchaseOrder";
+    await requestApi(action, payload);
+    await loadPurchaseOrders();
+    closePurchaseOrderModal();
+    showToast(state.purchaseOrderFormMode === "edit" ? "발주 정보를 수정했습니다." : "신규 발주를 등록했습니다.");
+  } catch (error) {
+    purchaseOrderFormMessage.textContent = error.message || "발주 저장에 실패했습니다.";
+  } finally {
+    state.isSavingPurchaseOrder = false;
+    savePurchaseOrderButton.disabled = false;
+  }
+}
+
+async function deletePurchaseOrder(order) {
+  if (!window.confirm(`${order.productName} ${order.orderRound} 발주를 삭제하시겠습니까?`)) return;
+  try {
+    await requestApi("deletePurchaseOrder", { purchaseOrderId: order.purchaseOrderId });
+    await loadPurchaseOrders();
+    showToast("발주를 삭제했습니다.");
+  } catch (error) {
+    showToast(error.message || "발주 삭제에 실패했습니다.");
+  }
+}
+
+function getInboundPurchaseOrder() {
+  return getPurchaseOrderById(inboundPurchaseOrder?.value || "");
+}
+
+function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
+  if (!inboundPurchaseOrder) return;
+  const previousValue = preferredOrderId || inboundPurchaseOrder.value;
+  const orders = state.purchaseOrders.filter((order) => (
+    order.productId === productId
+    && !["취소", "입고완료"].includes(order.status)
+  ));
+  if (!productId) {
+    inboundPurchaseOrder.innerHTML = '<option value="">제품을 먼저 선택해주세요.</option>';
+    inboundPurchaseOrder.disabled = true;
+    setInboundPurchaseOrderHelp("선택한 제품의 진행 중인 발주를 불러옵니다.");
+  } else if (!orders.length) {
+    inboundPurchaseOrder.innerHTML = '<option value="">진행 중인 발주가 없습니다.</option>';
+    inboundPurchaseOrder.disabled = true;
+    setInboundPurchaseOrderHelp("발주관리에서 해당 제품의 발주를 먼저 등록해주세요.", "warning");
+  } else {
+    inboundPurchaseOrder.innerHTML = [
+      '<option value="">발주 차수를 선택해주세요.</option>',
+      ...orders.map((order) => `<option value="${escapeAttribute(order.purchaseOrderId)}">${escapeHtml(order.orderRound)} · ${Number(order.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea · ${Math.round(Number(order.inboundRate || 0) * 100)}%</option>`)
+    ].join("");
+    inboundPurchaseOrder.disabled = false;
+    inboundPurchaseOrder.value = orders.some((order) => order.purchaseOrderId === previousValue)
+      ? previousValue
+      : orders.length === 1 ? orders[0].purchaseOrderId : "";
+    setInboundPurchaseOrderHelp(`${orders.length}개의 진행 발주가 있습니다.`);
+  }
+  applySelectedInboundPurchaseOrder();
+}
+
+function setInboundPurchaseOrderHelp(message, tone = "") {
+  if (!inboundPurchaseOrderHelp) return;
+  inboundPurchaseOrderHelp.textContent = message;
+  if (tone) inboundPurchaseOrderHelp.dataset.tone = tone;
+  else delete inboundPurchaseOrderHelp.dataset.tone;
+}
+
+function applySelectedInboundPurchaseOrder() {
+  const order = getInboundPurchaseOrder();
+  inboundBatch.value = order?.orderRound || "";
+  inboundDueDate.value = order?.endDate || "";
+  if (order) {
+    setInboundPurchaseOrderHelp(`총 ${Number(order.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea · 누적 ${Number(order.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")}ea · 미입고 ${Number(order.remainingQuantity || 0).toLocaleString("ko-KR")}ea`);
+  }
+}
+
 async function loadTodayInbounds() {
   const datePayload = getInboundListDatePayload();
   const cacheName = `inbounds:${datePayload.startDate}:${datePayload.endDate}`;
@@ -5989,7 +6348,7 @@ function applyTodayInboundsResult(result, message = "") {
 }
 
 async function refreshInboundMutationData({ includeProducts = false, includeInventory = state.inventoryLoaded } = {}) {
-  const refreshTasks = [loadTodayInbounds()];
+  const refreshTasks = [loadTodayInbounds(), loadPurchaseOrders()];
 
   if (includeProducts) {
     refreshTasks.push(loadProducts());
@@ -8325,8 +8684,6 @@ function renderProductDetail(product) {
     <section class="detail-section" aria-labelledby="detailStandardTitle">
       <h3 id="detailStandardTitle">제품 기준 정보</h3>
       <div class="detail-grid">
-        ${detailItem("발주량", product.orderQuantity)}
-        ${detailItem("납기일", product.dueDate)}
         ${detailItem("박스당 수량", product.boxQuantity)}
         ${detailItem("트레이 수량", product.trayQuantity)}
         ${detailItem("비고", product.note, false, "full-span")}
@@ -8378,6 +8735,7 @@ function renderInboundDetail(inbound) {
         ${detailItem("입고 시간", inbound.inboundTime)}
         ${detailItem("납기일", inbound.dueDate)}
         ${detailItem("등록자", inbound.registrant)}
+        ${detailItem("발주 ID", inbound.purchaseOrderId, false, "full-span")}
         ${isInventoryDetail ? detailItem("최종 재고 확인일시", inbound.lastInventoryCheckedAt, false, "full-span") : ""}
       </div>
     </section>
@@ -8388,7 +8746,7 @@ function renderInboundDetail(inbound) {
         ${detailItem("제품 ID", inbound.productId)}
         ${detailItem("거래처명", inbound.clientName)}
         ${detailItem("제품명", inbound.productName, false, "full-span")}
-        ${detailItem("차수", inbound.batch)}
+        ${detailItem("발주 차수", inbound.purchaseOrderRound || inbound.batch)}
         ${detailItem("최종공정", inbound.process)}
         ${detailItem("보관위치", inbound.storage)}
       </div>
