@@ -7651,6 +7651,34 @@ input {
   overflow: hidden;
 }
 
+.purchase-order-modal .modal-header {
+  align-items: center;
+  padding: 1.05rem 1.25rem;
+  background: #fff;
+}
+
+.purchase-order-modal .modal-header h2 {
+  font-size: 1.28rem;
+  letter-spacing: -0.025em;
+}
+
+.purchase-order-modal .modal-header p {
+  margin-top: 0.28rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.purchase-order-modal .modal-close {
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid #e0e6ee;
+  background: #f8fafc;
+}
+
+.purchase-order-modal .modal-close .ti {
+  font-size: 1.34rem;
+}
+
 .purchase-order-product-field .field-with-button button:disabled {
   color: #9aa6b5;
   cursor: not-allowed;
@@ -7673,8 +7701,49 @@ input {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  margin-bottom: 0.85rem;
-  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.92rem;
+}
+
+.purchase-order-form .form-grid {
+  column-gap: 1rem;
+  row-gap: 0.72rem;
+}
+
+.purchase-order-form .form-field {
+  font-size: 0.78rem;
+}
+
+.purchase-order-form .form-field > span {
+  margin-bottom: 0.3rem;
+}
+
+.purchase-order-form .form-field input:not([type="radio"]),
+.purchase-order-form .form-field select,
+.purchase-order-form .form-field textarea {
+  min-height: 2.65rem;
+  padding-right: 0.85rem;
+  padding-left: 0.85rem;
+  border-color: #dce3ec;
+  border-radius: 0.42rem;
+  box-shadow: none;
+}
+
+.purchase-order-form .form-field textarea {
+  min-height: 4.2rem;
+  padding-top: 0.68rem;
+}
+
+.purchase-order-form .field-with-button button {
+  width: 2.05rem;
+  height: 2.05rem;
+  right: 0.32rem;
+  border-color: #dce3ec;
+  background: #f8fafc;
+}
+
+.purchase-order-form .field-with-button button .ti {
+  font-size: 1.05rem;
 }
 
 .purchase-order-form .form-message {
