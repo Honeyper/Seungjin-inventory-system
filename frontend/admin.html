@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260826-purchase-order-due-date" />
+    <link rel="stylesheet" href="./styles.css?v=20260828-sku-process-route" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -243,7 +243,7 @@
                     <input type="text" id="inboundRegistrant" value="Admin" disabled />
                   </label>
                   <label class="form-field">
-                    <span>최종공정 <b>*</b></span>
+                    <span>SKU 고정 공정 <b>*</b></span>
                     <input id="inboundProcess" type="text" placeholder="제품 선택 시 자동 입력" disabled />
                   </label>
                   <label class="form-field">
@@ -2136,16 +2136,52 @@
                 </datalist>
               </label>
 
-              <label class="form-field">
-                <span>최종공정 <b>*</b></span>
-                <select id="productFinalProcess" required>
-                  <option value="">선택하세요.</option>
-                  <option>1도</option>
-                  <option>2도</option>
-                  <option>3도</option>
-                  <option>코팅</option>
-                </select>
-              </label>
+              <div class="form-field product-process-field full-span">
+                <span>SKU 고정 공정 <b>*</b></span>
+                <input id="productFinalProcess" type="hidden" />
+                <div class="product-process-builder">
+                  <div class="product-process-heading">
+                    <div>
+                      <strong>공정 구성</strong>
+                      <small>이 SKU의 모든 입고에 동일하게 자동 적용됩니다.</small>
+                    </div>
+                    <label class="product-process-type">
+                      <span>공정 유형</span>
+                      <select id="productProcessType">
+                        <option value="print">실크 / 박</option>
+                        <option value="coating">코팅</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="product-process-stages" id="productProcessStages">
+                    <label class="product-process-stage">
+                      <span><b>1도</b><small>필수</small></span>
+                      <select id="productProcessStage1">
+                        <option value="">선택하세요.</option>
+                        <option value="실크">실크</option>
+                        <option value="박">박</option>
+                      </select>
+                    </label>
+                    <label class="product-process-stage">
+                      <span><b>2도</b><small>선택</small></span>
+                      <select id="productProcessStage2">
+                        <option value="none">사용 안 함</option>
+                        <option value="실크">실크</option>
+                        <option value="박">박</option>
+                      </select>
+                    </label>
+                    <label class="product-process-stage">
+                      <span><b>3도</b><small>선택</small></span>
+                      <select id="productProcessStage3" disabled>
+                        <option value="none">사용 안 함</option>
+                        <option value="실크">실크</option>
+                        <option value="박">박</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="product-process-summary" id="productProcessSummary">공정을 선택해주세요.</div>
+                </div>
+              </div>
 
               <div class="product-treatment-grid full-span" aria-label="제품 공정 옵션">
                 <div
@@ -2378,14 +2414,8 @@
               </label>
 
               <label class="form-field">
-                <span>최종공정 <b>*</b></span>
-                <select id="existingStockProcess" required>
-                  <option value="" selected disabled>선택하세요.</option>
-                  <option>1도</option>
-                  <option>2도</option>
-                  <option>3도</option>
-                  <option>코팅</option>
-                </select>
+                <span>SKU 고정 공정 <b>*</b></span>
+                <input id="existingStockProcess" type="text" placeholder="제품 선택 시 자동 입력" disabled />
               </label>
 
               <label class="form-field">
@@ -2632,6 +2662,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260826-purchase-order-due-date"></script>
+    <script src="./admin.js?v=20260828-sku-process-route"></script>
   </body>
 </html>

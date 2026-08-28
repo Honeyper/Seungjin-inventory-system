@@ -206,6 +206,12 @@ const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
 const productColorPreview = document.querySelector("#productColorPreview");
 const productFinalProcess = document.querySelector("#productFinalProcess");
+const productProcessType = document.querySelector("#productProcessType");
+const productProcessStages = document.querySelector("#productProcessStages");
+const productProcessStage1 = document.querySelector("#productProcessStage1");
+const productProcessStage2 = document.querySelector("#productProcessStage2");
+const productProcessStage3 = document.querySelector("#productProcessStage3");
+const productProcessSummary = document.querySelector("#productProcessSummary");
 const productCommonContainer = document.querySelector("#productCommonContainer");
 const productCommonContainerFields = document.querySelector("#productCommonContainerFields");
 const productShippingProductCount = document.querySelector("#productShippingProductCount");
@@ -1050,6 +1056,16 @@ pageSizeSelect.addEventListener("change", (event) => {
 productCommonContainer?.addEventListener("change", syncCommonContainerFields);
 productShippingProductCount?.addEventListener("change", () => {
   renderCommonContainerProductNameFields(Number(productShippingProductCount.value) || 1);
+});
+productProcessType?.addEventListener("change", () => {
+  productFinalProcess.dataset.legacyFinalProcess = "";
+  syncProductProcessFields();
+});
+[productProcessStage1, productProcessStage2, productProcessStage3].forEach((select) => {
+  select?.addEventListener("change", () => {
+    productFinalProcess.dataset.legacyFinalProcess = "";
+    syncProductProcessFields();
+  });
 });
 
 shippingPageSizeSelect?.addEventListener("change", (event) => {
@@ -4849,7 +4865,7 @@ function validateInboundPayload(payload) {
     ["productId", "제품 ID를 확인해주세요."],
     ["purchaseOrderId", "발주 차수를 선택해주세요."],
     ["clientName", "거래처명을 입력해주세요."],
-    ["process", "제품관리에서 최종공정을 먼저 등록해주세요."],
+    ["process", "제품관리에서 SKU 고정 공정을 먼저 등록해주세요."],
     ["storage", "보관위치를 선택해주세요."],
     ["defectReason", "불량 사유를 선택해주세요."]
   ];
@@ -5381,7 +5397,7 @@ function selectInboundProduct(product) {
   inboundProductName.value = normalizeDisplayValue(product.productName);
   inboundProductId.value = normalizeDisplayValue(product.productCode);
   inboundClient.value = normalizeDisplayValue(product.clientName);
-  inboundProcess.value = String(product.finalProcess || "").trim();
+  inboundProcess.value = getProductProcessRoute(product) || String(product.finalProcess || "").trim();
   setInboundClientEditable(false);
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);
@@ -5425,6 +5441,7 @@ function resetExistingStockForm() {
   existingStockProductId.value = "";
   existingStockRegistrant.value = session?.name || "Admin";
   existingStockDate.value = getLocalDateInputValue();
+  existingStockProcess.value = "";
   existingStockRemainQuantity.value = "0";
   existingStockFormMessage.textContent = "";
   state.inboundProductPickerTarget = "inbound";
@@ -5434,6 +5451,7 @@ function selectExistingStockProduct(product) {
   existingStockProductName.value = normalizeDisplayValue(product.productName);
   existingStockProductId.value = normalizeDisplayValue(product.productCode);
   existingStockClientName.value = normalizeDisplayValue(product.clientName);
+  existingStockProcess.value = getProductProcessRoute(product) || String(product.finalProcess || "").trim();
 
   const boxQuantity = extractQuantityNumber(product.boxQuantity);
 
@@ -5450,6 +5468,8 @@ function getExistingStockPayload() {
   const remainQuantity = getNumberValue(existingStockRemainQuantity);
   const totalBoxCount = inboundBoxCount + (remainQuantity > 0 ? 1 : 0);
   const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
+  const selectedProduct = getProductByCode(existingStockProductId.value.trim());
+  const finalProcess = String(selectedProduct?.finalProcess || "").trim();
 
   return {
     entryCategory: "기존재고",
@@ -5462,7 +5482,7 @@ function getExistingStockPayload() {
     productId: existingStockProductId.value.trim(),
     clientName: existingStockClientName.value.trim(),
     batch: existingStockBatch.value.trim(),
-    process: existingStockProcess.value.trim(),
+    process: finalProcess,
     storage: existingStockStorage.value.trim(),
     note: existingStockNote.value.trim(),
     boxQuantity,
@@ -5482,7 +5502,7 @@ function validateExistingStockPayload(payload) {
     ["productName", "제품을 선택해주세요."],
     ["productId", "제품 ID를 확인해주세요."],
     ["clientName", "거래처명을 확인해주세요."],
-    ["process", "최종공정을 선택해주세요."],
+    ["process", "제품관리에서 SKU 고정 공정을 먼저 등록해주세요."],
     ["storage", "보관위치를 선택해주세요."]
   ];
   const missing = requiredFields.find(([field]) => !payload[field]);
@@ -8038,7 +8058,7 @@ function renderProductDetail(product) {
         ${detailItem("거래처명", product.clientName)}
         ${detailItem("제품명", product.productName)}
         ${detailItem("색상", renderColor(product.color), true)}
-        ${detailItem("최종공정", product.finalProcess)}
+        ${detailItem("공정 구성", getProductProcessRoute(product) || product.finalProcess)}
         ${detailItem("박가루 제거 유무", normalizeBinaryOption(product.dustRemovalStatus))}
         ${detailItem("화염처리 유무", normalizeBinaryOption(product.flameTreatmentStatus))}
         ${detailItem("공용용기 제품", isCommonContainer ? "예" : "아니오")}
@@ -8376,7 +8396,7 @@ function renderInboundEditForm(inbound) {
           <input id="inboundEditBatch" type="text" value="${escapeAttribute(normalizeEditableValue(inbound.batch))}" placeholder="차수를 입력하세요." />
         </label>
         <label class="form-field">
-          <span>최종공정 <b>*</b></span>
+          <span>SKU 고정 공정 <b>*</b></span>
           <select id="inboundEditProcess" disabled>
             ${renderOptionList(["", "1도", "2도", "3도", "코팅"], normalizeEditableValue(inbound.process), "선택하세요.")}
           </select>
@@ -8806,7 +8826,7 @@ function validateInboundEditPayload(payload) {
   }
 
   if (!payload.process) {
-    return "최종공정을 선택해주세요.";
+    return "제품관리에서 SKU 고정 공정을 먼저 등록해주세요.";
   }
 
   if (!payload.storage) {
@@ -8997,6 +9017,86 @@ function focusModalDialog(modal) {
   window.setTimeout(() => dialog.focus({ preventScroll: true }), 0);
 }
 
+function normalizeProductProcessMethod(value) {
+  const normalized = normalizeEditableValue(value);
+  return ["실크", "박"].includes(normalized) ? normalized : "";
+}
+
+function getProductProcessRoute(product) {
+  const stages = [product?.processStage1, product?.processStage2, product?.processStage3]
+    .map((method, index) => {
+      const normalizedMethod = normalizeProductProcessMethod(method);
+      return normalizedMethod ? `${index + 1}도 ${normalizedMethod}` : "";
+    })
+    .filter(Boolean);
+
+  return stages.length
+    ? stages.join(" → ")
+    : normalizeEditableValue(product?.processRoute || product?.finalProcess);
+}
+
+function setProductProcessForm(product = null) {
+  const finalProcess = normalizeEditableValue(product?.finalProcess);
+  const stage1 = normalizeProductProcessMethod(product?.processStage1);
+  const stage2 = normalizeProductProcessMethod(product?.processStage2);
+  const stage3 = normalizeProductProcessMethod(product?.processStage3);
+  const hasStageData = Boolean(stage1 || stage2 || stage3);
+  const isCoating = finalProcess === "코팅" && !hasStageData;
+
+  productProcessType.value = isCoating ? "coating" : "print";
+  productProcessStage1.value = stage1;
+  productProcessStage2.value = stage2 || "none";
+  productProcessStage3.value = stage3 || "none";
+  productFinalProcess.dataset.legacyFinalProcess = !hasStageData && !isCoating ? finalProcess : "";
+  syncProductProcessFields();
+}
+
+function syncProductProcessFields() {
+  if (!productFinalProcess || !productProcessType) {
+    return;
+  }
+
+  const isSaving = Boolean(state.isSavingProduct);
+  const isCoating = productProcessType.value === "coating";
+  const stage1 = normalizeProductProcessMethod(productProcessStage1?.value);
+  const stage2 = normalizeProductProcessMethod(productProcessStage2?.value);
+
+  if (!stage2 && productProcessStage3) {
+    productProcessStage3.value = "none";
+  }
+
+  const stage3 = normalizeProductProcessMethod(productProcessStage3?.value);
+  const legacyFinalProcess = normalizeEditableValue(productFinalProcess.dataset.legacyFinalProcess);
+  const finalProcess = isCoating
+    ? "코팅"
+    : stage3
+      ? "3도"
+      : stage2
+        ? "2도"
+        : stage1
+          ? "1도"
+          : legacyFinalProcess;
+
+  productFinalProcess.value = finalProcess;
+  productProcessStages.hidden = isCoating;
+  productProcessStage1.disabled = isSaving || isCoating;
+  productProcessStage2.disabled = isSaving || isCoating || !stage1;
+  productProcessStage3.disabled = isSaving || isCoating || !stage2;
+
+  if (isCoating) {
+    productProcessSummary.textContent = "코팅";
+    return;
+  }
+
+  const route = [stage1, stage2, stage3]
+    .map((method, index) => method ? `${index + 1}도 ${method}` : "")
+    .filter(Boolean)
+    .join(" → ");
+
+  productProcessSummary.textContent = route
+    || (legacyFinalProcess ? `${legacyFinalProcess} · 실크/박 방식 미지정` : "공정을 선택해주세요.");
+}
+
 function openProductModal(mode = "create", product = null) {
   state.productFormMode = mode;
   state.editingProductCode = mode === "edit" ? product?.productCode || "" : "";
@@ -9014,13 +9114,13 @@ function openProductModal(mode = "create", product = null) {
   saveProductButton.textContent = mode === "edit" ? "수정 저장" : "저장";
   productCodePreview.placeholder = mode === "edit" ? "제품코드는 수정할 수 없습니다." : "자동 생성됩니다.";
   renderClientOptions();
+  setProductProcessForm(product);
 
   if (mode === "edit" && product) {
     productCodePreview.value = product.productCode || "";
     setSelectValue(productClientName, product.clientName);
     productNameInput.value = normalizeEditableValue(product.productName);
     productColor.value = normalizeEditableValue(product.color);
-    setSelectValue(productFinalProcess, product.finalProcess);
     productForm.querySelector(`input[name="productDustRemoval"][value="${normalizeBinaryOption(product.dustRemovalStatus)}"]`)?.click();
     productForm.querySelector(`input[name="productFlameTreatment"][value="${normalizeBinaryOption(product.flameTreatmentStatus)}"]`)?.click();
     productForm.querySelector(`input[name="productUsage"][value="${normalizeUsageStatus(product.useStatus)}"]`)?.click();
@@ -9286,6 +9386,15 @@ function getProductFormPayload() {
   const isCommonContainer = Boolean(productCommonContainer?.checked);
   const shippingProductTypeCount = Math.max(1, Number(productShippingProductCount?.value) || 1);
   const shippingProductNames = getCommonContainerProductNameValues();
+  const processStage1 = productProcessType.value === "print"
+    ? normalizeProductProcessMethod(productProcessStage1.value)
+    : "";
+  const processStage2 = productProcessType.value === "print"
+    ? normalizeProductProcessMethod(productProcessStage2.value)
+    : "";
+  const processStage3 = productProcessType.value === "print"
+    ? normalizeProductProcessMethod(productProcessStage3.value)
+    : "";
 
   return {
     "등록자": session?.name || "Admin",
@@ -9293,6 +9402,9 @@ function getProductFormPayload() {
     "제품명": productNameInput.value.trim(),
     "색상": productColor.value.trim(),
     "최종공정": productFinalProcess.value.trim(),
+    "1도 공정": processStage1,
+    "2도 공정": processStage2,
+    "3도 공정": processStage3,
     "박가루제거 유무": dustRemoval,
     "화염처리 유무": flameTreatment,
     "공용용기 제품": isCommonContainer ? "유" : "무",
@@ -9311,7 +9423,7 @@ function validateProductPayload(payload) {
   const requiredFields = [
     ["업체명", "거래처명을 선택해주세요."],
     ["제품명", "제품명을 입력해주세요."],
-    ["최종공정", "최종공정을 선택해주세요."],
+    ["최종공정", "SKU 고정 공정을 선택해주세요."],
     ["사용 여부", "사용 여부를 선택해주세요."],
     ["박스당 수량", "박스당 수량을 입력해주세요."],
     ["트레이 수량", "트레이 수량을 입력해주세요."]
@@ -9320,6 +9432,10 @@ function validateProductPayload(payload) {
   const missing = requiredFields.find(([field]) => !payload[field]);
   if (missing) {
     return missing[1];
+  }
+
+  if (productProcessType.value === "print" && !payload["1도 공정"] && !productFinalProcess.dataset.legacyFinalProcess) {
+    return "1도 공정의 실크 또는 박을 선택해주세요.";
   }
 
   if (
@@ -9368,6 +9484,7 @@ function setProductSaving(isSaving) {
   });
   productCodePreview.disabled = true;
   syncCommonContainerFields();
+  syncProductProcessFields();
 }
 
 function setFormMessage(message, type = "error") {
