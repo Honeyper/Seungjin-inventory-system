@@ -1055,6 +1055,9 @@ function setupSheets() {
       '출고시 제품명 목록',
       '기본 차수',
       '최종공정',
+      '1도 공정',
+      '2도 공정',
+      '3도 공정',
       '박가루제거 유무',
       '화염처리 유무',
       '박스당 수량',
@@ -1284,7 +1287,16 @@ function ensureProductCommonContainerHeaders_(sheet) {
     return;
   }
 
-  const requiredHeaders = ['공용용기 제품', '출고시 제품 종류 수', '출고시 제품명 목록'];
+  const requiredHeaders = [
+    '공용용기 제품',
+    '출고시 제품 종류 수',
+    '출고시 제품명 목록',
+    '박가루제거 유무',
+    '화염처리 유무',
+    '1도 공정',
+    '2도 공정',
+    '3도 공정'
+  ];
   const existingHeaders = new Set(headerInfo.headers.map((header) => normalizeHeaderKey_(header)));
   const missingHeaders = requiredHeaders.filter((header) => !existingHeaders.has(normalizeHeaderKey_(header)));
 
@@ -1295,7 +1307,122 @@ function ensureProductCommonContainerHeaders_(sheet) {
   const startColumn = Math.max(sheet.getLastColumn(), headerInfo.headers.length) + 1;
   const headerRowNumber = headerInfo.rowIndex + 1;
   sheet.getRange(headerRowNumber, startColumn, 1, missingHeaders.length).setValues([missingHeaders]);
-  sheet.setColumnWidths(startColumn, missingHeaders.length, 170);
+  sheet.setColumnWidths(startColumn, missingHeaders.length, 130);
+
+  if (startColumn > 1) {
+    const sourceHeader = sheet.getRange(headerRowNumber, startColumn - 1, 1, 1);
+    const targetHeaders = sheet.getRange(headerRowNumber, startColumn, 1, missingHeaders.length);
+    sourceHeader.copyTo(targetHeaders, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+
+    const bodyRowCount = Math.max(0, sheet.getLastRow() - headerRowNumber);
+    if (bodyRowCount > 0) {
+      const sourceBody = sheet.getRange(headerRowNumber + 1, startColumn - 1, bodyRowCount, 1);
+      const targetBody = sheet.getRange(headerRowNumber + 1, startColumn, bodyRowCount, missingHeaders.length);
+      sourceBody.copyTo(targetBody, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      sourceBody.copyTo(targetBody, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+    }
+  }
+}
+
+function normalizeProductProcessMethod_(value) {
+  const normalized = String(value || '').replace(/\s/g, '').trim();
+
+  if (normalized === '실크') {
+    return '실크';
+  }
+
+  if (normalized === '박') {
+    return '박';
+  }
+
+  return '';
+}
+
+function getProductProcessPayload_(payload) {
+  const stage1 = normalizeProductProcessMethod_(payload['1도 공정'] || payload.stage1Process);
+  const stage2 = normalizeProductProcessMethod_(payload['2도 공정'] || payload.stage2Process);
+  const stage3 = normalizeProductProcessMethod_(payload['3도 공정'] || payload.stage3Process);
+  const storedFinalProcess = String(payload['최종공정'] || payload['최종 공정'] || payload.finalProcess || '').trim();
+
+  if (stage3 && !stage2) {
+    throw new Error('3도 공정을 등록하려면 2도 공정을 먼저 선택해주세요.');
+  }
+
+  if (stage2 && !stage1) {
+    throw new Error('2도 공정을 등록하려면 1도 공정을 먼저 선택해주세요.');
+  }
+
+  const finalProcess = stage3
+    ? '3도'
+    : stage2
+      ? '2도'
+      : stage1
+        ? '1도'
+        : storedFinalProcess;
+
+  return {
+    finalProcess,
+    stage1,
+    stage2,
+    stage3
+  };
+}
+
+function formatProductProcessRoute_(finalProcess, stage1, stage2, stage3) {
+  const stages = [stage1, stage2, stage3]
+    .map((method, index) => {
+      const normalizedMethod = normalizeProductProcessMethod_(method);
+      return normalizedMethod ? `${index + 1}도 ${normalizedMethod}` : '';
+    })
+    .filter(Boolean);
+
+  return stages.length ? stages.join(' → ') : String(finalProcess || '').trim();
+}
+
+function getProductProcessInfo_(productId, productName) {
+  const normalizedProductId = String(productId || '').trim();
+  const normalizedProductName = String(productName || '').trim();
+
+  if (!normalizedProductId && !normalizedProductName) {
+    return null;
+  }
+
+  const sheet = getProductSheet_();
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
+
+  if (!headerInfo) {
+    return null;
+  }
+
+  const indexes = indexHeaders_(headerInfo.headers);
+  const row = values.slice(headerInfo.rowIndex + 1).find((candidate) => {
+    const candidateId = pickCell_(candidate, indexes, ['제품 ID', '제품ID']);
+    const candidateName = pickCell_(candidate, indexes, ['제품명']);
+    return (normalizedProductId && candidateId === normalizedProductId)
+      || (!normalizedProductId && normalizedProductName && candidateName === normalizedProductName);
+  });
+
+  if (!row) {
+    return null;
+  }
+
+  const finalProcess = pickCell_(row, indexes, ['최종공정', '최종 공정']);
+  const stage1 = pickCell_(row, indexes, ['1도 공정']);
+  const stage2 = pickCell_(row, indexes, ['2도 공정']);
+  const stage3 = pickCell_(row, indexes, ['3도 공정']);
+
+  return {
+    finalProcess,
+    stage1: normalizeProductProcessMethod_(stage1),
+    stage2: normalizeProductProcessMethod_(stage2),
+    stage3: normalizeProductProcessMethod_(stage3),
+    route: formatProductProcessRoute_(finalProcess, stage1, stage2, stage3)
+  };
+}
+
+function formatProductProcess_(process, productProcessInfo) {
+  return String(productProcessInfo?.finalProcess || process || '').trim();
 }
 
 function getProducts() {
@@ -1328,6 +1455,10 @@ function getProducts() {
         String(pickCell_(row, indexes, ['출고시 제품 종류 수', '출고 시 제품 종류 수']) || '').replace(/[^0-9]/g, ''),
         10
       ) || 0;
+      const finalProcess = pickCell_(row, indexes, ['최종공정', '최종 공정']);
+      const processStage1 = normalizeProductProcessMethod_(pickCell_(row, indexes, ['1도 공정']));
+      const processStage2 = normalizeProductProcessMethod_(pickCell_(row, indexes, ['2도 공정']));
+      const processStage3 = normalizeProductProcessMethod_(pickCell_(row, indexes, ['3도 공정']));
 
       return {
         registeredAt,
@@ -1347,7 +1478,11 @@ function getProducts() {
         dustRemovalStatus: pickCell_(row, indexes, ['박가루제거 유무', '박가루 제거 유무']) || '무',
         flameTreatmentStatus: pickCell_(row, indexes, ['화염처리 유무', '화염 처리 유무']) || '무',
         useStatus: pickCell_(row, indexes, ['사용 여부', '사용여부']),
-        finalProcess: pickCell_(row, indexes, ['최종공정', '최종 공정']),
+        finalProcess,
+        processStage1,
+        processStage2,
+        processStage3,
+        processRoute: formatProductProcessRoute_(finalProcess, processStage1, processStage2, processStage3),
         orderQuantity: pickCell_(row, indexes, ['발주량', '주문량']),
         accumulatedInboundQuantity: formatEa_(accumulatedInboundQuantityMap[productCode] || 0),
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
@@ -1819,12 +1954,17 @@ function syncStockStatusesFromBoxSummary_(sheet, boxSummaryMap) {
 }
 
 function createProduct(payload) {
-  const required = ['업체명', '제품명', '최종공정', '박스당 수량', '트레이 수량'];
+  const processPayload = getProductProcessPayload_(payload);
+  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
   required.forEach((field) => {
     if (!payload[field]) {
       throw new Error(`${field} 값이 필요합니다.`);
     }
   });
+
+  if (!processPayload.finalProcess) {
+    throw new Error('SKU 고정 공정을 선택해주세요.');
+  }
 
   const commonContainerProduct = getCommonContainerProductPayload_(payload);
   const sheet = getProductSheet_();
@@ -1857,7 +1997,10 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['박가루제거 유무', '박가루 제거 유무'], payload['박가루제거 유무'] || payload['박가루 제거 유무'] || '무');
   setRowValue_(row, indexes, ['화염처리 유무', '화염 처리 유무'], payload['화염처리 유무'] || payload['화염 처리 유무'] || '무');
   setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');
-  setRowValue_(row, indexes, ['최종공정', '최종 공정'], payload['최종공정'] || payload['최종 공정'] || '');
+  setRowValue_(row, indexes, ['최종공정', '최종 공정'], processPayload.finalProcess);
+  setRowValue_(row, indexes, ['1도 공정'], processPayload.stage1);
+  setRowValue_(row, indexes, ['2도 공정'], processPayload.stage2);
+  setRowValue_(row, indexes, ['3도 공정'], processPayload.stage3);
   setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
   setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
   setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
@@ -2098,7 +2241,8 @@ function getInboundBoxQrs(payload) {
 
 function updateProduct(payload) {
   const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
-  const required = ['업체명', '제품명', '최종공정', '박스당 수량', '트레이 수량'];
+  const processPayload = getProductProcessPayload_(payload);
+  const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
 
   if (!productId) {
     throw new Error('수정할 제품 ID가 필요합니다.');
@@ -2109,6 +2253,10 @@ function updateProduct(payload) {
       throw new Error(`${field} 값이 필요합니다.`);
     }
   });
+
+  if (!processPayload.finalProcess) {
+    throw new Error('SKU 고정 공정을 선택해주세요.');
+  }
 
   const commonContainerProduct = getCommonContainerProductPayload_(payload);
   const sheet = getProductSheet_();
@@ -2142,7 +2290,10 @@ function updateProduct(payload) {
       setRowValue_(row, indexes, ['출고시 제품 종류 수', '출고 시 제품 종류 수'], commonContainerProduct.shippingProductTypeCount || '');
       setRowValue_(row, indexes, ['출고시 제품명 목록', '출고 시 제품명 목록'], JSON.stringify(commonContainerProduct.shippingProductNames));
       setRowValue_(row, indexes, ['색상'], payload['색상'] || '');
-      setRowValue_(row, indexes, ['최종공정', '최종 공정'], payload['최종공정'] || payload['최종 공정'] || '');
+      setRowValue_(row, indexes, ['최종공정', '최종 공정'], processPayload.finalProcess);
+      setRowValue_(row, indexes, ['1도 공정'], processPayload.stage1);
+      setRowValue_(row, indexes, ['2도 공정'], processPayload.stage2);
+      setRowValue_(row, indexes, ['3도 공정'], processPayload.stage3);
       setRowValue_(row, indexes, ['박가루제거 유무', '박가루 제거 유무'], payload['박가루제거 유무'] || payload['박가루 제거 유무'] || '무');
       setRowValue_(row, indexes, ['화염처리 유무', '화염 처리 유무'], payload['화염처리 유무'] || payload['화염 처리 유무'] || '무');
       setRowValue_(row, indexes, ['사용 여부', '사용여부'], payload['사용 여부'] || payload['사용여부'] || '사용중');

@@ -5667,6 +5667,135 @@ input {
   box-shadow: 0 0 0 0.1rem rgba(208, 161, 75, 0.08);
 }
 
+.product-process-builder {
+  overflow: hidden;
+  border: 1px solid #dce5f0;
+  border-radius: 0.58rem;
+  background: #f8fafc;
+}
+
+.product-process-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.82rem 0.9rem;
+  border-bottom: 1px solid #e3e9f1;
+  background: #fff;
+}
+
+.product-process-heading > div {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.product-process-heading strong {
+  color: var(--navy-dark);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.product-process-heading small {
+  color: #718198;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.product-process-type {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.product-process-type > span {
+  margin: 0;
+  color: #65758c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.product-create-form .product-process-type select {
+  width: 8.4rem;
+  min-height: 2.25rem;
+  padding: 0 2rem 0 0.7rem;
+  background-color: #f8fafc;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.product-process-stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.product-process-stages[hidden] {
+  display: none;
+}
+
+.product-process-stage {
+  display: grid;
+  gap: 0.42rem;
+  min-width: 0;
+  padding: 0.68rem;
+  border: 1px solid #dce5f0;
+  border-radius: 0.48rem;
+  background: #fff;
+}
+
+.product-process-stage > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.product-create-form .product-process-stage > span > b {
+  color: var(--navy-dark);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.product-process-stage small {
+  color: #9a6b13;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.product-create-form .product-process-stage select {
+  min-height: 2.35rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.product-process-stage:has(select:disabled) {
+  opacity: 0.58;
+  background: #f4f6f9;
+}
+
+.product-process-summary {
+  min-height: 2.6rem;
+  padding: 0.66rem 0.9rem;
+  border-top: 1px solid #e3e9f1;
+  color: #8b651d;
+  background: #fff9ee;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.product-process-summary::before {
+  margin-right: 0.42rem;
+  content: "자동 적용";
+  color: #53657d;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
 .product-create-form fieldset.usage-field:has(input[name="productUsage"][value="사용중"]:checked) {
   border-color: rgba(208, 161, 75, 0.72);
   background: #fffaf0;
@@ -9386,9 +9515,23 @@ input {
   }
 
   .product-treatment-grid,
+  .product-process-stages,
   .common-container-config,
   .common-container-name-grid {
     grid-template-columns: 1fr;
+  }
+
+  .product-process-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .product-process-type {
+    justify-content: space-between;
+  }
+
+  .product-create-form .product-process-type select {
+    width: min(13rem, 62%);
   }
 
   .detail-grid {
