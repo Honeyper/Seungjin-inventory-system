@@ -6352,7 +6352,7 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
   } else {
     inboundPurchaseOrder.innerHTML = [
       '<option value="">발주 차수를 선택해주세요.</option>',
-      ...orders.map((order) => `<option value="${escapeAttribute(order.purchaseOrderId)}">${escapeHtml(order.orderRound)} · ${Number(order.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea · ${Math.round(Number(order.inboundRate || 0) * 100)}%</option>`)
+      ...orders.map((order) => `<option value="${escapeAttribute(order.purchaseOrderId)}">${escapeHtml(order.orderRound)} · ${Number(order.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea</option>`)
     ].join("");
     inboundPurchaseOrder.disabled = false;
     inboundPurchaseOrder.value = orders.some((order) => order.purchaseOrderId === previousValue)
