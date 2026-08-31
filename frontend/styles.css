@@ -8527,7 +8527,7 @@ input {
 }
 
 .inbound-table {
-  min-width: 124rem;
+  min-width: 134rem;
   table-layout: fixed;
   font-size: 0.84rem;
 }
@@ -8596,13 +8596,18 @@ input {
 
 .inbound-table th:nth-child(6),
 .inbound-table td:nth-child(6),
-.inbound-table th:nth-child(7),
-.inbound-table td:nth-child(7),
-.inbound-table th:nth-child(10),
-.inbound-table td:nth-child(10),
-.inbound-table th:nth-child(17),
-.inbound-table td:nth-child(17) {
+.inbound-table th:nth-child(8),
+.inbound-table td:nth-child(8),
+.inbound-table th:nth-child(11),
+.inbound-table td:nth-child(11),
+.inbound-table th:nth-child(18),
+.inbound-table td:nth-child(18) {
   width: 4.4rem;
+}
+
+.inbound-table th:nth-child(7),
+.inbound-table td:nth-child(7) {
+  width: 10rem;
 }
 
 .inbound-table th:nth-child(2),
@@ -8625,12 +8630,10 @@ input {
   width: 21rem;
 }
 
-.inbound-table th:nth-child(8),
-.inbound-table td:nth-child(8),
 .inbound-table th:nth-child(9),
 .inbound-table td:nth-child(9),
-.inbound-table th:nth-child(11),
-.inbound-table td:nth-child(11),
+.inbound-table th:nth-child(10),
+.inbound-table td:nth-child(10),
 .inbound-table th:nth-child(12),
 .inbound-table td:nth-child(12),
 .inbound-table th:nth-child(13),
@@ -8638,12 +8641,14 @@ input {
 .inbound-table th:nth-child(14),
 .inbound-table td:nth-child(14),
 .inbound-table th:nth-child(15),
-.inbound-table td:nth-child(15) {
+.inbound-table td:nth-child(15),
+.inbound-table th:nth-child(16),
+.inbound-table td:nth-child(16) {
   width: 7.4rem;
 }
 
-.inbound-table th:nth-child(16),
-.inbound-table td:nth-child(16) {
+.inbound-table th:nth-child(17),
+.inbound-table td:nth-child(17) {
   width: 6rem;
 }
 

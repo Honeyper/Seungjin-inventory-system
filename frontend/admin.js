@@ -4997,6 +4997,7 @@ function getFilteredInbounds() {
     item.productId,
     item.productName,
     item.batch,
+    item.purchaseOrderRound,
     item.process,
     item.storage,
     item.registrant,
@@ -5056,13 +5057,13 @@ function renderTodayInbounds(message = "") {
   if (!sourceCount) {
     inboundTableBody.innerHTML = `
       <tr>
-        <td colspan="17" class="empty-cell">${escapeHtml(message || "입고 내역이 없습니다.")}</td>
+        <td colspan="18" class="empty-cell">${escapeHtml(message || "입고 내역이 없습니다.")}</td>
       </tr>
     `;
   } else if (!inbounds.length) {
     inboundTableBody.innerHTML = `
       <tr>
-        <td colspan="17" class="empty-cell">검색 결과가 없습니다.</td>
+        <td colspan="18" class="empty-cell">검색 결과가 없습니다.</td>
       </tr>
     `;
   } else {
@@ -5074,6 +5075,7 @@ function renderTodayInbounds(message = "") {
         <td>${escapeHtml(item.inboundType)}</td>
         <td>${escapeHtml(item.productName)}</td>
         <td>${escapeHtml(item.batch)}</td>
+        <td>${escapeHtml(item.purchaseOrderRound || "-")}</td>
         <td>${escapeHtml(item.process)}</td>
         <td>${escapeHtml(item.boxQuantity)}</td>
         <td>${escapeHtml(item.inboundBoxCount)}</td>
