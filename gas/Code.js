@@ -2492,7 +2492,6 @@ function createInbound(payload) {
 
   if (!isExistingStock) {
     required.push(['defectReason', '불량 사유']);
-    required.push(['purchaseOrderId', '발주 건']);
   }
 
   if (isExistingStock && !inventoryCategory) {
@@ -2531,9 +2530,9 @@ function createInbound(payload) {
     ensureStockDbAttachmentHeaders_(stockSheet);
     ensureBoxDbShippingInspectionHeaders_(boxSheet);
     ensureStockDbPurchaseOrderHeaders_(stockSheet);
-    const purchaseOrder = isExistingStock
-      ? null
-      : getPurchaseOrderForInbound_(payload.purchaseOrderId, payload.productId, stockSheet);
+    const purchaseOrder = !isExistingStock && payload.purchaseOrderId
+      ? getPurchaseOrderForInbound_(payload.purchaseOrderId, payload.productId, stockSheet)
+      : null;
     const now = new Date();
     const timezone = 'Asia/Seoul';
     const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
@@ -2628,6 +2627,9 @@ function createInbound(payload) {
 function updateInbound(payload) {
   const managementId = String(payload.managementId || payload['관리 ID'] || payload['관리ID'] || '').trim();
   const payloadProductId = String(payload.productId || payload.productCode || payload['제품ID'] || payload['제품 ID'] || '').trim();
+  const hasPurchaseOrderSelection = Object.prototype.hasOwnProperty.call(payload, 'purchaseOrderId')
+    || Object.prototype.hasOwnProperty.call(payload, '발주ID');
+  const requestedPurchaseOrderId = String(payload.purchaseOrderId || payload['발주ID'] || '').trim();
 
   if (!managementId) {
     throw new Error('수정할 입고 관리 ID가 필요합니다.');
@@ -2698,6 +2700,7 @@ function updateInbound(payload) {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const boxSheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
     ensureStockDbAttachmentHeaders_(stockSheet);
+    ensureStockDbPurchaseOrderHeaders_(stockSheet);
     const identityData = {
       productId: payloadProductId,
       productName: payload.productName || payload['제품명'],
@@ -2711,6 +2714,14 @@ function updateInbound(payload) {
 
     const row = rowInfo.rowValues.slice();
     const storedDueDate = pickCell_(row, rowInfo.indexes, ['납기일']);
+    const storedPurchaseOrderId = pickCell_(row, rowInfo.indexes, ['발주ID', '발주 ID']);
+    const storedPurchaseOrderRound = pickCell_(row, rowInfo.indexes, ['발주 차수']);
+    const storedProductId = pickCell_(row, rowInfo.indexes, ['제품ID', '제품 ID']);
+    const nextProductId = payloadProductId || storedProductId;
+    const nextPurchaseOrderId = hasPurchaseOrderSelection ? requestedPurchaseOrderId : storedPurchaseOrderId;
+    const purchaseOrder = nextPurchaseOrderId
+      ? getPurchaseOrderForInbound_(nextPurchaseOrderId, nextProductId, stockSheet)
+      : null;
     process = String(pickCell_(row, rowInfo.indexes, ['최종공정', '최종 공정']) || '').trim();
 
     if (!process) {
@@ -2720,7 +2731,7 @@ function updateInbound(payload) {
     const totalBoxCount = inboundBoxCount + remainderQuantities.length;
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
-    const productId = dash_(payloadProductId || pickCell_(row, rowInfo.indexes, ['제품ID', '제품 ID']));
+    const productId = dash_(nextProductId);
     const productName = dash_(pickCell_(row, rowInfo.indexes, ['제품명']));
     const clientName = dash_(pickCell_(row, rowInfo.indexes, ['업체명', '거래처명']));
     const registeredDate = dash_(pickCell_(row, rowInfo.indexes, ['등록 일시', '등록일시']));
@@ -2753,9 +2764,13 @@ function updateInbound(payload) {
     setRowValue_(row, rowInfo.indexes, ['입고일'], inboundDate);
     setRowValue_(row, rowInfo.indexes, ['입고 시간', '입고시간'], inboundTime);
     setRowValue_(row, rowInfo.indexes, ['입고 유형', '입고유형'], inboundType);
-    setRowValue_(row, rowInfo.indexes, ['납기일'], dash_(storedDueDate));
+    setRowValue_(row, rowInfo.indexes, ['납기일'], dash_(purchaseOrder?.endDate || payload.dueDate || storedDueDate));
+    setRowValue_(row, rowInfo.indexes, ['발주ID', '발주 ID'], nextPurchaseOrderId);
+    setRowValue_(row, rowInfo.indexes, ['발주 차수'], purchaseOrder
+      ? purchaseOrder.orderRound
+      : hasPurchaseOrderSelection ? '' : storedPurchaseOrderRound);
     setRowValue_(row, rowInfo.indexes, ['제품ID', '제품 ID'], productId);
-    setRowValue_(row, rowInfo.indexes, ['차수'], dash_(payload.batch));
+    setRowValue_(row, rowInfo.indexes, ['차수'], dash_(purchaseOrder?.orderRound || payload.batch));
     setRowValue_(row, rowInfo.indexes, ['최종공정'], process);
     setRowValue_(row, rowInfo.indexes, ['보관위치'], storage);
     setRowValue_(row, rowInfo.indexes, ['상태', '재고 상태'], stockStatus);
