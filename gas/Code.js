@@ -1951,7 +1951,7 @@ function createInbound(payload) {
 
   if (!isExistingStock) {
     required.push(['defectReason', '불량 사유']);
-    required.push(['purchaseOrderId', '발주 차수']);
+    required.push(['purchaseOrderId', '발주 건']);
   }
 
   required.forEach(([key, label]) => {
@@ -2641,7 +2641,7 @@ function createPurchaseOrder(payload) {
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     ensureStockDbPurchaseOrderHeaders_(stockSheet);
     const existing = readPurchaseOrders_(sheet, stockSheet, false).orders;
-    if (existing.some((order) => order.productId === data.productId && order.orderRound === data.orderRound)) {
+    if (data.orderRound && existing.some((order) => order.productId === data.productId && order.orderRound === data.orderRound)) {
       throw new Error(`${data.productName}의 ${data.orderRound} 발주가 이미 등록되어 있습니다.`);
     }
 
@@ -2686,7 +2686,7 @@ function updatePurchaseOrder(payload) {
     if (current.accumulatedInboundQuantity > 0 && current.productId !== data.productId) {
       throw new Error('입고가 연결된 발주는 제품을 변경할 수 없습니다.');
     }
-    if (result.orders.some((order) => (
+    if (data.orderRound && result.orders.some((order) => (
       order.purchaseOrderId !== purchaseOrderId
       && order.productId === data.productId
       && order.orderRound === data.orderRound
@@ -2760,7 +2760,6 @@ function validatePurchaseOrderPayload_(data) {
     ['productId', '제품'],
     ['clientName', '거래처명'],
     ['productName', '제품명'],
-    ['orderRound', '발주 차수'],
     ['startDate', '발주 시작일']
   ];
   const missing = required.find(([key]) => !data[key]);
@@ -2890,7 +2889,7 @@ function getPurchaseOrderForInbound_(purchaseOrderId, productId, stockSheet) {
   const result = readPurchaseOrders_(sheet, stockSheet, false);
   const order = result.orders.find((item) => item.purchaseOrderId === purchaseOrderId);
   if (!order) {
-    throw new Error('선택한 발주 차수를 찾을 수 없습니다. 발주 목록을 새로고침해주세요.');
+    throw new Error('선택한 발주 건을 찾을 수 없습니다. 발주 목록을 새로고침해주세요.');
   }
   if (String(order.productId || '').trim() !== String(productId || '').trim()) {
     throw new Error('선택한 발주와 입고 제품이 일치하지 않습니다.');

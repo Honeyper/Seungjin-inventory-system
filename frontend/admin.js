@@ -4719,9 +4719,10 @@ function updateInboundSummary() {
   }
 
   if (orderProgressText) {
+    const orderRoundLabel = selectedPurchaseOrder?.orderRound || "차수 미정";
     orderProgressText.innerHTML = selectedPurchaseOrder
-      ? `${escapeHtml(selectedPurchaseOrder.orderRound)} 입고율 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""}`
-      : selectedProduct ? "발주 차수를 선택해주세요." : "제품을 선택해주세요.";
+      ? `${escapeHtml(orderRoundLabel)} 입고율 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""}`
+      : selectedProduct ? "발주 건을 선택해주세요." : "제품을 선택해주세요.";
   }
 }
 
@@ -4863,7 +4864,7 @@ function validateInboundPayload(payload) {
     ["inboundType", "입고 유형을 선택해주세요."],
     ["productName", "제품을 선택해주세요."],
     ["productId", "제품 ID를 확인해주세요."],
-    ["purchaseOrderId", "발주 차수를 선택해주세요."],
+    ["purchaseOrderId", "발주 건을 선택해주세요."],
     ["clientName", "거래처명을 입력해주세요."],
     ["process", "제품관리에서 SKU 고정 공정을 먼저 등록해주세요."],
     ["storage", "보관위치를 선택해주세요."],
@@ -5765,7 +5766,7 @@ function renderPurchaseOrders(message = "") {
     return `
       <tr>
         <td>${index + 1}</td>
-        <td><strong>${escapeHtml(order.orderRound || "-")}</strong><br><small>${escapeHtml(order.productId || "-")}</small></td>
+        <td><strong>${escapeHtml(order.orderRound || "차수 미정")}</strong><br><small>${escapeHtml(order.productId || "-")}</small></td>
         <td>${escapeHtml(order.clientName || "-")}</td>
         <td>${escapeHtml(order.productName || "-")}</td>
         <td>발주 ${escapeHtml(order.startDate || "-")}<br><small>납기 ${escapeHtml(order.endDate || "미정")}</small></td>
@@ -5875,7 +5876,7 @@ function getPurchaseOrderPayload() {
 async function savePurchaseOrder() {
   if (state.isSavingPurchaseOrder) return;
   const payload = getPurchaseOrderPayload();
-  if (!payload.productId || !payload.orderRound || !payload.startDate || payload.totalOrderQuantity <= 0) {
+  if (!payload.productId || !payload.startDate || payload.totalOrderQuantity <= 0) {
     purchaseOrderFormMessage.textContent = "필수 항목을 모두 입력해주세요.";
     return;
   }
@@ -5902,7 +5903,7 @@ async function savePurchaseOrder() {
 }
 
 async function deletePurchaseOrder(order) {
-  if (!window.confirm(`${order.productName} ${order.orderRound} 발주를 삭제하시겠습니까?`)) return;
+  if (!window.confirm(`${order.productName} ${order.orderRound || "차수 미정"} 발주를 삭제하시겠습니까?`)) return;
   try {
     await requestApi("deletePurchaseOrder", { purchaseOrderId: order.purchaseOrderId });
     await loadPurchaseOrders();
@@ -5931,8 +5932,8 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
     inboundPurchaseOrder.disabled = true;
   } else {
     inboundPurchaseOrder.innerHTML = [
-      '<option value="">발주 차수를 선택해주세요.</option>',
-      ...orders.map((order) => `<option value="${escapeAttribute(order.purchaseOrderId)}">${escapeHtml(order.orderRound)} · ${Number(order.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea</option>`)
+      '<option value="">발주 건을 선택해주세요.</option>',
+      ...orders.map((order) => `<option value="${escapeAttribute(order.purchaseOrderId)}">${escapeHtml(order.orderRound || "차수 미정")} · ${Number(order.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea</option>`)
     ].join("");
     inboundPurchaseOrder.disabled = false;
     inboundPurchaseOrder.value = orders.some((order) => order.purchaseOrderId === previousValue)
