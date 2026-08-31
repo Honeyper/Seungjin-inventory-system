@@ -2689,7 +2689,7 @@ input {
 }
 
 .inventory-table {
-  min-width: 86rem;
+  min-width: 92rem;
   font-size: 0.84rem;
 }
 
@@ -2710,6 +2710,13 @@ input {
 .inventory-table td:nth-child(5) {
   min-width: 18rem;
   width: 22rem;
+}
+
+.inventory-table th:nth-child(6),
+.inventory-table td:nth-child(6),
+.inventory-table th:nth-child(7),
+.inventory-table td:nth-child(7) {
+  min-width: 8rem;
 }
 
 .inventory-table th {
@@ -9995,6 +10002,10 @@ input {
 
   .inbound-purchase-order-field {
     grid-column: auto;
+  }
+
+  .inbound-note-field {
+    grid-column: span 3;
   }
 
   .inbound-card:not(.inbound-quantity-card) .form-field {

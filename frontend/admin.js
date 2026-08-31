@@ -171,7 +171,7 @@ const state = {
     invoice: "",
     defect: ""
   },
-  selectedDefectReasons: [],
+  selectedDefectReasons: ["양호"],
   inboundEditDefectReasons: [],
   inboundSort: {
     column: null,
@@ -3943,6 +3943,7 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
       item.productName,
       item.clientName,
       item.batch,
+      item.purchaseOrderRound,
       item.finalProcess,
       item.storage,
       item.currentBoxCount,
@@ -5080,6 +5081,7 @@ async function saveInbound() {
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
     await refreshInboundMutationData({ includeProducts: true });
+    resetInboundDefectDefaults();
     updateInboundSummary();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
   } catch (error) {
@@ -5271,15 +5273,25 @@ function toggleInboundDefectReason(reason) {
     return;
   }
 
-  const selectedReasons = new Set(state.selectedDefectReasons);
-
-  if (selectedReasons.has(reason)) {
-    selectedReasons.delete(reason);
+  if (reason === "양호") {
+    state.selectedDefectReasons = ["양호"];
   } else {
-    selectedReasons.add(reason);
+    const selectedReasons = new Set(state.selectedDefectReasons.filter((value) => value !== "양호"));
+    if (selectedReasons.has(reason)) {
+      selectedReasons.delete(reason);
+    } else {
+      selectedReasons.add(reason);
+    }
+    state.selectedDefectReasons = selectedReasons.size ? Array.from(selectedReasons) : ["양호"];
   }
+  renderInboundDefectReasons();
+}
 
-  state.selectedDefectReasons = Array.from(selectedReasons);
+function resetInboundDefectDefaults() {
+  if (inboundDefectQty) {
+    inboundDefectQty.value = "0";
+  }
+  state.selectedDefectReasons = ["양호"];
   renderInboundDefectReasons();
 }
 
@@ -6368,7 +6380,6 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
 
 function applySelectedInboundPurchaseOrder() {
   const order = getInboundPurchaseOrder();
-  inboundBatch.value = order?.orderRound || "";
   inboundDueDate.value = order?.endDate || "";
 }
 
@@ -6491,7 +6502,7 @@ function renderInventoryLoading() {
 
   inventoryTableBody.innerHTML = `
     <tr>
-      <td colspan="13" class="empty-cell">재고 정보를 불러오는 중입니다.</td>
+      <td colspan="14" class="empty-cell">재고 정보를 불러오는 중입니다.</td>
     </tr>
   `;
 }
@@ -7301,6 +7312,7 @@ function applyInventoryFilters() {
       item.productName,
       item.clientName,
       item.batch,
+      item.purchaseOrderRound,
       item.finalProcess,
       item.storage,
       item.stockStatus,
@@ -7331,6 +7343,7 @@ function buildInventoryAggregateStats(rows) {
     clientCount: countInventoryDistinct(sourceRows, (item) => item.clientName),
     productCount: countInventoryDistinct(sourceRows, (item) => item.productName),
     batchCount: countInventoryDistinct(sourceRows, (item) => item.batch),
+    purchaseOrderRoundCount: countInventoryDistinct(sourceRows, (item) => item.purchaseOrderRound),
     processCount: countInventoryDistinct(sourceRows, (item) => item.finalProcess),
     storageCount: countInventoryDistinct(sourceRows, (item) => item.storage),
     statusCount: countInventoryDistinct(sourceRows, (item) => item.processStatus),
@@ -7383,6 +7396,7 @@ function renderInventoryAggregateRow(rows) {
       <td></td>
       <td></td>
       <td></td>
+      <td></td>
       <td><span class="inventory-total-value">${formatNumber(stats.totalBoxes)} box</span></td>
       <td><span class="inventory-total-value">${formatNumber(stats.totalQuantity)} ea</span></td>
       <td></td>
@@ -7408,7 +7422,7 @@ function renderInventoryTable(message = "") {
   if (message || !rows.length) {
     inventoryTableBody.innerHTML = `
       <tr>
-        <td colspan="13" class="empty-cell">${escapeHtml(message || "재고 목록이 없습니다.")}</td>
+        <td colspan="14" class="empty-cell">${escapeHtml(message || "재고 목록이 없습니다.")}</td>
       </tr>
     `;
   } else {
@@ -7422,6 +7436,7 @@ function renderInventoryTable(message = "") {
         <td>${escapeHtml(item.clientName)}</td>
         <td>${escapeHtml(item.productName)}</td>
         <td>${escapeHtml(item.batch)}</td>
+        <td>${escapeHtml(item.purchaseOrderRound || "-")}</td>
         <td>${escapeHtml(item.finalProcess)}</td>
         <td>${escapeHtml(item.currentBoxCount)}</td>
         <td>${escapeHtml(item.currentTotalQuantity)}</td>
@@ -8799,7 +8814,8 @@ function renderInboundDetail(inbound) {
         ${detailItem("제품 ID", inbound.productId)}
         ${detailItem("거래처명", inbound.clientName)}
         ${detailItem("제품명", inbound.productName, false, "full-span")}
-        ${detailItem("발주 차수", inbound.purchaseOrderRound || inbound.batch)}
+        ${detailItem("발주 차수", inbound.purchaseOrderRound)}
+        ${detailItem("차수", inbound.batch)}
         ${detailItem("최종공정", inbound.process)}
         ${detailItem("보관위치", inbound.storage)}
       </div>
@@ -9111,7 +9127,7 @@ function renderInboundEditForm(inbound) {
   if (currentPurchaseOrderId && !editablePurchaseOrders.some((order) => order.purchaseOrderId === currentPurchaseOrderId)) {
     editablePurchaseOrders.unshift({
       purchaseOrderId: currentPurchaseOrderId,
-      orderRound: inbound.purchaseOrderRound || inbound.batch || "",
+      orderRound: inbound.purchaseOrderRound || "",
       accumulatedInboundQuantity: 0,
       totalOrderQuantity: 0
     });
@@ -9159,6 +9175,10 @@ function renderInboundEditForm(inbound) {
           <select id="inboundEditPurchaseOrder">
             ${purchaseOrderOptions}
           </select>
+        </label>
+        <label class="form-field">
+          <span>차수</span>
+          <input id="inboundEditBatch" type="text" value="${escapeAttribute(normalizeEditableValue(inbound.batch))}" placeholder="예: 7차 (선택)" />
         </label>
         <label class="form-field">
           <span>SKU 고정 공정 <b>*</b></span>
@@ -9539,8 +9559,6 @@ async function saveInboundEdit() {
 async function getInboundEditPayload() {
   const source = state.activeDetailInboundRecord || {};
   const selectedPurchaseOrderId = inboundDetailContent.querySelector("#inboundEditPurchaseOrder")?.value.trim() || "";
-  const selectedPurchaseOrder = getPurchaseOrderById(selectedPurchaseOrderId);
-  const sourceBatch = normalizeEditableValue(source.batch);
   const multipleRemainders = Boolean(inboundDetailContent.querySelector("#inboundEditMultipleRemainders")?.checked);
   const remainderQuantities = multipleRemainders
     ? getRemainderInputValues(inboundDetailContent.querySelector("#inboundEditRemainderList"), "data-inbound-edit-remainder-input")
@@ -9559,9 +9577,7 @@ async function getInboundEditPayload() {
     inboundType: inboundDetailContent.querySelector("#inboundEditType")?.value.trim() || "",
     purchaseOrderId: selectedPurchaseOrderId,
     dueDate: inboundDetailContent.querySelector("#inboundEditDueDate")?.value.trim() || "",
-    batch: selectedPurchaseOrder
-      ? String(selectedPurchaseOrder.orderRound || "").trim()
-      : source.purchaseOrderId ? "" : sourceBatch,
+    batch: inboundDetailContent.querySelector("#inboundEditBatch")?.value.trim() || "",
     process: inboundDetailContent.querySelector("#inboundEditProcess")?.value.trim() || "",
     storage: inboundDetailContent.querySelector("#inboundEditStorage")?.value.trim() || "",
     stockStatus: inboundDetailContent.querySelector("#inboundEditStockStatus")?.value.trim() || "",
