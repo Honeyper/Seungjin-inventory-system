@@ -9993,6 +9993,10 @@ input {
     gap: 0.65rem 1.1rem;
   }
 
+  .inbound-purchase-order-field {
+    grid-column: auto;
+  }
+
   .inbound-card:not(.inbound-quantity-card) .form-field {
     display: grid;
     grid-template-columns: 6.7rem minmax(0, 1fr);
