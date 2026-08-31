@@ -1417,7 +1417,9 @@ function getProductProcessInfo_(productId, productName) {
     stage1: normalizeProductProcessMethod_(stage1),
     stage2: normalizeProductProcessMethod_(stage2),
     stage3: normalizeProductProcessMethod_(stage3),
-    route: formatProductProcessRoute_(finalProcess, stage1, stage2, stage3)
+    route: formatProductProcessRoute_(finalProcess, stage1, stage2, stage3),
+    dustRemovalStatus: String(pickCell_(row, indexes, ['박가루제거 유무', '박가루 제거 유무']) || '무').trim(),
+    flameTreatmentStatus: String(pickCell_(row, indexes, ['화염처리 유무', '화염 처리 유무']) || '무').trim()
   };
 }
 
@@ -1497,65 +1499,6 @@ function getProducts() {
   return {
     products
   };
-}
-
-function getProductProcessInfo_(productId, productName) {
-  const targetProductId = String(productId || '').trim();
-  const targetProductName = String(productName || '').trim();
-  const emptyInfo = { finalProcess: '', dustRemovalStatus: '무', flameTreatmentStatus: '무' };
-
-  if (!targetProductId && !targetProductName) {
-    return emptyInfo;
-  }
-
-  const sheet = getProductSheet_();
-  const values = sheet.getDataRange().getDisplayValues();
-  const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
-
-  if (!headerInfo) {
-    return emptyInfo;
-  }
-
-  const indexes = indexHeaders_(headerInfo.headers);
-  let nameMatchedInfo = null;
-
-  for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
-    const row = values[rowIndex];
-    const rowProductId = String(pickCell_(row, indexes, ['제품 ID', '제품ID']) || '').trim();
-    const rowProductName = String(pickCell_(row, indexes, ['제품명']) || '').trim();
-    const processInfo = {
-      finalProcess: String(pickCell_(row, indexes, ['최종공정', '최종 공정']) || '').trim(),
-      dustRemovalStatus: String(pickCell_(row, indexes, ['박가루제거 유무', '박가루 제거 유무']) || '무').trim(),
-      flameTreatmentStatus: String(pickCell_(row, indexes, ['화염처리 유무', '화염 처리 유무']) || '무').trim()
-    };
-
-    if (targetProductId && rowProductId === targetProductId) {
-      return processInfo;
-    }
-
-    if (!nameMatchedInfo && targetProductName && rowProductName === targetProductName) {
-      nameMatchedInfo = processInfo;
-    }
-  }
-
-  return nameMatchedInfo || emptyInfo;
-}
-
-function formatProductProcess_(process, productInfo) {
-  const baseProcess = String(process || productInfo.finalProcess || '')
-    .split('|')[0]
-    .trim();
-  const labels = [baseProcess];
-
-  if (String(productInfo.flameTreatmentStatus || '').trim() === '유') {
-    labels.push('화염처리');
-  }
-
-  if (String(productInfo.dustRemovalStatus || '').trim() === '유') {
-    labels.push('박가루제거');
-  }
-
-  return labels.filter(Boolean).join(' | ');
 }
 
 function getProductDueDateMap_() {
