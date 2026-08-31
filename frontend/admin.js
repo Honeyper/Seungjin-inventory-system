@@ -4722,7 +4722,7 @@ function updateInboundSummary() {
     const orderRoundLabel = selectedPurchaseOrder?.orderRound || "차수 미정";
     orderProgressText.innerHTML = selectedPurchaseOrder
       ? `${escapeHtml(orderRoundLabel)} 입고율 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""}`
-      : selectedProduct ? "발주 건을 선택해주세요." : "제품을 선택해주세요.";
+      : selectedProduct ? "발주 건은 나중에 연결할 수 있습니다." : "제품을 선택해주세요.";
   }
 }
 
@@ -4864,7 +4864,6 @@ function validateInboundPayload(payload) {
     ["inboundType", "입고 유형을 선택해주세요."],
     ["productName", "제품을 선택해주세요."],
     ["productId", "제품 ID를 확인해주세요."],
-    ["purchaseOrderId", "발주 건을 선택해주세요."],
     ["clientName", "거래처명을 입력해주세요."],
     ["process", "제품관리에서 SKU 고정 공정을 먼저 등록해주세요."],
     ["storage", "보관위치를 선택해주세요."],
@@ -5917,6 +5916,10 @@ function getInboundPurchaseOrder() {
   return getPurchaseOrderById(inboundPurchaseOrder?.value || "");
 }
 
+function getInboundPurchaseOrderLabel(order) {
+  return `${order?.orderRound || "차수 미정"} · ${Number(order?.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order?.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea`;
+}
+
 function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
   if (!inboundPurchaseOrder) return;
   const previousValue = preferredOrderId || inboundPurchaseOrder.value;
@@ -5928,17 +5931,17 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
     inboundPurchaseOrder.innerHTML = '<option value="">제품을 먼저 선택해주세요.</option>';
     inboundPurchaseOrder.disabled = true;
   } else if (!orders.length) {
-    inboundPurchaseOrder.innerHTML = '<option value="">진행 중인 발주가 없습니다.</option>';
+    inboundPurchaseOrder.innerHTML = '<option value="">연결 가능한 발주 없음 · 추후 연결 가능</option>';
     inboundPurchaseOrder.disabled = true;
   } else {
     inboundPurchaseOrder.innerHTML = [
-      '<option value="">발주 건을 선택해주세요.</option>',
-      ...orders.map((order) => `<option value="${escapeAttribute(order.purchaseOrderId)}">${escapeHtml(order.orderRound || "차수 미정")} · ${Number(order.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea</option>`)
+      '<option value="">미연결로 등록 · 추후 상세에서 연결 가능</option>',
+      ...orders.map((order) => `<option value="${escapeAttribute(order.purchaseOrderId)}">${escapeHtml(getInboundPurchaseOrderLabel(order))}</option>`)
     ].join("");
     inboundPurchaseOrder.disabled = false;
     inboundPurchaseOrder.value = orders.some((order) => order.purchaseOrderId === previousValue)
       ? previousValue
-      : orders.length === 1 ? orders[0].purchaseOrderId : "";
+      : "";
   }
   applySelectedInboundPurchaseOrder();
 }
@@ -7864,7 +7867,7 @@ function openActiveInboundEdit() {
   inboundDetailModal.hidden = false;
   resetModalScrollPosition(inboundDetailModal);
   document.body.classList.add("modal-open");
-  window.setTimeout(() => document.querySelector("#inboundEditBatch")?.focus(), 0);
+  window.setTimeout(() => document.querySelector("#inboundEditPurchaseOrder")?.focus(), 0);
 }
 
 function openDetailInboundEdit() {
@@ -7880,7 +7883,7 @@ function openDetailInboundEdit() {
   setInboundDetailMode("edit");
   renderInboundEditForm(inbound);
   resetModalScrollPosition(inboundDetailModal);
-  window.setTimeout(() => document.querySelector("#inboundEditBatch")?.focus(), 0);
+  window.setTimeout(() => document.querySelector("#inboundEditPurchaseOrder")?.focus(), 0);
 }
 
 function getInboundByManagementId(managementId, productId = "") {
@@ -8358,6 +8361,23 @@ function renderInboundEditForm(inbound) {
   const inboundRemainderQuantities = getInboundRecordRemainderQuantities(inbound);
   const hasMultipleRemainders = inboundRemainderQuantities.length > 1;
   const editRemainderValues = hasMultipleRemainders ? inboundRemainderQuantities : [0, 0];
+  const currentPurchaseOrderId = String(inbound.purchaseOrderId || "").trim();
+  const editablePurchaseOrders = state.purchaseOrders.filter((order) => (
+    order.productId === inbound.productId
+    && (order.purchaseOrderId === currentPurchaseOrderId || !["취소", "입고완료"].includes(order.status))
+  ));
+  if (currentPurchaseOrderId && !editablePurchaseOrders.some((order) => order.purchaseOrderId === currentPurchaseOrderId)) {
+    editablePurchaseOrders.unshift({
+      purchaseOrderId: currentPurchaseOrderId,
+      orderRound: inbound.purchaseOrderRound || inbound.batch || "",
+      accumulatedInboundQuantity: 0,
+      totalOrderQuantity: 0
+    });
+  }
+  const purchaseOrderOptions = [
+    `<option value=""${currentPurchaseOrderId ? "" : " selected"}>미연결 · 추후 연결 가능</option>`,
+    ...editablePurchaseOrders.map((order) => `<option value="${escapeAttribute(order.purchaseOrderId)}"${order.purchaseOrderId === currentPurchaseOrderId ? " selected" : ""}>${escapeHtml(getInboundPurchaseOrderLabel(order))}</option>`)
+  ].join("");
 
   inboundDetailContent.innerHTML = `
     <section class="detail-section inbound-edit-section" aria-labelledby="inboundEditReadonlyTitle">
@@ -8393,8 +8413,10 @@ function renderInboundEditForm(inbound) {
           <input id="inboundEditDueDate" type="date" value="${escapeAttribute(toDateInputValue(inbound.dueDate))}" disabled />
         </label>
         <label class="form-field">
-          <span>차수</span>
-          <input id="inboundEditBatch" type="text" value="${escapeAttribute(normalizeEditableValue(inbound.batch))}" placeholder="차수를 입력하세요." />
+          <span>발주 건</span>
+          <select id="inboundEditPurchaseOrder">
+            ${purchaseOrderOptions}
+          </select>
         </label>
         <label class="form-field">
           <span>SKU 고정 공정 <b>*</b></span>
@@ -8499,6 +8521,15 @@ function renderInboundEditForm(inbound) {
 }
 
 function bindInboundEditFormEvents() {
+  const purchaseOrderSelect = inboundDetailContent.querySelector("#inboundEditPurchaseOrder");
+  purchaseOrderSelect?.addEventListener("change", () => {
+    const selectedOrder = getPurchaseOrderById(purchaseOrderSelect.value);
+    const dueDateInput = inboundDetailContent.querySelector("#inboundEditDueDate");
+    if (dueDateInput && selectedOrder?.endDate) {
+      dueDateInput.value = toDateInputValue(selectedOrder.endDate);
+    }
+  });
+
   inboundDetailContent.querySelectorAll("[data-edit-lock-target]").forEach((button) => {
     const input = inboundDetailContent.querySelector(`#${button.dataset.editLockTarget}`);
 
@@ -8765,6 +8796,9 @@ async function saveInboundEdit() {
 
 async function getInboundEditPayload() {
   const source = state.activeDetailInboundRecord || {};
+  const selectedPurchaseOrderId = inboundDetailContent.querySelector("#inboundEditPurchaseOrder")?.value.trim() || "";
+  const selectedPurchaseOrder = getPurchaseOrderById(selectedPurchaseOrderId);
+  const sourceBatch = normalizeEditableValue(source.batch);
   const multipleRemainders = Boolean(inboundDetailContent.querySelector("#inboundEditMultipleRemainders")?.checked);
   const remainderQuantities = multipleRemainders
     ? getRemainderInputValues(inboundDetailContent.querySelector("#inboundEditRemainderList"), "data-inbound-edit-remainder-input")
@@ -8781,8 +8815,11 @@ async function getInboundEditPayload() {
     inboundDate: inboundDetailContent.querySelector("#inboundEditDate")?.value.trim() || "",
     inboundTime: inboundDetailContent.querySelector("#inboundEditTime")?.value.trim() || "",
     inboundType: inboundDetailContent.querySelector("#inboundEditType")?.value.trim() || "",
+    purchaseOrderId: selectedPurchaseOrderId,
     dueDate: inboundDetailContent.querySelector("#inboundEditDueDate")?.value.trim() || "",
-    batch: inboundDetailContent.querySelector("#inboundEditBatch")?.value.trim() || "",
+    batch: selectedPurchaseOrder
+      ? String(selectedPurchaseOrder.orderRound || "").trim()
+      : source.purchaseOrderId ? "" : sourceBatch,
     process: inboundDetailContent.querySelector("#inboundEditProcess")?.value.trim() || "",
     storage: inboundDetailContent.querySelector("#inboundEditStorage")?.value.trim() || "",
     stockStatus: inboundDetailContent.querySelector("#inboundEditStockStatus")?.value.trim() || "",
