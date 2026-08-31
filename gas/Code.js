@@ -1935,6 +1935,7 @@ function createInbound(payload) {
   );
   payload.storage = String(payload.storage || payload.storageLocation || payload['보관위치'] || payload['보관 위치'] || '').trim();
   payload.purchaseOrderId = String(payload.purchaseOrderId || payload['발주ID'] || '').trim();
+  payload.defectReason = String(payload.defectReason || payload['불량 사유'] || payload['불량사유'] || '').trim() || '양호';
 
   const category = normalizeInboundCategory_(payload);
   const isExistingStock = category === '기존재고';
@@ -2014,7 +2015,7 @@ function createInbound(payload) {
       purchaseOrderRound: purchaseOrder?.orderRound || '',
       productId: dash_(payload.productId),
       productName: dash_(payload.productName),
-      batch: dash_(purchaseOrder?.orderRound || payload.batch),
+      batch: dash_(payload.batch),
       process: dash_(payload.process),
       storage: dash_(payload.storage),
       boxQuantity: formatEa_(boxQuantity),
@@ -2208,7 +2209,7 @@ function updateInbound(payload) {
       ? purchaseOrder.orderRound
       : hasPurchaseOrderSelection ? '' : storedPurchaseOrderRound);
     setRowValue_(row, rowInfo.indexes, ['제품ID', '제품 ID'], productId);
-    setRowValue_(row, rowInfo.indexes, ['차수'], dash_(purchaseOrder?.orderRound || payload.batch));
+    setRowValue_(row, rowInfo.indexes, ['차수'], dash_(payload.batch));
     setRowValue_(row, rowInfo.indexes, ['최종공정'], process);
     setRowValue_(row, rowInfo.indexes, ['보관위치'], storage);
     setRowValue_(row, rowInfo.indexes, ['상태', '재고 상태'], stockStatus);

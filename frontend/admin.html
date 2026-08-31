@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260831-inbound-order-grid" />
+    <link rel="stylesheet" href="./styles.css?v=20260831-inbound-defaults-batch" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -237,7 +237,10 @@
                       <option value="">제품을 먼저 선택해주세요.</option>
                     </select>
                   </label>
-                  <input id="inboundBatch" type="hidden" />
+                  <label class="form-field">
+                    <span>차수</span>
+                    <input id="inboundBatch" type="text" placeholder="예: 7차 (선택)" />
+                  </label>
                   <label class="form-field">
                     <span>등록자</span>
                     <input type="text" id="inboundRegistrant" value="Admin" disabled />
@@ -269,7 +272,7 @@
                       <option>I</option>
                     </select>
                   </label>
-                  <label class="form-field">
+                  <label class="form-field inbound-note-field">
                     <span>비고</span>
                     <span class="editable-lock-input">
                       <input id="inboundNote" type="text" placeholder="비고를 입력하세요." disabled />
@@ -348,7 +351,7 @@
                   <label class="form-field quantity-defect">
                     <span>불량 수량 (EA) <b>*</b></span>
                     <span class="unit-input">
-                      <input id="inboundDefectQty" type="number" min="0" />
+                      <input id="inboundDefectQty" type="number" min="0" value="0" />
                       <i>ea</i>
                     </span>
                   </label>
@@ -951,6 +954,7 @@
                     <th>거래처명</th>
                     <th>제품명</th>
                     <th>차수</th>
+                    <th>발주 차수</th>
                     <th>최종공정</th>
                     <th>현재 박스 수</th>
                     <th>현재 총 수량 (EA)</th>
@@ -2662,6 +2666,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./config.js"></script>
-    <script src="./admin.js?v=20260831-optional-inbound-order"></script>
+    <script src="./admin.js?v=20260831-inbound-defaults-batch"></script>
   </body>
 </html>
