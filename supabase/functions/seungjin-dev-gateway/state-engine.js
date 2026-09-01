@@ -549,7 +549,6 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   if (action === "updateInbound" && previousBoxes.some((box) => /출고완료|폐기|출고대기|보류/.test(normalizeStatus(box.rawStatus || box.status)))) {
     throw new Error("출고 또는 재고 처리가 시작된 입고는 박스 구성을 수정할 수 없습니다.");
   }
-  previousBoxes.forEach((box) => changes.inventoryBoxes.deletes.push(box.boxId));
   state.boxes = state.boxes.filter((box) => !previousBoxes.includes(box));
   const remainders = normalizeRemainders(payload);
   const fullBoxes = integer(payload.inboundBoxCount);
@@ -579,6 +578,10 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     transferCompany: "",
     shipper: ""
   }));
+  const nextBoxIds = new Set(boxes.map((box) => box.boxId));
+  previousBoxes
+    .filter((box) => !nextBoxIds.has(box.boxId))
+    .forEach((box) => changes.inventoryBoxes.deletes.push(box.boxId));
   state.boxes.push(...boxes);
   upsertBoxes(boxes, changes);
   recalculateOrders(state.orders, state.inbounds, changes, dateParts(now).date);
