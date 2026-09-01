@@ -3139,6 +3139,60 @@ function getPurchaseOrderHeaders_() {
   ];
 }
 
+function normalizePurchaseOrderRoundText_(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return Utilities.formatDate(value, 'Asia/Seoul', 'MM/dd');
+  }
+
+  const text = String(value == null ? '' : value).trim();
+  if (!/^\d{5}(?:\.\d+)?$/.test(text)) {
+    return text;
+  }
+
+  const serial = Number(text);
+  const date = new Date(Date.UTC(1899, 11, 30) + Math.floor(serial) * 86400000);
+  const year = date.getUTCFullYear();
+  if (year < 2000 || year > 2100) {
+    return text;
+  }
+
+  return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function ensurePurchaseOrderRoundTextColumn_(sheet, headerRow, headers) {
+  const indexes = indexHeaders_(headers);
+  const roundIndex = findHeaderIndex_(indexes, ['발주 차수']);
+  if (roundIndex < 0) {
+    return { columnNumber: 0, normalizedCount: 0 };
+  }
+
+  const bodyStartRow = headerRow + 1;
+  const rowCount = Math.max(sheet.getLastRow() - headerRow, 1);
+  const range = sheet.getRange(bodyStartRow, roundIndex + 1, rowCount, 1);
+  const values = range.getValues();
+  const formats = range.getNumberFormats();
+  let normalizedCount = 0;
+  const normalizedValues = values.map(([value]) => {
+    const normalized = normalizePurchaseOrderRoundText_(value);
+    if (value instanceof Date || String(value == null ? '' : value).trim() !== normalized) {
+      normalizedCount += 1;
+    }
+    return [normalized];
+  });
+
+  if (formats.some(([format]) => format !== '@')) {
+    range.setNumberFormat('@');
+  }
+  if (normalizedCount > 0) {
+    range.setValues(normalizedValues);
+  }
+
+  return {
+    columnNumber: roundIndex + 1,
+    normalizedCount
+  };
+}
+
 function ensurePurchaseOrderSheet() {
   const ss = getSpreadsheet_();
   const sheetName = CONFIG.SHEETS.PURCHASE_ORDERS;
@@ -3246,6 +3300,7 @@ function ensurePurchaseOrderSheet_(ss) {
     sheet.getRange(bodyStartRow, 15, bodyRowCount, 2).setNumberFormat('yyyy-mm-dd hh:mm:ss');
   }
 
+  ensurePurchaseOrderRoundTextColumn_(sheet, headerRow, headers);
   for (let column = 1; column <= headers.length; column += 1) {
     sheet.setColumnWidth(column, referenceSheet.getColumnWidth(column));
   }
@@ -3307,9 +3362,16 @@ function ensureStockDbPurchaseOrderHeaders_(sheet) {
     nextColumn += 1;
   });
 
+  const roundTextResult = ensurePurchaseOrderRoundTextColumn_(
+    sheet,
+    headerInfo.rowIndex + 1,
+    existingHeaders
+  );
+
   return {
     createdHeaders,
-    headers: requiredHeaders
+    headers: requiredHeaders,
+    normalizedRoundCount: roundTextResult.normalizedCount
   };
 }
 
