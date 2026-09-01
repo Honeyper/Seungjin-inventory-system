@@ -38,7 +38,7 @@ const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
-const ADMIN_CACHE_PREFIX = `seungjinAdminCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v2:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const ADMIN_LARGE_CACHE_DB_NAME = `${ADMIN_CACHE_PREFIX}:large`;
 const ADMIN_LARGE_CACHE_STORE = "responses";
@@ -6948,7 +6948,7 @@ function buildInventoryFilterOptions(rows, fallback = {}) {
 function buildInventoryAttentionSummary(rows, fallback = {}) {
   return {
     ...fallback,
-    physicalMissingCount: rows.filter(isInventoryPhysicalMissing).length,
+    physicalMissingCount: rows.reduce((sum, row) => sum + Number(row.inventoryUnconfirmedBoxCount || 0), 0),
     unspecifiedStorageCount: rows.filter(isInventoryUnspecifiedStorageTarget).length,
     longStorageCount: rows.filter(isLongStoredInventory).length,
     holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(String(row.stockStatus || ""))).length
@@ -7092,10 +7092,10 @@ function getInventoryAttentionConfig(type) {
   const configs = {
     audit: {
       title: "실물 미확인 재고",
-      description: "재고 조사에서 실물이 확인되지 않아 재고조정된 제품 목록입니다.",
+      description: "모바일 재고 조사에서 아직 실물 확인되지 않은 박스 목록입니다.",
       tone: "purple",
       metricLabel: "미확인 박스",
-      metric: (item) => `${formatNumber(item.inventoryAdjustmentBoxCount)} box`,
+      metric: (item) => `${formatNumber(item.inventoryUnconfirmedBoxCount)} box`,
       filter: isInventoryPhysicalMissing
     },
     storage: {
@@ -7134,13 +7134,16 @@ function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(ty
 
   const rows = state.inventoryRows.filter(config.filter);
   return type === "audit"
-    ? rows.slice().sort((left, right) => String(right.lastInventoryAdjustmentAt || "").localeCompare(String(left.lastInventoryAdjustmentAt || "")))
+    ? rows.slice().sort((left, right) => (
+      Number(right.inventoryUnconfirmedBoxCount || 0) - Number(left.inventoryUnconfirmedBoxCount || 0)
+      || String(right.inboundDate || "").localeCompare(String(left.inboundDate || ""))
+    ))
     : rows;
 }
 
 function getInventoryAttentionDescription(type, rows, config) {
   if (type === "audit") {
-    const missingBoxes = rows.reduce((sum, item) => sum + Number(item.inventoryAdjustmentBoxCount || 0), 0);
+    const missingBoxes = rows.reduce((sum, item) => sum + Number(item.inventoryUnconfirmedBoxCount || 0), 0);
     return `${config.description} 총 ${formatNumber(rows.length)}건, ${formatNumber(missingBoxes)} box입니다.`;
   }
 
@@ -7152,7 +7155,7 @@ function getInventoryBoxCountTotal(rows) {
 }
 
 function isInventoryPhysicalMissing(item) {
-  return Number(item?.inventoryAdjustmentBoxCount || 0) > 0;
+  return Number(item?.inventoryUnconfirmedBoxCount || 0) > 0;
 }
 
 function isLongStoredInventory(item) {

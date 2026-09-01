@@ -584,4 +584,35 @@ test("remaining inventory adjustment uses canonical writes and protects classifi
   assert.equal(zeroAdjustment.result.status, "출고완료(재고조정)");
 });
 
+test("physical unconfirmed inventory counts unchecked mobile-audit boxes and decreases after confirmation", () => {
+  const holder = {
+    state: {
+      products: [product("ION-0100")],
+      orders: [],
+      inbounds: [],
+      records: [inventoryRecord("AUDIT-1", "ION-0100", 400)],
+      boxes: [
+        inventoryBox("AUDIT-1", "ION-0100", 1, 100),
+        { ...inventoryBox("AUDIT-1", "ION-0100", 2, 100), lastInventoryCheckedAt: "2026-08-31 18:00:00" },
+        inventoryBox("AUDIT-1", "ION-0100", 3, 100, { status: "출고완료" }),
+        { ...inventoryBox("AUDIT-1", "ION-0100", 4, 100), inventoryCategory: "자사재고" }
+      ]
+    }
+  };
+
+  const before = buildInventoryDashboard(holder.state.records, holder.state.boxes);
+  assert.equal(before.attention.physicalMissingCount, 1);
+  assert.equal(before.rows[0].inventoryUnconfirmedBoxCount, 1);
+
+  mutate(holder, "adjustMissingInventory", {
+    confirmedBoxes: [{ managementId: "AUDIT-1", productId: "ION-0100", selectedBoxes: [1] }],
+    adjustments: [],
+    userName: "테스터"
+  });
+
+  const after = buildInventoryDashboard(holder.state.records, holder.state.boxes);
+  assert.equal(after.attention.physicalMissingCount, 0);
+  assert.equal(after.rows[0].inventoryUnconfirmedBoxCount, 0);
+});
+
 console.log("supabase-state-engine-test=passed");

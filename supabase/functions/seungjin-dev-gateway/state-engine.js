@@ -1054,6 +1054,13 @@ export function buildInventoryDashboard(records, boxes) {
     row.shippingDefectQuantity = formatEa(active.reduce((sum, box) => sum + number(box.defectQuantity), 0));
     row.defectPhotoFolderUrl = [...new Set(active.map((box) => text(box.defectPhotoFolderUrl)).filter(Boolean))].join(" ");
     row.defectPhotoCount = row.defectPhotoFolderUrl ? row.defectPhotoFolderUrl.split(/\s+/).length : 0;
+    row.inventoryUnconfirmedBoxCount = active.filter((box) => {
+      const inventoryCategory = text(box.inventoryCategory);
+      const status = normalizeStatus(box.rawStatus || box.status);
+      const isProtected = inventoryCategory === "자사재고"
+        || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
+      return !isProtected && !text(box.lastInventoryCheckedAt);
+    }).length;
     return row;
   }).filter((row) => !text(row.stockStatus).includes("폐기") && (number(row.currentTotalQuantity) > 0 || text(row.stockStatus).includes("출고완료"))).reverse();
 
@@ -1089,7 +1096,7 @@ export function buildInventoryDashboard(records, boxes) {
     locationBoxStats,
     locationQuantityStats,
     attention: {
-      physicalMissingCount: rows.filter((row) => number(row.inventoryAdjustmentBoxCount) > 0).length,
+      physicalMissingCount: rows.reduce((sum, row) => sum + number(row.inventoryUnconfirmedBoxCount), 0),
       unspecifiedStorageCount: activeRows.filter((row) => !text(row.storage) || text(row.storage) === "미지정").length,
       holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(text(row.stockStatus))).length
     },
