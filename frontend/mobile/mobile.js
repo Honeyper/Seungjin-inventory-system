@@ -5474,9 +5474,18 @@ async function handleQrValue(rawValue) {
 
   try {
     await ensureDashboardLoaded();
-    const matched = state.activeWorkflow === "inventoryMove"
+    let matched = state.activeWorkflow === "inventoryMove"
       ? findInventoryMoveByQrValue(value)
       : findShippingByQrValue(value);
+
+    if (!matched) {
+      const refreshed = await loadShippingDashboard({ silent: true, suppressToast: true });
+      if (refreshed) {
+        matched = state.activeWorkflow === "inventoryMove"
+          ? findInventoryMoveByQrValue(value)
+          : findShippingByQrValue(value);
+      }
+    }
 
     if (!matched) {
       setScannerHelp(state.activeWorkflow === "inventoryMove" ? "이동할 박스를 찾지 못했습니다. QR 또는 보관 상태를 확인해주세요." : "일치하는 박스를 찾지 못했습니다. QR 또는 박스 정보를 확인해주세요.");
