@@ -6257,7 +6257,39 @@ input {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.picker-sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 2rem;
+  padding: 0.18rem 0.28rem 0.18rem 0.62rem;
+  color: #536178;
+  font-size: 0.72rem;
+  font-weight: 900;
+  border: 1px solid #d8e1ec;
+  border-radius: 0.42rem;
+  background: #fff;
+}
+
+.picker-sort-control select {
+  min-height: 1.55rem;
+  padding: 0 1.7rem 0 0.48rem;
+  color: #0d3268;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 900;
+  border: 0;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.picker-sort-control select:focus-visible {
+  outline: 2px solid rgba(35, 103, 192, 0.25);
+  outline-offset: 1px;
 }
 
 .picker-create-product {
@@ -11039,6 +11071,18 @@ input {
 
   .picker-result-actions > span {
     display: none;
+  }
+
+  .picker-result-actions {
+    gap: 0.45rem;
+  }
+
+  .picker-sort-control > span {
+    display: none;
+  }
+
+  .picker-sort-control {
+    padding-left: 0.28rem;
   }
 
   .picker-product-row {
