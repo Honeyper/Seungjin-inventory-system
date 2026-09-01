@@ -74,6 +74,7 @@ const state = {
   products: [],
   productsLoadPromise: null,
   purchaseOrders: [],
+  purchaseOrdersLoadPromise: null,
   filteredPurchaseOrders: [],
   purchaseOrdersLoaded: false,
   purchaseOrderQuery: "",
@@ -87,6 +88,7 @@ const state = {
   filteredInventoryRows: [],
   inventoryLocationBoxStats: [],
   inventoryLocationQuantityStats: [],
+  inventoryLoadPromise: null,
   inventoryPage: 1,
   inventoryPageSize: 10,
   inventoryLoaded: false,
@@ -2263,7 +2265,7 @@ async function saveShippingInspection() {
       showToast(clearShippingWaiting
         ? "출고대기 박스를 보관 상태로 변경했습니다."
         : `${selectedBoxes.length}개 박스를 폐기 처리했습니다.`);
-      await loadInventoryDashboard(false);
+      void refreshInventoryDashboardAfterMutation();
       return;
     }
 
@@ -2316,7 +2318,7 @@ async function saveShippingInspection() {
     }
 
     closeShippingInspectionModal();
-    await loadInventoryDashboard(false);
+    void refreshInventoryDashboardAfterMutation();
   } catch (error) {
     if (shippingInspectionMessage) {
       shippingInspectionMessage.textContent = error.message || "출고 검수 저장 중 문제가 발생했습니다.";
@@ -3043,7 +3045,7 @@ async function saveRemainingInventory() {
     if (isAudit) {
       closeInboundDetailModal();
     }
-    await loadInventoryDashboard(false);
+    await refreshInventoryDashboardAfterMutation();
     showToast(isAudit
       ? `${formatNumber(result?.updatedBoxRows || selectedBoxes.length)}개 박스를 재고 정리했습니다.`
       : isAdjustment
@@ -3588,7 +3590,7 @@ async function saveTransferReturn() {
       returner: session?.name || "Admin"
     });
     closeTransferReturnModal();
-    await loadInventoryDashboard(false);
+    await refreshInventoryDashboardAfterMutation();
     showToast(targetStatus === "출고대기"
       ? isTakeoutReturn
         ? "반출 박스를 재입고하고 바로 출고대기로 등록했습니다."
@@ -3742,7 +3744,7 @@ async function updateShippingStatus(row, status, extraPayload = {}) {
   if (status === "출고완료") {
     clearShippingBoxDraft(getShippingDraftKeyFromRow(row));
   }
-  await loadInventoryDashboard(false);
+  void refreshInventoryDashboardAfterMutation();
   return result;
 }
 
@@ -5080,7 +5082,7 @@ async function saveInbound() {
     payload.defectFiles = await getInboundDefectFilePayloads();
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
-    await refreshInboundMutationData({ includeProducts: true });
+    void refreshInboundMutationDataAfterMutation();
     resetInboundDefectDefaults();
     updateInboundSummary();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
@@ -6124,6 +6126,23 @@ async function ensureProductsLoaded() {
 }
 
 async function loadPurchaseOrders() {
+  if (state.purchaseOrdersLoadPromise) {
+    return state.purchaseOrdersLoadPromise;
+  }
+
+  const loadPromise = loadPurchaseOrdersRequest();
+  state.purchaseOrdersLoadPromise = loadPromise;
+
+  try {
+    return await loadPromise;
+  } finally {
+    if (state.purchaseOrdersLoadPromise === loadPromise) {
+      state.purchaseOrdersLoadPromise = null;
+    }
+  }
+}
+
+async function loadPurchaseOrdersRequest() {
   if (purchaseOrderListStatus) {
     purchaseOrderListStatus.textContent = "발주 정보를 불러오는 중입니다.";
     purchaseOrderListStatus.dataset.type = "";
@@ -6427,6 +6446,20 @@ async function refreshInboundMutationData({ includeProducts = false, includeInve
   return Promise.all(refreshTasks);
 }
 
+async function refreshInboundMutationDataAfterMutation(options = {}) {
+  const includeInventory = options.includeInventory ?? state.inventoryLoaded;
+  const activeRefreshes = [
+    state.purchaseOrdersLoadPromise,
+    includeInventory ? state.inventoryLoadPromise : null
+  ].filter(Boolean);
+
+  if (activeRefreshes.length) {
+    await Promise.allSettled(activeRefreshes);
+  }
+
+  return refreshInboundMutationData({ ...options, includeInventory });
+}
+
 async function refreshTodayInbounds() {
   if (state.isRefreshingInbounds) {
     return;
@@ -6445,6 +6478,31 @@ async function refreshTodayInbounds() {
 }
 
 async function loadInventoryDashboard(showLoadingToast = true) {
+  if (state.inventoryLoadPromise) {
+    return state.inventoryLoadPromise;
+  }
+
+  const loadPromise = loadInventoryDashboardRequest(showLoadingToast);
+  state.inventoryLoadPromise = loadPromise;
+
+  try {
+    return await loadPromise;
+  } finally {
+    if (state.inventoryLoadPromise === loadPromise) {
+      state.inventoryLoadPromise = null;
+    }
+  }
+}
+
+async function refreshInventoryDashboardAfterMutation() {
+  const activeRefresh = state.inventoryLoadPromise;
+  if (activeRefresh) {
+    await activeRefresh;
+  }
+  return loadInventoryDashboard(false);
+}
+
+async function loadInventoryDashboardRequest(showLoadingToast = true) {
   const hadLoadedData = state.inventoryLoaded;
   const cachedResult = state.inventoryLoaded ? null : readAdminCache("inventory-dashboard");
 
@@ -9007,7 +9065,7 @@ async function cancelDiscardedBoxesFromDetail(button) {
       userName: session?.name || "Admin"
     });
     closeInboundDetailModal();
-    await loadInventoryDashboard(false);
+    await refreshInventoryDashboardAfterMutation();
     showToast(`${result?.updatedBoxRows || discardedBoxes.length}개 폐기 박스를 재고로 복구했습니다.`);
   } catch (error) {
     showToast(error.message || "폐기 취소 처리 중 문제가 발생했습니다.");

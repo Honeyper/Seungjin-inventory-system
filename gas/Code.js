@@ -122,7 +122,7 @@ function doPost(e) {
       login,
       setupSheets,
       getProducts: getProductsCached_,
-      getPurchaseOrders,
+      getPurchaseOrders: getPurchaseOrdersCached_,
       getTodayInbounds: getTodayInboundsCached_,
       getInventoryDashboard: getInventoryDashboardCached_,
       getInventoryByQr,
@@ -179,6 +179,10 @@ function doPost(e) {
 
 function getProductsCached_() {
   return getCachedApiData_('products', getProducts);
+}
+
+function getPurchaseOrdersCached_() {
+  return getCachedApiData_('purchase-orders', getPurchaseOrders);
 }
 
 function getInventoryDashboardCached_() {
@@ -3168,11 +3172,9 @@ function ensureStockDbPurchaseOrderHeaders_(sheet) {
 }
 
 function getPurchaseOrders() {
-  const setup = ensurePurchaseOrderSheet_(getSpreadsheet_());
-  const sheet = setup.sheet;
+  const sheet = getSheet_(CONFIG.SHEETS.PURCHASE_ORDERS);
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
-  ensureStockDbPurchaseOrderHeaders_(stockSheet);
-  const result = readPurchaseOrders_(sheet, stockSheet, true);
+  const result = readPurchaseOrders_(sheet, stockSheet, false);
   return {
     purchaseOrders: result.orders
   };
@@ -3329,6 +3331,7 @@ function readPurchaseOrders_(sheet, stockSheet, writeProgress) {
   const indexes = indexHeaders_(headerInfo.headers);
   const inboundMap = buildPurchaseOrderInboundQuantityMap_(stockSheet);
   const orders = [];
+  const progressRows = [];
 
   for (let rowIndex = headerInfo.rowIndex + 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex];
@@ -3365,15 +3368,54 @@ function readPurchaseOrders_(sheet, stockSheet, writeProgress) {
     orders.push(order);
 
     if (writeProgress) {
-      setSheetCellByHeader_(sheet, rowIndex, indexes, ['누적 입고량'], accumulatedInboundQuantity);
-      setSheetCellByHeader_(sheet, rowIndex, indexes, ['미입고 수량'], remainingQuantity);
-      setSheetCellByHeader_(sheet, rowIndex, indexes, ['입고율'], inboundRate);
-      setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태'], status);
+      progressRows.push({
+        sheetRowNumber: rowIndex + 1,
+        values: [accumulatedInboundQuantity, remainingQuantity, inboundRate, status]
+      });
     }
+  }
+
+  if (writeProgress && progressRows.length) {
+    writePurchaseOrderProgressRows_(sheet, indexes, progressRows);
   }
 
   orders.sort((left, right) => String(right.registeredAt || '').localeCompare(String(left.registeredAt || '')));
   return { orders, headers: headerInfo.headers };
+}
+
+function writePurchaseOrderProgressRows_(sheet, indexes, progressRows) {
+  const columnIndexes = [
+    findHeaderIndex_(indexes, ['누적 입고량']),
+    findHeaderIndex_(indexes, ['미입고 수량']),
+    findHeaderIndex_(indexes, ['입고율']),
+    findHeaderIndex_(indexes, ['상태'])
+  ];
+  const hasSequentialColumns = columnIndexes.every((columnIndex, index) => (
+    columnIndex >= 0 && (index === 0 || columnIndex === columnIndexes[0] + index)
+  ));
+
+  if (!hasSequentialColumns) {
+    progressRows.forEach((progressRow) => {
+      const rowIndex = progressRow.sheetRowNumber - 1;
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['누적 입고량'], progressRow.values[0]);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['미입고 수량'], progressRow.values[1]);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['입고율'], progressRow.values[2]);
+      setSheetCellByHeader_(sheet, rowIndex, indexes, ['상태'], progressRow.values[3]);
+    });
+    return;
+  }
+
+  let groupStart = 0;
+  for (let index = 1; index <= progressRows.length; index += 1) {
+    const isGroupEnd = index === progressRows.length
+      || progressRows[index].sheetRowNumber !== progressRows[index - 1].sheetRowNumber + 1;
+    if (!isGroupEnd) continue;
+
+    const group = progressRows.slice(groupStart, index);
+    sheet.getRange(group[0].sheetRowNumber, columnIndexes[0] + 1, group.length, columnIndexes.length)
+      .setValues(group.map((progressRow) => progressRow.values));
+    groupStart = index;
+  }
 }
 
 function buildPurchaseOrderInboundQuantityMap_(stockSheet) {
