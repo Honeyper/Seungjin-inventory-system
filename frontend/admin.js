@@ -179,8 +179,8 @@ const state = {
   selectedDefectReasons: ["양호"],
   inboundEditDefectReasons: [],
   inboundSort: {
-    column: null,
-    direction: "asc"
+    column: 1,
+    direction: "desc"
   }
 };
 
@@ -4997,12 +4997,7 @@ function renderDefectReasonPill(reason) {
 
 function getFilteredInbounds() {
   const query = state.inboundListQuery;
-
-  if (!query) {
-    return state.todayInbounds;
-  }
-
-  return state.todayInbounds.filter((item) => [
+  const filtered = query ? state.todayInbounds.filter((item) => [
     item.managementId,
     item.clientName,
     item.inboundType,
@@ -5015,7 +5010,13 @@ function getFilteredInbounds() {
     item.registrant,
     item.defectReason,
     item.note
-  ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query))));
+  ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query)))) : state.todayInbounds;
+
+  return globalThis.SeungjinInboundSort?.sortInbounds(
+    filtered,
+    state.inboundSort.column,
+    state.inboundSort.direction
+  ) || [...filtered];
 }
 
 function isQrGeneratedForItem(item) {
@@ -5129,6 +5130,10 @@ function renderTodayInbounds(message = "") {
     ? `검색 ${inbounds.length.toLocaleString("ko-KR")}건 / 전체 ${sourceCount.toLocaleString("ko-KR")}건`
     : `전체 ${sourceCount.toLocaleString("ko-KR")}건`;
 
+  updateInboundSortButtons(
+    document.querySelector(`[data-inbound-sort="${state.inboundSort.column}"]`),
+    state.inboundSort.direction
+  );
   renderInboundPagination(pageCount);
 }
 
@@ -5160,58 +5165,16 @@ function formatInboundDateTime(date, time) {
 }
 
 function sortInboundRows(columnIndex, activeButton) {
-  const table = activeButton.closest("table");
-  const tbody = table?.querySelector("tbody");
-
-  if (!tbody || Number.isNaN(columnIndex)) {
+  if (!activeButton || Number.isNaN(columnIndex)) {
     return;
   }
 
   const direction = state.inboundSort.column === columnIndex && state.inboundSort.direction === "asc"
     ? "desc"
     : "asc";
-  const rows = Array.from(tbody.querySelectorAll("tr"));
-
-  rows.sort((leftRow, rightRow) => {
-    const leftValue = getInboundSortValue(leftRow.children[columnIndex]?.textContent || "");
-    const rightValue = getInboundSortValue(rightRow.children[columnIndex]?.textContent || "");
-    const result = compareInboundSortValues(leftValue, rightValue);
-    return direction === "asc" ? result : -result;
-  });
-
-  rows.forEach((row) => tbody.appendChild(row));
   state.inboundSort = { column: columnIndex, direction };
-  updateInboundSortButtons(activeButton, direction);
-}
-
-function getInboundSortValue(value) {
-  const normalized = String(value || "").trim();
-  const dateValue = normalized.match(/^\d{4}[-.]\d{1,2}[-.]\d{1,2}/)
-    ? Date.parse(normalized.replace(/\./g, "-").replace(" ", "T"))
-    : Number.NaN;
-
-  if (!Number.isNaN(dateValue)) {
-    return dateValue;
-  }
-
-  const numericValue = Number(normalized.replace(/,/g, "").match(/-?\d+(\.\d+)?/)?.[0]);
-
-  if (!Number.isNaN(numericValue)) {
-    return numericValue;
-  }
-
-  return normalized;
-}
-
-function compareInboundSortValues(leftValue, rightValue) {
-  if (typeof leftValue === "number" && typeof rightValue === "number") {
-    return leftValue - rightValue;
-  }
-
-  return String(leftValue).localeCompare(String(rightValue), "ko-KR", {
-    numeric: true,
-    sensitivity: "base"
-  });
+  state.inboundPage = 1;
+  renderTodayInbounds();
 }
 
 function updateInboundSortButtons(activeButton, direction) {
