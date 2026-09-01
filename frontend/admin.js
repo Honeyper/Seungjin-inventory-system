@@ -41,7 +41,11 @@ const ADMIN_CACHE_PREFIX = `seungjinAdminCache:${window.SEUNGJIN_CONFIG?.ENV || 
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const adminEnvironmentBadge = document.querySelector("#adminEnvironmentBadge");
 
-if (!session || session.role !== "admin") {
+if (
+  !session
+  || session.role !== "admin"
+  || (window.SeungjinDataGateway?.enabled && !window.SeungjinDataGateway.hasSession(session))
+) {
   location.replace("./index.html");
 }
 
@@ -2208,7 +2212,7 @@ async function saveShippingInspection() {
       showToast(clearShippingWaiting
         ? "출고대기 박스를 보관 상태로 변경했습니다."
         : `${selectedBoxes.length}개 박스를 폐기 처리했습니다.`);
-      await loadInventoryDashboard(false);
+      void loadInventoryDashboard(false);
       return;
     }
 
@@ -2261,7 +2265,7 @@ async function saveShippingInspection() {
     }
 
     closeShippingInspectionModal();
-    await loadInventoryDashboard(false);
+    void loadInventoryDashboard(false);
   } catch (error) {
     if (shippingInspectionMessage) {
       shippingInspectionMessage.textContent = error.message || "출고 검수 저장 중 문제가 발생했습니다.";
@@ -3456,7 +3460,7 @@ async function updateShippingStatus(row, status, extraPayload = {}) {
   if (status === "출고완료") {
     clearShippingBoxDraft(getShippingDraftKeyFromRow(row));
   }
-  await loadInventoryDashboard(false);
+  void loadInventoryDashboard(false);
   return result;
 }
 
@@ -4747,7 +4751,7 @@ async function saveInbound() {
     payload.defectFiles = await getInboundDefectFilePayloads();
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
-    await refreshInboundMutationData({ includeProducts: true });
+    void refreshInboundMutationData({ includeProducts: true });
     resetInboundDefectDefaults();
     updateInboundSummary();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
@@ -7194,6 +7198,19 @@ function setInboundRefreshButtonLoading(isLoading) {
 }
 
 async function requestApi(action, payload = {}) {
+  if (window.SeungjinDataGateway?.canRead(action)) {
+    try {
+      return await window.SeungjinDataGateway.requestRead(action, payload);
+    } catch (error) {
+      if (error?.status === 401) {
+        sessionStorage.removeItem("seungjinAdminSession");
+        location.replace("./index.html");
+        throw error;
+      }
+      console.warn(`Supabase ${action} 조회 실패, Apps Script로 재시도합니다.`, error);
+    }
+  }
+
   const response = await fetch(API_URL, {
     method: "POST",
     body: JSON.stringify({ action, payload })
@@ -7204,6 +7221,9 @@ async function requestApi(action, payload = {}) {
     throw new Error(result.message || "API 요청에 실패했습니다.");
   }
 
+  window.SeungjinDataGateway?.refreshForMutation(action)?.catch((error) => {
+    console.warn(`Supabase ${action} 후속 동기화에 실패했습니다.`, error);
+  });
   return result.data;
 }
 

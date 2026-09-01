@@ -1,0 +1,2 @@
+[functions.seungjin-dev-gateway]
+verify_jwt = false

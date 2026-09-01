@@ -307,13 +307,23 @@ function initializeMobileApp() {
   syncLoginFieldStates();
 
   const savedSession = readSavedSession(loginPreferences);
-  if (savedSession) {
+  const requiresSupabaseSession = window.SeungjinDataGateway?.enabled;
+  if (savedSession && (!requiresSupabaseSession || window.SeungjinDataGateway.hasSession(savedSession))) {
     state.user = savedSession;
     state.scannedShippingRows = readSavedScannedRows();
     state.scannedMoveRows = readSavedMoveRows();
     restoreCachedDashboard();
     restoreSavedRoute();
     return;
+  }
+
+  if (savedSession && requiresSupabaseSession) {
+    sessionStorage.removeItem(SESSION_KEY);
+    try {
+      localStorage.removeItem(PERSISTENT_SESSION_KEY);
+    } catch (error) {
+      // Private browsing or device policy can block persistent storage.
+    }
   }
 
   showScreen("login");
@@ -1005,9 +1015,13 @@ async function attemptAdminLogin() {
       return;
     }
 
-    state.user = loginResult.user;
+    state.user = {
+      ...loginResult.user,
+      supabaseSessionToken: loginResult.supabaseSessionToken || "",
+      supabaseSessionExpiresAt: loginResult.supabaseSessionExpiresAt || ""
+    };
     saveLoginPreferences({ accountId, password });
-    saveSession(loginResult.user);
+    saveSession(state.user);
     if (!state.scannedShippingRows.length) {
       state.scannedShippingRows = readSavedScannedRows();
     }
@@ -6284,6 +6298,24 @@ function updateShippingClock() {
 }
 
 async function requestApi(action, payload = {}, options = {}) {
+  if (action === "login" && window.SeungjinDataGateway?.enabled) {
+    const result = await window.SeungjinDataGateway.login(payload);
+    return options.unwrap === false ? result : result.data;
+  }
+
+  if (window.SeungjinDataGateway?.canRead(action)) {
+    try {
+      const data = await window.SeungjinDataGateway.requestRead(action, payload);
+      return options.unwrap === false ? { ok: true, data } : data;
+    } catch (error) {
+      if (error?.status === 401) {
+        logout();
+        throw error;
+      }
+      console.warn(`Supabase ${action} 조회 실패, Apps Script로 재시도합니다.`, error);
+    }
+  }
+
   const response = await fetch(API_URL, {
     method: "POST",
     body: JSON.stringify({ action, payload })
@@ -6294,6 +6326,9 @@ async function requestApi(action, payload = {}, options = {}) {
     throw new Error(result.message || "API 요청에 실패했습니다.");
   }
 
+  window.SeungjinDataGateway?.refreshForMutation(action)?.catch((error) => {
+    console.warn(`Supabase ${action} 후속 동기화에 실패했습니다.`, error);
+  });
   return options.unwrap === false ? result : result.data;
 }
 
