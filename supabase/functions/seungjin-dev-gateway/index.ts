@@ -148,6 +148,62 @@ async function loadFullCanonicalState() {
   }) as JsonRecord;
 }
 
+async function loadStateVersion() {
+  // Read the version first. Any write that lands while the scoped rows are
+  // loading increments this version and is rejected safely at commit time.
+  const stateRows = await databaseRequest(
+    "dev_state?singleton=eq.true&select=version&limit=1"
+  ) as Array<{ version: number }>;
+  const version = stateRows?.[0]?.version;
+  if (!Number.isFinite(Number(version))) {
+    throw new Error("재고 데이터 버전을 확인할 수 없습니다.");
+  }
+  return version;
+}
+
+function mapInventoryRecordRows(rows: JsonRecord[]) {
+  return rows.map((row) => ({
+    ...(row.data as JsonRecord),
+    recordKey: row.record_key,
+    originalStorage: row.storage
+  }));
+}
+
+function mapInventoryBoxRows(rows: JsonRecord[]) {
+  return rows.map((row) => ({
+    ...(row.data as JsonRecord),
+    boxId: row.box_id,
+    managementId: row.management_id,
+    productId: row.product_id,
+    storage: row.storage,
+    number: row.box_number
+  }));
+}
+
+async function loadInboundUpdateState(payload: JsonRecord) {
+  const productId = String(payload.productId || "").trim();
+  if (!productId) return loadFullCanonicalState();
+
+  const version = await loadStateVersion();
+  const encodedProductId = encodeURIComponent(productId);
+  const [productRows, orderRows, inboundRows, recordRows, boxRows] = await Promise.all([
+    databaseRows(`dev_products?product_id=eq.${encodedProductId}&select=product_id,data`),
+    databaseRows(`dev_purchase_orders?product_id=eq.${encodedProductId}&select=purchase_order_id,product_id,data`),
+    databaseRows(`dev_inbounds?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,inbound_date,data`),
+    databaseRows(`dev_inventory_records?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,storage,data`),
+    databaseRows(`dev_inventory_boxes?product_id=eq.${encodedProductId}&select=box_id,management_id,product_id,storage,box_number,data`)
+  ]);
+
+  return {
+    version,
+    products: productRows.map((row) => row.data),
+    orders: orderRows.map((row) => row.data),
+    inbounds: inboundRows.map((row) => row.data),
+    records: mapInventoryRecordRows(recordRows),
+    boxes: mapInventoryBoxRows(boxRows)
+  };
+}
+
 async function loadShippingMutationState(payload: JsonRecord) {
   const productId = String(payload.productId || "").trim();
   const managementId = String(payload.managementId || "").trim();
@@ -159,15 +215,7 @@ async function loadShippingMutationState(payload: JsonRecord) {
   const scopeValue = scopeColumn === "product_id" ? productId : managementId;
   if (!scopeValue) return loadFullCanonicalState();
 
-  // Read the version first. Any write that lands while the scoped rows are
-  // loading increments this version and is rejected safely at commit time.
-  const stateRows = await databaseRequest(
-    "dev_state?singleton=eq.true&select=version&limit=1"
-  ) as Array<{ version: number }>;
-  const version = stateRows?.[0]?.version;
-  if (!Number.isFinite(Number(version))) {
-    throw new Error("재고 데이터 버전을 확인할 수 없습니다.");
-  }
+  const version = await loadStateVersion();
 
   const encodedScopeValue = encodeURIComponent(scopeValue);
   const productRowsPromise = needsProductScope && productId
@@ -184,24 +232,16 @@ async function loadShippingMutationState(payload: JsonRecord) {
     products: productRows.map((row) => row.data),
     orders: [],
     inbounds: [],
-    records: recordRows.map((row) => ({
-      ...(row.data as JsonRecord),
-      recordKey: row.record_key,
-      originalStorage: row.storage
-    })),
-    boxes: boxRows.map((row) => ({
-      ...(row.data as JsonRecord),
-      boxId: row.box_id,
-      managementId: row.management_id,
-      productId: row.product_id,
-      storage: row.storage,
-      number: row.box_number
-    }))
+    records: mapInventoryRecordRows(recordRows),
+    boxes: mapInventoryBoxRows(boxRows)
   };
 }
 
 async function loadCanonicalState(action: string, payload: JsonRecord) {
-  if (action === "updateShippingStatus") {
+  if (action === "updateInbound") {
+    return loadInboundUpdateState(payload);
+  }
+  if (action === "updateShippingStatus" || action === "updateInventoryBoxMove") {
     return loadShippingMutationState(payload);
   }
   return loadFullCanonicalState();

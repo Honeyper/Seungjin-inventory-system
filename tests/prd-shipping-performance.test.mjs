@@ -19,6 +19,20 @@ test("출고대기 저장은 전체 재고 대신 해당 관리 ID 데이터만 
   assert.match(gatewaySource, /dev_inventory_boxes\?\$\{scopeColumn\}=eq\.\$\{encodedScopeValue\}/);
 });
 
+test("재고 위치 수정은 전체 상태 대신 해당 제품 데이터만 불러온다", () => {
+  assert.match(gatewaySource, /action === "updateInbound"/);
+  assert.match(gatewaySource, /loadInboundUpdateState\(payload\)/);
+  assert.match(gatewaySource, /dev_inbounds\?product_id=eq\.\$\{encodedProductId\}/);
+  assert.match(gatewaySource, /dev_inventory_records\?product_id=eq\.\$\{encodedProductId\}/);
+  assert.match(gatewaySource, /dev_inventory_boxes\?product_id=eq\.\$\{encodedProductId\}/);
+});
+
+test("모바일 자리이동은 전체 재고 대신 해당 관리 ID 데이터만 불러온다", () => {
+  assert.match(gatewaySource, /action === "updateShippingStatus" \|\| action === "updateInventoryBoxMove"/);
+  assert.match(gatewaySource, /dev_inventory_records\?\$\{scopeColumn\}=eq\.\$\{encodedScopeValue\}/);
+  assert.match(gatewaySource, /dev_inventory_boxes\?\$\{scopeColumn\}=eq\.\$\{encodedScopeValue\}/);
+});
+
 test("외부 동시 작업 충돌은 지수형 대기 후 재시도한다", () => {
   assert.match(gatewaySource, /attempt < 5/);
   assert.match(gatewaySource, /60 \* \(2 \*\* attempt\)/);

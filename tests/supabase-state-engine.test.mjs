@@ -195,6 +195,41 @@ test("product, purchase-order, and inbound CRUD preserves historical product tot
   assert.equal(holder.state.orders.length, 0);
 });
 
+test("existing inventory can move from unspecified storage through inbound edit", () => {
+  const holder = {
+    state: {
+      products: [product("ION-0099", "미지정 재고")],
+      orders: [],
+      inbounds: [],
+      records: [inventoryRecord("OLD-UNASSIGNED", "ION-0099", 100, "미지정")],
+      boxes: [inventoryBox("OLD-UNASSIGNED", "ION-0099", 1, 100, { storage: "미지정" })]
+    }
+  };
+
+  const updated = mutate(holder, "updateInbound", {
+    managementId: "OLD-UNASSIGNED",
+    inboundDate: "2026-09-01",
+    inboundTime: "13:00",
+    inboundType: "기존재고",
+    productId: "ION-0099",
+    productName: "미지정 재고",
+    clientName: "아이원(아이텍)",
+    storage: "B-1",
+    stockStatus: "보관",
+    boxQuantity: 100,
+    inboundBoxCount: 1,
+    inspectionQuantity: 0,
+    defectQuantity: 0,
+    defectReason: "양호"
+  });
+
+  assert.deepEqual(updated.changes.inventoryRecords.deletes, ["OLD-UNASSIGNED|ION-0099|미지정"]);
+  assert.equal(updated.changes.inventoryRecords.upserts[0].storage, "B-1");
+  assert.equal(updated.changes.inventoryBoxes.upserts[0].storage, "B-1");
+  assert.equal(holder.state.records[0].storage, "B-1");
+  assert.equal(holder.state.boxes[0].storage, "B-1");
+});
+
 test("shipping inspection applies quantities once and clears only waiting boxes", () => {
   const holder = {
     state: {
