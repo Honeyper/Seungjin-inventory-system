@@ -6684,6 +6684,24 @@ input {
   font-weight: 900;
 }
 
+.inventory-attention-row-meta .inventory-audit-status.unconfirmed {
+  color: #8b1d43;
+  background: #fff0f5;
+}
+
+.inventory-attention-row-meta .inventory-audit-status.unconfirmed b {
+  color: #b4235a;
+}
+
+.inventory-attention-row-meta .inventory-audit-status.confirmed {
+  color: #16734a;
+  background: #eaf8f1;
+}
+
+.inventory-attention-row-meta .inventory-audit-status.confirmed b {
+  color: #0f7a4a;
+}
+
 .inventory-attention-row > button {
   display: inline-flex;
   align-items: center;

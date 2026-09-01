@@ -961,13 +961,16 @@ export function buildInventoryDashboard(records, boxes) {
     row.shippingDefectQuantity = formatEa(active.reduce((sum, box) => sum + number(box.defectQuantity), 0));
     row.defectPhotoFolderUrl = [...new Set(active.map((box) => text(box.defectPhotoFolderUrl)).filter(Boolean))].join(" ");
     row.defectPhotoCount = row.defectPhotoFolderUrl ? row.defectPhotoFolderUrl.split(/\s+/).length : 0;
-    row.inventoryUnconfirmedBoxCount = active.filter((box) => {
+    const inventoryAuditBoxes = active.filter((box) => {
       const inventoryCategory = text(box.inventoryCategory);
       const status = normalizeStatus(box.rawStatus || box.status);
       const isProtected = inventoryCategory === "자사재고"
         || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
-      return !isProtected && !text(box.lastInventoryCheckedAt);
-    }).length;
+      return !isProtected;
+    });
+    row.inventoryAuditTargetBoxCount = inventoryAuditBoxes.length;
+    row.inventoryConfirmedBoxCount = inventoryAuditBoxes.filter((box) => text(box.lastInventoryCheckedAt)).length;
+    row.inventoryUnconfirmedBoxCount = inventoryAuditBoxes.length - row.inventoryConfirmedBoxCount;
     return row;
   }).filter((row) => !text(row.stockStatus).includes("폐기") && (number(row.currentTotalQuantity) > 0 || text(row.stockStatus).includes("출고완료"))).reverse();
 
