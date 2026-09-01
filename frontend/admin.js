@@ -37,7 +37,7 @@ const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
-const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v2:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v3:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const adminEnvironmentBadge = document.querySelector("#adminEnvironmentBadge");
 
@@ -1124,6 +1124,13 @@ closeInboundDetailModalButton?.addEventListener("click", closeInboundDetailModal
 closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
 editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
 inventoryAuditFromDetailButton?.addEventListener("click", openInventoryAuditFromDetail);
+inboundDetailContent?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-inventory-audit-box]");
+  if (!button) {
+    return;
+  }
+  openInventoryAuditBoxFromDetail(Number(button.dataset.inventoryAuditBox));
+});
 saveInboundEditButton?.addEventListener("click", saveInboundEdit);
 closeInboundQrModalButton?.addEventListener("click", closeInboundQrModal);
 closeInboundQrButton?.addEventListener("click", closeInboundQrModal);
@@ -2607,7 +2614,7 @@ function isProtectedInventoryAuditBox(item, box) {
     || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
 }
 
-function getInventoryAuditTargetBoxes(item) {
+function getInventoryAuditEligibleBoxes(item) {
   const activeBoxes = Array.isArray(item?.activeShippingBoxes) && item.activeShippingBoxes.length
     ? item.activeShippingBoxes
     : Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : [];
@@ -2628,12 +2635,18 @@ function getInventoryAuditTargetBoxes(item) {
     .sort((left, right) => left.number - right.number);
 }
 
-function openRemainingInventoryModal(source, mode = "classify") {
+function getInventoryAuditTargetBoxes(item) {
+  return getInventoryAuditEligibleBoxes(item)
+    .filter((box) => !String(box.lastInventoryCheckedAt || "").trim());
+}
+
+function openRemainingInventoryModal(source, mode = "classify", selectedBoxNumbers = []) {
   if (!source || !remainingInventoryModal) {
     return false;
   }
 
   const isAudit = mode === "audit";
+  const selectedBoxSet = new Set(selectedBoxNumbers.map(Number).filter(Number.isFinite));
   remainingInventoryModal.classList.toggle("is-audit", isAudit);
   const targetBoxes = isAudit
     ? getInventoryAuditTargetBoxes(source)
@@ -2748,7 +2761,7 @@ function openRemainingInventoryModal(source, mode = "classify") {
             value="${box.number}"
             data-box-id="${escapeAttribute(box.boxId || "")}"
             data-quantity="${box.quantity}"
-            ${isAudit ? "" : "checked"}
+            ${isAudit ? (selectedBoxSet.has(box.number) ? "checked" : "") : "checked"}
           />
           <span>
             <strong>${formatNumber(box.number)}번 박스</strong>
@@ -8075,7 +8088,10 @@ function setInboundDetailMode(mode) {
   }
 
   if (inventoryAuditFromDetailButton) {
-    inventoryAuditFromDetailButton.hidden = !isInventoryDetail;
+    const auditItem = isInventoryDetail
+      ? getInventoryRecordByManagementId(state.activeDetailInboundId, state.activeDetailInboundProductId)
+      : null;
+    inventoryAuditFromDetailButton.hidden = !isInventoryDetail || !getInventoryAuditTargetBoxes(auditItem).length;
   }
 
   if (saveInboundEditButton) {
@@ -8098,6 +8114,27 @@ function openInventoryAuditFromDetail() {
   state.returnToInventoryDetailAfterAudit = true;
   inboundDetailModal.hidden = true;
   if (!openRemainingInventoryModal(item, "audit")) {
+    state.returnToInventoryDetailAfterAudit = false;
+    inboundDetailModal.hidden = false;
+    focusModalDialog(inboundDetailModal);
+  }
+}
+
+function openInventoryAuditBoxFromDetail(boxNumber) {
+  const item = getInventoryRecordByManagementId(
+    state.activeDetailInboundId,
+    state.activeDetailInboundProductId
+  );
+  const isUnconfirmed = getInventoryAuditTargetBoxes(item)
+    .some((box) => box.number === Number(boxNumber));
+  if (!item || !isUnconfirmed) {
+    showToast("재고 정리할 미확인 박스를 찾을 수 없습니다.");
+    return;
+  }
+
+  state.returnToInventoryDetailAfterAudit = true;
+  inboundDetailModal.hidden = true;
+  if (!openRemainingInventoryModal(item, "audit", [boxNumber])) {
     state.returnToInventoryDetailAfterAudit = false;
     inboundDetailModal.hidden = false;
     focusModalDialog(inboundDetailModal);
@@ -8262,7 +8299,51 @@ function renderInboundDetail(inbound) {
       </div>
     </section>
 
+    ${isInventoryDetail ? renderInventoryAuditBoxStatus(inbound) : ""}
+
     ${renderInboundAttachmentDetail(inbound)}
+  `;
+}
+
+function renderInventoryAuditBoxStatus(inbound) {
+  const boxes = getInventoryAuditEligibleBoxes(inbound);
+  const unconfirmedBoxes = boxes.filter((box) => !String(box.lastInventoryCheckedAt || "").trim());
+  const confirmedBoxes = boxes.filter((box) => String(box.lastInventoryCheckedAt || "").trim());
+  const renderBox = (box, isConfirmed) => `
+    <article class="inventory-audit-box-card ${isConfirmed ? "confirmed" : "unconfirmed"}">
+      <div>
+        <strong>${formatNumber(box.number)}번 박스</strong>
+        <span>${formatNumber(box.quantity)} ea · ${escapeHtml(normalizeDisplayValue(box.storage || inbound.storage))}</span>
+        ${isConfirmed ? `<small>확인일시 ${escapeHtml(normalizeDisplayValue(box.lastInventoryCheckedAt))}</small>` : ""}
+      </div>
+      <b>${isConfirmed ? "확인 완료" : "미확인"}</b>
+      ${isConfirmed ? "" : `
+        <button type="button" data-inventory-audit-box="${box.number}">
+          재고 정리
+          <i class="ti ti-chevron-right" aria-hidden="true"></i>
+        </button>
+      `}
+    </article>
+  `;
+
+  return `
+    <section class="detail-section inventory-audit-box-section" aria-labelledby="inventoryAuditBoxStatusTitle">
+      <h3 id="inventoryAuditBoxStatusTitle">실물 확인 박스 현황</h3>
+      <div class="inventory-audit-box-summary">
+        <span class="unconfirmed">미확인 <b>${formatNumber(unconfirmedBoxes.length)} box</b></span>
+        <span class="confirmed">확인 완료 <b>${formatNumber(confirmedBoxes.length)} box</b></span>
+      </div>
+      <div class="inventory-audit-box-groups">
+        <section class="inventory-audit-box-group unconfirmed">
+          <header><strong>실물 미확인</strong><span>${formatNumber(unconfirmedBoxes.length)} box</span></header>
+          <div>${unconfirmedBoxes.length ? unconfirmedBoxes.map((box) => renderBox(box, false)).join("") : '<p class="inventory-audit-box-empty">미확인 박스가 없습니다.</p>'}</div>
+        </section>
+        <section class="inventory-audit-box-group confirmed">
+          <header><strong>실물 확인 완료</strong><span>${formatNumber(confirmedBoxes.length)} box</span></header>
+          <div>${confirmedBoxes.length ? confirmedBoxes.map((box) => renderBox(box, true)).join("") : '<p class="inventory-audit-box-empty">확인 완료된 박스가 없습니다.</p>'}</div>
+        </section>
+      </div>
+    </section>
   `;
 }
 
