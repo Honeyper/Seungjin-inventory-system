@@ -4,8 +4,21 @@ import {
   SUPABASE_MUTATION_ACTIONS
 } from "./state-engine.js";
 
-const DEV_APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzSz-9IspdGb_wcAIUVhokQdQR0egaiR5M1sJ9PQVX5pjm_w7-FPU3gaj-cmLwjAvxvsg/exec";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const PROJECT_REF = (() => {
+  try {
+    return new URL(SUPABASE_URL).hostname.split(".")[0] || "";
+  } catch (_error) {
+    return "";
+  }
+})();
+const APPS_SCRIPT_URLS: Record<string, string> = {
+  lponwunagtixddwqkzxx:
+    "https://script.google.com/macros/s/AKfycbzSz-9IspdGb_wcAIUVhokQdQR0egaiR5M1sJ9PQVX5pjm_w7-FPU3gaj-cmLwjAvxvsg/exec",
+  zicvuuzpzcfeeegwhmif:
+    "https://script.google.com/macros/s/AKfycbyPiTM2wEZ5d549g0R8pqLQB2FKE0Hz-7h_GYGfA_MVUq45-F3tTyITbT4A-yJ1ZldOCA/exec"
+};
+const APPS_SCRIPT_URL = APPS_SCRIPT_URLS[PROJECT_REF] || "";
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 const SNAPSHOT_TTL_MS = 30 * 1000;
 const ALLOWED_ORIGINS = new Set([
@@ -85,7 +98,6 @@ function getNamedKey(environmentName: string, legacyName: string) {
   return Deno.env.get(legacyName) || "";
 }
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SECRET_KEY = getNamedKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
 const SUPABASE_PUBLISHABLE_KEY = getNamedKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
 
@@ -250,7 +262,11 @@ async function readSession(request: Request) {
 }
 
 async function fetchAppsScript(action: string, payload: JsonRecord) {
-  const response = await fetch(DEV_APPS_SCRIPT_URL, {
+  if (!APPS_SCRIPT_URL) {
+    throw new Error(`지원하지 않는 Supabase 프로젝트입니다: ${PROJECT_REF || "unknown"}`);
+  }
+
+  const response = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
     body: JSON.stringify({ action, payload })
   });

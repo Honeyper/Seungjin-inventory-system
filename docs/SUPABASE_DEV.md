@@ -1,17 +1,15 @@
-# Supabase DEV 데이터 구조
+# Supabase 데이터 구조
 
 ## 적용 범위
 
-Supabase 연결은 DEV에만 적용합니다. PRD의 데이터 저장소와 API 설정은 변경하지 않습니다.
+DEV와 PRD는 서로 분리된 Supabase 프로젝트를 사용합니다. 두 환경 모두 제품, 발주, 입고, 재고, 박스 데이터를 Supabase PostgreSQL의 기준 데이터로 사용합니다. 등록·수정·입고·출고·재고 이동은 Edge Function에서 트랜잭션으로 처리하며 화면은 Supabase의 최신 데이터를 바로 조회합니다.
 
-DEV의 제품, 발주, 입고, 재고, 박스 데이터는 Supabase PostgreSQL을 기준 데이터로 사용합니다. 등록·수정·입고·출고·재고 이동은 Edge Function에서 트랜잭션으로 처리하며 화면은 Supabase의 최신 데이터를 바로 조회합니다.
-
-기존 DEV Google Sheets는 실시간 저장소가 아니라 업무용 사본으로 유지합니다. Supabase 쓰기 성공 시 작업 내용이 `dev_sheet_outbox`에 함께 기록되고, 매일 아래 시간에 순서대로 스프레드시트에 반영됩니다.
+기존 Google Sheets는 실시간 저장소가 아니라 환경별 업무용 사본으로 유지합니다. Supabase 쓰기 성공 시 작업 내용이 `dev_sheet_outbox`에 함께 기록되고, 매일 아래 시간에 순서대로 해당 환경의 스프레드시트에 반영됩니다. `dev_` 접두사는 최초 DEV 구현에서 정한 내부 테이블명이며, PRD에서는 별도의 Supabase 프로젝트 안에 동일한 구조로 격리됩니다.
 
 - 20:10 KST: 본 동기화
 - 21:10 KST: 실패 항목 자동 재시도
 
-입고 거래명세표와 불량 사진은 야간 동기화 시 DEV Drive에 업로드되며, 생성된 링크는 Supabase 입고 데이터에도 다시 반영됩니다. 출고 검수 사진 업로드는 기존 DEV Drive 전용 API를 계속 사용합니다.
+입고 거래명세표와 불량 사진은 야간 동기화 시 해당 환경의 Drive에 업로드되며, 생성된 링크는 Supabase 입고 데이터에도 다시 반영됩니다. 출고 검수 사진 업로드는 해당 환경의 Apps Script API를 계속 사용합니다.
 
 ## 데이터와 동시성
 
@@ -36,7 +34,7 @@ DEV의 제품, 발주, 입고, 재고, 박스 데이터는 Supabase PostgreSQL�
 - Gateway는 publishable key와 애플리케이션 세션을 모두 확인합니다.
 - 예약 동기화와 Apps Script 요청은 짧게 만료되고 한 번만 쓸 수 있는 토큰으로 상호 확인합니다.
 
-계정 검증은 현재 기존 DEV Apps Script의 `계정정보` 시트를 사용합니다. 로그인 이후 업무 데이터 읽기·쓰기는 Supabase를 사용합니다.
+계정 검증은 각 환경의 Apps Script가 `계정정보` 시트를 사용합니다. 로그인 이후 업무 데이터 읽기·쓰기는 해당 환경의 Supabase를 사용합니다.
 
 ## 소스 위치
 
@@ -45,6 +43,7 @@ DEV의 제품, 발주, 입고, 재고, 박스 데이터는 Supabase PostgreSQL�
 - 상태 변경 로직: `supabase/functions/seungjin-dev-gateway/state-engine.js`
 - 프론트 Gateway: `frontend/supabase-gateway.js`
 - DEV 설정: `frontend/config.dev.js`
+- PRD 설정: `frontend/config.prod.js`
 - Sheets 반영 API: `gas/Code.js`의 `applySupabaseOutbox`
 
 ## 장애 시 동작

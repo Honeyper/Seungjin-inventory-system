@@ -22,8 +22,9 @@ PC URL은 `frontend/index.html`, 모바일 URL은 `frontend/mobile/index.html`�
 - 배포 브랜치: `main`
 - 운영 API 설정: `frontend/config.prod.js`를 `config.js`로 적용
 - 개발 API 설정: `frontend/config.dev.js`를 `dev/config.js`로 적용
-- 운영 API: PRD Apps Script Web App URL
-- 개발 API: DEV Apps Script Web App URL
+- 운영 기준 데이터 API: PRD Supabase Gateway
+- 개발 기준 데이터 API: DEV Supabase Gateway
+- 각 환경의 Apps Script Web App은 계정 확인, 첨부 파일 처리, Sheets 사본 동기화에 사용
 - 모바일 운영/개발 화면은 같은 배포 산출물의 `/mobile/`, `/dev/mobile/` 경로로 제공합니다.
 
 `main` 브랜치에 push되면 `.github/workflows/pages.yml`이 실행되고 GitHub Pages에 자동 배포됩니다.
@@ -38,6 +39,8 @@ Apps Script의 `APP_ENVIRONMENTS` 설정에서 시트와 드라이브 저장소�
 ```
 
 사진과 첨부 파일은 실행 중인 Apps Script 환경에 맞는 드라이브 폴더 아래에 저장됩니다.
+
+PRD와 DEV의 Supabase 프로젝트, Google Sheets, Apps Script, Drive는 서로 분리합니다. 업무 읽기·쓰기는 Supabase가 기준이며 Google Sheets에는 매일 20:10과 21:10(KST)에 순차 반영합니다.
 
 ## 최초 1회 확인
 

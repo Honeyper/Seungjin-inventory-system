@@ -210,21 +210,95 @@ function recalculateOrders(orders, inbounds, changes, today) {
   });
 }
 
-function recalculateProductInbound(products, inbounds, changes) {
+function recalculateProductInbound(products, records, boxes, changes, affectedProductIds = null) {
+  const affected = affectedProductIds
+    ? new Set([...affectedProductIds].map(text).filter(Boolean))
+    : null;
+  const totals = new Map();
+  const countedRecords = new Set();
+
+  records.forEach((record) => {
+    const productId = text(record.productId);
+    const managementId = text(record.managementId);
+    if (affected && !affected.has(productId)) return;
+    const key = inboundKey(managementId, productId);
+    if (!productId || !managementId || countedRecords.has(key)) return;
+    countedRecords.add(key);
+
+    const takenOutQuantity = boxes
+      .filter((box) => (
+        text(box.managementId) === managementId
+        && text(box.productId) === productId
+        && normalizeStatus(box.rawStatus || box.status) === "출고완료"
+        && text(box.shippingType).replace(/\s+/g, "").startsWith("반출")
+      ))
+      .reduce((sum, box) => sum + number(box.quantity), 0);
+    const accumulated = Math.max(0, number(record.inboundTotalQuantity) - takenOutQuantity);
+    totals.set(productId, (totals.get(productId) || 0) + accumulated);
+  });
+
   products.forEach((product) => {
-    const total = inbounds
-      .filter((inbound) => text(inbound.productId) === text(product.productId || product.productCode))
-      .reduce((sum, inbound) => sum + number(inbound.inboundTotalQuantity), 0);
+    const productId = text(product.productId || product.productCode);
+    if (affected && !affected.has(productId)) return;
+    const total = totals.get(productId) || 0;
     product.accumulatedInboundQuantity = formatEa(total);
-    changes.products.upserts.push({ product_id: product.productId || product.productCode, data: product });
+    changes.products.upserts.push({ product_id: productId, data: product });
   });
 }
 
-function selectBoxes(state, payload, { allowEmpty = false } = {}) {
+function clearShippingInspection(box) {
+  box.inspectionDate = "";
+  box.inspectionTime = "";
+  box.inspector = "";
+  box.inspectionQuantity = 0;
+  box.defectQuantity = 0;
+  box.defectRate = 0;
+  box.defectReason = "";
+  box.defectPhotoFolderUrl = "";
+  box.defectPhotoCount = 0;
+}
+
+function mergeAttachmentUrls(...values) {
+  return [...new Set(values
+    .flatMap((value) => text(value).split(/\s+/))
+    .map(text)
+    .filter((value) => value && value !== "-"))]
+    .join(" ");
+}
+
+function resolveAggregateStockStatus(boxes) {
+  const available = boxes.filter((box) => number(box.quantity) > 0 && !/폐기/.test(normalizeStatus(box.rawStatus || box.status)));
+  const shipped = available.filter((box) => normalizeStatus(box.rawStatus || box.status) === "출고완료");
+  const active = available.filter((box) => normalizeStatus(box.rawStatus || box.status) !== "출고완료");
+  if (active.length && shipped.length) return "일부 출고";
+  if (!active.length && shipped.length) return "출고완료";
+  if (active.some((box) => normalizeStatus(box.rawStatus || box.status) === "출고대기")) return "출고대기";
+  if (active.some((box) => normalizeStatus(box.rawStatus || box.status) === "보류")) return "보류";
+  return "보관";
+}
+
+function getBoxSelection(payload) {
+  return {
+    numbers: new Set((Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : []).map(integer).filter(Boolean)),
+    ids: new Set((Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : []).map(text).filter(Boolean))
+  };
+}
+
+function getBoxQuantityMap(payload) {
+  const source = payload.boxQuantities || payload.selectedBoxQuantities || {};
+  return Object.entries(source).reduce((result, [key, value]) => {
+    const boxNumber = integer(key);
+    const quantity = number(value);
+    if (boxNumber > 0 && Number.isFinite(quantity) && quantity >= 0) result.set(boxNumber, quantity);
+    return result;
+  }, new Map());
+}
+
+function selectBoxes(state, payload, { allowEmpty = false, requireSelection = false } = {}) {
   const managementId = text(payload.managementId);
   const productId = text(payload.productId || payload["제품ID"] || payload["제품 ID"]);
-  const selectedNumbers = new Set((Array.isArray(payload.selectedBoxes) ? payload.selectedBoxes : []).map(integer).filter(Boolean));
-  const selectedIds = new Set((Array.isArray(payload.selectedBoxIds) ? payload.selectedBoxIds : []).map(text).filter(Boolean));
+  const { numbers: selectedNumbers, ids: selectedIds } = getBoxSelection(payload);
+  if (requireSelection && !selectedNumbers.size && !selectedIds.size) throw new Error("처리할 박스를 선택해주세요.");
   const matches = state.boxes.filter((box) => (
     text(box.managementId) === managementId
     && (!productId || text(box.productId) === productId)
@@ -252,7 +326,7 @@ function touchInventoryRecords(state, managementIds, changes) {
     const active = related.filter((box) => number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status)));
     const shipped = related.filter((box) => /출고완료/.test(normalizeStatus(box.rawStatus || box.status)));
     row.storage = active[0]?.storage || row.storage || "미지정";
-    row.stockStatus = active.length && shipped.length ? "일부 출고" : !active.length && shipped.length ? "출고완료" : normalizeStatus(active[0]?.rawStatus || active[0]?.status || row.stockStatus);
+    row.stockStatus = resolveAggregateStockStatus(related);
     row.processStatus = row.stockStatus;
     row.currentBoxCount = formatBox(active.length);
     row.boxTotalCount = formatBox(active.length);
@@ -321,6 +395,7 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     processStage3: process.stage3,
     processRoute: [process.stage1, process.stage2, process.stage3].map((value, index) => value ? `${index + 1}도 ${value}` : "").filter(Boolean).join(" → ") || process.finalProcess,
     orderQuantity: text(payload["발주량"] ?? current?.orderQuantity) || "-",
+    accumulatedInboundQuantity: current?.accumulatedInboundQuantity || "0 ea",
     boxQuantity: formatEa(number(boxQuantity)),
     trayQuantity: formatEa(number(trayQuantity)),
     dueDate: dash(payload["납기일"] ?? current?.dueDate),
@@ -501,13 +576,16 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   state.boxes.push(...boxes);
   upsertBoxes(boxes, changes);
   recalculateOrders(state.orders, state.inbounds, changes, dateParts(now).date);
-  recalculateProductInbound(state.products, state.inbounds, changes);
+  recalculateProductInbound(state.products, state.records, state.boxes, changes, new Set([productId]));
   return { managementId, boxCount: boxes.length, boxIds: boxes.map((box) => box.boxId) };
 }
 
 function mutateInventory(action, payload, state, changes, now) {
   const parts = dateParts(now);
-  const boxes = selectBoxes(state, payload);
+  const clearShippingWaiting = action === "saveShippingInspection" && payload.clearShippingWaiting === true;
+  let boxes = selectBoxes(state, payload, {
+    requireSelection: action !== "getInboundBoxQrs" && !clearShippingWaiting
+  });
   if (action === "getInboundBoxQrs") {
     boxes.forEach((box) => {
       box.qrGeneratedAt ||= parts.qrTimestamp;
@@ -518,6 +596,21 @@ function mutateInventory(action, payload, state, changes, now) {
     records.forEach((row) => {
       row.qrGeneratedCount = boxes.length;
       row.qrPrintStatus = "QR 생성";
+    });
+    const inbounds = state.inbounds.filter((row) => (
+      text(row.managementId) === text(payload.managementId)
+      && (!text(payload.productId) || text(row.productId) === text(payload.productId))
+    ));
+    inbounds.forEach((row) => {
+      row.qrGeneratedCount = boxes.length;
+      row.qrPrintStatus = "QR 생성";
+      changes.inbounds.upserts.push({
+        record_key: inboundKey(row.managementId, row.productId),
+        management_id: row.managementId,
+        product_id: row.productId,
+        inbound_date: row.inboundDate,
+        data: row
+      });
     });
     touchInventoryRecords(state, [payload.managementId], changes);
     return { managementId: text(payload.managementId), generatedAt: parts.qrTimestamp, boxCount: boxes.length, boxes: boxes.map((box) => ({ ...box, sequence: box.number, boxQuantity: formatEa(box.quantity), currentQuantity: formatEa(box.quantity) })) };
@@ -539,32 +632,53 @@ function mutateInventory(action, payload, state, changes, now) {
   if (action === "cancelDiscardedBoxes") {
     boxes.forEach((box) => {
       if (!/폐기/.test(normalizeStatus(box.rawStatus || box.status))) throw new Error("폐기 상태가 아닌 박스가 포함되어 있습니다.");
-      box.quantity = number(box.beforeDiscardQuantity) || number(box.originalQuantity) || number(box.quantity);
+      const restoredQuantity = number(box.beforeDiscardQuantity) || number(box.originalQuantity) || number(box.quantity);
+      if (restoredQuantity <= 0) throw new Error(`${box.number}번 박스의 복구할 수량을 확인할 수 없습니다.`);
+      box.quantity = restoredQuantity;
+      box.beforeDiscardQuantity = 0;
       box.status = "보관";
       box.rawStatus = "보관";
+      box.shippingDate = "";
+      box.shippingTime = "";
+      box.shippingType = "";
+      box.transferCompany = "";
+      box.shipper = "";
+      clearShippingInspection(box);
+      box.note = `폐기 취소 (${text(payload.userName || payload.registrant || "Admin")})`;
       box.shippingUpdatedAt = parts.timestamp;
     });
     upsertBoxes(boxes, changes);
     touchInventoryRecords(state, boxes.map((box) => box.managementId), changes);
-    return { managementId: text(payload.managementId), updatedRows: boxes.length, restoredQuantity: boxes.reduce((sum, box) => sum + number(box.quantity), 0) };
+    const related = state.boxes.filter((box) => text(box.managementId) === text(payload.managementId));
+    return { managementId: text(payload.managementId), stockStatus: resolveAggregateStockStatus(related), updatedBoxRows: boxes.length, updatedRows: boxes.length, restoredQuantity: boxes.reduce((sum, box) => sum + number(box.quantity), 0) };
   }
 
   if (action === "saveShippingInspection") {
     const reasons = Array.isArray(payload.defectReasons) ? payload.defectReasons.map(text).filter(Boolean) : text(payload.defectReasons).split(",").map(text).filter(Boolean);
     if (!reasons.length) throw new Error("불량내역을 하나 이상 선택해주세요.");
-    const clear = payload.clearShippingWaiting === true;
+    const clear = clearShippingWaiting;
     const discard = payload.discardRequested === true;
     const hold = payload.holdRequested === true;
     if (hold && discard) throw new Error("출고 보류와 박스 폐기는 동시에 선택할 수 없습니다.");
-    boxes.forEach((box) => {
+    if (clear) {
+      boxes = boxes.filter((box) => ["출고대기", "보류"].includes(normalizeStatus(box.rawStatus || box.status)));
+      if (!boxes.length) throw new Error("해제할 출고대기 박스를 찾을 수 없습니다.");
+    }
+    const quantityMap = getBoxQuantityMap(payload);
+    boxes.sort((left, right) => integer(left.number) - integer(right.number)).forEach((box, index) => {
+      const currentStatus = normalizeStatus(box.rawStatus || box.status);
+      if (!clear && /출고완료|폐기/.test(currentStatus)) throw new Error(`${box.number}번 박스는 출고 검수 대상이 아닙니다.`);
+      const changedQuantity = quantityMap.get(integer(box.number));
+      if (!discard && changedQuantity !== undefined) box.quantity = changedQuantity;
       if (discard) {
-        box.beforeDiscardQuantity = number(box.quantity);
+        box.beforeDiscardQuantity = changedQuantity !== undefined ? changedQuantity : number(box.quantity);
         box.status = "폐기";
         box.rawStatus = "폐기";
         box.quantity = 0;
       } else if (clear) {
         box.status = "보관";
         box.rawStatus = "보관";
+        clearShippingInspection(box);
       } else if (hold) {
         box.status = "보류";
         box.rawStatus = "보류";
@@ -572,14 +686,19 @@ function mutateInventory(action, payload, state, changes, now) {
         box.status = "출고대기";
         box.rawStatus = "출고대기(검수완료)";
       }
-      box.inspectionDate = text(payload.inspectionDate || parts.date);
-      box.inspectionTime = text(payload.inspectionTime || parts.time);
-      box.inspector = text(payload.inspector || payload.userName || "Admin");
-      box.inspectionQuantity = number(payload.inspectionQuantity);
-      box.defectQuantity = number(payload.defectQuantity);
-      box.defectRate = number(payload.inspectionQuantity) > 0 ? number(payload.defectQuantity) / number(payload.inspectionQuantity) * 100 : 0;
-      box.defectReason = reasons.join(", ");
-      box.defectPhotoFolderUrl = text(payload.defectPhotoFolderUrl);
+      if (!clear) {
+        box.inspectionDate = text(payload.inspectionDate || parts.date);
+        box.inspectionTime = text(payload.inspectionTime || parts.time);
+        box.inspector = text(payload.inspector || payload.userName || "Admin");
+        box.inspectionQuantity = index === 0 ? number(payload.inspectionQuantity) : 0;
+        box.defectQuantity = index === 0 ? number(payload.defectQuantity) : 0;
+        box.defectRate = index === 0 && number(payload.inspectionQuantity) > 0
+          ? number(payload.defectQuantity) / number(payload.inspectionQuantity) * 100
+          : 0;
+        box.defectReason = reasons.join(", ");
+        box.defectPhotoFolderUrl = text(payload.defectPhotoFolderUrl);
+        box.note = text(payload.memo || payload.note);
+      }
       box.shippingUpdatedAt = parts.timestamp;
     });
     upsertBoxes(boxes, changes);
@@ -589,24 +708,47 @@ function mutateInventory(action, payload, state, changes, now) {
 
   if (action === "updateShippingStatus") {
     const status = normalizeStatus(payload.status);
-    const allowed = ["보관", "출고대기", "출고완료"];
+    const rawStatus = text(payload.status) || status;
+    const allowed = ["보관", "보류", "출고대기", "출고완료"];
     if (!allowed.includes(status)) throw new Error("지원하지 않는 출고 상태입니다.");
+    const quantityMap = getBoxQuantityMap(payload);
     boxes.forEach((box) => {
+      const currentStatus = normalizeStatus(box.rawStatus || box.status);
+      if (status === "출고완료" && currentStatus !== "출고대기" && payload.allowInventoryAdjustment !== true) {
+        throw new Error(`${box.number}번 박스는 출고 검수가 완료되지 않았습니다.`);
+      }
+      if (status === "출고대기" && /출고완료|폐기/.test(currentStatus)) {
+        throw new Error(`${box.number}번 박스는 출고대기로 변경할 수 없는 상태입니다.`);
+      }
+      if (status === "보류" && /출고완료|폐기/.test(currentStatus)) {
+        throw new Error(`${box.number}번 박스는 출고 보류로 변경할 수 없는 상태입니다.`);
+      }
+      if (status === "보관" && currentStatus === "출고완료" && payload.allowCancelCompleted !== true) {
+        throw new Error(`${box.number}번 박스의 출고 취소 권한을 확인해주세요.`);
+      }
+      if (status === "보관" && /폐기/.test(currentStatus)) {
+        throw new Error(`${box.number}번 박스는 보관 상태로 변경할 수 없습니다.`);
+      }
+      const changedQuantity = quantityMap.get(integer(box.number));
+      if (["출고대기", "출고완료"].includes(status) && changedQuantity !== undefined) box.quantity = changedQuantity;
       box.status = status;
-      box.rawStatus = status;
+      box.rawStatus = rawStatus;
       box.shippingUpdatedAt = parts.timestamp;
       if (status === "출고완료") {
         box.shippingDate = text(payload.shippingDate || parts.date);
         box.shippingTime = text(payload.shippingTime || parts.time);
         box.shippingType = text(payload.shippingType || payload["출고유형"] || "정상출고");
-        box.transferCompany = text(payload.transferCompany);
+        box.transferCompany = text(payload.transferCompany) || text(text(box.shippingType).match(/^이관\s*\((.+)\)$/)?.[1]);
         box.shipper = text(payload.shipper || "Admin");
+        box.defectPhotoFolderUrl = mergeAttachmentUrls(box.defectPhotoFolderUrl, payload.defectPhotoFolderUrl);
+        box.defectPhotoCount = number(box.defectPhotoCount) + number(payload.defectPhotoCount);
       } else if (status === "보관") {
         box.shippingDate = "";
         box.shippingTime = "";
         box.shippingType = "";
         box.transferCompany = "";
         box.shipper = "";
+        clearShippingInspection(box);
       }
       if (payload.autoShippingInspection) {
         box.inspectionDate = text(payload.inspectionDate || parts.date);
@@ -620,7 +762,11 @@ function mutateInventory(action, payload, state, changes, now) {
     });
     upsertBoxes(boxes, changes);
     touchInventoryRecords(state, boxes.map((box) => box.managementId), changes);
-    return { managementId: text(payload.managementId), status, updatedBoxRows: boxes.length, selectedBoxes: boxes.map((box) => box.number) };
+    recalculateProductInbound(state.products, state.records, state.boxes, changes, new Set(boxes.map((box) => box.productId)));
+    const related = state.boxes.filter((box) => text(box.managementId) === text(payload.managementId));
+    const finalStatus = resolveAggregateStockStatus(related);
+    const remainingActiveRows = related.filter((box) => number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))).length;
+    return { managementId: text(payload.managementId), status: finalStatus, updatedBoxRows: boxes.length, remainingActiveRows, isPartialShipping: status === "출고완료" && finalStatus !== "출고완료", shippingDate: status === "출고완료" ? text(payload.shippingDate || parts.date) : "", shippingTime: status === "출고완료" ? text(payload.shippingTime || parts.time) : "", selectedBoxes: boxes.map((box) => box.number) };
   }
 
   if (action === "updateInventoryBoxMove") {
@@ -653,7 +799,7 @@ function adjustMissingInventory(payload, state, changes, now) {
   const confirmations = Array.isArray(payload.confirmedBoxes) ? payload.confirmedBoxes : [];
   let confirmedBoxRows = 0;
   confirmations.forEach((group) => {
-    selectBoxes(state, { ...group, productId: group.productId }, { allowEmpty: true }).forEach((box) => {
+    selectBoxes(state, { ...group, productId: group.productId }, { allowEmpty: true, requireSelection: true }).forEach((box) => {
       box.lastInventoryCheckedAt = parts.timestamp;
       changes.inventoryBoxes.upserts.push({ box_id: box.boxId, management_id: box.managementId, product_id: box.productId, storage: box.storage, box_number: integer(box.number), data: box });
       confirmedBoxRows += 1;
@@ -662,7 +808,7 @@ function adjustMissingInventory(payload, state, changes, now) {
   const adjustments = Array.isArray(payload.adjustments) ? payload.adjustments : [];
   const adjusted = [];
   adjustments.forEach((group) => {
-    selectBoxes(state, { ...group, productId: group.productId }).forEach((box) => {
+    selectBoxes(state, { ...group, productId: group.productId }, { requireSelection: true }).forEach((box) => {
       if (/자사재고|사출|인쇄/.test(`${text(box.inventoryCategory)} ${text(box.rawStatus || box.status)}`)) throw new Error(`${group.productName || "제품"} ${box.number}번 박스는 재고조정 대상에서 제외됩니다.`);
       box.status = "출고완료";
       box.rawStatus = "출고완료";
@@ -682,7 +828,7 @@ function adjustMissingInventory(payload, state, changes, now) {
 
 function returnInventory(action, payload, state, changes, now) {
   const parts = dateParts(now);
-  const boxes = selectBoxes(state, payload);
+  const boxes = selectBoxes(state, payload, { requireSelection: true });
   const mode = action === "returnTakenOutInventory" ? "takeout" : "transfer";
   const requiredPrefix = mode === "takeout" ? "반출" : "이관";
   const targetStatus = normalizeStatus(payload.targetStatus || payload.status);
@@ -691,6 +837,10 @@ function returnInventory(action, payload, state, changes, now) {
   if (!storage) throw new Error("복귀할 보관 위치를 선택해주세요.");
   boxes.forEach((box) => {
     if (normalizeStatus(box.rawStatus || box.status) !== "출고완료" || !text(box.shippingType).startsWith(requiredPrefix)) throw new Error(`${box.number}번 박스는 ${requiredPrefix} 복귀 대상이 아닙니다.`);
+    const previousShippingDate = text(box.shippingDate);
+    const previousShippingTime = text(box.shippingTime);
+    const previousShipper = text(box.shipper);
+    const previousTransferCompany = text(box.transferCompany) || text(text(box.shippingType).match(/^이관\s*\((.+)\)$/)?.[1]);
     box.status = targetStatus;
     box.rawStatus = targetStatus;
     box.storage = storage;
@@ -699,12 +849,21 @@ function returnInventory(action, payload, state, changes, now) {
     box.shippingType = "";
     box.transferCompany = "";
     box.shipper = "";
+    clearShippingInspection(box);
     box.shippingUpdatedAt = parts.timestamp;
     box.returner = text(payload.returner || payload.userName || "Admin");
+    const actionLabel = mode === "takeout" ? "재입고" : "이관 복귀";
+    const outboundAt = [previousShippingDate, previousShippingTime].filter(Boolean).join(" ") || "-";
+    const audit = mode === "takeout"
+      ? `[${actionLabel} ${parts.timestamp}] ${box.number}번 박스 · 반출 ${outboundAt} · 반출자 ${previousShipper || "-"} · 재입고자 ${box.returner} · ${targetStatus} · 보관위치 ${storage}`
+      : `[${actionLabel} ${parts.timestamp}] ${box.number}번 박스 · 이관처 ${previousTransferCompany || "-"} · 이관 ${outboundAt} · 이관자 ${previousShipper || "-"} · 복귀자 ${box.returner} · ${targetStatus} · 보관위치 ${storage}`;
+    box.note = [text(box.note) && text(box.note) !== "-" ? text(box.note) : "", audit].filter(Boolean).join("\n");
   });
   upsertBoxes(boxes, changes);
   touchInventoryRecords(state, boxes.map((box) => box.managementId), changes);
-  return { managementId: text(payload.managementId), status: targetStatus, returnStatus: targetStatus, returnMode: mode, storage, returnedAt: parts.timestamp, returnedBoxes: boxes.map((box) => box.number), updatedBoxRows: boxes.length };
+  recalculateProductInbound(state.products, state.records, state.boxes, changes, new Set(boxes.map((box) => box.productId)));
+  const related = state.boxes.filter((box) => text(box.managementId) === text(payload.managementId));
+  return { managementId: text(payload.managementId), status: resolveAggregateStockStatus(related), returnStatus: targetStatus, returnMode: mode, storage, returnedAt: parts.timestamp, returnedBoxes: boxes.map((box) => ({ number: box.number, quantity: number(box.quantity) })), updatedBoxRows: boxes.length };
 }
 
 export function applyMutation(action, payload, sourceState, now = new Date()) {
@@ -743,8 +902,15 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
     records.forEach((row) => changes.inventoryRecords.deletes.push(text(row.recordKey || inventoryKey(row.managementId, row.productId, row.storage))));
     boxes.forEach((box) => changes.inventoryBoxes.deletes.push(box.boxId));
     state.inbounds = state.inbounds.filter((item) => item !== inbound);
+    state.records = state.records.filter((item) => !records.includes(item));
+    state.boxes = state.boxes.filter((item) => !boxes.includes(item));
     recalculateOrders(state.orders, state.inbounds, changes, dateParts(now).date);
-    recalculateProductInbound(state.products, state.inbounds, changes);
+    const affectedProductIds = new Set([
+      ...records.map((row) => row.productId),
+      ...boxes.map((box) => box.productId),
+      inbound?.productId
+    ]);
+    recalculateProductInbound(state.products, state.records, state.boxes, changes, affectedProductIds);
     result = { managementId, deletedStockRows: records.length, deletedBoxRows: boxes.length };
   } else if (["getInboundBoxQrs", "saveShippingInspection", "cancelDiscardedBoxes", "classifyRemainingInventory", "updateShippingStatus", "updateInventoryBoxMove"].includes(action)) {
     result = mutateInventory(action, payload, state, changes, now);

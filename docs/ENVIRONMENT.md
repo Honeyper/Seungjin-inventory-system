@@ -2,10 +2,10 @@
 
 ## 환경
 
-| 환경 | 용도 | Google Sheet ID |
-| --- | --- | --- |
-| PRD | 실제 운영 데이터 | `1XkrXqPFpB2dtGrT8KiV3OyUzM6PbVAxHlZlQeDUFQAI` |
-| DEV | 개발/테스트 데이터 | `1__av_Ww7cuUeVrqPgtDRwGsbI0gmfqppxcULpI4WIhg` |
+| 환경 | 용도 | Supabase 리전 | Google Sheet 사본 ID |
+| --- | --- | --- | --- |
+| PRD | 실제 운영 데이터 | 서울 | `1XkrXqPFpB2dtGrT8KiV3OyUzM6PbVAxHlZlQeDUFQAI` |
+| DEV | 개발/테스트 데이터 | 도쿄 | `1__av_Ww7cuUeVrqPgtDRwGsbI0gmfqppxcULpI4WIhg` |
 
 ## Apps Script
 
@@ -32,12 +32,15 @@ setAppEnvironmentDev();
 
 ## 프론트 API URL
 
-프론트는 `frontend/config.js`의 `API_URL`을 우선 사용합니다.
+프론트는 `frontend/config.js`의 Supabase Gateway 설정을 업무 데이터 읽기·쓰기에 사용하고, `API_URL`은 로그인과 첨부 파일 등 Apps Script 전용 기능에 사용합니다.
 
 ```js
 window.SEUNGJIN_CONFIG = {
   ENV: "prod",
-  API_URL: "운영 또는 개발 Apps Script Web App URL"
+  API_URL: "운영 또는 개발 Apps Script Web App URL",
+  SUPABASE_GATEWAY_URL: "환경별 Supabase Edge Function URL",
+  SUPABASE_PUBLISHABLE_KEY: "환경별 publishable key",
+  SUPABASE_CANONICAL_WRITES: true
 };
 ```
 

@@ -1,6 +1,6 @@
 (function initializeSeungjinSupabaseGateway() {
   const config = window.SEUNGJIN_CONFIG || {};
-  const enabled = config.ENV === "dev"
+  const enabled = ["dev", "prod"].includes(config.ENV)
     && Boolean(config.SUPABASE_GATEWAY_URL)
     && Boolean(config.SUPABASE_PUBLISHABLE_KEY);
   const readActions = new Set([
@@ -87,7 +87,7 @@
 
   async function callGateway(action, payload = {}, token = "") {
     if (!enabled) {
-      throw new GatewayError("Supabase DEV Gateway가 설정되지 않았습니다.");
+      throw new GatewayError("Supabase Gateway가 설정되지 않았습니다.");
     }
 
     const headers = {
