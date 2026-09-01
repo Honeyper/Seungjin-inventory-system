@@ -7751,6 +7751,52 @@ function getInboundQrProcessText(inbound) {
   return inbound?.process || inbound?.finalProcess || inbound?.processStatus || "-";
 }
 
+function findInboundQrProduct(inbound, boxes = []) {
+  const firstBox = Array.isArray(boxes) ? boxes[0] : null;
+  const productId = String(inbound?.productId || firstBox?.productId || "").trim();
+
+  if (productId) {
+    const matchedById = state.products.find((product) => (
+      String(product.productCode || product.productId || "").trim() === productId
+    ));
+    if (matchedById) {
+      return matchedById;
+    }
+  }
+
+  const normalizeKey = (value) => String(value || "").replace(/\s+/g, "").trim().toLowerCase();
+  const productNameKey = normalizeKey(inbound?.productName || firstBox?.productName);
+  const clientNameKey = normalizeKey(inbound?.clientName || firstBox?.clientName);
+
+  return state.products.find((product) => (
+    normalizeKey(product.productName) === productNameKey
+    && (!clientNameKey || normalizeKey(product.clientName) === clientNameKey)
+  )) || state.products.find((product) => normalizeKey(product.productName) === productNameKey) || null;
+}
+
+function getInboundQrProcessData(inbound, boxes = []) {
+  const product = findInboundQrProduct(inbound, boxes);
+  const inboundProcess = [inbound?.process, inbound?.finalProcess, inbound?.processStatus]
+    .find((value) => String(value || "").trim());
+  const finalProcess = String(inboundProcess || product?.finalProcess || "-")
+    .split("|")[0]
+    .trim();
+  const flameTreatmentStatus = product?.flameTreatmentStatus || "무";
+  const dustRemovalStatus = product?.dustRemovalStatus || "무";
+  const processRows = globalThis.SeungjinQrLabel?.getProcessRows({
+    finalProcess,
+    flameTreatmentStatus,
+    dustRemovalStatus
+  }) || ["1도", "2도", "3도"].map((label) => ({ label, disabled: false, treatment: false }));
+
+  return {
+    finalProcess,
+    flameTreatmentStatus,
+    dustRemovalStatus,
+    processRows
+  };
+}
+
 function closeInboundQrModal() {
   if (!inboundQrModal) {
     return;
@@ -7781,53 +7827,100 @@ function renderInboundQrSheet(inbound, boxes) {
   }
 
   const total = boxes.length;
-  const processText = getInboundQrProcessText(inbound);
+  const processData = getInboundQrProcessData(inbound, boxes);
   const productName = inbound.productName || boxes[0]?.productName || "-";
   const batchText = formatInboundQrBatch(inbound.batch || boxes[0]?.batch);
+  const inboundDate = formatInboundQrDate(inbound.inboundDate || boxes[0]?.inboundDate);
 
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
     const qrData = box.qrData || box.boxId || "";
-
-    if (isWorkLayout) {
-      return renderInboundQrWorkLabel({
-        box,
-        sequence,
-        total,
-        qrData,
-        processText,
-        productName,
-        batchText
-      });
-    }
-
-    return `
-      <article class="box-qr-label">
-        <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
-        <div class="box-qr-main">
-          <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
-          <div class="box-qr-checks" aria-label="공정 체크">
-            ${renderQrProcessCheck("1도")}
-            ${renderQrProcessCheck("2도")}
-            ${renderQrProcessCheck("3도")}
-          </div>
-        </div>
-        <dl class="box-qr-meta">
-          <div class="box-qr-product-row">
-            <dt class="box-qr-product-heading">
-              <span>제품명</span>
-              ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
-            </dt>
-            <dd>${escapeHtml(productName)}</dd>
-          </div>
-          <div>
-            <dt>박스 정보</dt>
-            <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
-          </div>
-        </dl>
-      </article>
-    `;
+    return renderInboundQrReferenceLabel({
+      box,
+      inbound,
+      sequence,
+      total,
+      qrData,
+      processData,
+      productName,
+      batchText,
+      inboundDate,
+      variantClass: isWorkLayout ? "box-qr-label-layout-two" : ""
+    });
   }).join("");
+}
+
+function renderInboundQrReferenceLabel({
+  box,
+  inbound,
+  sequence,
+  total,
+  qrData,
+  processData,
+  productName,
+  batchText,
+  inboundDate,
+  variantClass = ""
+}) {
+  const referenceQuantity = Math.max(0, Math.round(parseShippingSettlementNumber(
+    inbound?.boxQuantity || box?.boxQuantity || box?.currentQuantity || 0
+  )));
+  const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
+
+  return `
+    <article class="box-qr-label box-qr-label-reference${variantClass ? ` ${variantClass}` : ""}">
+      <div class="box-qr-reference-title">
+        <strong class="box-qr-reference-final-process">최종공정 ${escapeHtml(processData.finalProcess)}</strong>
+        <strong class="box-qr-reference-box-count">${escapeHtml(boxLabel)}</strong>
+      </div>
+      <div class="box-qr-reference-summary">
+        <strong>기준수량</strong>
+        <span>${escapeHtml(formatNumber(referenceQuantity))}ea</span>
+        <strong>입고일</strong>
+        <span class="box-qr-reference-date-value">${escapeHtml(inboundDate)}</span>
+      </div>
+      <div class="box-qr-reference-main">
+        <div class="box-qr-reference-product">
+          <span class="box-qr-reference-product-heading">
+            <span>제품명</span>
+            ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
+          </span>
+          <p class="box-qr-reference-product-name">${escapeHtml(productName)}</p>
+        </div>
+        <div class="box-qr-reference-media">
+          <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
+        </div>
+      </div>
+      <div class="box-qr-reference-table-head" aria-hidden="true">
+        <strong>공정</strong>
+        <strong>포장수량</strong>
+        <strong>월</strong>
+        <strong>일</strong>
+        <strong>(인)</strong>
+      </div>
+      ${processData.processRows.map(renderQrReferenceProcessRow).join("")}
+      <div class="box-qr-reference-row box-qr-reference-manager">
+        <strong>관리자</strong>
+        <span class="box-qr-reference-quantity">ea</span>
+        <span class="box-qr-reference-month">월</span>
+        <span class="box-qr-reference-day">일</span>
+        <span class="box-qr-reference-sign">(인)</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderQrReferenceProcessRow(processRow) {
+  const disabledClass = processRow.disabled ? " is-disabled" : "";
+  return `
+    <div class="box-qr-reference-row${disabledClass}"${processRow.disabled ? ' aria-disabled="true"' : ""}>
+      <strong>${escapeHtml(processRow.label)}</strong>
+      <span class="box-qr-reference-quantity">ea</span>
+      <span class="box-qr-reference-month">월</span>
+      <span class="box-qr-reference-day">일</span>
+      <span class="box-qr-reference-sign">(인)</span>
+    </div>
+  `;
 }
 
 function formatInboundQrBatch(value) {
@@ -7852,57 +7945,17 @@ function updateInboundQrLayoutButtons() {
   });
 }
 
-function renderInboundQrWorkLabel({ box, sequence, total, qrData, processText, productName, batchText = "" }) {
-  return `
-    <article class="box-qr-label box-qr-label-work">
-      <div class="box-qr-process">최종공정 ${escapeHtml(processText)}</div>
-      <div class="box-qr-main">
-        <img class="box-qr-image" src="${escapeAttribute(getQrImageUrl(qrData))}" alt="${escapeAttribute(box.boxId)} QR" />
-        <div class="box-qr-checks" aria-label="공정 체크">
-          ${renderQrProcessCheck("1도")}
-          ${renderQrProcessCheck("2도")}
-          ${renderQrProcessCheck("3도")}
-        </div>
-      </div>
-      <dl class="box-qr-meta">
-        <div class="box-qr-product-row">
-          <dt class="box-qr-product-heading">
-            <span>제품명</span>
-            ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
-          </dt>
-          <dd>${escapeHtml(productName)}</dd>
-        </div>
-        <div>
-          <dt>박스 정보</dt>
-          <dd>${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} 박스</dd>
-        </div>
-      </dl>
-      <div class="box-qr-work-fields" aria-label="작업자 기입란">
-        <div class="box-qr-work-field">
-          <span>포장수량</span>
-          <i aria-hidden="true"></i>
-        </div>
-        <div class="box-qr-work-field">
-          <span>서명</span>
-          <i aria-hidden="true"></i>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function renderQrProcessCheck(label) {
-  return `
-    <span>
-      ${escapeHtml(label)}
-      <i aria-hidden="true"></i>
-    </span>
-  `;
+function formatInboundQrDate(value) {
+  const normalized = normalizeDisplayValue(value);
+  const match = normalized.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+  return match
+    ? `${match[1]}.${match[2].padStart(2, "0")}.${match[3].padStart(2, "0")}`
+    : normalized;
 }
 
 function getQrImageUrl(value) {
   const data = String(value || "-");
-  return `https://api.qrserver.com/v1/create-qr-code/?size=128x128&margin=1&data=${encodeURIComponent(data)}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=1&data=${encodeURIComponent(data)}`;
 }
 
 function openActiveInboundEdit() {
