@@ -145,7 +145,7 @@ test("product, purchase-order, and inbound CRUD preserves historical product tot
   assert.deepEqual(inbound.changes.products.upserts.map((item) => item.product_id), ["ION-0001"]);
   assert.equal(holder.state.orders[0].accumulatedInboundQuantity, 100);
 
-  mutate(holder, "updateInbound", {
+  const updatedInbound = mutate(holder, "updateInbound", {
     managementId,
     registrant: "테스터",
     inboundDate: "2026-09-01",
@@ -164,6 +164,11 @@ test("product, purchase-order, and inbound CRUD preserves historical product tot
     defectQuantity: 0,
     defectReason: "양호"
   });
+  assert.deepEqual(updatedInbound.changes.inventoryBoxes.deletes, []);
+  assert.deepEqual(
+    updatedInbound.changes.inventoryBoxes.upserts.map((item) => item.box_id),
+    [`${managementId}-B001`, `${managementId}-B002`, `${managementId}-B003`]
+  );
   assert.equal(holder.state.boxes.filter((box) => box.managementId === managementId).length, 3);
   assert.equal(holder.state.products.find((item) => item.productId === "ION-0001").accumulatedInboundQuantity, "730 ea");
   assert.equal(holder.state.orders[0].accumulatedInboundQuantity, 230);
