@@ -229,9 +229,17 @@
   }
 
   .box-qr-reference-row.is-disabled {
-    color: #fff !important;
-    background: #050505 !important;
+    color: #9aa3af !important;
+    background: #fff !important;
+    border-bottom-color: #c7cdd5 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .box-qr-reference-row.is-disabled .box-qr-reference-quantity,
+  .box-qr-reference-row.is-disabled .box-qr-reference-month,
+  .box-qr-reference-row.is-disabled .box-qr-reference-day,
+  .box-qr-reference-row.is-disabled .box-qr-reference-sign {
+    color: #9aa3af !important;
   }
 }

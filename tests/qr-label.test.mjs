@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 await import("../frontend/qr-label.js");
@@ -35,4 +36,13 @@ test("화염처리와 박가루 제거가 모두 있으면 첫 칸과 세 번째
     flameTreatmentStatus: "유",
     dustRemovalStatus: "유"
   }).map((row) => row.label), ["화염처리", "1도", "박가루 제거"]);
+});
+
+test("인쇄 시 비활성 공정은 흰 배경과 회색 글자로 출력한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
+  const printRules = css.slice(css.indexOf("@media print"));
+
+  assert.match(printRules, /\.box-qr-reference-row\.is-disabled\s*\{[\s\S]*?color:\s*#9aa3af\s*!important;/);
+  assert.match(printRules, /\.box-qr-reference-row\.is-disabled\s*\{[\s\S]*?background:\s*#fff\s*!important;/);
+  assert.doesNotMatch(printRules, /\.box-qr-reference-row\.is-disabled\s*\{[\s\S]*?background:\s*#050505\s*!important;/);
 });
