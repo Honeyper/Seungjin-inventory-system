@@ -94,3 +94,12 @@ test("제품명 영역은 왼쪽에 충분한 여백을 둔다", async () => {
     /\.box-qr-reference-product\s*\{[\s\S]*?padding:\s*1\.6mm 0\.9mm 1\.8mm 1\.8mm;/
   );
 });
+
+test("QR 왼쪽 세로선은 다른 행과 같은 왼쪽 테두리 좌표를 사용한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
+  const productRule = css.match(/\.box-qr-reference-product\s*\{([\s\S]*?)\}/)?.[1] || "";
+  const mediaRule = css.match(/\.box-qr-reference-media\s*\{([\s\S]*?)\}/)?.[1] || "";
+
+  assert.doesNotMatch(productRule, /border-right/);
+  assert.match(mediaRule, /border-left:\s*0\.4pt solid #050505;/);
+});

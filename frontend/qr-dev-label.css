@@ -117,7 +117,6 @@
   grid-template-rows: auto minmax(0, 1fr);
   align-items: stretch;
   padding: 1.6mm 0.9mm 1.8mm 1.8mm;
-  border-right: 0.4pt solid #050505;
 }
 
 .box-qr-reference-product-heading {
@@ -154,6 +153,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.55mm;
+  border-left: 0.4pt solid #050505;
 }
 
 .box-qr-label-reference .box-qr-image {
