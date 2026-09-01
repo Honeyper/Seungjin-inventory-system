@@ -308,6 +308,14 @@ test("shipping, returns, inventory moves, QR, and inventory audit enforce select
   assert.equal(holder.state.inbounds[0].qrPrintStatus, "QR 생성");
   assert.equal(holder.state.inbounds[0].qrGeneratedCount, 2);
   assert.equal(qr.changes.inbounds.upserts.length, 1);
+  assert.deepEqual(JSON.parse(holder.state.boxes[0].qrData), {
+    t: "SJ_BOX",
+    b: "M-2-B001",
+    m: "M-2",
+    p: "ION-0001",
+    n: 1
+  });
+  assert.equal(holder.state.boxes[0].qrData.includes("productName"), false);
 
   assert.throws(() => mutate(holder, "updateShippingStatus", {
     managementId: "M-2",

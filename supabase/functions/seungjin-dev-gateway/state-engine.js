@@ -595,7 +595,13 @@ function mutateInventory(action, payload, state, changes, now) {
   if (action === "getInboundBoxQrs") {
     boxes.forEach((box) => {
       box.qrGeneratedAt ||= parts.qrTimestamp;
-      box.qrData ||= JSON.stringify({ boxId: box.boxId, managementId: box.managementId, sequence: box.number, productId: box.productId, productName: box.productName });
+      box.qrData = JSON.stringify({
+        t: "SJ_BOX",
+        b: box.boxId,
+        m: box.managementId,
+        p: box.productId,
+        n: box.number
+      });
     });
     upsertBoxes(boxes, changes);
     const records = state.records.filter((row) => text(row.managementId) === text(payload.managementId));
