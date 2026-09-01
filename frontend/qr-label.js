@@ -23,7 +23,7 @@
     }
 
     return treatments.length
-      ? `${finalProcess || "-"} + ${treatments.join(" / ")}`
+      ? `${finalProcess || "-"} / ${treatments.join(" / ")}`
       : (finalProcess || "-");
   }
 

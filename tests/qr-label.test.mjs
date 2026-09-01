@@ -41,15 +41,15 @@ test("화염과 박가루가 모두 있으면 첫 칸과 세 번째 칸에 배�
 test("특수 공정은 최종공정 뒤에 박가루와 화염 순서로 표시한다", () => {
   assert.equal(
     getProcessSummary({ finalProcess: "1도", dustRemovalStatus: "유" }),
-    "1도 + 박가루"
+    "1도 / 박가루"
   );
   assert.equal(
     getProcessSummary({ finalProcess: "2도", flameTreatmentStatus: "유" }),
-    "2도 + 화염"
+    "2도 / 화염"
   );
   assert.equal(
     getProcessSummary({ finalProcess: "1도", dustRemovalStatus: "유", flameTreatmentStatus: "유" }),
-    "1도 + 박가루 / 화염"
+    "1도 / 박가루 / 화염"
   );
 });
 
