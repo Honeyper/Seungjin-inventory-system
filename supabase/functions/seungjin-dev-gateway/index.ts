@@ -525,7 +525,7 @@ Deno.serve(async (request) => {
     console.error("Seungjin DEV gateway error:", error instanceof Error ? error.message : String(error));
     return jsonResponse(request, {
       ok: false,
-      message: "Supabase DEV 데이터 처리 중 문제가 발생했습니다."
+      message: "Supabase 데이터 처리 중 문제가 발생했습니다."
     }, 500);
   }
 });
