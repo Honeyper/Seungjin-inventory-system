@@ -37,3 +37,6 @@ Thumbs.db
 uploads/
 exports/
 *.pdf
+
+# Supabase CLI local metadata
+supabase/.temp/

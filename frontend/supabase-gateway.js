@@ -9,6 +9,26 @@
     "getTodayInbounds",
     "getInventoryDashboard"
   ]);
+  const mutationActions = new Set([
+    "createProduct",
+    "updateProduct",
+    "deleteProduct",
+    "createPurchaseOrder",
+    "updatePurchaseOrder",
+    "deletePurchaseOrder",
+    "createInbound",
+    "updateInbound",
+    "deleteInbound",
+    "getInboundBoxQrs",
+    "saveShippingInspection",
+    "cancelDiscardedBoxes",
+    "classifyRemainingInventory",
+    "updateShippingStatus",
+    "adjustMissingInventory",
+    "updateInventoryBoxMove",
+    "returnTransferredInventory",
+    "returnTakenOutInventory"
+  ]);
   const mutationRefreshActions = {
     createProduct: ["getProducts"],
     updateProduct: ["getProducts", "getInventoryDashboard"],
@@ -101,6 +121,10 @@
     return enabled && readActions.has(action);
   }
 
+  function canMutate(action) {
+    return enabled && config.SUPABASE_CANONICAL_WRITES === true && mutationActions.has(action);
+  }
+
   async function requestRead(action, payload = {}) {
     const pendingRefresh = pendingRefreshes.get(action);
     if (pendingRefresh) {
@@ -111,6 +135,18 @@
       }
     }
 
+    const session = readStoredSession();
+    if (!session) {
+      throw new GatewayError("로그인이 만료되었습니다. 다시 로그인해주세요.", 401);
+    }
+    const result = await callGateway(action, payload, session.supabaseSessionToken);
+    return result.data;
+  }
+
+  async function requestMutation(action, payload = {}) {
+    if (!canMutate(action)) {
+      throw new GatewayError(`지원하지 않는 Supabase 쓰기 요청입니다: ${action}`);
+    }
     const session = readStoredSession();
     if (!session) {
       throw new GatewayError("로그인이 만료되었습니다. 다시 로그인해주세요.", 401);
@@ -148,7 +184,9 @@
     hasSession,
     login,
     canRead,
+    canMutate,
     requestRead,
+    requestMutation,
     refreshForMutation,
     GatewayError
   };

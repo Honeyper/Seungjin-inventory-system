@@ -1,3 +1,9 @@
+import {
+  applyMutation,
+  buildInventoryDashboard,
+  SUPABASE_MUTATION_ACTIONS
+} from "./state-engine.js";
+
 const DEV_APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzSz-9IspdGb_wcAIUVhokQdQR0egaiR5M1sJ9PQVX5pjm_w7-FPU3gaj-cmLwjAvxvsg/exec";
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
@@ -95,12 +101,112 @@ async function databaseRequest(path: string, init: RequestInit = {}) {
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(`Database request failed (${response.status}): ${message}`);
+    const error = new Error(`Database request failed (${response.status}): ${message}`) as Error & {
+      status?: number;
+      responseText?: string;
+    };
+    error.status = response.status;
+    error.responseText = message;
+    throw error;
   }
 
   if (response.status === 204) return null;
   const text = await response.text();
   return text ? JSON.parse(text) : null;
+}
+
+async function databaseRows(path: string) {
+  const pageSize = 1000;
+  const rows: JsonRecord[] = [];
+  let offset = 0;
+
+  while (true) {
+    const separator = path.includes("?") ? "&" : "?";
+    const page = await databaseRequest(`${path}${separator}limit=${pageSize}&offset=${offset}`) as JsonRecord[];
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+    offset += pageSize;
+  }
+}
+
+async function loadCanonicalState() {
+  return await databaseRequest("rpc/read_dev_canonical_state", {
+    method: "POST",
+    body: "{}"
+  }) as JsonRecord;
+}
+
+function isStateVersionConflict(error: unknown) {
+  return error instanceof Error && error.message.includes("DEV_STATE_VERSION_CONFLICT");
+}
+
+async function commitCanonicalMutation(action: string, payload: JsonRecord) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const state = await loadCanonicalState();
+    const mutation = applyMutation(action, payload, state, new Date()) as {
+      changes: JsonRecord;
+      result: JsonRecord;
+    };
+
+    try {
+      const commit = await databaseRequest("rpc/commit_dev_state_mutation", {
+        method: "POST",
+        body: JSON.stringify({
+          p_expected_version: state.version,
+          p_changes: mutation.changes,
+          p_action: action,
+          p_payload: payload,
+          p_result: mutation.result,
+          p_enqueue_sheet: true
+        })
+      });
+      return {
+        ...mutation.result,
+        stateVersion: (commit as JsonRecord)?.version,
+        sheetOutboxId: (commit as JsonRecord)?.outboxId
+      };
+    } catch (error) {
+      lastError = error;
+      if (!isStateVersionConflict(error)) throw error;
+    }
+  }
+
+  throw lastError || new Error("동시 작업 충돌로 저장하지 못했습니다. 다시 시도해주세요.");
+}
+
+async function readCanonicalAction(action: string, payload: JsonRecord) {
+  if (action === "getProducts") {
+    const rows = await databaseRows("dev_products?select=data&order=product_id.asc");
+    return { products: rows.map((row) => row.data) };
+  }
+  if (action === "getPurchaseOrders") {
+    const rows = await databaseRows("dev_purchase_orders?select=data&order=updated_at.desc,purchase_order_id.desc");
+    return { purchaseOrders: rows.map((row) => row.data) };
+  }
+  if (action === "getTodayInbounds") {
+    const requestedStart = String(payload.startDate || payload.date || "2000-01-01");
+    const requestedEnd = String(payload.endDate || payload.date || requestedStart);
+    const startDate = requestedStart <= requestedEnd ? requestedStart : requestedEnd;
+    const endDate = requestedStart <= requestedEnd ? requestedEnd : requestedStart;
+    const rows = await databaseRows(
+      `dev_inbounds?select=data&inbound_date=gte.${encodeURIComponent(startDate)}&inbound_date=lte.${encodeURIComponent(endDate)}&order=inbound_date.desc,management_id.desc`
+    );
+    return {
+      startDate,
+      endDate,
+      inbounds: rows.map((row) => row.data)
+    };
+  }
+  if (action === "getInventoryDashboard") {
+    const state = await databaseRequest("rpc/read_dev_inventory_state", {
+      method: "POST",
+      body: "{}"
+    }) as { records?: JsonRecord[]; boxes?: JsonRecord[] };
+    return buildInventoryDashboard(state.records || [], state.boxes || []) as JsonRecord;
+  }
+  throw new Error(`지원하지 않는 Supabase 조회 요청입니다: ${action}`);
 }
 
 async function sha256(value: string) {
@@ -116,6 +222,13 @@ function createSessionToken() {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
+}
+
+function createOneTimeToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function hasValidPublishableKey(request: Request) {
@@ -146,6 +259,93 @@ async function fetchAppsScript(action: string, payload: JsonRecord) {
     throw new Error(result.message || `${action} 요청에 실패했습니다.`);
   }
   return result.data || {};
+}
+
+async function consumeSheetSyncToken(token: string, purpose: "cron" | "apps_script") {
+  if (!token) return false;
+  return await databaseRequest("rpc/consume_dev_sheet_sync_token", {
+    method: "POST",
+    body: JSON.stringify({
+      p_token_hash: await sha256(token),
+      p_purpose: purpose
+    })
+  }) === true;
+}
+
+async function createSheetSyncToken(purpose: "cron" | "apps_script", lifetimeMs: number) {
+  const token = createOneTimeToken();
+  await databaseRequest("rpc/create_dev_sheet_sync_token", {
+    method: "POST",
+    body: JSON.stringify({
+      p_token_hash: await sha256(token),
+      p_purpose: purpose,
+      p_expires_at: new Date(Date.now() + lifetimeMs).toISOString()
+    })
+  });
+  return token;
+}
+
+async function finishSheetOutbox(results: JsonRecord[]) {
+  return await databaseRequest("rpc/finish_dev_sheet_outbox", {
+    method: "POST",
+    body: JSON.stringify({ p_results: results })
+  }) as JsonRecord;
+}
+
+async function applyInboundAttachmentResults(items: JsonRecord[], results: JsonRecord[]) {
+  const itemsById = new Map(items.map((item) => [String(item.id), item]));
+  for (const result of results) {
+    if (result.ok !== true) continue;
+    const item = itemsById.get(String(result.id));
+    if (!item || !["createInbound", "updateInbound"].includes(String(item.action))) continue;
+    await databaseRequest("rpc/apply_dev_sheet_attachment_result", {
+      method: "POST",
+      body: JSON.stringify({
+        p_action: item.action,
+        p_payload: item.payload || {},
+        p_result: result.data || {}
+      })
+    });
+  }
+}
+
+async function runNightlySheetSync() {
+  let claimed = 0;
+  let synced = 0;
+  let failed = 0;
+
+  for (let batchIndex = 0; batchIndex < 10; batchIndex += 1) {
+    const items = await databaseRequest("rpc/claim_dev_sheet_outbox", {
+      method: "POST",
+      body: JSON.stringify({ p_limit: 10 })
+    }) as JsonRecord[];
+    if (!items.length) break;
+    claimed += items.length;
+
+    let results: JsonRecord[];
+    try {
+      const token = await createSheetSyncToken("apps_script", 10 * 60 * 1000);
+      const response = await fetchAppsScript("applySupabaseOutbox", { token, items });
+      results = Array.isArray(response.results) ? response.results as JsonRecord[] : [];
+      const returnedIds = new Set(results.map((result) => String(result.id)));
+      for (const item of items) {
+        if (!returnedIds.has(String(item.id))) {
+          results.push({ id: item.id, ok: false, message: "Apps Script 동기화 결과가 누락되었습니다." });
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      results = items.map((item) => ({ id: item.id, ok: false, message }));
+    }
+
+    await applyInboundAttachmentResults(items, results);
+    const summary = await finishSheetOutbox(results);
+    synced += Number(summary.synced || 0);
+    failed += Number(summary.failed || 0);
+    if (results.some((result) => result.ok !== true)) break;
+  }
+
+  return { claimed, synced, failed, source: "supabase-outbox" };
 }
 
 async function syncDataset(dataset: SnapshotDataset) {
@@ -265,6 +465,21 @@ async function handleRequest(request: Request) {
 
   if (action === "login") return handleLogin(request, payload);
   if (action === "bootstrap") return handleBootstrap(request);
+  if (action === "verifySheetSyncToken") {
+    const valid = await consumeSheetSyncToken(String(payload.token || ""), "apps_script");
+    return jsonResponse(request, {
+      ok: valid,
+      data: { valid },
+      message: valid ? undefined : "유효하지 않거나 만료된 동기화 토큰입니다."
+    }, valid ? 200 : 401);
+  }
+  if (action === "runNightlySheetSync") {
+    const valid = await consumeSheetSyncToken(String(payload.token || ""), "cron");
+    if (!valid) {
+      return jsonResponse(request, { ok: false, message: "유효하지 않거나 만료된 예약 작업 토큰입니다." }, 401);
+    }
+    return jsonResponse(request, { ok: true, data: await runNightlySheetSync() });
+  }
 
   const session = await readSession(request);
   if (!session) {
@@ -272,42 +487,35 @@ async function handleRequest(request: Request) {
   }
 
   if (action === "refresh") {
-    const requestedActions = Array.isArray(payload.actions) ? payload.actions.map(String) : [];
-    const datasets = Array.from(new Set(
-      requestedActions
-        .map((requestedAction) => ACTION_DATASETS[requestedAction])
-        .filter((dataset): dataset is SnapshotDataset => Boolean(dataset))
-    ));
-    const synced = await syncDatasets(datasets.length ? datasets : Object.keys(SNAPSHOT_DEFINITIONS) as SnapshotDataset[]);
-    return jsonResponse(request, { ok: true, data: { synced } });
+    return jsonResponse(request, {
+      ok: true,
+      data: {
+        synced: [],
+        source: "supabase-canonical",
+        message: "Supabase 원본 데이터는 별도 스프레드시트 새로고침이 필요하지 않습니다."
+      }
+    });
   }
 
-  const dataset = ACTION_DATASETS[action];
-  if (!dataset) {
-    return jsonResponse(request, { ok: false, message: `지원하지 않는 조회 요청입니다: ${action}` }, 400);
+  if (SUPABASE_MUTATION_ACTIONS.has(action)) {
+    const result = await commitCanonicalMutation(action, payload);
+    return jsonResponse(request, {
+      ok: true,
+      data: result,
+      meta: { source: "supabase-canonical" }
+    });
   }
 
-  let snapshot = await getSnapshot(dataset);
-  if (!snapshot) {
-    await syncDataset(dataset);
-    snapshot = await getSnapshot(dataset);
-  }
-  if (!snapshot) {
-    return jsonResponse(request, { ok: false, message: "동기화된 데이터를 찾을 수 없습니다." }, 503);
+  if (ACTION_DATASETS[action]) {
+    const data = await readCanonicalAction(action, payload);
+    return jsonResponse(request, {
+      ok: true,
+      data,
+      meta: { source: "supabase-canonical" }
+    });
   }
 
-  refreshStaleSnapshot(dataset, snapshot.source_refreshed_at);
-  const data = action === "getTodayInbounds"
-    ? filterInbounds(snapshot.payload, payload)
-    : snapshot.payload;
-  return jsonResponse(request, {
-    ok: true,
-    data,
-    meta: {
-      source: "supabase-snapshot",
-      refreshedAt: snapshot.source_refreshed_at
-    }
-  });
+  return jsonResponse(request, { ok: false, message: `지원하지 않는 요청입니다: ${action}` }, 400);
 }
 
 Deno.serve(async (request) => {

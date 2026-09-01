@@ -7778,6 +7778,18 @@ function setInboundRefreshButtonLoading(isLoading) {
 }
 
 async function requestApi(action, payload = {}) {
+  if (window.SeungjinDataGateway?.canMutate(action)) {
+    try {
+      return await window.SeungjinDataGateway.requestMutation(action, payload);
+    } catch (error) {
+      if (error?.status === 401) {
+        sessionStorage.removeItem("seungjinAdminSession");
+        location.replace("./index.html");
+      }
+      throw error;
+    }
+  }
+
   if (window.SeungjinDataGateway?.canRead(action)) {
     try {
       return await window.SeungjinDataGateway.requestRead(action, payload);
@@ -7785,9 +7797,8 @@ async function requestApi(action, payload = {}) {
       if (error?.status === 401) {
         sessionStorage.removeItem("seungjinAdminSession");
         location.replace("./index.html");
-        throw error;
       }
-      console.warn(`Supabase ${action} 조회 실패, Apps Script로 재시도합니다.`, error);
+      throw error;
     }
   }
 

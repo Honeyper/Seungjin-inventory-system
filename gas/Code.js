@@ -23,6 +23,17 @@ const INVENTORY_QR_HEADER_CACHE_TTL_SECONDS = 21600;
 const API_READ_CACHE_CHUNK_SIZE = 70000;
 const API_READ_CACHE_SCHEMA_VERSION = 'v7';
 const API_READ_CACHE_VERSION_PROPERTY = 'API_READ_CACHE_VERSION';
+const SUPABASE_ENVIRONMENTS = {
+  prod: {
+    gatewayUrl: 'https://zicvuuzpzcfeeegwhmif.supabase.co/functions/v1/seungjin-dev-gateway',
+    publishableKey: 'sb_publishable_sLam9G9WsRekLtl11pw0Mw_sXAv0fVN'
+  },
+  dev: {
+    gatewayUrl: 'https://lponwunagtixddwqkzxx.supabase.co/functions/v1/seungjin-dev-gateway',
+    publishableKey: 'sb_publishable_kjj59xENATbzJwnUlKsmGg_uA5lwI0R'
+  }
+};
+const SUPABASE_LAST_SYNCED_OUTBOX_PROPERTY = 'SUPABASE_LAST_SYNCED_OUTBOX_ID';
 
 function buildRuntimeConfig_() {
   const env = getAppEnvironment_();
@@ -115,41 +126,7 @@ function doPost(e) {
     const action = body.action;
     const payload = body.payload || {};
 
-    const routes = {
-      healthCheck,
-      authorizeDrive,
-      normalizeStockAttachmentLinks,
-      login,
-      setupSheets,
-      getProducts: getProductsCached_,
-      getPurchaseOrders: getPurchaseOrdersCached_,
-      getTodayInbounds: getTodayInboundsCached_,
-      getInventoryDashboard: getInventoryDashboardCached_,
-      getInventoryByQr,
-      getInboundBoxQrs,
-      uploadShippingDefectPhotos,
-      saveShippingInspection,
-      cancelDiscardedBoxes,
-      classifyRemainingInventory,
-      adjustRemainingInventory,
-      updateShippingStatus,
-      adjustMissingInventory,
-      ensureInventoryAuditColumns,
-      ensurePurchaseOrderSheet,
-      returnTransferredInventory,
-      returnTakenOutInventory,
-      updateInventoryBoxMove,
-      createProduct,
-      updateProduct,
-      deleteProduct,
-      createPurchaseOrder,
-      updatePurchaseOrder,
-      deletePurchaseOrder,
-      createInbound,
-      updateInbound,
-      deleteInbound,
-      formatProductRows
-    };
+    const routes = getApiRoutes_();
 
     if (!routes[action]) {
       return jsonResponse({
@@ -175,6 +152,165 @@ function doPost(e) {
       message: error.message
     });
   }
+}
+
+function getApiRoutes_() {
+  return {
+    healthCheck,
+    authorizeDrive,
+    normalizeStockAttachmentLinks,
+    login,
+    setupSheets,
+    getProducts: getProductsCached_,
+    getPurchaseOrders: getPurchaseOrdersCached_,
+    getTodayInbounds: getTodayInboundsCached_,
+    getInventoryDashboard: getInventoryDashboardCached_,
+    getInventoryByQr,
+    getInboundBoxQrs,
+    uploadShippingDefectPhotos,
+    saveShippingInspection,
+    cancelDiscardedBoxes,
+    classifyRemainingInventory,
+    adjustRemainingInventory,
+    updateShippingStatus,
+    adjustMissingInventory,
+    ensureInventoryAuditColumns,
+    ensurePurchaseOrderSheet,
+    returnTransferredInventory,
+    returnTakenOutInventory,
+    updateInventoryBoxMove,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    createPurchaseOrder,
+    updatePurchaseOrder,
+    deletePurchaseOrder,
+    createInbound,
+    updateInbound,
+    deleteInbound,
+    formatProductRows,
+    applySupabaseOutbox
+  };
+}
+
+function getSupabaseEnvironment_() {
+  const environment = SUPABASE_ENVIRONMENTS[CONFIG.ENV];
+
+  if (!environment || !environment.gatewayUrl || !environment.publishableKey) {
+    throw new Error(`Supabase ${CONFIG.ENV_LABEL || CONFIG.ENV} 환경 설정을 확인할 수 없습니다.`);
+  }
+  return environment;
+}
+
+function verifySupabaseSheetSyncToken_(token) {
+  const environment = getSupabaseEnvironment_();
+  const response = UrlFetchApp.fetch(environment.gatewayUrl, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      apikey: environment.publishableKey
+    },
+    payload: JSON.stringify({
+      action: 'verifySheetSyncToken',
+      payload: { token }
+    }),
+    muteHttpExceptions: true
+  });
+  const status = response.getResponseCode();
+  const result = JSON.parse(response.getContentText() || '{}');
+
+  if (status !== 200 || !result.ok || !result.data || result.data.valid !== true) {
+    throw new Error(result.message || 'Supabase 동기화 토큰을 확인할 수 없습니다.');
+  }
+}
+
+function authorizeSupabaseSheetSync() {
+  try {
+    verifySupabaseSheetSyncToken_('authorization-check');
+  } catch (error) {
+    if (/권한|権限|permission|authorization/i.test(String(error.message || error))) {
+      throw error;
+    }
+  }
+  return { authorized: true, env: CONFIG.ENV };
+}
+
+function buildSupabaseReplayPayload_(item) {
+  const payload = Object.assign({}, item.payload || {});
+  const result = item.canonical_result || item.canonicalResult || {};
+
+  if (result.productId) {
+    payload.productId = result.productId;
+    payload.productCode = result.productId;
+    payload['제품 ID'] = result.productId;
+  }
+  if (result.purchaseOrderId) {
+    payload.purchaseOrderId = result.purchaseOrderId;
+    payload['발주ID'] = result.purchaseOrderId;
+  }
+  if (result.managementId) {
+    payload.managementId = result.managementId;
+    payload['관리 ID'] = result.managementId;
+  }
+  return payload;
+}
+
+function applySupabaseOutbox(payload) {
+  const token = String(payload.token || '').trim();
+  const items = Array.isArray(payload.items) ? payload.items.slice(0, 100) : [];
+
+  if (!token || !items.length) {
+    throw new Error('동기화 토큰과 항목이 필요합니다.');
+  }
+  verifySupabaseSheetSyncToken_(token);
+
+  const allowedActions = new Set([
+    'createProduct', 'updateProduct', 'deleteProduct',
+    'createPurchaseOrder', 'updatePurchaseOrder', 'deletePurchaseOrder',
+    'createInbound', 'updateInbound', 'deleteInbound',
+    'getInboundBoxQrs', 'saveShippingInspection', 'cancelDiscardedBoxes',
+    'classifyRemainingInventory', 'updateShippingStatus', 'adjustMissingInventory',
+    'updateInventoryBoxMove', 'returnTransferredInventory', 'returnTakenOutInventory'
+  ]);
+  const routes = getApiRoutes_();
+  const properties = PropertiesService.getScriptProperties();
+  const propertyName = `${SUPABASE_LAST_SYNCED_OUTBOX_PROPERTY}_${CONFIG.ENV.toUpperCase()}`;
+  let lastSyncedId = Number(properties.getProperty(propertyName) || 0);
+  const results = [];
+  let stoppedByFailure = false;
+
+  items.sort((left, right) => Number(left.id) - Number(right.id));
+  items.forEach((item) => {
+    const id = Number(item.id);
+    const action = String(item.action || '');
+
+    if (!Number.isFinite(id) || id <= 0 || !allowedActions.has(action) || !routes[action]) {
+      results.push({ id: item.id, ok: false, message: `지원하지 않는 동기화 항목입니다: ${action}` });
+      stoppedByFailure = true;
+      return;
+    }
+    if (id <= lastSyncedId) {
+      results.push({ id, ok: true, data: { alreadySynced: true } });
+      return;
+    }
+    if (stoppedByFailure) {
+      results.push({ id, ok: false, message: '앞선 항목 실패로 실행을 보류했습니다.' });
+      return;
+    }
+
+    try {
+      const data = routes[action](buildSupabaseReplayPayload_(item));
+      lastSyncedId = id;
+      properties.setProperty(propertyName, String(id));
+      results.push({ id, ok: true, data: data || {} });
+    } catch (error) {
+      stoppedByFailure = true;
+      results.push({ id, ok: false, message: error.message || String(error) });
+    }
+  });
+
+  clearApiReadCaches_();
+  return { results, lastSyncedId };
 }
 
 function getProductsCached_() {
@@ -757,7 +893,8 @@ function isApiMutationAction_(action) {
     'returnTransferredInventory',
     'returnTakenOutInventory',
     'updateInventoryBoxMove',
-    'formatProductRows'
+    'formatProductRows',
+    'applySupabaseOutbox'
   ].includes(action);
 }
 
@@ -2486,7 +2623,8 @@ function createInbound(payload) {
     const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
     const inventoryClassifiedAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
     const managementDate = Utilities.formatDate(now, timezone, 'yyMMdd');
-    const managementId = generateInboundManagementId_(stockSheet, boxSheet, managementDate, payload.productId);
+    const managementId = String(payload.managementId || payload['관리 ID'] || '').trim()
+      || generateInboundManagementId_(stockSheet, boxSheet, managementDate, payload.productId);
     const totalBoxCount = inboundBoxCount + remainderQuantities.length;
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
@@ -2565,7 +2703,9 @@ function createInbound(payload) {
       boxStartRow,
       boxCount: boxRecords.length,
       boxIds: boxRecords.map((record) => record.boxId),
-      inventoryCategory
+      inventoryCategory,
+      invoiceFileUrl,
+      defectPhotoUrls
     };
   } finally {
     lock.releaseLock();
@@ -2785,7 +2925,9 @@ function updateInbound(payload) {
       boxIds: boxRecords.map((record) => record.boxId),
       boxUpdatedRows: boxSync.updatedRows,
       boxDeletedRows: boxSync.deletedRows,
-      boxInsertedRows: boxSync.insertedRows
+      boxInsertedRows: boxSync.insertedRows,
+      invoiceFileUrl: finalInvoiceFileUrl,
+      defectPhotoUrls: finalDefectPhotoUrls
     };
   } finally {
     lock.releaseLock();
@@ -3199,7 +3341,8 @@ function createPurchaseOrder(payload) {
 
     const now = new Date();
     const timezone = 'Asia/Seoul';
-    const purchaseOrderId = generatePurchaseOrderId_(existing, data.productId, now);
+    const purchaseOrderId = String(payload.purchaseOrderId || payload['발주ID'] || '').trim()
+      || generatePurchaseOrderId_(existing, data.productId, now);
     const registeredAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
     const row = buildPurchaseOrderRow_(setup.headers, {
       ...data,
