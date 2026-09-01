@@ -502,6 +502,7 @@ function makeInboundRecord(payload, managementId, product, order, now, current =
 }
 
 function createOrUpdateInbound(action, payload, state, changes, now) {
+  const parts = dateParts(now);
   const productId = text(payload.productId);
   const product = state.products.find((item) => text(item.productId || item.productCode) === productId);
   if (!product) throw new Error("선택한 제품을 찾을 수 없습니다.");
@@ -516,6 +517,16 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   if (action === "updateInbound" && !currentRecord) throw new Error("수정할 입고 내역을 찾을 수 없습니다.");
   const managementId = currentManagementId || generateManagementId(state.inbounds, state.records, productId, now);
   const inbound = makeInboundRecord(payload, managementId, product, order, now, currentInbound || currentRecord || {});
+  const previousBoxes = state.boxes.filter((box) => text(box.managementId) === managementId && text(box.productId) === productId);
+  const hasProcessedBoxes = previousBoxes.some((box) => /출고완료|폐기|출고대기|보류/.test(normalizeStatus(box.rawStatus || box.status)));
+  const preservesBoxStructure = currentRecord
+    && integer(payload.boxQuantity) === integer(currentRecord.boxQuantity)
+    && integer(payload.inboundBoxCount) === integer(currentRecord.inboundBoxCount)
+    && JSON.stringify(normalizeRemainders(payload)) === JSON.stringify(normalizeRemainders(currentRecord));
+  const relocatesProcessedInventory = action === "updateInbound"
+    && hasProcessedBoxes
+    && text(currentRecord.storage) !== text(inbound.storage)
+    && preservesBoxStructure;
   const existingStock = text(payload.category || payload.entryCategory || payload.inboundType).replace(/\s/g, "") === "기존재고";
   if (!existingStock) {
     const oldKey = currentInbound ? inboundKey(currentInbound.managementId, currentInbound.productId) : "";
@@ -537,6 +548,31 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     activeShippingBoxes: undefined,
     shippedShippingBoxes: undefined
   };
+
+  if (relocatesProcessedInventory) {
+    Object.assign(currentRecord, record);
+    const movableBoxes = previousBoxes.filter((box) => (
+      number(box.quantity) > 0
+      && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))
+    ));
+    movableBoxes.forEach((box) => {
+      box.storage = inbound.storage;
+      box.inventoryMovedAt = parts.timestamp;
+      box.inventoryMover = text(payload.registrant || payload.userName || "Admin");
+    });
+    upsertBoxes(movableBoxes, changes);
+    touchInventoryRecords(state, [managementId], changes);
+    recalculateOrders(state.orders, state.inbounds, changes, parts.date);
+    recalculateProductInbound(state.products, state.records, state.boxes, changes, new Set([productId]));
+    return {
+      managementId,
+      boxCount: previousBoxes.length,
+      boxIds: previousBoxes.map((box) => box.boxId),
+      updatedBoxRows: movableBoxes.length,
+      storage: inbound.storage
+    };
+  }
+
   const oldRecordKey = currentRecord ? text(currentRecord.recordKey || inventoryKey(currentRecord.managementId, currentRecord.productId, currentRecord.storage)) : "";
   const recordKey = inventoryKey(managementId, productId, inbound.storage);
   if (oldRecordKey && oldRecordKey !== recordKey) changes.inventoryRecords.deletes.push(oldRecordKey);
@@ -545,8 +581,7 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   if (currentRecord) Object.assign(currentRecord, record); else state.records.push(record);
   changes.inventoryRecords.upserts.push({ record_key: recordKey, management_id: managementId, product_id: productId, storage: inbound.storage, data: record });
 
-  const previousBoxes = state.boxes.filter((box) => text(box.managementId) === managementId && text(box.productId) === productId);
-  if (action === "updateInbound" && previousBoxes.some((box) => /출고완료|폐기|출고대기|보류/.test(normalizeStatus(box.rawStatus || box.status)))) {
+  if (action === "updateInbound" && hasProcessedBoxes) {
     throw new Error("출고 또는 재고 처리가 시작된 입고는 박스 구성을 수정할 수 없습니다.");
   }
   state.boxes = state.boxes.filter((box) => !previousBoxes.includes(box));

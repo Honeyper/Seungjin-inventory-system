@@ -201,8 +201,19 @@ test("existing inventory can move from unspecified storage through inbound edit"
       products: [product("ION-0099", "미지정 재고")],
       orders: [],
       inbounds: [],
-      records: [inventoryRecord("OLD-UNASSIGNED", "ION-0099", 100, "미지정")],
-      boxes: [inventoryBox("OLD-UNASSIGNED", "ION-0099", 1, 100, { storage: "미지정" })]
+      records: [{
+        ...inventoryRecord("OLD-UNASSIGNED", "ION-0099", 200, "미지정"),
+        boxQuantity: "100 ea",
+        inboundBoxCount: "2 box",
+        boxTotalCount: "2 box",
+        currentBoxCount: "1 box",
+        currentTotalQuantity: "100 ea",
+        inboundType: "기존재고"
+      }],
+      boxes: [
+        inventoryBox("OLD-UNASSIGNED", "ION-0099", 1, 100, { storage: "미지정" }),
+        inventoryBox("OLD-UNASSIGNED", "ION-0099", 2, 100, { storage: "미지정", status: "출고완료" })
+      ]
     }
   };
 
@@ -217,7 +228,7 @@ test("existing inventory can move from unspecified storage through inbound edit"
     storage: "B-1",
     stockStatus: "보관",
     boxQuantity: 100,
-    inboundBoxCount: 1,
+    inboundBoxCount: 2,
     inspectionQuantity: 0,
     defectQuantity: 0,
     defectReason: "양호"
@@ -225,9 +236,15 @@ test("existing inventory can move from unspecified storage through inbound edit"
 
   assert.deepEqual(updated.changes.inventoryRecords.deletes, ["OLD-UNASSIGNED|ION-0099|미지정"]);
   assert.equal(updated.changes.inventoryRecords.upserts[0].storage, "B-1");
+  assert.equal(updated.changes.inventoryBoxes.upserts.length, 1);
+  assert.equal(updated.changes.inventoryBoxes.upserts[0].box_id, "OLD-UNASSIGNED-B001");
   assert.equal(updated.changes.inventoryBoxes.upserts[0].storage, "B-1");
   assert.equal(holder.state.records[0].storage, "B-1");
   assert.equal(holder.state.boxes[0].storage, "B-1");
+  assert.equal(holder.state.boxes[1].storage, "미지정");
+  assert.equal(holder.state.boxes[1].status, "출고완료");
+  assert.equal(holder.state.records[0].currentBoxCount, "1 box");
+  assert.equal(holder.state.records[0].currentTotalQuantity, "100 ea");
 });
 
 test("shipping inspection applies quantities once and clears only waiting boxes", () => {
