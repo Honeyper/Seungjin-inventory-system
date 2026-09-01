@@ -8342,18 +8342,18 @@ function getInboundQrProcessData(inbound, boxes = [], productProcessInfo = null)
     flameTreatmentStatus,
     dustRemovalStatus
   }) || ["1도", "2도", "3도"].map((label) => ({ label, disabled: false, treatment: false }));
-  const treatmentLabels = processRows
-    .filter((row) => row.treatment)
-    .map((row) => row.label);
+  const summary = globalThis.SeungjinQrLabel?.getProcessSummary({
+    finalProcess,
+    flameTreatmentStatus,
+    dustRemovalStatus
+  }) || finalProcess;
 
   return {
     finalProcess,
     flameTreatmentStatus,
     dustRemovalStatus,
     processRows,
-    summary: treatmentLabels.length
-      ? `${finalProcess} + ${treatmentLabels.join("/")}`
-      : finalProcess
+    summary
   };
 }
 
@@ -8436,7 +8436,7 @@ function renderInboundQrReferenceLabel({
   return `
     <article class="box-qr-label box-qr-label-reference${variantClass ? ` ${variantClass}` : ""}">
       <div class="box-qr-reference-title">
-        <strong class="box-qr-reference-final-process">최종공정 ${escapeHtml(processData.finalProcess)}</strong>
+        <strong class="box-qr-reference-final-process">최종공정 ${escapeHtml(processData.summary)}</strong>
         <strong class="box-qr-reference-box-count">${escapeHtml(boxLabel)}</strong>
       </div>
       <div class="box-qr-reference-summary">

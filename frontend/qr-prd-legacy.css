@@ -13,6 +13,7 @@
 }
 
 .box-qr-label-reference {
+  position: relative;
   display: grid;
   grid-template-rows: 5.4mm 5.4mm 18.4mm 5.4mm repeat(3, 6mm) 6.8mm;
   width: 100%;
@@ -20,12 +21,22 @@
   min-height: 0;
   padding: 0;
   overflow: hidden;
-  border: 0.5pt solid #050505;
+  border: 0;
   border-radius: 1.1mm;
   color: #050505;
   background: #fff;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+.box-qr-label-reference::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border: 0.5pt solid #050505;
+  border-radius: inherit;
+  pointer-events: none;
+  content: "";
 }
 
 .box-qr-label-reference > * {
@@ -39,6 +50,7 @@
 .box-qr-reference-row {
   display: grid;
   grid-template-columns: 21fr 23fr 19fr 18fr 19fr;
+  clip-path: inset(0 0.5pt);
 }
 
 .box-qr-reference-title,
@@ -104,8 +116,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   align-items: stretch;
-  padding: 1.6mm 0.9mm 1.8mm;
-  border-right: 0.4pt solid #050505;
+  padding: 1.6mm 0.9mm 1.8mm 1.8mm;
 }
 
 .box-qr-reference-product-heading {
@@ -142,6 +153,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.55mm;
+  border-left: 0.4pt solid #050505;
 }
 
 .box-qr-label-reference .box-qr-image {
@@ -172,9 +184,18 @@
 .box-qr-reference-month,
 .box-qr-reference-day,
 .box-qr-reference-sign {
-  color: #050505;
   font-size: 7.4pt;
   font-weight: 400;
+}
+
+.box-qr-reference-quantity {
+  color: #9aa3af;
+}
+
+.box-qr-reference-month,
+.box-qr-reference-day {
+  justify-content: flex-end;
+  padding-right: 0.9mm;
 }
 
 .box-qr-reference-row.is-disabled {
@@ -182,7 +203,10 @@
   background: #050505;
 }
 
-.box-qr-reference-row.is-disabled .box-qr-reference-quantity,
+.box-qr-reference-row.is-disabled .box-qr-reference-quantity {
+  color: #c7cdd5;
+}
+
 .box-qr-reference-row.is-disabled .box-qr-reference-month,
 .box-qr-reference-row.is-disabled .box-qr-reference-day,
 .box-qr-reference-row.is-disabled .box-qr-reference-sign {
