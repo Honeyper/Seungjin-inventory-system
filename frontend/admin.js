@@ -7665,7 +7665,7 @@ async function openInboundQrModal(managementId, productId = "") {
   updateInboundQrLayoutButtons();
   state.isLoadingInboundQrs = true;
   closeInboundRowActionMenu();
-  const processText = getInboundQrProcessText(inbound);
+  const processText = getInboundQrProcessData(inbound).summary;
   inboundQrTitle.textContent = `${inbound.productName || "입고"} 박스 QR`;
   inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · QR 데이터를 준비 중입니다.`;
   inboundQrSheet.innerHTML = '<p class="qr-loading">박스 QR 데이터를 불러오는 중입니다.</p>';
@@ -7676,8 +7676,9 @@ async function openInboundQrModal(managementId, productId = "") {
   try {
     const result = await requestApi("getInboundBoxQrs", { managementId, productId: state.activeQrInboundProductId });
     const boxes = Array.isArray(result.boxes) ? result.boxes : [];
+    const loadedProcessText = getInboundQrProcessData(inbound, boxes).summary;
     state.activeQrBoxes = boxes;
-    inboundQrSubtitle.textContent = `${managementId} · ${processText} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
+    inboundQrSubtitle.textContent = `${managementId} · ${loadedProcessText} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
     markInboundQrGenerated(managementId, state.activeQrInboundProductId, boxes.length);
     renderInboundQrSheet(inbound, boxes);
   } catch (error) {
@@ -7751,12 +7752,18 @@ function getInboundQrProcessData(inbound, boxes = []) {
     flameTreatmentStatus,
     dustRemovalStatus
   }) || ["1도", "2도", "3도"].map((label) => ({ label, disabled: false, treatment: false }));
+  const summary = globalThis.SeungjinQrLabel?.getProcessSummary({
+    finalProcess,
+    flameTreatmentStatus,
+    dustRemovalStatus
+  }) || finalProcess;
 
   return {
     finalProcess,
     flameTreatmentStatus,
     dustRemovalStatus,
-    processRows
+    processRows,
+    summary
   };
 }
 
@@ -7833,7 +7840,7 @@ function renderInboundQrReferenceLabel({
   return `
     <article class="box-qr-label box-qr-label-reference${variantClass ? ` ${variantClass}` : ""}">
       <div class="box-qr-reference-title">
-        <strong class="box-qr-reference-final-process">최종공정 ${escapeHtml(processData.finalProcess)}</strong>
+        <strong class="box-qr-reference-final-process">최종공정 ${escapeHtml(processData.summary)}</strong>
         <strong class="box-qr-reference-box-count">${escapeHtml(boxLabel)}</strong>
       </div>
       <div class="box-qr-reference-summary">

@@ -8,6 +8,25 @@
     return ["유", "y", "yes", "true", "1"].includes(String(value ?? "").trim().toLowerCase());
   }
 
+  function getProcessSummary({
+    finalProcess = "-",
+    flameTreatmentStatus = "무",
+    dustRemovalStatus = "무"
+  } = {}) {
+    const treatments = [];
+
+    if (isEnabled(dustRemovalStatus)) {
+      treatments.push("박가루");
+    }
+    if (isEnabled(flameTreatmentStatus)) {
+      treatments.push("화염");
+    }
+
+    return treatments.length
+      ? `${finalProcess || "-"} + ${treatments.join(" / ")}`
+      : (finalProcess || "-");
+  }
+
   function getProcessRows({
     finalProcess = "",
     flameTreatmentStatus = "무",
@@ -36,6 +55,7 @@
 
   globalScope.SeungjinQrLabel = Object.freeze({
     getProcessRows,
+    getProcessSummary,
     getProcessStep,
     isEnabled
   });

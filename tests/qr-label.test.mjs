@@ -4,7 +4,7 @@ import test from "node:test";
 
 await import("../frontend/qr-label.js");
 
-const { getProcessRows } = globalThis.SeungjinQrLabel;
+const { getProcessRows, getProcessSummary } = globalThis.SeungjinQrLabel;
 
 test("기본 공정은 1도, 2도, 3도 순서를 유지한다", () => {
   assert.deepEqual(getProcessRows({ finalProcess: "2도" }), [
@@ -36,6 +36,21 @@ test("화염과 박가루가 모두 있으면 첫 칸과 세 번째 칸에 배�
     flameTreatmentStatus: "유",
     dustRemovalStatus: "유"
   }).map((row) => row.label), ["화염", "1도", "박가루"]);
+});
+
+test("특수 공정은 최종공정 뒤에 박가루와 화염 순서로 표시한다", () => {
+  assert.equal(
+    getProcessSummary({ finalProcess: "1도", dustRemovalStatus: "유" }),
+    "1도 + 박가루"
+  );
+  assert.equal(
+    getProcessSummary({ finalProcess: "2도", flameTreatmentStatus: "유" }),
+    "2도 + 화염"
+  );
+  assert.equal(
+    getProcessSummary({ finalProcess: "1도", dustRemovalStatus: "유", flameTreatmentStatus: "유" }),
+    "1도 + 박가루 / 화염"
+  );
 });
 
 test("인쇄 시 비활성 공정은 흰 배경과 회색 글자로 출력한다", async () => {
