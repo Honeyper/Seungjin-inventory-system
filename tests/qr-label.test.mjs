@@ -46,3 +46,13 @@ test("인쇄 시 비활성 공정은 흰 배경과 회색 글자로 출력한다
   assert.match(printRules, /\.box-qr-reference-row\.is-disabled\s*\{[\s\S]*?background:\s*#fff\s*!important;/);
   assert.doesNotMatch(printRules, /\.box-qr-reference-row\.is-disabled\s*\{[\s\S]*?background:\s*#050505\s*!important;/);
 });
+
+test("ea는 연하게 표시하고 월과 일은 각 칸 오른쪽에 정렬한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.box-qr-reference-quantity\s*\{[\s\S]*?color:\s*#9aa3af;/);
+  assert.match(
+    css,
+    /\.box-qr-reference-month,\s*\.box-qr-reference-day\s*\{[\s\S]*?justify-content:\s*flex-end;/
+  );
+});
