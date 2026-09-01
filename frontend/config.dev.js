@@ -3,5 +3,6 @@ window.SEUNGJIN_CONFIG = {
   ENV: "dev",
   API_URL: "https://script.google.com/macros/s/AKfycbzSz-9IspdGb_wcAIUVhokQdQR0egaiR5M1sJ9PQVX5pjm_w7-FPU3gaj-cmLwjAvxvsg/exec",
   SUPABASE_GATEWAY_URL: "https://lponwunagtixddwqkzxx.supabase.co/functions/v1/seungjin-dev-gateway",
-  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_kjj59xENATbzJwnUlKsmGg_uA5lwI0R"
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_kjj59xENATbzJwnUlKsmGg_uA5lwI0R",
+  SUPABASE_CANONICAL_WRITES: true
 };

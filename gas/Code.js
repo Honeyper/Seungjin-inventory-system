@@ -16,7 +16,10 @@ const APP_ENVIRONMENTS = {
 };
 
 const CONFIG = buildRuntimeConfig_();
+const SUPABASE_DEV_GATEWAY_URL = 'https://lponwunagtixddwqkzxx.supabase.co/functions/v1/seungjin-dev-gateway';
+const SUPABASE_DEV_PUBLISHABLE_KEY = 'sb_publishable_kjj59xENATbzJwnUlKsmGg_uA5lwI0R';
 const DATA_CACHE_VERSION_PROPERTY = 'DATA_CACHE_VERSION';
+const SUPABASE_LAST_SYNCED_OUTBOX_PROPERTY = 'SUPABASE_LAST_SYNCED_OUTBOX_ID';
 const DATA_CACHE_CHUNK_SIZE = 70000;
 const DATA_CACHE_TTL_SECONDS = {
   PRODUCTS: 60,
@@ -48,7 +51,8 @@ const DATA_MUTATION_ACTIONS = new Set([
   'createInbound',
   'updateInbound',
   'deleteInbound',
-  'formatProductRows'
+  'formatProductRows',
+  'applySupabaseOutbox'
 ]);
 
 function buildRuntimeConfig_() {
@@ -142,7 +146,37 @@ function doPost(e) {
     const action = body.action;
     const payload = body.payload || {};
 
-    const routes = {
+    const routes = getApiRoutes_();
+
+    if (!routes[action]) {
+      return jsonResponse({
+        ok: false,
+        error: 'UNKNOWN_ACTION',
+        message: `Unknown action: ${action}`
+      });
+    }
+
+    const data = routes[action](payload);
+
+    if (DATA_MUTATION_ACTIONS.has(action)) {
+      invalidateDataCaches_();
+    }
+
+    return jsonResponse({
+      ok: true,
+      data
+    });
+  } catch (error) {
+    return jsonResponse({
+      ok: false,
+      error: error.name || 'ERROR',
+      message: error.message
+    });
+  }
+}
+
+function getApiRoutes_() {
+  return {
       healthCheck,
       authorizeDrive,
       normalizeStockAttachmentLinks,
@@ -173,34 +207,121 @@ function doPost(e) {
       createInbound,
       updateInbound,
       deleteInbound,
-      formatProductRows
-    };
+      formatProductRows,
+      applySupabaseOutbox
+  };
+}
 
-    if (!routes[action]) {
-      return jsonResponse({
-        ok: false,
-        error: 'UNKNOWN_ACTION',
-        message: `Unknown action: ${action}`
-      });
-    }
+function verifySupabaseSheetSyncToken_(token) {
+  const response = UrlFetchApp.fetch(SUPABASE_DEV_GATEWAY_URL, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      apikey: SUPABASE_DEV_PUBLISHABLE_KEY
+    },
+    payload: JSON.stringify({
+      action: 'verifySheetSyncToken',
+      payload: { token }
+    }),
+    muteHttpExceptions: true
+  });
+  const status = response.getResponseCode();
+  const result = JSON.parse(response.getContentText() || '{}');
 
-    const data = routes[action](payload);
-
-    if (DATA_MUTATION_ACTIONS.has(action)) {
-      invalidateDataCaches_();
-    }
-
-    return jsonResponse({
-      ok: true,
-      data
-    });
-  } catch (error) {
-    return jsonResponse({
-      ok: false,
-      error: error.name || 'ERROR',
-      message: error.message
-    });
+  if (status !== 200 || !result.ok || !result.data || result.data.valid !== true) {
+    throw new Error(result.message || 'Supabase 동기화 토큰을 확인할 수 없습니다.');
   }
+}
+
+function authorizeSupabaseSheetSync() {
+  try {
+    verifySupabaseSheetSyncToken_('authorization-check');
+  } catch (error) {
+    if (/권한|権限|permission|authorization/i.test(String(error.message || error))) {
+      throw error;
+    }
+  }
+  return { authorized: true, env: CONFIG.ENV };
+}
+
+function buildSupabaseReplayPayload_(item) {
+  const payload = Object.assign({}, item.payload || {});
+  const result = item.canonical_result || item.canonicalResult || {};
+
+  if (result.productId) {
+    payload.productId = result.productId;
+    payload.productCode = result.productId;
+    payload['제품 ID'] = result.productId;
+  }
+  if (result.purchaseOrderId) {
+    payload.purchaseOrderId = result.purchaseOrderId;
+    payload['발주ID'] = result.purchaseOrderId;
+  }
+  if (result.managementId) {
+    payload.managementId = result.managementId;
+    payload['관리 ID'] = result.managementId;
+  }
+  return payload;
+}
+
+function applySupabaseOutbox(payload) {
+  if (CONFIG.ENV !== 'dev') {
+    throw new Error('Supabase 야간 동기화는 DEV 환경에서만 실행할 수 있습니다.');
+  }
+
+  const token = String(payload.token || '').trim();
+  const items = Array.isArray(payload.items) ? payload.items.slice(0, 100) : [];
+  if (!token || !items.length) {
+    throw new Error('동기화 토큰과 항목이 필요합니다.');
+  }
+  verifySupabaseSheetSyncToken_(token);
+
+  const allowedActions = new Set([
+    'createProduct', 'updateProduct', 'deleteProduct',
+    'createPurchaseOrder', 'updatePurchaseOrder', 'deletePurchaseOrder',
+    'createInbound', 'updateInbound', 'deleteInbound',
+    'getInboundBoxQrs', 'saveShippingInspection', 'cancelDiscardedBoxes',
+    'classifyRemainingInventory', 'updateShippingStatus', 'adjustMissingInventory',
+    'updateInventoryBoxMove', 'returnTransferredInventory', 'returnTakenOutInventory'
+  ]);
+  const routes = getApiRoutes_();
+  const properties = PropertiesService.getScriptProperties();
+  let lastSyncedId = Number(properties.getProperty(SUPABASE_LAST_SYNCED_OUTBOX_PROPERTY) || 0);
+  const results = [];
+  let stoppedByFailure = false;
+
+  items.sort((left, right) => Number(left.id) - Number(right.id));
+  items.forEach((item) => {
+    const id = Number(item.id);
+    const action = String(item.action || '');
+
+    if (!Number.isFinite(id) || id <= 0 || !allowedActions.has(action) || !routes[action]) {
+      results.push({ id: item.id, ok: false, message: `지원하지 않는 동기화 항목입니다: ${action}` });
+      stoppedByFailure = true;
+      return;
+    }
+    if (id <= lastSyncedId) {
+      results.push({ id, ok: true, data: { alreadySynced: true } });
+      return;
+    }
+    if (stoppedByFailure) {
+      results.push({ id, ok: false, message: '앞선 항목 실패로 실행을 보류했습니다.' });
+      return;
+    }
+
+    try {
+      const data = routes[action](buildSupabaseReplayPayload_(item));
+      lastSyncedId = id;
+      properties.setProperty(SUPABASE_LAST_SYNCED_OUTBOX_PROPERTY, String(id));
+      results.push({ id, ok: true, data: data || {} });
+    } catch (error) {
+      stoppedByFailure = true;
+      results.push({ id, ok: false, message: error.message || String(error) });
+    }
+  });
+
+  invalidateDataCaches_();
+  return { results, lastSyncedId };
 }
 
 function getDataCacheVersion_() {
@@ -1988,7 +2109,8 @@ function createInbound(payload) {
     const timezone = 'Asia/Seoul';
     const registeredDate = Utilities.formatDate(now, timezone, 'yyyy. M. d');
     const managementDate = Utilities.formatDate(now, timezone, 'yyMMdd');
-    const managementId = generateInboundManagementId_(stockSheet, boxSheet, managementDate, payload.productId);
+    const managementId = String(payload.managementId || payload['관리 ID'] || '').trim()
+      || generateInboundManagementId_(stockSheet, boxSheet, managementDate, payload.productId);
     const totalBoxCount = inboundBoxCount + remainderQuantities.length;
     const totalQuantity = boxQuantity * inboundBoxCount + remainQuantity;
     const defectRate = inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0;
@@ -2063,7 +2185,9 @@ function createInbound(payload) {
       stockRow,
       boxStartRow,
       boxCount: boxRecords.length,
-      boxIds: boxRecords.map((record) => record.boxId)
+      boxIds: boxRecords.map((record) => record.boxId),
+      invoiceFileUrl,
+      defectPhotoUrls
     };
   } finally {
     lock.releaseLock();
@@ -2273,7 +2397,9 @@ function updateInbound(payload) {
       boxIds: boxRecords.map((record) => record.boxId),
       boxUpdatedRows: boxSync.updatedRows,
       boxDeletedRows: boxSync.deletedRows,
-      boxInsertedRows: boxSync.insertedRows
+      boxInsertedRows: boxSync.insertedRows,
+      invoiceFileUrl: finalInvoiceFileUrl,
+      defectPhotoUrls: finalDefectPhotoUrls
     };
   } finally {
     lock.releaseLock();
@@ -2663,7 +2789,8 @@ function createPurchaseOrder(payload) {
 
     const now = new Date();
     const timezone = 'Asia/Seoul';
-    const purchaseOrderId = generatePurchaseOrderId_(existing, data.productId, now);
+    const purchaseOrderId = String(payload.purchaseOrderId || payload['발주ID'] || '').trim()
+      || generatePurchaseOrderId_(existing, data.productId, now);
     const registeredAt = Utilities.formatDate(now, timezone, 'yyyy-MM-dd HH:mm:ss');
     const row = buildPurchaseOrderRow_(setup.headers, {
       ...data,

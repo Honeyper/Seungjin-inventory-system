@@ -6303,6 +6303,18 @@ async function requestApi(action, payload = {}, options = {}) {
     return options.unwrap === false ? result : result.data;
   }
 
+  if (window.SeungjinDataGateway?.canMutate(action)) {
+    try {
+      const data = await window.SeungjinDataGateway.requestMutation(action, payload);
+      return options.unwrap === false ? { ok: true, data } : data;
+    } catch (error) {
+      if (error?.status === 401) {
+        logout();
+      }
+      throw error;
+    }
+  }
+
   if (window.SeungjinDataGateway?.canRead(action)) {
     try {
       const data = await window.SeungjinDataGateway.requestRead(action, payload);
@@ -6310,9 +6322,8 @@ async function requestApi(action, payload = {}, options = {}) {
     } catch (error) {
       if (error?.status === 401) {
         logout();
-        throw error;
       }
-      console.warn(`Supabase ${action} 조회 실패, Apps Script로 재시도합니다.`, error);
+      throw error;
     }
   }
 

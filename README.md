@@ -5,8 +5,9 @@
 ## 작업 방식
 
 - 회사와 집에서 같은 코드를 작업하기 위해 Git으로 버전을 관리합니다.
-- 실제 운영 데이터는 Google Sheets에 저장합니다.
-- Google Apps Script는 Google Sheets를 읽고 쓰는 API 서버 역할을 합니다.
+- PRD 운영 데이터는 Google Sheets에 저장합니다.
+- DEV 업무 데이터는 Supabase를 기준으로 저장하고, 매일 20시 이후 Google Sheets에 동기화합니다.
+- Google Apps Script는 PRD API와 DEV 스프레드시트 사본 동기화를 담당합니다.
 - 프론트엔드 화면과 Apps Script 코드는 이 저장소에서 함께 관리합니다.
 
 ## 예정 구조
