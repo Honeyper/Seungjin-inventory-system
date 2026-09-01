@@ -172,6 +172,7 @@ const state = {
   isSavingTransferReturn: false,
   isCancelingDiscardedBoxes: false,
   inboundProductPickerQuery: "",
+  inboundProductPickerSort: "registered",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
     invoice: "",
@@ -292,6 +293,7 @@ const inboundListEndDate = document.querySelector("#inboundListEndDate");
 const inboundProductSearchTrigger = document.querySelector("#inboundProductSearchTrigger");
 const inboundProductPickerModal = document.querySelector("#inboundProductPickerModal");
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
+const inboundProductPickerSort = document.querySelector("#inboundProductPickerSort");
 const inboundProductPickerCount = document.querySelector("#inboundProductPickerCount");
 const inboundProductPickerList = document.querySelector("#inboundProductPickerList");
 const inboundProductPickerEmpty = document.querySelector("#inboundProductPickerEmpty");
@@ -1082,6 +1084,12 @@ createProductFromPickerButton?.addEventListener("click", () => {
 inboundProductPickerSearch.addEventListener("input", (event) => {
   state.inboundProductPickerQuery = normalizeSearchText(event.target.value);
   renderInboundProductPicker();
+});
+
+inboundProductPickerSort.addEventListener("change", (event) => {
+  state.inboundProductPickerSort = event.target.value;
+  renderInboundProductPicker();
+  inboundProductPickerList.scrollTop = 0;
 });
 
 productSearch.addEventListener("input", (event) => {
@@ -5631,6 +5639,7 @@ function openInboundProductPicker(target = "inbound") {
   state.inboundProductPickerTarget = target;
   state.inboundProductPickerQuery = "";
   inboundProductPickerSearch.value = "";
+  inboundProductPickerSort.value = state.inboundProductPickerSort;
   const isExistingStockTarget = target === "existingStock";
   const isPurchaseOrderTarget = target === "purchaseOrder";
   document.querySelector("#inboundProductPickerTitle").textContent = "제품 선택";
@@ -5667,7 +5676,7 @@ function closeInboundProductPicker() {
 
 function renderInboundProductPicker() {
   const query = state.inboundProductPickerQuery;
-  const products = state.products.filter((product) => {
+  const filteredProducts = state.products.filter((product) => {
     if (!query) {
       return true;
     }
@@ -5679,6 +5688,10 @@ function renderInboundProductPicker() {
       product.color
     ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query)));
   });
+  const products = window.SeungjinProductSort?.sortProducts(
+    filteredProducts,
+    state.inboundProductPickerSort
+  ) || filteredProducts;
 
   inboundProductPickerCount.textContent = products.length.toLocaleString("ko-KR");
 
