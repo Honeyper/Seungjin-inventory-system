@@ -7091,12 +7091,11 @@ function renderInventoryLocationRow(item, config) {
 function getInventoryAttentionConfig(type) {
   const configs = {
     audit: {
-      title: "실물 미확인 재고",
-      description: "모바일 재고 조사에서 아직 실물 확인되지 않은 박스 목록입니다.",
+      title: "실물 확인 현황",
+      description: "모바일 재고조사 대상 박스를 확인 상태별로 구분합니다.",
       tone: "purple",
-      metricLabel: "미확인 박스",
-      metric: (item) => `${formatNumber(item.inventoryUnconfirmedBoxCount)} box`,
-      filter: isInventoryPhysicalMissing
+      isAudit: true,
+      filter: isInventoryAuditTarget
     },
     storage: {
       title: "미지정 보관 재고",
@@ -7136,6 +7135,7 @@ function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(ty
   return type === "audit"
     ? rows.slice().sort((left, right) => (
       Number(right.inventoryUnconfirmedBoxCount || 0) - Number(left.inventoryUnconfirmedBoxCount || 0)
+      || Number(right.inventoryConfirmedBoxCount || 0) - Number(left.inventoryConfirmedBoxCount || 0)
       || String(right.inboundDate || "").localeCompare(String(left.inboundDate || ""))
     ))
     : rows;
@@ -7143,8 +7143,9 @@ function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(ty
 
 function getInventoryAttentionDescription(type, rows, config) {
   if (type === "audit") {
-    const missingBoxes = rows.reduce((sum, item) => sum + Number(item.inventoryUnconfirmedBoxCount || 0), 0);
-    return `${config.description} 총 ${formatNumber(rows.length)}건, ${formatNumber(missingBoxes)} box입니다.`;
+    const unconfirmedBoxes = rows.reduce((sum, item) => sum + Number(item.inventoryUnconfirmedBoxCount || 0), 0);
+    const confirmedBoxes = rows.reduce((sum, item) => sum + Number(item.inventoryConfirmedBoxCount || 0), 0);
+    return `${config.description} 미확인 ${formatNumber(unconfirmedBoxes)} box, 확인 완료 ${formatNumber(confirmedBoxes)} box입니다.`;
   }
 
   return config.description;
@@ -7156,6 +7157,10 @@ function getInventoryBoxCountTotal(rows) {
 
 function isInventoryPhysicalMissing(item) {
   return Number(item?.inventoryUnconfirmedBoxCount || 0) > 0;
+}
+
+function isInventoryAuditTarget(item) {
+  return Number(item?.inventoryAuditTargetBoxCount || 0) > 0;
 }
 
 function isLongStoredInventory(item) {
@@ -7195,6 +7200,13 @@ function parseInventoryDateValue(value) {
 }
 
 function renderInventoryAttentionRow(item, config) {
+  const metricHtml = config.isAudit
+    ? `
+        <span class="inventory-audit-status unconfirmed">미확인 <b>${formatNumber(item.inventoryUnconfirmedBoxCount)} box</b></span>
+        <span class="inventory-audit-status confirmed">확인 완료 <b>${formatNumber(item.inventoryConfirmedBoxCount)} box</b></span>
+      `
+    : `<span>${escapeHtml(config.metricLabel)} <b>${escapeHtml(config.metric(item))}</b></span>`;
+
   return `
     <article class="inventory-attention-row ${config.tone}">
       <div class="inventory-attention-row-main">
@@ -7205,7 +7217,7 @@ function renderInventoryAttentionRow(item, config) {
         <span>거래처 <b>${escapeHtml(normalizeDisplayValue(item.clientName))}</b></span>
         <span>입고일 <b>${escapeHtml(normalizeDisplayValue(item.inboundDate))}</b></span>
         <span>현재 수량 <b>${escapeHtml(normalizeDisplayValue(item.currentTotalQuantity))}</b></span>
-        <span>${escapeHtml(config.metricLabel)} <b>${escapeHtml(config.metric(item))}</b></span>
+        ${metricHtml}
       </div>
       <button
         type="button"
