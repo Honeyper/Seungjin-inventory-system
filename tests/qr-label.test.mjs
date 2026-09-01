@@ -65,4 +65,8 @@ test("QR 외곽선은 내부 선보다 위에 그려져 왼쪽 선을 일자로 
     css,
     /\.box-qr-label-reference::after\s*\{[\s\S]*?inset:\s*0;[\s\S]*?border:\s*0\.5pt solid #050505;/
   );
+  assert.match(
+    css,
+    /\.box-qr-reference-title,[\s\S]*?\.box-qr-reference-row\s*\{[\s\S]*?clip-path:\s*inset\(0 0\.5pt\);/
+  );
 });

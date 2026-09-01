@@ -50,6 +50,7 @@
 .box-qr-reference-row {
   display: grid;
   grid-template-columns: 21fr 23fr 19fr 18fr 19fr;
+  clip-path: inset(0 0.5pt);
 }
 
 .box-qr-reference-title,
