@@ -141,11 +141,70 @@ async function databaseRows(path: string) {
   }
 }
 
-async function loadCanonicalState() {
+async function loadFullCanonicalState() {
   return await databaseRequest("rpc/read_dev_canonical_state", {
     method: "POST",
     body: "{}"
   }) as JsonRecord;
+}
+
+async function loadShippingMutationState(payload: JsonRecord) {
+  const productId = String(payload.productId || "").trim();
+  const managementId = String(payload.managementId || "").trim();
+  const status = String(payload.status || "").replace(/\s+/g, "");
+  const shippingType = String(payload.shippingType || payload["출고유형"] || "").replace(/\s+/g, "");
+  const needsProductScope = status === "보관"
+    || (status === "출고완료" && shippingType.startsWith("반출"));
+  const scopeColumn = needsProductScope && productId ? "product_id" : "management_id";
+  const scopeValue = scopeColumn === "product_id" ? productId : managementId;
+  if (!scopeValue) return loadFullCanonicalState();
+
+  // Read the version first. Any write that lands while the scoped rows are
+  // loading increments this version and is rejected safely at commit time.
+  const stateRows = await databaseRequest(
+    "dev_state?singleton=eq.true&select=version&limit=1"
+  ) as Array<{ version: number }>;
+  const version = stateRows?.[0]?.version;
+  if (!Number.isFinite(Number(version))) {
+    throw new Error("재고 데이터 버전을 확인할 수 없습니다.");
+  }
+
+  const encodedScopeValue = encodeURIComponent(scopeValue);
+  const productRowsPromise = needsProductScope && productId
+    ? databaseRows(`dev_products?product_id=eq.${encodeURIComponent(productId)}&select=product_id,data`)
+    : Promise.resolve([] as JsonRecord[]);
+  const [productRows, recordRows, boxRows] = await Promise.all([
+    productRowsPromise,
+    databaseRows(`dev_inventory_records?${scopeColumn}=eq.${encodedScopeValue}&select=record_key,management_id,product_id,storage,data`),
+    databaseRows(`dev_inventory_boxes?${scopeColumn}=eq.${encodedScopeValue}&select=box_id,management_id,product_id,storage,box_number,data`)
+  ]);
+
+  return {
+    version,
+    products: productRows.map((row) => row.data),
+    orders: [],
+    inbounds: [],
+    records: recordRows.map((row) => ({
+      ...(row.data as JsonRecord),
+      recordKey: row.record_key,
+      originalStorage: row.storage
+    })),
+    boxes: boxRows.map((row) => ({
+      ...(row.data as JsonRecord),
+      boxId: row.box_id,
+      managementId: row.management_id,
+      productId: row.product_id,
+      storage: row.storage,
+      number: row.box_number
+    }))
+  };
+}
+
+async function loadCanonicalState(action: string, payload: JsonRecord) {
+  if (action === "updateShippingStatus") {
+    return loadShippingMutationState(payload);
+  }
+  return loadFullCanonicalState();
 }
 
 function isStateVersionConflict(error: unknown) {
@@ -155,8 +214,8 @@ function isStateVersionConflict(error: unknown) {
 async function commitCanonicalMutation(action: string, payload: JsonRecord) {
   let lastError: unknown = null;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const state = await loadCanonicalState();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const state = await loadCanonicalState(action, payload);
     const mutation = applyMutation(action, payload, state, new Date()) as {
       changes: JsonRecord;
       result: JsonRecord;
@@ -182,9 +241,16 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord) {
     } catch (error) {
       lastError = error;
       if (!isStateVersionConflict(error)) throw error;
+      if (attempt < 4) {
+        const backoffMs = 60 * (2 ** attempt) + Math.floor(Math.random() * 40);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      }
     }
   }
 
+  if (isStateVersionConflict(lastError)) {
+    throw new Error("동시 작업이 많아 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+  }
   throw lastError || new Error("동시 작업 충돌로 저장하지 못했습니다. 다시 시도해주세요.");
 }
 

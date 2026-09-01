@@ -59,7 +59,9 @@ const SHIPPING_CLOCK_INTERVAL_MS = 1000;
 const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
 const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
-const SHIPPING_ACTION_CONCURRENCY = 3;
+// Canonical inventory writes share one state version. Keep mobile batch writes
+// sequential so scanned product groups do not conflict with each other.
+const SHIPPING_ACTION_CONCURRENCY = 1;
 const SHIPPING_BOX_ICON_SRC = "../assets/mobile-shipping-box-icon-2d.png?v=20260712-shipping-box-icon";
 const INVENTORY_STORAGE_OPTIONS = [
   "미지정",
