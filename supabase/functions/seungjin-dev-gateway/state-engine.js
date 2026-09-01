@@ -31,6 +31,7 @@ export const SUPABASE_MUTATION_ACTIONS = new Set([
   "saveShippingInspection",
   "cancelDiscardedBoxes",
   "classifyRemainingInventory",
+  "adjustRemainingInventory",
   "updateShippingStatus",
   "adjustMissingInventory",
   "updateInventoryBoxMove",
@@ -88,6 +89,8 @@ function dateParts(now = new Date()) {
 function normalizeStatus(value) {
   const raw = text(value);
   const compact = raw.replace(/\s+/g, "");
+  if (compact.startsWith("출고완료")) return "출고완료";
+  if (compact.startsWith("출고대기")) return "출고대기";
   const aliases = {
     "": "보관",
     "-": "보관",
@@ -267,9 +270,12 @@ function mergeAttachmentUrls(...values) {
 }
 
 function resolveAggregateStockStatus(boxes) {
-  const available = boxes.filter((box) => number(box.quantity) > 0 && !/폐기/.test(normalizeStatus(box.rawStatus || box.status)));
+  const available = boxes.filter((box) => !/폐기/.test(normalizeStatus(box.rawStatus || box.status)));
   const shipped = available.filter((box) => normalizeStatus(box.rawStatus || box.status) === "출고완료");
-  const active = available.filter((box) => normalizeStatus(box.rawStatus || box.status) !== "출고완료");
+  const active = available.filter((box) => (
+    number(box.quantity) > 0
+    && normalizeStatus(box.rawStatus || box.status) !== "출고완료"
+  ));
   if (active.length && shipped.length) return "일부 출고";
   if (!active.length && shipped.length) return "출고완료";
   if (active.some((box) => normalizeStatus(box.rawStatus || box.status) === "출고대기")) return "출고대기";
@@ -629,6 +635,58 @@ function mutateInventory(action, payload, state, changes, now) {
     return { managementId: text(payload.managementId), inventoryCategory: category, classifiedAt: parts.timestamp, classifier: text(payload.userName || "Admin"), updatedRows: boxes.length, totalQuantity: boxes.reduce((sum, box) => sum + number(box.quantity), 0) };
   }
 
+  if (action === "adjustRemainingInventory") {
+    const adjustmentDate = text(payload.adjustmentDate || parts.date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(adjustmentDate)) throw new Error("조정일 형식이 올바르지 않습니다.");
+    const quantityMap = getBoxQuantityMap(payload);
+    const adjuster = text(payload.userName || payload.registrant || "Admin") || "Admin";
+    const note = text(payload.note || payload.memo);
+    boxes.forEach((box) => {
+      const boxNumber = integer(box.number);
+      const adjustedQuantity = quantityMap.get(boxNumber);
+      if (!Number.isInteger(adjustedQuantity) || adjustedQuantity < 0) {
+        throw new Error(`${boxNumber}번 박스의 조정 수량을 0 이상의 정수로 입력해주세요.`);
+      }
+      const currentStatus = normalizeStatus(box.rawStatus || box.status);
+      const isProtectedInventory = payload.protectClassifiedInventory === true
+        && /자사재고|사출|인쇄/.test(`${text(box.inventoryCategory)} ${text(box.rawStatus || box.status)}`);
+      if (currentStatus !== "보관" || isProtectedInventory || number(box.quantity) <= 0) {
+        throw new Error(`${boxNumber}번 박스는 재고조정 대상이 아닙니다.`);
+      }
+      box.quantity = adjustedQuantity;
+      box.status = "출고완료";
+      box.rawStatus = "출고완료(재고조정)";
+      box.shippingType = "재고조정";
+      box.shippingDate = `(조정일)${adjustmentDate}`;
+      box.shippingTime = parts.time;
+      box.shippingUpdatedAt = parts.timestamp;
+      box.shipper = adjuster;
+      box.transferCompany = "";
+      const adjustmentNote = `[재고조정 ${parts.timestamp}] ${boxNumber}번 박스 · ${formatEa(adjustedQuantity)} · 조정자 ${adjuster}${note ? ` · 비고 ${note}` : ""}`;
+      box.note = [text(box.note) && text(box.note) !== "-" ? text(box.note) : "", adjustmentNote].filter(Boolean).join("\n");
+    });
+    upsertBoxes(boxes, changes);
+    touchInventoryRecords(state, boxes.map((box) => box.managementId), changes);
+    const related = state.boxes.filter((box) => text(box.managementId) === text(payload.managementId));
+    const remainingActiveRows = related.filter((box) => (
+      number(box.quantity) > 0
+      && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))
+    )).length;
+    const finalStatus = remainingActiveRows > 0 ? "일부 출고" : "출고완료(재고조정)";
+    return {
+      managementId: text(payload.managementId),
+      status: finalStatus,
+      adjustmentDate,
+      shippingDate: `(조정일)${adjustmentDate}`,
+      shippingTime: parts.time,
+      adjuster,
+      updatedBoxRows: boxes.length,
+      updatedStockRows: new Set(boxes.map((box) => box.managementId)).size,
+      remainingActiveRows,
+      isPartialShipping: finalStatus === "일부 출고"
+    };
+  }
+
   if (action === "cancelDiscardedBoxes") {
     boxes.forEach((box) => {
       if (!/폐기/.test(normalizeStatus(box.rawStatus || box.status))) throw new Error("폐기 상태가 아닌 박스가 포함되어 있습니다.");
@@ -912,7 +970,7 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
     ]);
     recalculateProductInbound(state.products, state.records, state.boxes, changes, affectedProductIds);
     result = { managementId, deletedStockRows: records.length, deletedBoxRows: boxes.length };
-  } else if (["getInboundBoxQrs", "saveShippingInspection", "cancelDiscardedBoxes", "classifyRemainingInventory", "updateShippingStatus", "updateInventoryBoxMove"].includes(action)) {
+  } else if (["getInboundBoxQrs", "saveShippingInspection", "cancelDiscardedBoxes", "classifyRemainingInventory", "adjustRemainingInventory", "updateShippingStatus", "updateInventoryBoxMove"].includes(action)) {
     result = mutateInventory(action, payload, state, changes, now);
   } else if (action === "adjustMissingInventory") {
     result = adjustMissingInventory(payload, state, changes, now);

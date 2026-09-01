@@ -269,7 +269,7 @@ function applySupabaseOutbox(payload) {
     'createPurchaseOrder', 'updatePurchaseOrder', 'deletePurchaseOrder',
     'createInbound', 'updateInbound', 'deleteInbound',
     'getInboundBoxQrs', 'saveShippingInspection', 'cancelDiscardedBoxes',
-    'classifyRemainingInventory', 'updateShippingStatus', 'adjustMissingInventory',
+    'classifyRemainingInventory', 'adjustRemainingInventory', 'updateShippingStatus', 'adjustMissingInventory',
     'updateInventoryBoxMove', 'returnTransferredInventory', 'returnTakenOutInventory'
   ]);
   const routes = getApiRoutes_();

@@ -53,6 +53,7 @@ function inventoryBox(managementId, productId, number, quantity, options = {}) {
     shippingDate: options.shippingDate || "",
     shippingTime: options.shippingTime || "",
     shipper: options.shipper || "",
+    inventoryCategory: options.inventoryCategory || "",
     inspectionDate: options.inspectionDate || "",
     inspectionTime: options.inspectionTime || "",
     inspectionQuantity: options.inspectionQuantity || 0,
@@ -443,6 +444,79 @@ test("shipping, returns, inventory moves, QR, and inventory audit enforce select
   const dashboard = buildInventoryDashboard(holder.state.records, holder.state.boxes);
   assert.equal(dashboard.rows.length, 1);
   assert.ok(dashboard.summary.totalQuantity > 0);
+});
+
+test("remaining inventory adjustment uses canonical writes and protects classified boxes", () => {
+  const holder = {
+    state: {
+      products: [{ ...product("ION-0001"), accumulatedInboundQuantity: "200 ea" }],
+      orders: [],
+      inbounds: [],
+      records: [inventoryRecord("M-4", "ION-0001", 200)],
+      boxes: [
+        inventoryBox("M-4", "ION-0001", 1, 100),
+        inventoryBox("M-4", "ION-0001", 2, 100, { inventoryCategory: "자사재고" })
+      ]
+    }
+  };
+
+  assert.throws(() => mutate(holder, "adjustRemainingInventory", {
+    managementId: "M-4",
+    productId: "ION-0001",
+    selectedBoxes: [1],
+    boxQuantities: {}
+  }), /조정 수량/);
+  assert.throws(() => mutate(holder, "adjustRemainingInventory", {
+    managementId: "M-4",
+    productId: "ION-0001",
+    selectedBoxes: [2],
+    boxQuantities: { 2: 50 },
+    protectClassifiedInventory: true
+  }), /재고조정 대상/);
+
+  const adjustment = mutate(holder, "adjustRemainingInventory", {
+    managementId: "M-4",
+    productId: "ION-0001",
+    selectedBoxes: [1],
+    selectedBoxIds: ["M-4-B001"],
+    boxQuantities: { 1: 35 },
+    adjustmentDate: "2026-09-01",
+    note: "실물 수량 반영",
+    userName: "테스터"
+  });
+
+  assert.equal(holder.state.boxes[0].quantity, 35);
+  assert.equal(holder.state.boxes[0].status, "출고완료");
+  assert.equal(holder.state.boxes[0].rawStatus, "출고완료(재고조정)");
+  assert.equal(holder.state.boxes[0].shippingType, "재고조정");
+  assert.equal(holder.state.boxes[0].shippingDate, "(조정일)2026-09-01");
+  assert.match(holder.state.boxes[0].note, /실물 수량 반영/);
+  assert.equal(holder.state.records[0].currentTotalQuantity, "100 ea");
+  assert.equal(holder.state.products[0].accumulatedInboundQuantity, "200 ea");
+  assert.equal(adjustment.result.status, "일부 출고");
+  assert.equal(adjustment.result.updatedBoxRows, 1);
+  assert.equal(adjustment.result.remainingActiveRows, 1);
+
+  const zeroHolder = {
+    state: {
+      products: [product("ION-0002")],
+      orders: [],
+      inbounds: [],
+      records: [inventoryRecord("M-5", "ION-0002", 50)],
+      boxes: [inventoryBox("M-5", "ION-0002", 1, 50)]
+    }
+  };
+  const zeroAdjustment = mutate(zeroHolder, "adjustRemainingInventory", {
+    managementId: "M-5",
+    productId: "ION-0002",
+    selectedBoxes: [1],
+    boxQuantities: { 1: 0 },
+    adjustmentDate: "2026-09-01",
+    userName: "테스터"
+  });
+  assert.equal(zeroHolder.state.records[0].stockStatus, "출고완료");
+  assert.equal(zeroHolder.state.records[0].currentTotalQuantity, "0 ea");
+  assert.equal(zeroAdjustment.result.status, "출고완료(재고조정)");
 });
 
 console.log("supabase-state-engine-test=passed");

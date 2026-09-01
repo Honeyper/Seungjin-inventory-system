@@ -23,6 +23,7 @@
     "saveShippingInspection",
     "cancelDiscardedBoxes",
     "classifyRemainingInventory",
+    "adjustRemainingInventory",
     "updateShippingStatus",
     "adjustMissingInventory",
     "updateInventoryBoxMove",
