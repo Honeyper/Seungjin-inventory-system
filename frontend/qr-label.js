@@ -17,11 +17,11 @@
     const hasDustRemoval = isEnabled(dustRemovalStatus);
     const finalStep = getProcessStep(finalProcess);
     const labels = hasFlameTreatment
-      ? ["화염처리", "1도", "2도"]
+      ? ["화염", "1도", "2도"]
       : ["1도", "2도", "3도"];
 
     if (hasDustRemoval) {
-      labels[2] = "박가루 제거";
+      labels[2] = "박가루";
     }
 
     return labels.map((label) => {

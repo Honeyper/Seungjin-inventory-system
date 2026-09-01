@@ -13,6 +13,7 @@
 }
 
 .box-qr-label-reference {
+  position: relative;
   display: grid;
   grid-template-rows: 5.4mm 5.4mm 18.4mm 5.4mm repeat(3, 6mm) 6.8mm;
   width: 100%;
@@ -20,12 +21,22 @@
   min-height: 0;
   padding: 0;
   overflow: hidden;
-  border: 0.5pt solid #050505;
+  border: 0;
   border-radius: 1.1mm;
   color: #050505;
   background: #fff;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+.box-qr-label-reference::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border: 0.5pt solid #050505;
+  border-radius: inherit;
+  pointer-events: none;
+  content: "";
 }
 
 .box-qr-label-reference > * {
