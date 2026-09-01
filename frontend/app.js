@@ -64,17 +64,22 @@ async function handleLogin() {
   loginButtonIcon.className = "ti ti-loader-2 login-button-icon";
 
   try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "login",
-        payload: {
-          accountId,
-          password
-        }
-      })
-    });
-    const result = await response.json();
+    let result;
+    if (window.SeungjinDataGateway?.enabled) {
+      result = await window.SeungjinDataGateway.login({ accountId, password });
+    } else {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "login",
+          payload: {
+            accountId,
+            password
+          }
+        })
+      });
+      result = await response.json();
+    }
     const loginResult = result.data || result;
 
     if (!result.ok || !loginResult.success) {
@@ -82,11 +87,15 @@ async function handleLogin() {
       return;
     }
 
-    sessionStorage.setItem("seungjinAdminSession", JSON.stringify(loginResult.user));
+    sessionStorage.setItem("seungjinAdminSession", JSON.stringify({
+      ...loginResult.user,
+      supabaseSessionToken: loginResult.supabaseSessionToken || "",
+      supabaseSessionExpiresAt: loginResult.supabaseSessionExpiresAt || ""
+    }));
     setMessage(loginResult.message || "로그인되었습니다.", "success");
     window.location.href = "./admin.html";
   } catch (error) {
-    setMessage("로그인 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    setMessage(error.message || "로그인 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
   } finally {
     loginButton.disabled = false;
     loginButton.classList.remove("is-loading");

@@ -41,7 +41,11 @@ const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 const ADMIN_CACHE_PREFIX = `seungjinAdminCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
-if (!session || session.role !== "admin") {
+if (
+  !session
+  || session.role !== "admin"
+  || (window.SeungjinDataGateway?.enabled && !window.SeungjinDataGateway.hasSession(session))
+) {
   location.replace("./index.html");
 }
 
@@ -7774,6 +7778,19 @@ function setInboundRefreshButtonLoading(isLoading) {
 }
 
 async function requestApi(action, payload = {}) {
+  if (window.SeungjinDataGateway?.canRead(action)) {
+    try {
+      return await window.SeungjinDataGateway.requestRead(action, payload);
+    } catch (error) {
+      if (error?.status === 401) {
+        sessionStorage.removeItem("seungjinAdminSession");
+        location.replace("./index.html");
+        throw error;
+      }
+      console.warn(`Supabase ${action} 조회 실패, Apps Script로 재시도합니다.`, error);
+    }
+  }
+
   const response = await fetch(API_URL, {
     method: "POST",
     body: JSON.stringify({ action, payload })
@@ -7784,6 +7801,9 @@ async function requestApi(action, payload = {}) {
     throw new Error(result.message || "API 요청에 실패했습니다.");
   }
 
+  window.SeungjinDataGateway?.refreshForMutation(action)?.catch((error) => {
+    console.warn(`Supabase ${action} 후속 동기화에 실패했습니다.`, error);
+  });
   return result.data;
 }
 
