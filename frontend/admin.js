@@ -40,6 +40,9 @@ const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "nu
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 const ADMIN_CACHE_PREFIX = `seungjinAdminCache:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const ADMIN_LARGE_CACHE_DB_NAME = `${ADMIN_CACHE_PREFIX}:large`;
+const ADMIN_LARGE_CACHE_STORE = "responses";
+let adminLargeCacheDatabasePromise = null;
 
 if (
   !session
@@ -71,6 +74,96 @@ function writeAdminCache(name, data) {
     }));
   } catch (error) {
     // Storage quota or private-mode failures must not block the page.
+  }
+}
+
+function openAdminLargeCacheDatabase() {
+  if (!window.indexedDB) {
+    return Promise.reject(new Error("IndexedDB를 사용할 수 없습니다."));
+  }
+
+  if (adminLargeCacheDatabasePromise) {
+    return adminLargeCacheDatabasePromise;
+  }
+
+  adminLargeCacheDatabasePromise = new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(ADMIN_LARGE_CACHE_DB_NAME, 1);
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(ADMIN_LARGE_CACHE_STORE)) {
+        database.createObjectStore(ADMIN_LARGE_CACHE_STORE, { keyPath: "name" });
+      }
+    };
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => database.close();
+      resolve(database);
+    };
+    request.onerror = () => reject(request.error || new Error("대용량 캐시를 열 수 없습니다."));
+    request.onblocked = () => reject(new Error("대용량 캐시가 다른 화면에서 사용 중입니다."));
+  }).catch((error) => {
+    adminLargeCacheDatabasePromise = null;
+    throw error;
+  });
+
+  return adminLargeCacheDatabasePromise;
+}
+
+function readAdminLargeCacheEntry(database, name) {
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(ADMIN_LARGE_CACHE_STORE, "readonly");
+    const request = transaction.objectStore(ADMIN_LARGE_CACHE_STORE).get(name);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error("대용량 캐시를 읽을 수 없습니다."));
+  });
+}
+
+function deleteAdminLargeCacheEntry(database, name) {
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(ADMIN_LARGE_CACHE_STORE, "readwrite");
+    transaction.objectStore(ADMIN_LARGE_CACHE_STORE).delete(name);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error("대용량 캐시를 삭제할 수 없습니다."));
+    transaction.onabort = () => reject(transaction.error || new Error("대용량 캐시 삭제가 중단됐습니다."));
+  });
+}
+
+async function readAdminLargeCache(name) {
+  try {
+    const database = await openAdminLargeCacheDatabase();
+    const cached = await readAdminLargeCacheEntry(database, name);
+
+    if (!cached || !cached.savedAt || Date.now() - Number(cached.savedAt) > ADMIN_CACHE_MAX_AGE_MS) {
+      if (cached) {
+        deleteAdminLargeCacheEntry(database, name).catch(() => null);
+      }
+      return null;
+    }
+
+    return cached.data || null;
+  } catch (error) {
+    return readAdminCache(name);
+  }
+}
+
+async function writeAdminLargeCache(name, data) {
+  try {
+    const database = await openAdminLargeCacheDatabase();
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(ADMIN_LARGE_CACHE_STORE, "readwrite");
+      transaction.objectStore(ADMIN_LARGE_CACHE_STORE).put({
+        name,
+        savedAt: Date.now(),
+        data
+      });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("대용량 캐시를 저장할 수 없습니다."));
+      transaction.onabort = () => reject(transaction.error || new Error("대용량 캐시 저장이 중단됐습니다."));
+    });
+    localStorage.removeItem(`${ADMIN_CACHE_PREFIX}:${name}`);
+  } catch (error) {
+    // Cache failures must never block the live inventory response.
   }
 }
 
@@ -1435,6 +1528,7 @@ loadPurchaseOrders();
 loadTodayInbounds();
 setCurrentInboundTime();
 setActiveView(getCurrentView());
+scheduleInventoryDashboardWarmup();
 updateInboundSummary();
 updateShippingSettlementSummary();
 renderInboundDefectReasons();
@@ -1442,6 +1536,24 @@ renderInboundDefectReasons();
 function getCurrentView() {
   const view = location.hash.replace("#", "");
   return ["inbound", "purchase-orders", "inventory", "shipping", "products"].includes(view) ? view : "inbound";
+}
+
+function scheduleInventoryDashboardWarmup() {
+  if (getCurrentView() === "inventory" || state.inventoryLoaded || state.inventoryLoadPromise) {
+    return;
+  }
+
+  const warmup = () => {
+    if (!state.inventoryLoaded && !state.inventoryLoadPromise) {
+      loadInventoryDashboard(false);
+    }
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(warmup, { timeout: 1500 });
+  } else {
+    window.setTimeout(warmup, 750);
+  }
 }
 
 function setActiveView(view) {
@@ -6489,7 +6601,7 @@ async function refreshInventoryDashboardAfterMutation() {
 
 async function loadInventoryDashboardRequest(showLoadingToast = true) {
   const hadLoadedData = state.inventoryLoaded;
-  const cachedResult = state.inventoryLoaded ? null : readAdminCache("inventory-dashboard");
+  const cachedResult = state.inventoryLoaded ? null : await readAdminLargeCache("inventory-dashboard");
 
   if (cachedResult) {
     applyInventoryDashboardResult(cachedResult);
@@ -6499,9 +6611,19 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
   }
 
   try {
+    if (cachedResult?.stateVersion) {
+      const versionResult = await requestApi("getInventoryVersion");
+      if (Number(versionResult?.stateVersion) === Number(cachedResult.stateVersion)) {
+        if (showLoadingToast) {
+          showToast("최신 재고 정보를 표시했습니다.");
+        }
+        return;
+      }
+    }
+
     const result = await requestApi("getInventoryDashboard");
     applyInventoryDashboardResult(result);
-    writeAdminCache("inventory-dashboard", result);
+    writeAdminLargeCache("inventory-dashboard", result);
 
     if (showLoadingToast) {
       showToast("재고 정보를 불러왔습니다.");

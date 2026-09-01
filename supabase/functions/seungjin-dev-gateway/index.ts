@@ -278,11 +278,23 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     };
   }
   if (action === "getInventoryDashboard") {
-    const state = await databaseRequest("rpc/read_dev_inventory_state", {
-      method: "POST",
-      body: "{}"
-    }) as { records?: JsonRecord[]; boxes?: JsonRecord[] };
-    return buildInventoryDashboard(state.records || [], state.boxes || []) as JsonRecord;
+    const [state, stateRows] = await Promise.all([
+      databaseRequest("rpc/read_dev_inventory_state", {
+        method: "POST",
+        body: "{}"
+      }) as Promise<{ records?: JsonRecord[]; boxes?: JsonRecord[] }>,
+      databaseRequest("dev_state?singleton=eq.true&select=version&limit=1") as Promise<Array<{ version: number }>>
+    ]);
+    return {
+      ...(buildInventoryDashboard(state.records || [], state.boxes || []) as JsonRecord),
+      stateVersion: Number(stateRows?.[0]?.version) || null
+    };
+  }
+  if (action === "getInventoryVersion") {
+    const stateRows = await databaseRequest(
+      "dev_state?singleton=eq.true&select=version&limit=1"
+    ) as Array<{ version: number }>;
+    return { stateVersion: Number(stateRows?.[0]?.version) || null };
   }
   throw new Error(`지원하지 않는 Supabase 조회 요청입니다: ${action}`);
 }
@@ -588,7 +600,7 @@ async function handleRequest(request: Request) {
     });
   }
 
-  if (ACTION_DATASETS[action]) {
+  if (ACTION_DATASETS[action] || action === "getInventoryVersion") {
     const data = await readCanonicalAction(action, payload);
     return jsonResponse(request, {
       ok: true,

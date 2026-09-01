@@ -7,6 +7,7 @@
     "getProducts",
     "getPurchaseOrders",
     "getTodayInbounds",
+    "getInventoryVersion",
     "getInventoryDashboard"
   ]);
   const mutationActions = new Set([
