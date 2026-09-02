@@ -1,8 +1,8 @@
 /* DEV QR label layout based on the approved 2026-09-01 reference. */
 
 .qr-sheet {
-  grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: 59.4mm;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 74.25mm;
   width: 210mm;
   min-height: 297mm;
 }
@@ -15,9 +15,9 @@
 .box-qr-label-reference {
   position: relative;
   display: grid;
-  grid-template-rows: 5.4mm 5.4mm 18.4mm 5.4mm repeat(3, 6mm) 6.8mm;
+  grid-template-rows: 6.75mm 6.75mm 23mm 6.75mm repeat(3, 7.5mm) 8.5mm;
   width: 100%;
-  height: 59.4mm;
+  height: 74.25mm;
   min-height: 0;
   padding: 0;
   overflow: hidden;
@@ -221,6 +221,11 @@
   font-size: 8.2pt;
 }
 
+.qr-sheet-work .box-qr-label-reference {
+  grid-template-rows: 5.4mm 5.4mm 18.4mm 5.4mm repeat(3, 6mm) 6.8mm;
+  height: 59.4mm;
+}
+
 .qr-sheet-work .box-qr-reference-box-count,
 .qr-sheet-work .box-qr-reference-summary strong,
 .qr-sheet-work .box-qr-reference-summary span,
@@ -244,10 +249,22 @@
   .qr-sheet.qr-sheet-work {
     width: 200mm;
     min-height: 0;
+  }
+
+  .qr-sheet {
+    grid-auto-rows: 71.75mm;
+  }
+
+  .qr-sheet.qr-sheet-work {
     grid-auto-rows: 57.4mm;
   }
 
   .box-qr-label-reference {
+    grid-template-rows: 6.52mm 6.52mm 22.23mm 6.52mm repeat(3, 7.25mm) 8.21mm;
+    height: 71.75mm;
+  }
+
+  .qr-sheet-work .box-qr-label-reference {
     grid-template-rows: 5.2mm 5.2mm 17.8mm 5.2mm repeat(3, 5.8mm) 6.6mm;
     height: 57.4mm;
   }

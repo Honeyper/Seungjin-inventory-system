@@ -103,3 +103,13 @@ test("QR 왼쪽 세로선은 다른 행과 같은 왼쪽 테두리 좌표를 사
   assert.doesNotMatch(productRule, /border-right/);
   assert.match(mediaRule, /border-left:\s*0\.4pt solid #050505;/);
 });
+
+test("DEV 기본 QR은 A4 한 장에 2열 4행으로 출력한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
+  const printRules = css.slice(css.indexOf("@media print"));
+
+  assert.match(css, /\.qr-sheet\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, 1fr\);[\s\S]*?grid-auto-rows:\s*74\.25mm;/);
+  assert.match(printRules, /\.qr-sheet\s*\{[\s\S]*?grid-auto-rows:\s*71\.75mm;/);
+  assert.match(printRules, /\.box-qr-label-reference\s*\{[\s\S]*?height:\s*71\.75mm;/);
+  assert.match(css, /\.qr-sheet\.qr-sheet-work\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, 1fr\);/);
+});
