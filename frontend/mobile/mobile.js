@@ -87,7 +87,8 @@ const INVENTORY_MOVE_SCAN_ACTIONS = {
   takeout: { label: "반출", target: "반출" },
   transfer: { label: "이관", target: "이관" },
   injection: { label: "사출재고 등록", target: "사출재고" },
-  audit: { label: "재고 실물 확인", target: "실물확인" }
+  audit: { label: "재고 실물 확인", target: "실물확인" },
+  discard: { label: "박스 폐기", target: "폐기" }
 };
 const SHIPPING_SORT_OPTIONS = [
   { key: "productName", label: "이름순" },
@@ -3313,12 +3314,17 @@ async function handleConfirmShipping() {
     const mode = state.selectedInventoryMoveMode || "single";
     const isInjectionAction = mode === "injection";
     const isInventoryShippingAction = isInventoryShippingScanAction(mode);
+    const isInventoryDiscardAction = isInventoryDiscardScanAction(mode);
     elements.acceptConfirmButton.disabled = true;
-    elements.acceptConfirmButton.textContent = isInventoryShippingAction
+    elements.acceptConfirmButton.textContent = isInventoryDiscardAction
+      ? "폐기 중"
+      : isInventoryShippingAction
       ? "처리 중"
       : isInjectionAction ? "등록 중" : "이동 중";
     try {
-      if (isInventoryShippingAction) {
+      if (isInventoryDiscardAction) {
+        await handleCompleteScannedInventoryDiscard();
+      } else if (isInventoryShippingAction) {
         await handleCompleteScannedInventoryShipping(mode);
       } else {
         await handleCompleteScannedInventoryMove(mode);
@@ -4276,16 +4282,19 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
   const scannedBoxCount = state.scannedMoveRows.length;
   const isInjectionAction = mode === "injection";
   const isInventoryShippingAction = isInventoryShippingScanAction(mode);
+  const isInventoryDiscardAction = isInventoryDiscardScanAction(mode);
   const actionInfo = INVENTORY_MOVE_SCAN_ACTIONS[mode];
   if (!scannedBoxCount) {
-    showToast(isInventoryShippingAction
+    showToast(isInventoryDiscardAction
+      ? "폐기할 박스를 먼저 스캔해주세요."
+      : isInventoryShippingAction
       ? `${actionInfo.label} 처리할 박스를 먼저 스캔해주세요.`
       : isInjectionAction ? "사출재고로 등록할 박스를 먼저 스캔해주세요." : "이동할 박스를 먼저 스캔해주세요.");
     return;
   }
 
   const actionLabel = actionInfo?.label || (mode === "all" ? "박스 전량 이동" : "자리이동");
-  const requiresTargetStorage = !isInjectionAction && !isInventoryShippingAction;
+  const requiresTargetStorage = !isInjectionAction && !isInventoryShippingAction && !isInventoryDiscardAction;
   const missingTarget = requiresTargetStorage && items.find((item) => !isInventoryMoveTargetReady(item));
   if (missingTarget) {
     setScannerSheetExpanded(true);
@@ -4303,16 +4312,20 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
 
   setConfirmPresentation({
     eyebrow: "재고 수정",
-    icon: isInventoryShippingAction ? "ti-truck-delivery" : isInjectionAction ? "ti-building-warehouse" : "ti-arrows-exchange",
-    tone: "move",
-    subjectLabel: isInventoryShippingAction ? "처리 대상" : "이동 대상"
+    icon: isInventoryDiscardAction
+      ? "ti-trash"
+      : isInventoryShippingAction ? "ti-truck-delivery" : isInjectionAction ? "ti-building-warehouse" : "ti-arrows-exchange",
+    tone: isInventoryDiscardAction ? "danger" : "move",
+    subjectLabel: isInventoryDiscardAction ? "폐기 대상" : isInventoryShippingAction ? "처리 대상" : "이동 대상"
   });
 
   if (elements.confirmTitle) {
     elements.confirmTitle.textContent = `${actionLabel} 확인`;
   }
   if (elements.confirmMessage) {
-    elements.confirmMessage.textContent = isInventoryShippingAction
+    elements.confirmMessage.textContent = isInventoryDiscardAction
+      ? "QR로 스캔한 박스를 폐기합니다. 폐기된 박스는 재고 수량에서 제외됩니다."
+      : isInventoryShippingAction
       ? `QR로 스캔한 박스를 ${actionLabel} 처리합니다. 처리 후 출고 완료 재고로 분류됩니다.`
       : isInjectionAction
       ? "QR로 스캔한 박스만 사출재고로 등록합니다. 수량과 보관 위치는 유지됩니다."
@@ -4336,9 +4349,12 @@ function renderInventoryMoveConfirmRoutes(items, mode) {
   elements.confirmMetaList.classList.add("inventory-move-confirm-routes");
   const isInjectionAction = mode === "injection";
   const isInventoryShippingAction = isInventoryShippingScanAction(mode);
+  const isInventoryDiscardAction = isInventoryDiscardScanAction(mode);
   elements.confirmMetaList.innerHTML = items.map((item) => {
     const currentStorage = getInventoryMoveCurrentStorage(item);
-    const targetStorage = isInventoryShippingAction
+    const targetStorage = isInventoryDiscardAction
+      ? INVENTORY_MOVE_SCAN_ACTIONS.discard.target
+      : isInventoryShippingAction
       ? INVENTORY_MOVE_SCAN_ACTIONS[mode].target
       : isInjectionAction ? "사출재고" : normalizeDisplay(item.targetStorage);
     const selectedBoxes = mode === "all" ? getInventoryMoveAllBoxNumbers(item) : getSelectedBoxNumbers(item);
@@ -4490,6 +4506,10 @@ function isInventoryShippingScanAction(action) {
   return action === "takeout" || action === "transfer";
 }
 
+function isInventoryDiscardScanAction(action) {
+  return action === "discard";
+}
+
 function getInventoryMoveScanAction() {
   return INVENTORY_MOVE_SCAN_ACTIONS[state.selectedInventoryMoveAction]
     ? state.selectedInventoryMoveAction
@@ -4607,6 +4627,118 @@ function applyInventoryShippingResultLocally(item, selectedBoxes, shippingType) 
         box.status = "출고완료";
         box.rawStatus = "출고완료";
         box.shippingType = shippingType;
+      }
+    });
+  });
+}
+
+async function handleCompleteScannedInventoryDiscard() {
+  if (state.isCompletingShipping) {
+    return;
+  }
+
+  const items = groupScannedInventoryMoveRows(state.scannedMoveRows);
+  if (!state.scannedMoveRows.length) {
+    showToast("폐기할 박스를 다시 확인해주세요.");
+    return;
+  }
+
+  state.isCompletingShipping = true;
+  updateScannerActionLabels();
+  try {
+    const { completedCount, failedItems, errors } = await completeInventoryDiscardItems(items);
+    if (completedCount > 0) {
+      triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
+      const failedKeys = new Set(failedItems.map((item) => getInventoryMoveProductGroupKey(item)));
+      state.scannedMoveRows = state.scannedMoveRows.filter((row) => failedKeys.has(getInventoryMoveProductGroupKey(row)));
+      saveScannedMoveRows();
+      renderInventoryMoveList();
+      renderScannerScannedList();
+      showToast(failedItems.length
+        ? `${completedCount}개 박스 폐기 완료 · ${errors[0] || `${failedItems.length}건 실패`}`
+        : `${completedCount}개 박스 폐기 완료`);
+      if (!failedItems.length) {
+        closeScanner();
+      }
+      void loadShippingDashboard({ silent: true });
+    } else {
+      showToast(errors[0] || "폐기 처리된 박스가 없습니다.");
+    }
+  } catch (error) {
+    showToast(error.message || "박스 폐기 중 문제가 발생했습니다.");
+  } finally {
+    state.isCompletingShipping = false;
+    updateScannerActionLabels();
+  }
+}
+
+async function completeInventoryDiscardItems(items) {
+  let completedCount = 0;
+  const failedItems = [];
+  const errors = [];
+
+  for (const item of items) {
+    const selectedBoxes = getSelectedBoxNumbers(item);
+    if (!selectedBoxes.length) {
+      failedItems.push(item);
+      continue;
+    }
+
+    try {
+      const boxQuantities = getSelectedBoxQuantities(item, selectedBoxes);
+      const discardQuantity = Object.values(boxQuantities).reduce((sum, quantity) => sum + parseNumber(quantity), 0);
+      const result = await requestApi("saveShippingInspection", {
+        managementId: item.managementId,
+        productId: item.productId,
+        clientName: item.clientName,
+        productName: item.productName,
+        batch: item.batch,
+        finalProcess: item.finalProcess,
+        storage: getInventoryMoveCurrentStorage(item),
+        inspectionDate: toDateKey(new Date()),
+        inspectionTime: toTimeKey(new Date()),
+        inspector: state.user?.name || "Admin",
+        inspectionQuantity: discardQuantity,
+        defectQuantity: discardQuantity,
+        defectReasons: ["박스 폐기"],
+        discardRequested: true,
+        memo: "모바일 QR 재고 수정에서 박스 폐기",
+        selectedBoxes,
+        selectedBoxIds: getSelectedBoxIds(item, selectedBoxes),
+        boxQuantities
+      });
+      applyInventoryDiscardResultLocally(item, selectedBoxes);
+      const updatedCount = parseNumber(result?.updatedBoxRows);
+      completedCount += updatedCount > 0 ? updatedCount : selectedBoxes.length;
+    } catch (error) {
+      failedItems.push(item);
+      errors.push(error?.message || "박스 폐기 중 문제가 발생했습니다.");
+    }
+  }
+
+  return { completedCount, failedItems, errors };
+}
+
+function applyInventoryDiscardResultLocally(item, selectedBoxes) {
+  const managementId = normalizeScanValue(item?.managementId);
+  const productId = normalizeScanValue(item?.productId);
+  const selectedBoxNumbers = new Set(selectedBoxes.map((value) => String(value || "").trim()).filter(Boolean));
+
+  state.dashboard.forEach((row) => {
+    if (normalizeScanValue(row?.managementId) !== managementId) {
+      return;
+    }
+    if (productId && normalizeScanValue(row?.productId) !== productId) {
+      return;
+    }
+    getKnownBoxes(row).forEach((box) => {
+      const boxNumber = String(box?.number || box?.sequence || "").trim();
+      if (selectedBoxNumbers.has(boxNumber)) {
+        box.beforeDiscardQuantity = getBoxCurrentQuantity(box, row);
+        box.quantity = 0;
+        box.currentQuantity = 0;
+        box.status = "폐기";
+        box.rawStatus = "폐기";
       }
     });
   });
