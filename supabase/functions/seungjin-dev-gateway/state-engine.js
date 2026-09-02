@@ -497,6 +497,7 @@ function makeInboundRecord(payload, managementId, product, order, now, current =
 }
 
 function createOrUpdateInbound(action, payload, state, changes, now) {
+  const parts = dateParts(now);
   const productId = text(payload.productId);
   const product = state.products.find((item) => text(item.productId || item.productCode) === productId);
   if (!product) throw new Error("선택한 제품을 찾을 수 없습니다.");
@@ -513,12 +514,17 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   const inbound = makeInboundRecord(payload, managementId, product, order, now, currentInbound || currentRecord || {});
   const previousBoxes = state.boxes.filter((box) => text(box.managementId) === managementId && text(box.productId) === productId);
   const hasProcessedBoxes = previousBoxes.some((box) => /출고완료|폐기|출고대기|보류/.test(normalizeStatus(box.rawStatus || box.status)));
-  const preservesProcessedBoxStructure = action === "updateInbound"
+  const currentRemainders = normalizeRemainders(currentRecord || {});
+  const nextRemainders = normalizeRemainders(payload);
+  const previousBoxesByNumber = [...previousBoxes].sort((left, right) => integer(left.number) - integer(right.number));
+  const currentFullBoxCount = integer(currentRecord?.inboundBoxCount);
+  const preservesProcessedBoxIdentity = action === "updateInbound"
     && hasProcessedBoxes
     && integer(payload.boxQuantity) === integer(currentRecord?.boxQuantity)
-    && integer(payload.inboundBoxCount) === integer(currentRecord?.inboundBoxCount)
-    && JSON.stringify(normalizeRemainders(payload)) === JSON.stringify(normalizeRemainders(currentRecord || {}))
-    && text(currentRecord?.storage) === text(inbound.storage);
+    && integer(payload.inboundBoxCount) === currentFullBoxCount
+    && nextRemainders.length === currentRemainders.length
+    && text(currentRecord?.storage) === text(inbound.storage)
+    && previousBoxesByNumber.length === currentFullBoxCount + currentRemainders.length;
   const existingStock = text(payload.category || payload.entryCategory || payload.inboundType).replace(/\s/g, "") === "기존재고";
   if (!existingStock) {
     const oldKey = currentInbound ? inboundKey(currentInbound.managementId, currentInbound.productId) : "";
@@ -548,9 +554,18 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   if (currentRecord) Object.assign(currentRecord, record); else state.records.push(record);
 
   if (action === "updateInbound" && hasProcessedBoxes) {
-    if (!preservesProcessedBoxStructure) {
+    if (!preservesProcessedBoxIdentity) {
       throw new Error("출고 또는 재고 처리가 시작된 입고는 박스 구성을 수정할 수 없습니다.");
     }
+    const updatedRemainderBoxes = [];
+    previousBoxesByNumber.slice(currentFullBoxCount).forEach((box, index) => {
+      if (number(box.quantity) === nextRemainders[index]) return;
+      box.quantity = nextRemainders[index];
+      box.quantityAdjustedAt = parts.timestamp;
+      box.quantityAdjuster = text(payload.registrant || payload.userName || "Admin");
+      updatedRemainderBoxes.push(box);
+    });
+    upsertBoxes(updatedRemainderBoxes, changes);
     touchInventoryRecords(state, [managementId], changes);
     recalculateOrders(state.orders, state.inbounds, changes, dateParts(now).date);
     recalculateProductInbound(state.products, state.records, state.boxes, changes, new Set([productId]));
@@ -558,7 +573,7 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
       managementId,
       boxCount: previousBoxes.length,
       boxIds: previousBoxes.map((box) => box.boxId),
-      updatedBoxRows: 0
+      updatedBoxRows: updatedRemainderBoxes.length
     };
   }
   changes.inventoryRecords.upserts.push({ record_key: recordKey, management_id: managementId, product_id: productId, storage: inbound.storage, data: record });
