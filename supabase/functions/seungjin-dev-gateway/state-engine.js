@@ -631,22 +631,19 @@ function mutateInventory(action, payload, state, changes, now) {
     requireSelection: action !== "getInboundBoxQrs" && !clearShippingWaiting
   });
   if (action === "getInboundBoxQrs") {
-    boxes.forEach((box) => {
-      box.qrGeneratedAt ||= parts.qrTimestamp;
-      box.qrData = JSON.stringify({
+    const qrBoxes = boxes.map((box) => ({
+      ...box,
+      qrData: text(box.qrData) || JSON.stringify({
         t: "SJ_BOX",
         b: box.boxId,
         m: box.managementId,
         p: box.productId,
         n: box.number
-      });
-    });
-    upsertBoxes(boxes, changes);
-    const records = state.records.filter((row) => text(row.managementId) === text(payload.managementId));
-    records.forEach((row) => {
-      row.qrGeneratedCount = boxes.length;
-      row.qrPrintStatus = "QR 생성";
-    });
+      }),
+      sequence: box.number,
+      boxQuantity: formatEa(box.quantity),
+      currentQuantity: formatEa(box.quantity)
+    }));
     const inbounds = state.inbounds.filter((row) => (
       text(row.managementId) === text(payload.managementId)
       && (!text(payload.productId) || text(row.productId) === text(payload.productId))
@@ -662,8 +659,7 @@ function mutateInventory(action, payload, state, changes, now) {
         data: row
       });
     });
-    touchInventoryRecords(state, [payload.managementId], changes);
-    return { managementId: text(payload.managementId), generatedAt: parts.qrTimestamp, boxCount: boxes.length, boxes: boxes.map((box) => ({ ...box, sequence: box.number, boxQuantity: formatEa(box.quantity), currentQuantity: formatEa(box.quantity) })) };
+    return { managementId: text(payload.managementId), generatedAt: parts.qrTimestamp, boxCount: boxes.length, boxes: qrBoxes };
   }
 
   if (action === "classifyRemainingInventory") {

@@ -142,6 +142,78 @@ async function databaseRows(path: string) {
   }
 }
 
+function buildInboundQrFilters(payload: JsonRecord) {
+  const managementId = String(payload.managementId || "").trim();
+  const productId = String(payload.productId || "").trim();
+  if (!managementId) throw new Error("입고 관리 ID가 필요합니다.");
+  return {
+    managementId,
+    productId,
+    query: `management_id=eq.${encodeURIComponent(managementId)}${productId ? `&product_id=eq.${encodeURIComponent(productId)}` : ""}`
+  };
+}
+
+async function loadInboundQrState(payload: JsonRecord) {
+  const { query } = buildInboundQrFilters(payload);
+  const [version, inboundRows, boxRows] = await Promise.all([
+    loadStateVersion(),
+    databaseRows(`dev_inbounds?${query}&select=record_key,management_id,product_id,inbound_date,data`),
+    databaseRows(`dev_inventory_boxes?${query}&select=box_id,management_id,product_id,storage,box_number,data&order=box_number.asc`)
+  ]);
+  return {
+    version,
+    products: [],
+    orders: [],
+    inbounds: inboundRows.map((row) => row.data),
+    records: [],
+    boxes: mapInventoryBoxRows(boxRows)
+  };
+}
+
+function formatQrQuantity(value: unknown) {
+  const matched = String(value ?? "").replaceAll(",", "").match(/-?\d+(?:\.\d+)?/);
+  const quantity = matched ? Math.max(0, Math.trunc(Number(matched[0]))) : 0;
+  return `${quantity.toLocaleString("en-US")} ea`;
+}
+
+function buildBoxQrData(box: JsonRecord) {
+  return JSON.stringify({
+    t: "SJ_BOX",
+    b: String(box.boxId || ""),
+    m: String(box.managementId || ""),
+    p: String(box.productId || ""),
+    n: Number(box.number) || 0
+  });
+}
+
+async function readInboundBoxQrs(payload: JsonRecord) {
+  const { managementId, productId, query } = buildInboundQrFilters(payload);
+  const boxRows = await databaseRows(
+    `dev_inventory_boxes?${query}&select=box_id,management_id,product_id,storage,box_number,data&order=box_number.asc`
+  );
+  const boxes = mapInventoryBoxRows(boxRows).map((box) => {
+    const quantity = box.currentQuantity ?? box.quantity ?? box.boxQuantity ?? 0;
+    return {
+      ...box,
+      sequence: Number(box.number) || 0,
+      qrData: String(box.qrData || "").trim() || buildBoxQrData(box),
+      boxQuantity: box.boxQuantity || formatQrQuantity(quantity),
+      currentQuantity: box.currentQuantity || formatQrQuantity(quantity)
+    };
+  });
+  const resolvedProductId = productId || String(boxes[0]?.productId || "").trim();
+  const productRows = resolvedProductId
+    ? await databaseRows(`dev_products?product_id=eq.${encodeURIComponent(resolvedProductId)}&select=data&limit=1`)
+    : [];
+  return {
+    managementId,
+    generatedAt: new Date().toISOString(),
+    boxCount: boxes.length,
+    boxes,
+    productProcessInfo: productRows[0]?.data || null
+  };
+}
+
 async function loadFullCanonicalState() {
   return await databaseRequest("rpc/read_dev_canonical_state", {
     method: "POST",
@@ -239,6 +311,9 @@ async function loadShippingMutationState(payload: JsonRecord) {
 }
 
 async function loadCanonicalState(action: string, payload: JsonRecord) {
+  if (action === "getInboundBoxQrs") {
+    return loadInboundQrState(payload);
+  }
   if (action === "updateInbound") {
     return loadInboundUpdateState(payload);
   }
@@ -252,7 +327,7 @@ function isStateVersionConflict(error: unknown) {
   return error instanceof Error && error.message.includes("DEV_STATE_VERSION_CONFLICT");
 }
 
-async function commitCanonicalMutation(action: string, payload: JsonRecord) {
+async function commitCanonicalMutation(action: string, payload: JsonRecord, outboxResult: JsonRecord | null = null) {
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -270,7 +345,7 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord) {
           p_changes: mutation.changes,
           p_action: action,
           p_payload: payload,
-          p_result: mutation.result,
+          p_result: outboxResult || mutation.result,
           p_enqueue_sheet: true
         })
       });
@@ -293,6 +368,19 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord) {
     throw new Error("동시 작업이 많아 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
   }
   throw lastError || new Error("동시 작업 충돌로 저장하지 못했습니다. 다시 시도해주세요.");
+}
+
+function scheduleInboundQrStatusUpdate(payload: JsonRecord, result: JsonRecord) {
+  const update = commitCanonicalMutation("getInboundBoxQrs", payload, {
+    managementId: result.managementId,
+    boxCount: result.boxCount
+  }).catch((error) => {
+    console.error("Inbound QR status update failed:", error instanceof Error ? error.message : String(error));
+  });
+  const edgeRuntime = (globalThis as typeof globalThis & {
+    EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(update);
 }
 
 async function readCanonicalAction(action: string, payload: JsonRecord) {
@@ -663,6 +751,16 @@ async function handleRequest(request: Request) {
       ok: true,
       data: await readSheetBackupNotifications(),
       meta: { source: "supabase-sheet-outbox" }
+    });
+  }
+
+  if (action === "getInboundBoxQrs") {
+    const result = await readInboundBoxQrs(payload);
+    scheduleInboundQrStatusUpdate(payload, result);
+    return jsonResponse(request, {
+      ok: true,
+      data: result,
+      meta: { source: "supabase-canonical-scoped" }
     });
   }
 

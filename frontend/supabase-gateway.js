@@ -8,6 +8,7 @@
     "getPurchaseOrders",
     "getTodayInbounds",
     "getInventoryVersion",
+    "getInboundBoxQrs",
     "getInventoryDashboard",
     "getSheetBackupNotifications"
   ]);
@@ -21,7 +22,6 @@
     "createInbound",
     "updateInbound",
     "deleteInbound",
-    "getInboundBoxQrs",
     "saveShippingInspection",
     "cancelDiscardedBoxes",
     "classifyRemainingInventory",
@@ -42,7 +42,6 @@
     createInbound: ["getProducts", "getPurchaseOrders", "getTodayInbounds", "getInventoryDashboard"],
     updateInbound: ["getProducts", "getPurchaseOrders", "getTodayInbounds", "getInventoryDashboard"],
     deleteInbound: ["getProducts", "getPurchaseOrders", "getTodayInbounds", "getInventoryDashboard"],
-    getInboundBoxQrs: ["getTodayInbounds", "getInventoryDashboard"],
     saveShippingInspection: ["getProducts", "getInventoryDashboard"],
     cancelDiscardedBoxes: ["getProducts", "getInventoryDashboard"],
     classifyRemainingInventory: ["getProducts", "getInventoryDashboard"],
