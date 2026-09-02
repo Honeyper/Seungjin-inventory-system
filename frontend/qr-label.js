@@ -8,6 +8,41 @@
     return ["유", "y", "yes", "true", "1"].includes(String(value ?? "").trim().toLowerCase());
   }
 
+  function getQuantityNumber(value) {
+    const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
+  }
+
+  function getBoxQuantityData({
+    currentQuantity,
+    boxQuantity,
+    referenceQuantity,
+    sequence,
+    fullBoxCount,
+    totalBoxCount,
+    remainderCount
+  } = {}) {
+    const standardQuantity = getQuantityNumber(referenceQuantity);
+    const actualQuantity = getQuantityNumber(currentQuantity)
+      || getQuantityNumber(boxQuantity)
+      || standardQuantity;
+    const boxSequence = getQuantityNumber(sequence);
+    const fullBoxes = getQuantityNumber(fullBoxCount);
+    const totalBoxes = getQuantityNumber(totalBoxCount);
+    const remainders = getQuantityNumber(remainderCount);
+    const isRemainderByFullBoxCount = fullBoxes > 0 && boxSequence > fullBoxes;
+    const isRemainderByPosition = remainders > 0
+      && totalBoxes > 0
+      && boxSequence > totalBoxes - remainders;
+
+    return {
+      quantity: actualQuantity,
+      isRemainder: isRemainderByFullBoxCount
+        || isRemainderByPosition
+        || (actualQuantity > 0 && standardQuantity > 0 && actualQuantity < standardQuantity)
+    };
+  }
+
   function getProcessSummary({
     finalProcess = "-",
     flameTreatmentStatus = "무",
@@ -54,6 +89,7 @@
   }
 
   globalScope.SeungjinQrLabel = Object.freeze({
+    getBoxQuantityData,
     getProcessRows,
     getProcessSummary,
     getProcessStep,

@@ -8591,9 +8591,20 @@ function renderInboundQrReferenceLabel({
   inboundDate,
   variantClass = ""
 }) {
-  const referenceQuantity = Math.max(0, Math.round(parseShippingSettlementNumber(
-    box?.currentQuantity || box?.boxQuantity || inbound?.boxQuantity || 0
-  )));
+  const quantityData = globalThis.SeungjinQrLabel?.getBoxQuantityData?.({
+    currentQuantity: box?.currentQuantity,
+    boxQuantity: box?.boxQuantity,
+    referenceQuantity: inbound?.boxQuantity,
+    sequence,
+    fullBoxCount: inbound?.inboundBoxCount,
+    totalBoxCount: total,
+    remainderCount: getInboundRecordRemainderQuantities(inbound).length
+  }) || {
+    quantity: Math.max(0, Math.round(parseShippingSettlementNumber(
+      box?.currentQuantity || box?.boxQuantity || inbound?.boxQuantity || 0
+    ))),
+    isRemainder: false
+  };
   const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
 
   return `
@@ -8604,7 +8615,7 @@ function renderInboundQrReferenceLabel({
       </div>
       <div class="box-qr-reference-summary">
         <strong>기준수량</strong>
-        <span>${escapeHtml(formatNumber(referenceQuantity))}ea</span>
+        <span class="box-qr-reference-quantity-value${quantityData.isRemainder ? " is-remainder" : ""}">${escapeHtml(formatNumber(quantityData.quantity))}ea</span>
         <strong>입고일</strong>
         <span class="box-qr-reference-date-value">${escapeHtml(inboundDate)}</span>
       </div>
