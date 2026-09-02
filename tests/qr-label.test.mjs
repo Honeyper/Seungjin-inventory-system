@@ -4,7 +4,21 @@ import test from "node:test";
 
 await import("../frontend/qr-label.js");
 
-const { getProcessRows, getProcessSummary } = globalThis.SeungjinQrLabel;
+const { getBoxQuantityData, getProcessRows, getProcessSummary } = globalThis.SeungjinQrLabel;
+
+test("QR 기준수량은 박스 실제 수량을 사용하고 잔량 박스를 구분한다", () => {
+  assert.deepEqual(getBoxQuantityData({
+    currentQuantity: "240 ea",
+    boxQuantity: "240 ea",
+    referenceQuantity: "1,000 ea"
+  }), { quantity: 240, isRemainder: true });
+
+  assert.deepEqual(getBoxQuantityData({
+    currentQuantity: "1,000 ea",
+    boxQuantity: "1,000 ea",
+    referenceQuantity: "1,000 ea"
+  }), { quantity: 1000, isRemainder: false });
+});
 
 test("기본 공정은 1도, 2도, 3도 순서를 유지한다", () => {
   assert.deepEqual(getProcessRows({ finalProcess: "2도" }), [
@@ -104,12 +118,20 @@ test("QR 왼쪽 세로선은 다른 행과 같은 왼쪽 테두리 좌표를 사
   assert.match(mediaRule, /border-left:\s*0\.4pt solid #050505;/);
 });
 
-test("DEV 기본 QR은 A4 한 장에 2열 4행으로 출력한다", async () => {
+test("DEV 기본 QR은 A4 한 장에 2열 5행으로 출력한다", async () => {
   const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
   const printRules = css.slice(css.indexOf("@media print"));
 
-  assert.match(css, /\.qr-sheet\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, 1fr\);[\s\S]*?grid-auto-rows:\s*74\.25mm;/);
-  assert.match(printRules, /\.qr-sheet\s*\{[\s\S]*?grid-auto-rows:\s*71\.75mm;/);
-  assert.match(printRules, /\.box-qr-label-reference\s*\{[\s\S]*?height:\s*71\.75mm;/);
+  assert.match(css, /\.qr-sheet\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, 1fr\);[\s\S]*?grid-auto-rows:\s*59\.4mm;/);
+  assert.match(printRules, /\.qr-sheet\s*\{[\s\S]*?grid-auto-rows:\s*57\.4mm;/);
+  assert.match(printRules, /\.box-qr-label-reference\s*\{[\s\S]*?height:\s*57\.4mm;/);
   assert.match(css, /\.qr-sheet\.qr-sheet-work\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, 1fr\);/);
+});
+
+test("잔량 박스의 기준수량 값 칸은 노란색으로 표시한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
+  const adminSource = await readFile(new URL("../frontend/admin.js", import.meta.url), "utf8");
+
+  assert.match(adminSource, /box-qr-reference-quantity-value\$\{quantityData\.isRemainder \? " is-remainder" : ""\}/);
+  assert.match(css, /\.box-qr-reference-summary \.box-qr-reference-quantity-value\.is-remainder\s*\{[\s\S]*?background:\s*#ffe98a;/);
 });

@@ -8,6 +8,23 @@
     return ["유", "y", "yes", "true", "1"].includes(String(value ?? "").trim().toLowerCase());
   }
 
+  function getQuantityNumber(value) {
+    const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
+  }
+
+  function getBoxQuantityData({ currentQuantity, boxQuantity, referenceQuantity } = {}) {
+    const standardQuantity = getQuantityNumber(referenceQuantity);
+    const actualQuantity = getQuantityNumber(currentQuantity)
+      || getQuantityNumber(boxQuantity)
+      || standardQuantity;
+
+    return {
+      quantity: actualQuantity,
+      isRemainder: actualQuantity > 0 && standardQuantity > 0 && actualQuantity < standardQuantity
+    };
+  }
+
   function getProcessSummary({
     finalProcess = "-",
     flameTreatmentStatus = "무",
@@ -54,6 +71,7 @@
   }
 
   globalScope.SeungjinQrLabel = Object.freeze({
+    getBoxQuantityData,
     getProcessRows,
     getProcessSummary,
     getProcessStep,
