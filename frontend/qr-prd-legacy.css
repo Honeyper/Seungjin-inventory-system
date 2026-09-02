@@ -132,7 +132,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1mm;
-  font-size: 7.5pt;
+  font-size: 9.5pt;
   font-weight: 600;
   line-height: 1;
 }
@@ -159,7 +159,7 @@
   width: 100%;
   margin: 0;
   overflow: hidden;
-  font-size: 8.8pt;
+  font-size: 10.8pt;
   font-weight: 400;
   line-height: 1.22;
   text-align: center;
@@ -253,7 +253,10 @@
   font-size: 7pt;
 }
 
-.qr-sheet-work .box-qr-reference-product-name,
+.qr-sheet-work .box-qr-reference-product-name {
+  font-size: 9.2pt;
+}
+
 .qr-sheet-work .box-qr-reference-row strong,
 .qr-sheet-work .box-qr-reference-manager {
   font-size: 7.2pt;
