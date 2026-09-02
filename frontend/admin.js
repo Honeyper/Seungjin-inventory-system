@@ -8123,8 +8123,9 @@ function renderInboundQrReferenceLabel({
         <strong class="box-qr-reference-box-count">${escapeHtml(boxLabel)}</strong>
       </div>
       <div class="box-qr-reference-summary">
-        <strong>기준수량</strong>
+        <strong class="box-qr-reference-quantity-label${quantityData.isRemainder ? " is-remainder" : ""}">${quantityData.isRemainder ? "잔량" : "기준수량"}</strong>
         <span class="box-qr-reference-quantity-value${quantityData.isRemainder ? " is-remainder" : ""}">${escapeHtml(formatNumber(quantityData.quantity))}ea</span>
+        <strong class="box-qr-reference-batch-value">${escapeHtml(batchText || "-")}</strong>
         <strong>입고일</strong>
         <span class="box-qr-reference-date-value">${escapeHtml(inboundDate)}</span>
       </div>
@@ -8132,7 +8133,6 @@ function renderInboundQrReferenceLabel({
         <div class="box-qr-reference-product">
           <span class="box-qr-reference-product-heading">
             <span>제품명</span>
-            ${batchText ? `<b>&lt;${escapeHtml(batchText)}&gt;</b>` : ""}
           </span>
           <p class="box-qr-reference-product-name">${escapeHtml(productName)}</p>
         </div>
