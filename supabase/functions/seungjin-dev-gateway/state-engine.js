@@ -520,14 +520,19 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   const inbound = makeInboundRecord(payload, managementId, product, order, now, currentInbound || currentRecord || {});
   const previousBoxes = state.boxes.filter((box) => text(box.managementId) === managementId && text(box.productId) === productId);
   const hasProcessedBoxes = previousBoxes.some((box) => /출고완료|폐기|출고대기|보류/.test(normalizeStatus(box.rawStatus || box.status)));
-  const preservesBoxStructure = currentRecord
+  const currentRemainders = normalizeRemainders(currentRecord || {});
+  const nextRemainders = normalizeRemainders(payload);
+  const previousBoxesByNumber = [...previousBoxes].sort((left, right) => integer(left.number) - integer(right.number));
+  const currentFullBoxCount = integer(currentRecord?.inboundBoxCount);
+  const preservesProcessedBoxIdentity = currentRecord
     && integer(payload.boxQuantity) === integer(currentRecord.boxQuantity)
-    && integer(payload.inboundBoxCount) === integer(currentRecord.inboundBoxCount)
-    && JSON.stringify(normalizeRemainders(payload)) === JSON.stringify(normalizeRemainders(currentRecord));
-  const updatesProcessedInventoryMetadata = action === "updateInbound"
+    && integer(payload.inboundBoxCount) === currentFullBoxCount
+    && nextRemainders.length === currentRemainders.length
+    && previousBoxesByNumber.length === currentFullBoxCount + currentRemainders.length;
+  const updatesProcessedInventoryInPlace = action === "updateInbound"
     && hasProcessedBoxes
-    && preservesBoxStructure;
-  const relocatesProcessedInventory = updatesProcessedInventoryMetadata
+    && preservesProcessedBoxIdentity;
+  const relocatesProcessedInventory = updatesProcessedInventoryInPlace
     && text(currentRecord.storage) !== text(inbound.storage);
   const existingStock = text(payload.category || payload.entryCategory || payload.inboundType).replace(/\s/g, "") === "기존재고";
   if (!existingStock) {
@@ -551,8 +556,16 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     shippedShippingBoxes: undefined
   };
 
-  if (updatesProcessedInventoryMetadata) {
+  if (updatesProcessedInventoryInPlace) {
     Object.assign(currentRecord, record);
+    const changedBoxesById = new Map();
+    previousBoxesByNumber.slice(currentFullBoxCount).forEach((box, index) => {
+      if (number(box.quantity) === nextRemainders[index]) return;
+      box.quantity = nextRemainders[index];
+      box.quantityAdjustedAt = parts.timestamp;
+      box.quantityAdjuster = text(payload.registrant || payload.userName || "Admin");
+      changedBoxesById.set(box.boxId, box);
+    });
     const movableBoxes = relocatesProcessedInventory
       ? previousBoxes.filter((box) => (
         number(box.quantity) > 0
@@ -564,9 +577,11 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
         box.storage = inbound.storage;
         box.inventoryMovedAt = parts.timestamp;
         box.inventoryMover = text(payload.registrant || payload.userName || "Admin");
+        changedBoxesById.set(box.boxId, box);
       });
     }
-    upsertBoxes(movableBoxes, changes);
+    const changedBoxes = [...changedBoxesById.values()];
+    upsertBoxes(changedBoxes, changes);
     touchInventoryRecords(state, [managementId], changes);
     recalculateOrders(state.orders, state.inbounds, changes, parts.date);
     recalculateProductInbound(state.products, state.records, state.boxes, changes, new Set([productId]));
@@ -574,7 +589,7 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
       managementId,
       boxCount: previousBoxes.length,
       boxIds: previousBoxes.map((box) => box.boxId),
-      updatedBoxRows: movableBoxes.length,
+      updatedBoxRows: changedBoxes.length,
       storage: inbound.storage
     };
   }

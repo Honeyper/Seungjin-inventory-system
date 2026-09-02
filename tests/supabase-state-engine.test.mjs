@@ -319,6 +319,36 @@ test("processed legacy inbound can link a purchase order without rebuilding boxe
   assert.equal(holder.state.boxes.every((box) => box.status === "출고완료"), true);
   assert.deepEqual(updated.changes.inventoryBoxes, { upserts: [], deletes: [] });
 
+  const correctedRemainder = mutate(holder, "updateInbound", {
+    managementId,
+    inboundDate: inbound.inboundDate,
+    inboundTime: inbound.inboundTime,
+    inboundType: inbound.inboundType,
+    productId,
+    productName: inbound.productName,
+    clientName: inbound.clientName,
+    purchaseOrderId,
+    storage: "현장",
+    stockStatus: "출고완료",
+    boxQuantity: 480,
+    inboundBoxCount: 71,
+    remainQuantity: 125,
+    remainderQuantities: [125],
+    registrant: "테스터"
+  });
+
+  assert.equal(holder.state.inbounds[0].remainQuantity, "125 ea");
+  assert.deepEqual(holder.state.inbounds[0].remainderQuantities, [125]);
+  assert.equal(holder.state.records[0].remainQuantity, "125 ea");
+  assert.equal(holder.state.boxes.at(-1).boxId, `${managementId}-B072`);
+  assert.equal(holder.state.boxes.at(-1).quantity, 125);
+  assert.equal(holder.state.boxes.at(-1).status, "출고완료");
+  assert.equal(holder.state.boxes.at(-1).shippingType, "정상출고");
+  assert.deepEqual(correctedRemainder.changes.inventoryBoxes.deletes, []);
+  assert.deepEqual(correctedRemainder.changes.inventoryBoxes.upserts.map((item) => item.box_id), [`${managementId}-B072`]);
+  assert.equal(correctedRemainder.result.updatedBoxRows, 1);
+  assert.equal(holder.state.orders[0].accumulatedInboundQuantity, 34205);
+
   assert.throws(() => applyMutation("updateInbound", {
     managementId,
     inboundDate: inbound.inboundDate,
@@ -332,8 +362,8 @@ test("processed legacy inbound can link a purchase order without rebuilding boxe
     stockStatus: "출고완료",
     boxQuantity: 480,
     inboundBoxCount: 70,
-    remainQuantity: 305,
-    remainderQuantities: [305]
+    remainQuantity: 125,
+    remainderQuantities: [125]
   }, holder.state, fixedNow), /박스 구성을 수정할 수 없습니다/);
 });
 
