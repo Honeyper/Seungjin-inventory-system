@@ -133,6 +133,7 @@ const state = {
   isSavingExistingStock: false,
   isSavingInboundEdit: false,
   isRefreshingInbounds: false,
+  isRefreshingInventory: false,
   isDeletingProduct: false,
   isDeletingInbound: false,
   isLoadingInboundQrs: false,
@@ -381,7 +382,7 @@ const inventoryListTotals = document.querySelector("#inventoryListTotals");
 const inventoryLocationBoxBars = document.querySelector("#inventoryLocationBoxBars");
 const inventoryLocationQuantityBars = document.querySelector("#inventoryLocationQuantityBars");
 const inventoryLocationViewButtons = document.querySelectorAll("[data-inventory-location-view]");
-const inventoryResetButtons = document.querySelectorAll(".inventory-reset-button");
+const refreshInventoryButton = document.querySelector("#refreshInventoryButton");
 const inventoryAttentionButtons = document.querySelectorAll("[data-inventory-attention]");
 const inventoryAttentionModal = document.querySelector("#inventoryAttentionModal");
 const inventoryAttentionTitle = document.querySelector("#inventoryAttentionTitle");
@@ -932,12 +933,7 @@ inventorySearch?.addEventListener("input", (event) => {
     applyInventoryFilters();
   });
 });
-inventoryResetButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    resetInventoryFilters();
-    applyInventoryFilters();
-  });
-});
+refreshInventoryButton?.addEventListener("click", refreshInventoryDashboard);
 inventoryAttentionButtons.forEach((button) => {
   button.addEventListener("click", () => openInventoryAttentionModal(button.dataset.inventoryAttention));
 });
@@ -6232,7 +6228,7 @@ async function loadInventoryDashboard(showLoadingToast = true) {
 
   if (cachedResult) {
     applyInventoryDashboardResult(cachedResult);
-  } else {
+  } else if (!hadLoadedData) {
     renderInventoryLoading();
     renderShippingLoading();
   }
@@ -6245,10 +6241,11 @@ async function loadInventoryDashboard(showLoadingToast = true) {
     if (showLoadingToast) {
       showToast("재고 정보를 불러왔습니다.");
     }
+    return true;
   } catch (error) {
     if (cachedResult || hadLoadedData) {
       showToast("최신 데이터 갱신에 실패해 마지막으로 불러온 정보를 표시합니다.");
-      return;
+      return false;
     }
 
     state.inventoryRows = [];
@@ -6261,6 +6258,40 @@ async function loadInventoryDashboard(showLoadingToast = true) {
     renderInventoryTable("재고 정보를 불러오지 못했습니다.");
     renderShippingTable("재고 정보를 불러오지 못했습니다.");
     showToast(error.message || "재고 정보를 불러오지 못했습니다.");
+    return false;
+  }
+}
+
+function setInventoryRefreshButtonLoading(isLoading) {
+  if (!refreshInventoryButton) {
+    return;
+  }
+
+  refreshInventoryButton.disabled = isLoading;
+  refreshInventoryButton.classList.toggle("is-loading", isLoading);
+  refreshInventoryButton.setAttribute("aria-busy", String(isLoading));
+  const label = refreshInventoryButton.querySelector("span");
+  if (label) {
+    label.textContent = isLoading ? "새로고침 중" : "새로고침";
+  }
+}
+
+async function refreshInventoryDashboard() {
+  if (state.isRefreshingInventory) {
+    return;
+  }
+
+  state.isRefreshingInventory = true;
+  setInventoryRefreshButtonLoading(true);
+
+  try {
+    const refreshed = await loadInventoryDashboard(false);
+    if (refreshed) {
+      showToast("최신 재고 데이터로 새로고침했습니다.");
+    }
+  } finally {
+    state.isRefreshingInventory = false;
+    setInventoryRefreshButtonLoading(false);
   }
 }
 
@@ -6959,21 +6990,6 @@ function syncInventoryFilterState() {
     stock: inventoryStockFilter?.value || "",
     process: inventoryProcessFilter?.value || ""
   };
-}
-
-function resetInventoryFilters() {
-  if (inventorySearch) {
-    inventorySearch.value = "";
-  }
-
-  [inventoryClientFilter, inventoryStorageFilter, inventoryStockFilter, inventoryProcessFilter].forEach((select) => {
-    if (select) {
-      select.value = "";
-    }
-  });
-
-  state.inventoryPage = 1;
-  syncInventoryFilterState();
 }
 
 function applyInventoryFilters() {
