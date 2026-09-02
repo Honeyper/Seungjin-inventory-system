@@ -524,10 +524,11 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     && integer(payload.boxQuantity) === integer(currentRecord.boxQuantity)
     && integer(payload.inboundBoxCount) === integer(currentRecord.inboundBoxCount)
     && JSON.stringify(normalizeRemainders(payload)) === JSON.stringify(normalizeRemainders(currentRecord));
-  const relocatesProcessedInventory = action === "updateInbound"
+  const updatesProcessedInventoryMetadata = action === "updateInbound"
     && hasProcessedBoxes
-    && text(currentRecord.storage) !== text(inbound.storage)
     && preservesBoxStructure;
+  const relocatesProcessedInventory = updatesProcessedInventoryMetadata
+    && text(currentRecord.storage) !== text(inbound.storage);
   const existingStock = text(payload.category || payload.entryCategory || payload.inboundType).replace(/\s/g, "") === "기존재고";
   if (!existingStock) {
     const oldKey = currentInbound ? inboundKey(currentInbound.managementId, currentInbound.productId) : "";
@@ -550,17 +551,21 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     shippedShippingBoxes: undefined
   };
 
-  if (relocatesProcessedInventory) {
+  if (updatesProcessedInventoryMetadata) {
     Object.assign(currentRecord, record);
-    const movableBoxes = previousBoxes.filter((box) => (
-      number(box.quantity) > 0
-      && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))
-    ));
-    movableBoxes.forEach((box) => {
-      box.storage = inbound.storage;
-      box.inventoryMovedAt = parts.timestamp;
-      box.inventoryMover = text(payload.registrant || payload.userName || "Admin");
-    });
+    const movableBoxes = relocatesProcessedInventory
+      ? previousBoxes.filter((box) => (
+        number(box.quantity) > 0
+        && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))
+      ))
+      : [];
+    if (relocatesProcessedInventory) {
+      movableBoxes.forEach((box) => {
+        box.storage = inbound.storage;
+        box.inventoryMovedAt = parts.timestamp;
+        box.inventoryMover = text(payload.registrant || payload.userName || "Admin");
+      });
+    }
     upsertBoxes(movableBoxes, changes);
     touchInventoryRecords(state, [managementId], changes);
     recalculateOrders(state.orders, state.inbounds, changes, parts.date);
