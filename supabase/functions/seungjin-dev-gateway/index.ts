@@ -301,11 +301,19 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     };
   }
   if (action === "getInventoryDashboard") {
-    const state = await databaseRequest("rpc/read_dev_inventory_state", {
-      method: "POST",
-      body: "{}"
-    }) as { records?: JsonRecord[]; boxes?: JsonRecord[] };
-    return buildInventoryDashboard(state.records || [], state.boxes || []) as JsonRecord;
+    const [state, productRows] = await Promise.all([
+      databaseRequest("rpc/read_dev_inventory_state", {
+        method: "POST",
+        body: "{}"
+      }) as Promise<{ records?: JsonRecord[]; boxes?: JsonRecord[] }>,
+      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity")
+    ]);
+    const products = productRows.map((row) => ({
+      productId: row.product_id,
+      trayQuantity: row.tray_quantity,
+      boxQuantity: row.box_quantity
+    }));
+    return buildInventoryDashboard(state.records || [], state.boxes || [], products) as JsonRecord;
   }
   throw new Error(`지원하지 않는 Supabase 조회 요청입니다: ${action}`);
 }

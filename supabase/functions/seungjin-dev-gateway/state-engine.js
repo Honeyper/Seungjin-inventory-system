@@ -478,6 +478,7 @@ function makeInboundRecord(payload, managementId, product, order, now, current =
     process: text(product?.finalProcess || payload.process || current.process),
     storage: text(payload.storage),
     boxQuantity: formatEa(boxQuantity),
+    trayQuantity: formatEa(number(product?.trayQuantity || payload.trayQuantity || current.trayQuantity)),
     inboundBoxCount: formatBox(fullBoxes),
     remainQuantity: formatEa(remainders.reduce((sum, value) => sum + value, 0)),
     remainderQuantities: remainders,
@@ -930,9 +931,18 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
   return { state, changes, result };
 }
 
-export function buildInventoryDashboard(records, boxes) {
+export function buildInventoryDashboard(records, boxes, products = []) {
+  const productsById = new Map(products.map((product) => [
+    text(product.productId || product.productCode),
+    product
+  ]));
   const rows = records.map((source) => {
     const row = clone(source);
+    const product = productsById.get(text(row.productId));
+    if (product) {
+      row.trayQuantity = text(product.trayQuantity) || row.trayQuantity || "";
+      row.boxQuantity = text(product.boxQuantity) || row.boxQuantity || "";
+    }
     const related = boxes.filter((box) => text(box.managementId) === text(row.managementId) && text(box.productId) === text(row.productId));
     const all = related.sort((left, right) => integer(left.number) - integer(right.number));
     const active = all.filter((box) => number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status)));

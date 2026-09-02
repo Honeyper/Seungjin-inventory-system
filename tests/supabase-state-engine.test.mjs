@@ -139,6 +139,7 @@ test("product, purchase-order, and inbound CRUD preserves historical product tot
     defectQuantity: 0,
     defectReason: "양호"
   });
+  assert.equal(holder.state.records.find((item) => item.managementId === inbound.result.managementId).trayQuantity, "10 ea");
   const managementId = inbound.result.managementId;
   assert.equal(holder.state.products.find((item) => item.productId === "ION-0001").accumulatedInboundQuantity, "600 ea");
   assert.equal(holder.state.products.find((item) => item.productId === "ION-0002").accumulatedInboundQuantity, "900 ea");
@@ -479,9 +480,15 @@ test("shipping, returns, inventory moves, QR, and inventory audit enforce select
   });
   assert.equal(auditHolder.state.boxes[0].shippingType, "재고조정");
 
-  const dashboard = buildInventoryDashboard(holder.state.records, holder.state.boxes);
+  const dashboard = buildInventoryDashboard(holder.state.records, holder.state.boxes, [{
+    productId: "ION-0001",
+    trayQuantity: "25 ea",
+    boxQuantity: "120 ea"
+  }]);
   assert.equal(dashboard.rows.length, 1);
   assert.ok(dashboard.summary.totalQuantity > 0);
+  assert.equal(dashboard.rows[0].trayQuantity, "25 ea");
+  assert.equal(dashboard.rows[0].boxQuantity, "120 ea");
 });
 
 test("physical unconfirmed inventory counts unchecked mobile-audit boxes and decreases after confirmation", () => {
