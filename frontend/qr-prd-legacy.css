@@ -129,9 +129,11 @@
   line-height: 1;
 }
 
-.box-qr-reference-product-heading > span {
+.box-qr-reference-product-heading > span:first-child {
   grid-column: 2;
   justify-self: center;
+  width: 100%;
+  text-align: center;
 }
 
 .box-qr-reference-product-heading b {

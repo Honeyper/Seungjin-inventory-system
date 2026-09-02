@@ -100,7 +100,7 @@ test("제품명 라벨과 본문은 제품 영역 가운데에 배치한다", as
 
   assert.match(
     css,
-    /\.box-qr-reference-product-heading\s*>\s*span\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?justify-self:\s*center;/
+    /\.box-qr-reference-product-heading\s*>\s*span:first-child\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?justify-self:\s*center;[\s\S]*?width:\s*100%;[\s\S]*?text-align:\s*center;/
   );
   assert.match(
     css,
