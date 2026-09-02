@@ -386,6 +386,29 @@ test("shipping, returns, inventory moves, QR, and inventory audit enforce select
     status: "출고완료"
   }), /검수/);
 
+  const directTransfer = mutate(holder, "updateShippingStatus", {
+    managementId: "M-2",
+    productId: "ION-0001",
+    selectedBoxes: [2],
+    status: "출고완료",
+    shippingType: "이관",
+    shippingDate: "2026-09-01",
+    shippingTime: "13:10",
+    shipper: "테스터",
+    allowInventoryAdjustment: true
+  });
+  assert.equal(directTransfer.result.updatedBoxRows, 1);
+  assert.equal(holder.state.boxes[1].status, "출고완료");
+  assert.equal(holder.state.boxes[1].shippingType, "이관");
+  mutate(holder, "returnTransferredInventory", {
+    managementId: "M-2",
+    productId: "ION-0001",
+    selectedBoxes: [2],
+    targetStatus: "보관",
+    storage: "A",
+    returner: "테스터"
+  });
+
   const partialShipping = mutate(holder, "updateShippingStatus", {
     managementId: "M-2",
     productId: "ION-0001",
