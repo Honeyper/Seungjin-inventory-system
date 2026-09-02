@@ -195,6 +195,95 @@ test("product, purchase-order, and inbound CRUD preserves historical product tot
   assert.equal(holder.state.orders.length, 0);
 });
 
+test("processed legacy inbound can link a purchase order without rebuilding boxes", () => {
+  const managementId = "IN-260708-IRP-0002-001";
+  const productId = "IRP-0002";
+  const purchaseOrderId = "PO-260902-IRP-0002-001";
+  const inbound = {
+    ...inventoryRecord(managementId, productId, 34385, "현장"),
+    inboundDate: "2026-07-08",
+    inboundTime: "10:30",
+    inboundType: "정상입고",
+    clientName: "이루팩",
+    productName: "라카 매직립픽서 용기",
+    purchaseOrderId: "",
+    boxQuantity: "480 ea",
+    inboundBoxCount: "71 box",
+    remainQuantity: "305 ea",
+    remainderQuantities: [305],
+    stockStatus: "출고완료"
+  };
+  const holder = {
+    state: {
+      products: [{ ...product(productId, inbound.productName), boxQuantity: "480 ea" }],
+      orders: [{
+        purchaseOrderId,
+        productId,
+        productName: inbound.productName,
+        clientName: inbound.clientName,
+        orderRound: "06/04 발주",
+        startDate: "2026-06-04",
+        totalOrderQuantity: 384500,
+        accumulatedInboundQuantity: 0,
+        status: "진행 중"
+      }],
+      inbounds: [{ ...inbound }],
+      records: [{ ...inbound }],
+      boxes: Array.from({ length: 72 }, (_, index) => inventoryBox(
+        managementId,
+        productId,
+        index + 1,
+        index === 71 ? 305 : 480,
+        { storage: "현장", status: "출고완료", shippingType: "정상출고" }
+      ))
+    }
+  };
+
+  const updated = mutate(holder, "updateInbound", {
+    managementId,
+    inboundDate: inbound.inboundDate,
+    inboundTime: inbound.inboundTime,
+    inboundType: inbound.inboundType,
+    productId,
+    productName: inbound.productName,
+    clientName: inbound.clientName,
+    purchaseOrderId,
+    storage: "현장",
+    stockStatus: "출고완료",
+    boxQuantity: 480,
+    inboundBoxCount: 71,
+    remainQuantity: 305,
+    remainderQuantities: [305],
+    inspectionQuantity: 80,
+    defectQuantity: 0,
+    defectReason: "양호"
+  });
+
+  assert.equal(holder.state.inbounds[0].purchaseOrderId, purchaseOrderId);
+  assert.equal(holder.state.records[0].purchaseOrderId, purchaseOrderId);
+  assert.equal(holder.state.orders[0].accumulatedInboundQuantity, 34385);
+  assert.equal(holder.state.boxes.length, 72);
+  assert.equal(holder.state.boxes.every((box) => box.status === "출고완료"), true);
+  assert.deepEqual(updated.changes.inventoryBoxes, { upserts: [], deletes: [] });
+
+  assert.throws(() => applyMutation("updateInbound", {
+    managementId,
+    inboundDate: inbound.inboundDate,
+    inboundTime: inbound.inboundTime,
+    inboundType: inbound.inboundType,
+    productId,
+    productName: inbound.productName,
+    clientName: inbound.clientName,
+    purchaseOrderId,
+    storage: "현장",
+    stockStatus: "출고완료",
+    boxQuantity: 480,
+    inboundBoxCount: 70,
+    remainQuantity: 305,
+    remainderQuantities: [305]
+  }, holder.state, fixedNow), /박스 구성을 수정할 수 없습니다/);
+});
+
 test("shipping inspection applies quantities once and clears only waiting boxes", () => {
   const holder = {
     state: {
