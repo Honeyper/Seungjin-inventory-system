@@ -407,15 +407,21 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     };
   }
   if (action === "getInventoryDashboard") {
-    const [state, stateRows] = await Promise.all([
+    const [state, stateRows, productRows] = await Promise.all([
       databaseRequest("rpc/read_dev_inventory_state", {
         method: "POST",
         body: "{}"
       }) as Promise<{ records?: JsonRecord[]; boxes?: JsonRecord[] }>,
-      databaseRequest("dev_state?singleton=eq.true&select=version&limit=1") as Promise<Array<{ version: number }>>
+      databaseRequest("dev_state?singleton=eq.true&select=version&limit=1") as Promise<Array<{ version: number }>>,
+      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity")
     ]);
+    const products = productRows.map((row) => ({
+      productId: row.product_id,
+      trayQuantity: row.tray_quantity,
+      boxQuantity: row.box_quantity
+    }));
     return {
-      ...(buildInventoryDashboard(state.records || [], state.boxes || []) as JsonRecord),
+      ...(buildInventoryDashboard(state.records || [], state.boxes || [], products) as JsonRecord),
       stateVersion: Number(stateRows?.[0]?.version) || null
     };
   }
