@@ -1678,7 +1678,7 @@ img {
 
 .inventory-move-action-picker {
   display: grid;
-  grid-template-columns: auto repeat(5, minmax(max-content, 1fr));
+  grid-template-columns: auto repeat(6, minmax(max-content, 1fr));
   gap: 5px;
   align-items: center;
   margin-top: 8px;
@@ -1737,6 +1737,13 @@ img {
   color: #fff;
   background: var(--navy-dark);
   box-shadow: inset 0 -2px 0 var(--gold);
+}
+
+.inventory-move-action-picker .danger-action input:checked + b {
+  border-color: #9f3340;
+  color: #fff;
+  background: #7f2630;
+  box-shadow: inset 0 -2px 0 #e4b053;
 }
 
 .scanner-empty {

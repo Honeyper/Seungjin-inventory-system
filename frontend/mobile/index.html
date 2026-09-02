@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260902-scanner-actions-fixed-dev" />
+    <link rel="stylesheet" href="./mobile.css?v=20260902-inventory-box-discard-dev" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -579,6 +579,10 @@
               <input type="radio" name="inventoryMoveScanAction" value="audit" />
               <b>실물확인</b>
             </label>
+            <label class="danger-action">
+              <input type="radio" name="inventoryMoveScanAction" value="discard" />
+              <b>박스 폐기</b>
+            </label>
           </div>
           <div class="scanner-scanned-list" id="scannerScannedList" aria-live="polite"></div>
           <div class="scanner-bottom">
@@ -623,6 +627,6 @@
     <script src="../config.js"></script>
     <script src="../supabase-gateway.js?v=20260901-supabase-dev-2"></script>
     <script src="../vendor/jsQR.min.js"></script>
-    <script src="./mobile.js?v=20260902-inventory-scan-actions-dev"></script>
+    <script src="./mobile.js?v=20260902-inventory-box-discard-dev"></script>
   </body>
 </html>
