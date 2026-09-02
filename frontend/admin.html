@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260902-inventory-audit-box-detail" />
+    <link rel="stylesheet" href="./styles.css?v=20260902-inventory-audit-direct-confirm" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260902-qr-grid-2x4" />
   </head>
   <body class="admin-body">
@@ -2372,6 +2372,42 @@
       </section>
     </div>
 
+    <div class="modal-backdrop inventory-audit-box-confirm-backdrop" id="inventoryAuditBoxConfirmModal" hidden>
+      <section class="product-modal inventory-audit-box-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inventoryAuditBoxConfirmTitle">
+        <header class="modal-header inventory-audit-box-confirm-header">
+          <div>
+            <span class="inventory-audit-box-confirm-kicker">재고 조사</span>
+            <h2 id="inventoryAuditBoxConfirmTitle">재고 정리 확인</h2>
+            <p>선택한 미확인 박스를 바로 재고 정리합니다.</p>
+          </div>
+          <button class="modal-close" type="button" id="closeInventoryAuditBoxConfirmModal" aria-label="닫기">
+            <i class="ti ti-x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="inventory-audit-box-confirm-body">
+          <div class="inventory-audit-box-confirm-product">
+            <strong id="inventoryAuditBoxConfirmProduct">-</strong>
+            <span id="inventoryAuditBoxConfirmRecordId">-</span>
+          </div>
+          <section class="inventory-audit-box-confirm-summary" aria-label="재고 정리 대상 박스">
+            <div><span>대상 박스</span><strong id="inventoryAuditBoxConfirmNumber">-</strong></div>
+            <div><span>현재 수량</span><strong id="inventoryAuditBoxConfirmQuantity">-</strong></div>
+            <div><span>보관 위치</span><strong id="inventoryAuditBoxConfirmStorage">-</strong></div>
+          </section>
+          <p class="inventory-audit-box-confirm-warning">
+            확인하면 해당 박스는 <b>출고완료(재고조정)</b> 처리되며 현재 재고에서 제외됩니다.
+          </p>
+          <p class="form-message" id="inventoryAuditBoxConfirmMessage" role="alert" aria-live="polite"></p>
+        </div>
+
+        <div class="modal-actions detail-actions">
+          <button class="secondary-modal-action" type="button" id="cancelInventoryAuditBoxConfirmModal">취소</button>
+          <button class="primary-modal-action" type="button" id="confirmInventoryAuditBoxButton">확인하고 재고 정리</button>
+        </div>
+      </section>
+    </div>
+
     <div class="modal-backdrop" id="existingStockModal" hidden>
       <section class="product-modal existing-stock-modal existing-stock-create-modal" role="dialog" aria-modal="true" aria-labelledby="existingStockModalTitle">
         <header class="modal-header">
@@ -2688,6 +2724,6 @@
     <script src="./product-sort.js?v=20260901-product-picker-sort"></script>
     <script src="./inbound-sort.js?v=20260901-recent-first"></script>
     <script src="./qr-label.js?v=20260901-process-slash"></script>
-    <script src="./admin.js?v=20260902-inventory-audit-box-detail"></script>
+    <script src="./admin.js?v=20260902-inventory-audit-direct-confirm"></script>
   </body>
 </html>
