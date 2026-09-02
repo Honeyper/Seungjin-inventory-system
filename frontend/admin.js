@@ -7876,7 +7876,11 @@ function renderInboundQrReferenceLabel({
   const quantityData = globalThis.SeungjinQrLabel?.getBoxQuantityData?.({
     currentQuantity: box?.currentQuantity,
     boxQuantity: box?.boxQuantity,
-    referenceQuantity: inbound?.boxQuantity
+    referenceQuantity: inbound?.boxQuantity,
+    sequence,
+    fullBoxCount: inbound?.inboundBoxCount,
+    totalBoxCount: total,
+    remainderCount: getInboundRecordRemainderQuantities(inbound).length
   }) || {
     quantity: Math.max(0, Math.round(parseShippingSettlementNumber(
       box?.currentQuantity || box?.boxQuantity || inbound?.boxQuantity || 0

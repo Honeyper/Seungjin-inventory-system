@@ -18,6 +18,16 @@ test("QR 기준수량은 박스 실제 수량을 사용하고 잔량 박스를 �
     boxQuantity: "1,000 ea",
     referenceQuantity: "1,000 ea"
   }), { quantity: 1000, isRemainder: false });
+
+  assert.deepEqual(getBoxQuantityData({
+    currentQuantity: "242 ea",
+    boxQuantity: "242 ea",
+    referenceQuantity: "242 ea",
+    sequence: 31,
+    fullBoxCount: "30 box",
+    totalBoxCount: 31,
+    remainderCount: 1
+  }), { quantity: 242, isRemainder: true });
 });
 
 test("기본 공정은 1도, 2도, 3도 순서를 유지한다", () => {
@@ -109,6 +119,15 @@ test("제품명 영역은 왼쪽에 충분한 여백을 둔다", async () => {
   );
 });
 
+test("제품명 본문은 제품 영역 가운데에 배치한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
+
+  assert.match(
+    css,
+    /\.box-qr-reference-product-name\s*\{[\s\S]*?justify-content:\s*center;[\s\S]*?text-align:\s*center;/
+  );
+});
+
 test("QR 왼쪽 세로선은 다른 행과 같은 왼쪽 테두리 좌표를 사용한다", async () => {
   const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
   const productRule = css.match(/\.box-qr-reference-product\s*\{([\s\S]*?)\}/)?.[1] || "";
@@ -125,6 +144,9 @@ test("DEV 기본 QR은 A4 한 장에 2열 5행으로 출력한다", async () => 
   assert.match(css, /\.qr-sheet\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, 1fr\);[\s\S]*?grid-auto-rows:\s*59\.4mm;/);
   assert.match(printRules, /\.qr-sheet\s*\{[\s\S]*?grid-auto-rows:\s*57\.4mm;/);
   assert.match(printRules, /\.box-qr-label-reference\s*\{[\s\S]*?height:\s*57\.4mm;/);
+  assert.match(css, /grid-template-rows:\s*5\.4mm 5\.4mm 16\.4mm 5\.8mm repeat\(3, 6\.4mm\) 7\.2mm;/);
+  assert.match(css, /\.box-qr-reference-table-head\s*\{[\s\S]*?font-size:\s*8\.5pt;/);
+  assert.match(css, /\.box-qr-reference-row strong\s*\{[\s\S]*?font-size:\s*9pt;/);
   assert.match(css, /\.qr-sheet\.qr-sheet-work\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, 1fr\);/);
 });
 

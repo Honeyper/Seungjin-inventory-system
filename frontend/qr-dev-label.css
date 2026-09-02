@@ -15,7 +15,7 @@
 .box-qr-label-reference {
   position: relative;
   display: grid;
-  grid-template-rows: 5.4mm 5.4mm 18.4mm 5.4mm repeat(3, 6mm) 6.8mm;
+  grid-template-rows: 5.4mm 5.4mm 16.4mm 5.8mm repeat(3, 6.4mm) 7.2mm;
   width: 100%;
   height: 59.4mm;
   min-height: 0;
@@ -145,12 +145,15 @@
 .box-qr-reference-product-name {
   display: flex;
   align-items: center;
+  justify-content: center;
   min-width: 0;
+  width: 100%;
   margin: 0;
   overflow: hidden;
   font-size: 8.8pt;
   font-weight: 400;
   line-height: 1.22;
+  text-align: center;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
@@ -160,7 +163,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.55mm;
+  padding: 1.2mm;
   border-left: 0.4pt solid #050505;
 }
 
@@ -172,17 +175,17 @@
 }
 
 .box-qr-reference-table-head {
-  font-size: 8.2pt;
+  font-size: 8.5pt;
   font-weight: 600;
 }
 
 .box-qr-reference-row {
-  font-size: 7.8pt;
+  font-size: 8.1pt;
   font-weight: 400;
 }
 
 .box-qr-reference-row strong {
-  font-size: 8.5pt;
+  font-size: 9pt;
   font-weight: 500;
   text-align: center;
   white-space: nowrap;
@@ -192,7 +195,7 @@
 .box-qr-reference-month,
 .box-qr-reference-day,
 .box-qr-reference-sign {
-  font-size: 7.4pt;
+  font-size: 7.8pt;
   font-weight: 400;
 }
 
@@ -222,7 +225,7 @@
 }
 
 .box-qr-reference-manager {
-  font-size: 8.8pt;
+  font-size: 9.2pt;
 }
 
 .qr-sheet-work .box-qr-reference-final-process {
@@ -268,8 +271,12 @@
   }
 
   .box-qr-label-reference {
-    grid-template-rows: 5.2mm 5.2mm 17.8mm 5.2mm repeat(3, 5.8mm) 6.6mm;
+    grid-template-rows: 5.2mm 5.2mm 15.8mm 5.6mm repeat(3, 6.2mm) 7mm;
     height: 57.4mm;
+  }
+
+  .box-qr-reference-media {
+    padding: 0.9mm;
   }
 
   .qr-sheet-work .box-qr-label-reference {
