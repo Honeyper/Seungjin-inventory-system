@@ -126,10 +126,10 @@ test("제품명 라벨과 본문은 제품 영역 가운데에 배치한다", as
   );
 });
 
-test("제품명 라벨과 실제 제품명은 기존보다 2pt 크게 표시한다", async () => {
+test("제품명 라벨만 1pt 줄이고 실제 제품명 크기는 유지한다", async () => {
   const css = await readFile(new URL("../frontend/qr-prd-legacy.css", import.meta.url), "utf8");
 
-  assert.match(css, /\.box-qr-reference-product-heading\s*\{[\s\S]*?font-size:\s*9\.5pt;/);
+  assert.match(css, /\.box-qr-reference-product-heading\s*\{[\s\S]*?font-size:\s*8\.5pt;/);
   assert.match(css, /\.box-qr-reference-product-name\s*\{[\s\S]*?font-size:\s*10\.8pt;/);
   assert.match(css, /\.qr-sheet-work \.box-qr-reference-product-name\s*\{[\s\S]*?font-size:\s*9\.2pt;/);
 });
@@ -164,10 +164,20 @@ test("PRD 기본 QR은 A4 한 장에 2열 5행으로 출력한다", async () => 
   assert.match(css, /\.box-qr-reference-row strong\s*\{[\s\S]*?font-size:\s*9pt;/);
 });
 
-test("잔량 박스의 기준수량 값 칸은 노란색으로 표시한다", async () => {
+test("잔량 박스는 라벨을 잔량으로 바꾸고 라벨과 수량 칸을 노란색으로 표시한다", async () => {
   const css = await readFile(new URL("../frontend/qr-prd-legacy.css", import.meta.url), "utf8");
   const adminSource = await readFile(new URL("../frontend/admin.js", import.meta.url), "utf8");
 
+  assert.match(adminSource, /quantityData\.isRemainder \? "잔량" : "기준수량"/);
+  assert.match(adminSource, /box-qr-reference-quantity-label\$\{quantityData\.isRemainder \? " is-remainder" : ""\}/);
   assert.match(adminSource, /box-qr-reference-quantity-value\$\{quantityData\.isRemainder \? " is-remainder" : ""\}/);
-  assert.match(css, /\.box-qr-reference-summary \.box-qr-reference-quantity-value\.is-remainder\s*\{[\s\S]*?background:\s*#ffe98a;/);
+  assert.match(css, /\.box-qr-reference-summary \.box-qr-reference-quantity-label\.is-remainder,\s*\.box-qr-reference-summary \.box-qr-reference-quantity-value\.is-remainder\s*\{[\s\S]*?background:\s*#ffe98a;/);
+});
+
+test("차수는 상단 요약행에 표시하고 값이 없으면 하이픈을 사용한다", async () => {
+  const adminSource = await readFile(new URL("../frontend/admin.js", import.meta.url), "utf8");
+
+  assert.match(adminSource, /box-qr-reference-batch-value[^>]*>\$\{escapeHtml\(batchText \|\| "-"\)\}<\/strong>/);
+  assert.doesNotMatch(adminSource, /<b>&lt;\$\{escapeHtml\(batchText\)\}&gt;<\/b>/);
+  assert.match(adminSource, /<strong>입고일<\/strong>\s*<span class="box-qr-reference-date-value">/);
 });
