@@ -132,6 +132,14 @@ test("제품명 라벨과 본문은 제품 영역 가운데에 배치한다", as
   );
 });
 
+test("제품명 라벨과 실제 제품명은 기존보다 2pt 크게 표시한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.box-qr-reference-product-heading\s*\{[\s\S]*?font-size:\s*9\.5pt;/);
+  assert.match(css, /\.box-qr-reference-product-name\s*\{[\s\S]*?font-size:\s*10\.8pt;/);
+  assert.match(css, /\.qr-sheet-work \.box-qr-reference-product-name\s*\{[\s\S]*?font-size:\s*9\.2pt;/);
+});
+
 test("QR 왼쪽 세로선은 다른 행과 같은 왼쪽 테두리 좌표를 사용한다", async () => {
   const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
   const productRule = css.match(/\.box-qr-reference-product\s*\{([\s\S]*?)\}/)?.[1] || "";
