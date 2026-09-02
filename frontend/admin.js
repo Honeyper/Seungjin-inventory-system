@@ -255,11 +255,13 @@ const state = {
   activeShippingWaitingRow: null,
   activeRemainingInventoryRow: null,
   activeRemainingInventoryMode: "classify",
+  activeInventoryAuditBoxConfirm: null,
   inventoryAttentionDetailReturnType: "",
   inventoryAttentionDetailReturnScrollTop: 0,
   returnToInventoryDetailAfterAudit: false,
   isSavingShippingWaiting: false,
   isSavingRemainingInventory: false,
+  isSavingInventoryAuditBoxConfirm: false,
   isSavingShippingInspection: false,
   isSavingShippingCompletion: false,
   isSavingShippingCancel: false,
@@ -337,6 +339,14 @@ const closeInboundDetailModalButton = document.querySelector("#closeInboundDetai
 const closeInboundDetailButton = document.querySelector("#closeInboundDetailButton");
 const editInboundFromDetailButton = document.querySelector("#editInboundFromDetailButton");
 const inventoryAuditFromDetailButton = document.querySelector("#inventoryAuditFromDetailButton");
+const inventoryAuditBoxConfirmModal = document.querySelector("#inventoryAuditBoxConfirmModal");
+const inventoryAuditBoxConfirmProduct = document.querySelector("#inventoryAuditBoxConfirmProduct");
+const inventoryAuditBoxConfirmRecordId = document.querySelector("#inventoryAuditBoxConfirmRecordId");
+const inventoryAuditBoxConfirmNumber = document.querySelector("#inventoryAuditBoxConfirmNumber");
+const inventoryAuditBoxConfirmQuantity = document.querySelector("#inventoryAuditBoxConfirmQuantity");
+const inventoryAuditBoxConfirmStorage = document.querySelector("#inventoryAuditBoxConfirmStorage");
+const inventoryAuditBoxConfirmMessage = document.querySelector("#inventoryAuditBoxConfirmMessage");
+const confirmInventoryAuditBoxButton = document.querySelector("#confirmInventoryAuditBoxButton");
 const saveInboundEditButton = document.querySelector("#saveInboundEditButton");
 const inboundQrModal = document.querySelector("#inboundQrModal");
 const inboundQrTitle = document.querySelector("#inboundQrTitle");
@@ -1263,6 +1273,9 @@ closeInboundDetailModalButton?.addEventListener("click", closeInboundDetailModal
 closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
 editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
 inventoryAuditFromDetailButton?.addEventListener("click", openInventoryAuditFromDetail);
+document.querySelector("#closeInventoryAuditBoxConfirmModal")?.addEventListener("click", closeInventoryAuditBoxConfirmModal);
+document.querySelector("#cancelInventoryAuditBoxConfirmModal")?.addEventListener("click", closeInventoryAuditBoxConfirmModal);
+confirmInventoryAuditBoxButton?.addEventListener("click", confirmInventoryAuditBoxAdjustment);
 inboundDetailContent?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-inventory-audit-box]");
   if (!button) {
@@ -8846,19 +8859,115 @@ function openInventoryAuditBoxFromDetail(boxNumber) {
     state.activeDetailInboundId,
     state.activeDetailInboundProductId
   );
-  const isUnconfirmed = getInventoryAuditTargetBoxes(item)
-    .some((box) => box.number === Number(boxNumber));
-  if (!item || !isUnconfirmed) {
+  const box = getInventoryAuditTargetBoxes(item)
+    .find((candidate) => candidate.number === Number(boxNumber));
+  if (!item || !box || !inventoryAuditBoxConfirmModal) {
     showToast("재고 정리할 미확인 박스를 찾을 수 없습니다.");
     return;
   }
 
-  state.returnToInventoryDetailAfterAudit = true;
-  inboundDetailModal.hidden = true;
-  if (!openRemainingInventoryModal(item, "audit", [boxNumber])) {
-    state.returnToInventoryDetailAfterAudit = false;
-    inboundDetailModal.hidden = false;
-    focusModalDialog(inboundDetailModal);
+  state.activeInventoryAuditBoxConfirm = { item, box };
+  state.isSavingInventoryAuditBoxConfirm = false;
+  if (inventoryAuditBoxConfirmProduct) {
+    inventoryAuditBoxConfirmProduct.textContent = normalizeDisplayValue(item.productName);
+  }
+  if (inventoryAuditBoxConfirmRecordId) {
+    inventoryAuditBoxConfirmRecordId.textContent = normalizeDisplayValue(item.managementId);
+  }
+  if (inventoryAuditBoxConfirmNumber) {
+    inventoryAuditBoxConfirmNumber.textContent = `${formatNumber(box.number)}번 박스`;
+  }
+  if (inventoryAuditBoxConfirmQuantity) {
+    inventoryAuditBoxConfirmQuantity.textContent = `${formatNumber(box.quantity)} ea`;
+  }
+  if (inventoryAuditBoxConfirmStorage) {
+    inventoryAuditBoxConfirmStorage.textContent = normalizeDisplayValue(box.storage || item.storage);
+  }
+  if (inventoryAuditBoxConfirmMessage) {
+    inventoryAuditBoxConfirmMessage.textContent = "";
+  }
+  if (confirmInventoryAuditBoxButton) {
+    confirmInventoryAuditBoxButton.disabled = false;
+    confirmInventoryAuditBoxButton.textContent = "확인하고 재고 정리";
+  }
+  inventoryAuditBoxConfirmModal.hidden = false;
+  resetModalScrollPosition(inventoryAuditBoxConfirmModal);
+  document.body.classList.add("modal-open");
+  focusModalDialog(inventoryAuditBoxConfirmModal);
+}
+
+function closeInventoryAuditBoxConfirmModal() {
+  if (!inventoryAuditBoxConfirmModal || state.isSavingInventoryAuditBoxConfirm) {
+    return;
+  }
+  inventoryAuditBoxConfirmModal.hidden = true;
+  state.activeInventoryAuditBoxConfirm = null;
+  if (inventoryAuditBoxConfirmMessage) {
+    inventoryAuditBoxConfirmMessage.textContent = "";
+  }
+  if (inboundDetailModal?.hidden !== false) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function confirmInventoryAuditBoxAdjustment() {
+  const active = state.activeInventoryAuditBoxConfirm;
+  if (!active || state.isSavingInventoryAuditBoxConfirm) {
+    return;
+  }
+
+  const currentItem = getInventoryRecordByManagementId(active.item.managementId, active.item.productId);
+  const currentBox = getInventoryAuditTargetBoxes(currentItem)
+    .find((box) => box.number === Number(active.box.number));
+  if (!currentItem || !currentBox) {
+    if (inventoryAuditBoxConfirmMessage) {
+      inventoryAuditBoxConfirmMessage.textContent = "이미 처리됐거나 재고 정리할 수 없는 박스입니다.";
+    }
+    return;
+  }
+
+  state.isSavingInventoryAuditBoxConfirm = true;
+  if (confirmInventoryAuditBoxButton) {
+    confirmInventoryAuditBoxButton.disabled = true;
+    confirmInventoryAuditBoxButton.textContent = "재고 정리 중";
+  }
+  if (inventoryAuditBoxConfirmMessage) {
+    inventoryAuditBoxConfirmMessage.textContent = "";
+  }
+
+  try {
+    await requestApi("adjustMissingInventory", {
+      adjustments: [{
+        managementId: currentItem.managementId || "",
+        productId: currentItem.productId || "",
+        productName: currentItem.productName || "",
+        clientName: currentItem.clientName || "",
+        selectedBoxes: [currentBox.number]
+      }],
+      userName: signedInAdminName
+    });
+
+    inventoryAuditBoxConfirmModal.hidden = true;
+    state.activeInventoryAuditBoxConfirm = null;
+    state.isSavingInventoryAuditBoxConfirm = false;
+    await loadInventoryDashboard(false);
+    const refreshedItem = getInventoryRecordByManagementId(currentItem.managementId, currentItem.productId);
+    if (refreshedItem && inboundDetailModal?.hidden === false) {
+      const detailInbound = normalizeInboundDetailRecord(refreshedItem);
+      state.activeDetailInboundRecord = detailInbound;
+      renderInboundDetail(detailInbound);
+      setInboundDetailMode("view");
+    }
+    showToast(`${formatNumber(currentBox.number)}번 박스를 재고 정리했습니다.`);
+  } catch (error) {
+    state.isSavingInventoryAuditBoxConfirm = false;
+    if (confirmInventoryAuditBoxButton) {
+      confirmInventoryAuditBoxButton.disabled = false;
+      confirmInventoryAuditBoxButton.textContent = "확인하고 재고 정리";
+    }
+    if (inventoryAuditBoxConfirmMessage) {
+      inventoryAuditBoxConfirmMessage.textContent = error.message || "재고 정리 중 문제가 발생했습니다.";
+    }
   }
 }
 
