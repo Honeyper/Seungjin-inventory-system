@@ -173,8 +173,10 @@ test("잔량 박스는 라벨을 잔량으로 바꾸고 라벨과 수량 칸을 
 
 test("차수는 상단 요약행에 표시하고 값이 없으면 하이픈을 사용한다", async () => {
   const adminSource = await readFile(new URL("../frontend/admin.js", import.meta.url), "utf8");
+  const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
 
-  assert.match(adminSource, /box-qr-reference-batch-value[^>]*>\$\{escapeHtml\(batchText \|\| "-"\)\}<\/strong>/);
+  assert.match(adminSource, /box-qr-reference-batch-value\$\{batchText \? " has-value" : ""\}[^>]*>\$\{escapeHtml\(batchText \|\| "-"\)\}<\/strong>/);
+  assert.match(css, /\.box-qr-reference-summary \.box-qr-reference-batch-value\.has-value\s*\{[\s\S]*?background:\s*#ffe98a;/);
   assert.doesNotMatch(adminSource, /<b>&lt;\$\{escapeHtml\(batchText\)\}&gt;<\/b>/);
   assert.match(adminSource, /<strong>입고일<\/strong>\s*<span class="box-qr-reference-date-value">/);
 });
