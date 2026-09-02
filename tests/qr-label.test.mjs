@@ -95,6 +95,19 @@ test("제품명 영역은 왼쪽에 충분한 여백을 둔다", async () => {
   );
 });
 
+test("제품명 라벨과 본문은 제품 영역 가운데에 배치한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-prd-legacy.css", import.meta.url), "utf8");
+
+  assert.match(
+    css,
+    /\.box-qr-reference-product-heading\s*>\s*span\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?justify-self:\s*center;/
+  );
+  assert.match(
+    css,
+    /\.box-qr-reference-product-name\s*\{[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?text-align:\s*center;/
+  );
+});
+
 test("QR 왼쪽 세로선은 다른 행과 같은 왼쪽 테두리 좌표를 사용한다", async () => {
   const css = await readFile(new URL("../frontend/qr-prd-legacy.css", import.meta.url), "utf8");
   const productRule = css.match(/\.box-qr-reference-product\s*\{([\s\S]*?)\}/)?.[1] || "";
