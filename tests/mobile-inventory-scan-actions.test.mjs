@@ -28,3 +28,20 @@ test("storage route only appears for the move action", () => {
   assert.match(css, /\.inventory-move-action-picker/);
   assert.match(css, /input:checked \+ b/);
 });
+
+test("scanner action bar stays fixed while only the scanned list scrolls", () => {
+  assert.match(html, /mobile\.css\?v=20260902-scanner-actions-fixed-prd/);
+  assert.match(
+    css,
+    /\.scanner-list-panel\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-rows:\s*20px auto auto minmax\(0, 1fr\) auto;[\s\S]*?overflow:\s*hidden;/
+  );
+  assert.match(
+    css,
+    /\.scanner-list-panel \.scanner-scanned-list\s*\{[\s\S]*?grid-row:\s*4;[\s\S]*?min-height:\s*0;[\s\S]*?overflow-y:\s*auto;[\s\S]*?overscroll-behavior:\s*contain;/
+  );
+  assert.match(
+    css,
+    /\.scanner-list-panel \.scanner-bottom\s*\{[\s\S]*?grid-row:\s*5;[\s\S]*?align-self:\s*end;[\s\S]*?width:\s*100%;/
+  );
+  assert.match(css, /\.scanner-list-panel \.inventory-move-action-picker\s*\{[\s\S]*?grid-row:\s*3;/);
+});
