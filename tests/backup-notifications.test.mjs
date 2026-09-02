@@ -71,7 +71,7 @@ test("관리자 알림 버튼은 백업 결과 API, 읽음 표시, 실패 상세
   assert.match(adminHtml, /id="backupNotificationButton"/);
   assert.match(adminHtml, /id="backupNotificationBadge"/);
   assert.match(adminHtml, /id="backupNotificationPanel"/);
-  assert.match(adminHtml, /styles\.css\?v=20260902-backup-notifications-(?:dev|prd)/);
+  assert.match(adminHtml, /styles\.css\?v=20260902-inventory-refresh-prd/);
   assert.match(gatewaySource, /"getSheetBackupNotifications"/);
   assert.match(adminSource, /requestApi\("getSheetBackupNotifications"\)/);
   assert.match(adminSource, /BACKUP_NOTIFICATION_READ_KEY/);

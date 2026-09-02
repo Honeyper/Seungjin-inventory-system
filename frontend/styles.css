@@ -2442,7 +2442,7 @@ input {
   margin-top: 1.05rem;
 }
 
-.inventory-reset-button,
+.inventory-refresh-button,
 .inventory-export-button,
 .detail-filter-button {
   min-height: 2.35rem;
@@ -2451,7 +2451,7 @@ input {
   font-size: 0.78rem;
 }
 
-.inventory-reset-button svg,
+.inventory-refresh-button svg,
 .inventory-export-button svg,
 .detail-filter-button svg {
   width: 0.95rem;
@@ -2663,16 +2663,26 @@ input {
   margin-top: 0.75rem;
 }
 
-.inventory-filter-reset {
+.inventory-filter-refresh {
   display: flex;
   align-self: end;
   min-width: 6.5rem;
 }
 
-.inventory-filter-reset .inventory-reset-button {
+.inventory-filter-refresh .inventory-refresh-button {
   justify-content: center;
   width: 100%;
   min-height: 2.55rem;
+}
+
+.inventory-refresh-button.is-loading svg {
+  animation: inventory-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes inventory-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .detail-filter-button {
@@ -3164,7 +3174,7 @@ input {
     grid-template-columns: 1fr;
   }
 
-  .inventory-filter-reset {
+  .inventory-filter-refresh {
     min-width: 0;
   }
 
