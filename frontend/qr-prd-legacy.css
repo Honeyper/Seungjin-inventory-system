@@ -115,6 +115,14 @@
   print-color-adjust: exact;
 }
 
+.box-qr-reference-summary .box-qr-reference-batch-value.has-value {
+  color: #6f4b00;
+  font-weight: 700;
+  background: #ffe98a;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
 .box-qr-reference-product {
   position: relative;
   grid-column: 1 / 4;

@@ -8843,7 +8843,7 @@ function renderInboundQrReferenceLabel({
       <div class="box-qr-reference-summary">
         <strong class="box-qr-reference-quantity-label${quantityData.isRemainder ? " is-remainder" : ""}">${quantityData.isRemainder ? "잔량" : "기준수량"}</strong>
         <span class="box-qr-reference-quantity-value${quantityData.isRemainder ? " is-remainder" : ""}">${escapeHtml(formatNumber(quantityData.quantity))}ea</span>
-        <strong class="box-qr-reference-batch-value">${escapeHtml(batchText || "-")}</strong>
+        <strong class="box-qr-reference-batch-value${batchText ? " has-value" : ""}">${escapeHtml(batchText || "-")}</strong>
         <strong>입고일</strong>
         <span class="box-qr-reference-date-value">${escapeHtml(inboundDate)}</span>
       </div>
