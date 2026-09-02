@@ -119,23 +119,22 @@ test("제품명 영역은 왼쪽에 충분한 여백을 둔다", async () => {
   );
 });
 
-test("제품명 라벨과 본문은 제품 영역 가운데에 배치한다", async () => {
+test("제품명 라벨은 제거하고 실제 제품명만 제품 영역 가운데에 배치한다", async () => {
   const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
+  const adminSource = await readFile(new URL("../frontend/admin.js", import.meta.url), "utf8");
 
-  assert.match(
-    css,
-    /\.box-qr-reference-product-heading\s*>\s*span\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?justify-self:\s*center;/
-  );
+  assert.doesNotMatch(adminSource, /<span>제품명<\/span>/);
+  assert.doesNotMatch(css, /\.box-qr-reference-product-heading/);
+  assert.match(css, /\.box-qr-reference-product\s*\{[\s\S]*?grid-template-rows:\s*minmax\(0, 1fr\);/);
   assert.match(
     css,
     /\.box-qr-reference-product-name\s*\{[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?text-align:\s*center;/
   );
 });
 
-test("제품명 라벨만 1pt 줄이고 실제 제품명 크기는 유지한다", async () => {
+test("실제 제품명 크기는 유지한다", async () => {
   const css = await readFile(new URL("../frontend/qr-dev-label.css", import.meta.url), "utf8");
 
-  assert.match(css, /\.box-qr-reference-product-heading\s*\{[\s\S]*?font-size:\s*8\.5pt;/);
   assert.match(css, /\.box-qr-reference-product-name\s*\{[\s\S]*?font-size:\s*10\.8pt;/);
   assert.match(css, /\.qr-sheet-work \.box-qr-reference-product-name\s*\{[\s\S]*?font-size:\s*9\.2pt;/);
 });

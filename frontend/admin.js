@@ -8131,9 +8131,6 @@ function renderInboundQrReferenceLabel({
       </div>
       <div class="box-qr-reference-main">
         <div class="box-qr-reference-product">
-          <span class="box-qr-reference-product-heading">
-            <span>제품명</span>
-          </span>
           <p class="box-qr-reference-product-name">${escapeHtml(productName)}</p>
         </div>
         <div class="box-qr-reference-media">
