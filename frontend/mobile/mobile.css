@@ -8281,8 +8281,23 @@ body {
 }
 
 .scanner-list-panel {
+  display: grid;
+  grid-template-rows: 20px auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
   border-radius: 22px 22px 0 0;
   background: var(--mobile-page);
+}
+
+.scanner-list-panel .scanner-sheet-handle {
+  grid-row: 1;
+}
+
+.scanner-list-panel .scanner-list-header {
+  grid-row: 2;
+}
+
+.scanner-list-panel .inventory-move-action-picker {
+  grid-row: 3;
 }
 
 .scanner-mode-toggle {
@@ -8303,9 +8318,22 @@ body {
   box-shadow: none;
 }
 
+.scanner-list-panel .scanner-scanned-list {
+  grid-row: 4;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .scanner-bottom {
   border-top-color: var(--mobile-border);
   background: #fff;
+}
+
+.scanner-list-panel .scanner-bottom {
+  grid-row: 5;
+  align-self: end;
+  width: 100%;
 }
 
 .scanner-bottom button {
