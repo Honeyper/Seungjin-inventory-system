@@ -3,6 +3,7 @@ import {
   buildInventoryDashboard,
   SUPABASE_MUTATION_ACTIONS
 } from "./state-engine.js";
+import { buildSheetBackupNotifications } from "./backup-notifications.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const PROJECT_REF = (() => {
@@ -339,6 +340,32 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
   throw new Error(`지원하지 않는 Supabase 조회 요청입니다: ${action}`);
 }
 
+async function readSheetBackupNotifications() {
+  const startDate = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const select = [
+    "id",
+    "action",
+    "status",
+    "business_date",
+    "attempts",
+    "last_error",
+    "synced_at",
+    "processing_started_at",
+    "management_id:payload->>managementId",
+    "purchase_order_id:payload->>purchaseOrderId",
+    "product_id:payload->>productId",
+    "product_code:payload->>productCode",
+    "product_name:payload->>productName",
+    "legacy_product_name:payload->>제품명"
+  ].join(",");
+  const rows = await databaseRows(
+    `dev_sheet_outbox?select=${encodeURIComponent(select)}&business_date=gte.${startDate}&order=business_date.desc,id.asc`
+  );
+  return buildSheetBackupNotifications(rows, new Date());
+}
+
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest))
@@ -628,6 +655,14 @@ async function handleRequest(request: Request) {
         source: "supabase-canonical",
         message: "Supabase 원본 데이터는 별도 스프레드시트 새로고침이 필요하지 않습니다."
       }
+    });
+  }
+
+  if (action === "getSheetBackupNotifications") {
+    return jsonResponse(request, {
+      ok: true,
+      data: await readSheetBackupNotifications(),
+      meta: { source: "supabase-sheet-outbox" }
     });
   }
 

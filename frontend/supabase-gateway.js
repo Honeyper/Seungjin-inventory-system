@@ -8,7 +8,8 @@
     "getPurchaseOrders",
     "getTodayInbounds",
     "getInventoryVersion",
-    "getInventoryDashboard"
+    "getInventoryDashboard",
+    "getSheetBackupNotifications"
   ]);
   const mutationActions = new Set([
     "createProduct",

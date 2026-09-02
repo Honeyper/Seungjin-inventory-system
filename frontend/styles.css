@@ -1551,6 +1551,10 @@ input {
   position: relative;
 }
 
+.backup-notification-menu {
+  position: relative;
+}
+
 .icon-button,
 .row-action {
   display: inline-grid;
@@ -1587,6 +1591,290 @@ input {
 
 .icon-button:hover {
   background: rgba(8, 42, 98, 0.07);
+}
+
+.backup-notification-button {
+  position: relative;
+}
+
+.backup-notification-button[aria-expanded="true"] {
+  color: #0b4d9b;
+  background: #eef5ff;
+}
+
+.backup-notification-badge {
+  position: absolute;
+  top: -0.12rem;
+  right: -0.12rem;
+  display: grid;
+  min-width: 1.12rem;
+  height: 1.12rem;
+  padding: 0 0.22rem;
+  place-items: center;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #d92d20;
+  font-size: 0.59rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.backup-notification-badge[hidden],
+.backup-notification-panel[hidden] {
+  display: none;
+}
+
+.backup-notification-panel {
+  position: absolute;
+  z-index: 130;
+  top: calc(100% + 0.72rem);
+  right: -0.25rem;
+  display: grid;
+  width: min(31rem, calc(100vw - 2rem));
+  max-height: min(42rem, calc(100vh - 6.5rem));
+  overflow: hidden;
+  border: 1px solid #dbe4ef;
+  border-radius: 0.95rem;
+  background: #fff;
+  box-shadow: 0 1.2rem 3rem rgba(7, 31, 73, 0.2);
+}
+
+.backup-notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.05rem 0.9rem;
+  border-bottom: 1px solid #e5eaf1;
+}
+
+.backup-notification-header > div {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.backup-notification-header span {
+  color: #9a6b16;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.backup-notification-header h2 {
+  margin: 0;
+  color: var(--navy-dark);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.backup-notification-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-height: 2rem;
+  padding: 0 0.68rem;
+  color: #526078;
+  border: 1px solid #dbe3ed;
+  border-radius: 0.45rem;
+  background: #fff;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.backup-notification-refresh:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.backup-notification-list {
+  display: grid;
+  gap: 0.7rem;
+  min-height: 7.5rem;
+  overflow-y: auto;
+  padding: 0.82rem;
+  background: #f6f8fb;
+}
+
+.backup-notification-empty {
+  align-self: center;
+  margin: 0;
+  padding: 1.7rem 1rem;
+  color: #758198;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.backup-notification-card {
+  overflow: hidden;
+  border: 1px solid #dfe6ef;
+  border-left: 0.25rem solid #4b77b6;
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+.backup-notification-card.is-success {
+  border-left-color: #159455;
+}
+
+.backup-notification-card.is-failed {
+  border-left-color: #d92d20;
+}
+
+.backup-notification-card.is-processing {
+  border-left-color: #d2a13c;
+}
+
+.backup-notification-card-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.72rem;
+  padding: 0.88rem;
+}
+
+.backup-notification-status-icon {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  color: #fff;
+  border-radius: 50%;
+  background: #4b77b6;
+  font-size: 1.05rem;
+}
+
+.is-success .backup-notification-status-icon {
+  background: #159455;
+}
+
+.is-failed .backup-notification-status-icon {
+  background: #d92d20;
+}
+
+.is-processing .backup-notification-status-icon {
+  color: #704d0d;
+  background: #f4d996;
+}
+
+.backup-notification-card-copy {
+  min-width: 0;
+}
+
+.backup-notification-card-copy h3 {
+  margin: 0;
+  color: #102a55;
+  font-size: 0.87rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.backup-notification-card-copy p {
+  margin: 0.25rem 0 0;
+  color: #66738a;
+  font-size: 0.73rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.backup-notification-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.backup-notification-counts span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  padding: 0 0.5rem;
+  color: #526078;
+  border-radius: 999px;
+  background: #f0f3f7;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.backup-notification-counts .is-synced {
+  color: #107344;
+  background: #eaf8f0;
+}
+
+.backup-notification-counts .is-error {
+  color: #b42318;
+  background: #fff0ef;
+}
+
+.backup-notification-issues {
+  border-top: 1px solid #e9edf3;
+}
+
+.backup-notification-issues summary {
+  padding: 0.68rem 0.88rem;
+  color: #9f241c;
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.backup-notification-issue-list {
+  display: grid;
+  gap: 0.48rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0.78rem 0.78rem;
+  list-style: none;
+}
+
+.backup-notification-issue-list li {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.62rem 0.7rem;
+  border: 1px solid #f0d5d2;
+  border-radius: 0.52rem;
+  background: #fff8f7;
+}
+
+.backup-notification-issue-list strong {
+  color: #7f1d17;
+  font-size: 0.72rem;
+}
+
+.backup-notification-issue-list span,
+.backup-notification-issue-list small {
+  overflow-wrap: anywhere;
+  color: #5f6b7e;
+  font-size: 0.67rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.backup-notification-issue-list small {
+  color: #a33a32;
+}
+
+.backup-notification-more {
+  margin: 0;
+  padding: 0 0.9rem 0.78rem;
+  color: #7a4650;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.backup-notification-footer {
+  padding: 0.7rem 0.95rem;
+  color: #7a8799;
+  border-top: 1px solid #e5eaf1;
+  background: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .admin-user {
@@ -12259,5 +12547,23 @@ input {
   #productDetailModal .detail-grid,
   #inboundDetailModal:not(.is-editing) .detail-grid {
     grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .backup-notification-panel {
+    position: fixed;
+    top: 4.8rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-height: calc(100vh - 5.6rem);
+  }
+
+  .backup-notification-header {
+    padding: 0.85rem;
+  }
+
+  .backup-notification-list {
+    padding: 0.65rem;
   }
 }

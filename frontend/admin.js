@@ -43,6 +43,8 @@ const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const ADMIN_LARGE_CACHE_DB_NAME = `${ADMIN_CACHE_PREFIX}:large`;
 const ADMIN_LARGE_CACHE_STORE = "responses";
 let adminLargeCacheDatabasePromise = null;
+const BACKUP_NOTIFICATION_POLL_MS = 60 * 1000;
+const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
 
 if (
   !session
@@ -279,7 +281,9 @@ const state = {
   inboundSort: {
     column: 1,
     direction: "desc"
-  }
+  },
+  backupNotifications: [],
+  isLoadingBackupNotifications: false
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -288,6 +292,12 @@ const adminUserMenuButton = document.querySelector("#adminUserMenuButton");
 const adminUserMenu = document.querySelector("#adminUserMenu");
 const adminUserMenuName = document.querySelector("#adminUserMenuName");
 const adminLogoutButton = document.querySelector("#adminLogoutButton");
+const backupNotificationMenu = document.querySelector("#backupNotificationMenu");
+const backupNotificationButton = document.querySelector("#backupNotificationButton");
+const backupNotificationPanel = document.querySelector("#backupNotificationPanel");
+const backupNotificationBadge = document.querySelector("#backupNotificationBadge");
+const backupNotificationList = document.querySelector("#backupNotificationList");
+const refreshBackupNotificationsButton = document.querySelector("#refreshBackupNotifications");
 const productTotal = document.querySelector("#productTotal");
 const clientTotal = document.querySelector("#clientTotal");
 const recentDate = document.querySelector("#recentDate");
@@ -670,6 +680,7 @@ adminUserMenuButton?.addEventListener("click", () => {
   adminUserMenuButton.setAttribute("aria-expanded", String(shouldOpen));
   adminUserMenu.hidden = !shouldOpen;
   if (shouldOpen) {
+    setBackupNotificationPanelOpen(false);
     adminLogoutButton?.focus();
   }
 });
@@ -695,6 +706,185 @@ document.addEventListener("keydown", (event) => {
   adminUserMenu.hidden = true;
   adminUserMenuButton?.setAttribute("aria-expanded", "false");
   adminUserMenuButton?.focus();
+});
+
+function readBackupNotificationSignatures() {
+  try {
+    const signatures = JSON.parse(localStorage.getItem(BACKUP_NOTIFICATION_READ_KEY) || "[]");
+    return new Set(Array.isArray(signatures) ? signatures.filter(Boolean) : []);
+  } catch (error) {
+    return new Set();
+  }
+}
+
+function writeBackupNotificationSignatures(signatures) {
+  try {
+    localStorage.setItem(BACKUP_NOTIFICATION_READ_KEY, JSON.stringify([...signatures].slice(-100)));
+  } catch (error) {
+    // Browser storage failures must not block backup status checks.
+  }
+}
+
+function getFinalBackupNotifications() {
+  return state.backupNotifications.filter((notification) => notification.status !== "processing");
+}
+
+function markBackupNotificationsRead() {
+  const signatures = readBackupNotificationSignatures();
+  getFinalBackupNotifications().forEach((notification) => signatures.add(notification.signature));
+  writeBackupNotificationSignatures(signatures);
+  updateBackupNotificationBadge();
+}
+
+function updateBackupNotificationBadge() {
+  if (!backupNotificationBadge) return;
+  const readSignatures = readBackupNotificationSignatures();
+  const unreadCount = getFinalBackupNotifications()
+    .filter((notification) => !readSignatures.has(notification.signature))
+    .length;
+  backupNotificationBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+  backupNotificationBadge.hidden = unreadCount === 0;
+  backupNotificationButton?.classList.toggle("has-unread", unreadCount > 0);
+}
+
+function formatBackupNotificationDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return value || "날짜 미확인";
+  return `${match[1]}년 ${Number(match[2])}월 ${Number(match[3])}일`;
+}
+
+function formatBackupNotificationTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date);
+}
+
+function renderBackupNotificationIssues(notification) {
+  if (!notification.issueCount) return "";
+  const items = (notification.issues || []).map((issue) => `
+    <li>
+      <strong>${escapeHtml(issue.statusLabel)} · ${escapeHtml(issue.actionLabel)}</strong>
+      <span>${escapeHtml(issue.itemLabel)}</span>
+      <small>${escapeHtml(issue.message)}</small>
+    </li>
+  `).join("");
+  const hiddenMessage = Number(notification.hiddenIssueCount || 0) > 0
+    ? `<p class="backup-notification-more">외 ${formatNumber(notification.hiddenIssueCount)}건의 미반영 항목이 있습니다.</p>`
+    : "";
+  return `
+    <details class="backup-notification-issues">
+      <summary>실패·미반영 항목 ${formatNumber(notification.issueCount)}건 보기</summary>
+      <ul class="backup-notification-issue-list">${items}</ul>
+      ${hiddenMessage}
+    </details>
+  `;
+}
+
+function renderBackupNotifications() {
+  if (!backupNotificationList) return;
+  if (!state.backupNotifications.length) {
+    backupNotificationList.innerHTML = '<p class="backup-notification-empty">아직 확인할 백업 결과가 없습니다.</p>';
+    updateBackupNotificationBadge();
+    return;
+  }
+
+  backupNotificationList.innerHTML = state.backupNotifications.map((notification) => {
+    const dateLabel = formatBackupNotificationDate(notification.businessDate);
+    const completedTime = formatBackupNotificationTime(notification.completedAt);
+    const statusConfig = notification.status === "success"
+      ? { label: "백업 완료", icon: "ti-check", summary: `${formatNumber(notification.totalCount)}건 모두 스프레드시트에 정상 반영됐습니다.` }
+      : notification.status === "processing"
+        ? { label: "백업 처리 중", icon: "ti-loader-2", summary: `${formatNumber(notification.processingCount)}건을 현재 반영하고 있습니다.` }
+        : { label: "백업 실패", icon: "ti-alert-triangle", summary: `${formatNumber(notification.issueCount)}건이 정상 반영되지 않았습니다.` };
+    const timeText = completedTime ? ` · 마지막 처리 ${completedTime}` : "";
+
+    return `
+      <article class="backup-notification-card is-${escapeHtml(notification.status)}">
+        <div class="backup-notification-card-main">
+          <span class="backup-notification-status-icon" aria-hidden="true">
+            <i class="ti ${statusConfig.icon}"></i>
+          </span>
+          <div class="backup-notification-card-copy">
+            <h3>${escapeHtml(dateLabel)} ${statusConfig.label}</h3>
+            <p>${escapeHtml(statusConfig.summary)}${escapeHtml(timeText)}</p>
+            <div class="backup-notification-counts" aria-label="백업 처리 건수">
+              <span>전체 ${formatNumber(notification.totalCount)}건</span>
+              <span class="is-synced">성공 ${formatNumber(notification.syncedCount)}건</span>
+              ${Number(notification.issueCount || 0) > 0 ? `<span class="is-error">미반영 ${formatNumber(notification.issueCount)}건</span>` : ""}
+            </div>
+          </div>
+        </div>
+        ${renderBackupNotificationIssues(notification)}
+      </article>
+    `;
+  }).join("");
+  updateBackupNotificationBadge();
+}
+
+async function loadBackupNotifications({ showLoading = false } = {}) {
+  if (!window.SeungjinDataGateway?.canRead("getSheetBackupNotifications") || state.isLoadingBackupNotifications) {
+    return;
+  }
+
+  state.isLoadingBackupNotifications = true;
+  refreshBackupNotificationsButton?.toggleAttribute("disabled", true);
+  if (showLoading && backupNotificationList && !state.backupNotifications.length) {
+    backupNotificationList.innerHTML = '<p class="backup-notification-empty">백업 결과를 불러오고 있습니다.</p>';
+  }
+
+  try {
+    const result = await requestApi("getSheetBackupNotifications");
+    state.backupNotifications = Array.isArray(result?.notifications) ? result.notifications : [];
+    renderBackupNotifications();
+    if (backupNotificationPanel && !backupNotificationPanel.hidden) {
+      markBackupNotificationsRead();
+    }
+  } catch (error) {
+    if (!state.backupNotifications.length && backupNotificationList) {
+      backupNotificationList.innerHTML = '<p class="backup-notification-empty">백업 결과를 불러오지 못했습니다.<br />잠시 후 새로고침해주세요.</p>';
+    }
+    if (showLoading) showToast(error.message || "백업 알림을 불러오지 못했습니다.");
+  } finally {
+    state.isLoadingBackupNotifications = false;
+    refreshBackupNotificationsButton?.toggleAttribute("disabled", false);
+  }
+}
+
+function setBackupNotificationPanelOpen(shouldOpen) {
+  if (!backupNotificationPanel || !backupNotificationButton) return;
+  backupNotificationPanel.hidden = !shouldOpen;
+  backupNotificationButton.setAttribute("aria-expanded", String(shouldOpen));
+  if (shouldOpen) {
+    adminUserMenu.hidden = true;
+    adminUserMenuButton?.setAttribute("aria-expanded", "false");
+    markBackupNotificationsRead();
+    loadBackupNotifications({ showLoading: true });
+  }
+}
+
+backupNotificationButton?.addEventListener("click", () => {
+  setBackupNotificationPanelOpen(backupNotificationButton.getAttribute("aria-expanded") !== "true");
+});
+
+refreshBackupNotificationsButton?.addEventListener("click", () => {
+  loadBackupNotifications({ showLoading: true });
+});
+
+document.addEventListener("click", (event) => {
+  if (backupNotificationPanel?.hidden || backupNotificationMenu?.contains(event.target)) return;
+  setBackupNotificationPanelOpen(false);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || backupNotificationPanel?.hidden) return;
+  setBackupNotificationPanelOpen(false);
+  backupNotificationButton?.focus();
 });
 
 document.querySelector("#newProductButton").addEventListener("click", () => {
@@ -1552,6 +1742,13 @@ scheduleInventoryDashboardWarmup();
 updateInboundSummary();
 updateShippingSettlementSummary();
 renderInboundDefectReasons();
+if (window.SeungjinDataGateway?.canRead("getSheetBackupNotifications")) {
+  loadBackupNotifications();
+  window.setInterval(loadBackupNotifications, BACKUP_NOTIFICATION_POLL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) loadBackupNotifications();
+  });
+}
 
 function getCurrentView() {
   const view = location.hash.replace("#", "");
