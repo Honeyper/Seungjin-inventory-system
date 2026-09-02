@@ -129,7 +129,7 @@
 
 .box-qr-reference-product-heading {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1mm;
   font-size: 7.5pt;
@@ -137,7 +137,14 @@
   line-height: 1;
 }
 
+.box-qr-reference-product-heading > span {
+  grid-column: 2;
+  justify-self: center;
+}
+
 .box-qr-reference-product-heading b {
+  grid-column: 3;
+  justify-self: end;
   font: inherit;
   white-space: nowrap;
 }

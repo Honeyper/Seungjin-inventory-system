@@ -106,7 +106,6 @@ final result: blocked; authenticated live visual capture pending
 
 final result: passed
 
-
 ## 27. 관리자 로그인 화면 및 참고 컴포넌트 적용
 
 ### 비교 환경
@@ -824,5 +823,17 @@ final result: passed
 - 인쇄 시에는 기존 QR 규칙에 맞춰 검은 배경을 제거하고, 흰 배경에 회색 `#9aa3af` 글자와 연회색 경계선으로 출력한다.
 - 활성 공정과 관리자 행의 검정 글자·흰 배경은 변경하지 않았다.
 - 인쇄 전용 CSS 정적 검증과 QR 공정 조합 테스트를 통과했다.
+
+final result: passed
+
+## 74. QR 제품명 라벨 및 본문 중앙 정렬
+
+- 기준 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_YNRT9s/스크린샷 2026-09-02 오전 9.35.00.png`
+- 구현 화면: `/private/tmp/qr-product-center-implementation-v2.jpg`
+- 동일 입력 비교 화면: `/private/tmp/qr-product-center-comparison-v2.png`
+- 검증 뷰포트: 800 × 420px, 긴 두 줄 제품명, 발주 차수 없음
+- 기존 왼쪽 정렬이던 `제품명` 라벨을 셀 가로 중앙으로 옮겼고, 제품명 본문의 가로·세로 중앙 정렬은 유지했다.
+- 라벨과 본문을 별도 grid 행으로 유지해 두 줄 제품명에서도 서로 겹치지 않으며 색상, 테두리, 행 높이, QR 크기는 변경하지 않았다.
+- 비교 화면과 브라우저 콘솔을 확인했고 오류가 없었다.
 
 final result: passed
