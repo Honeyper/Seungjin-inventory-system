@@ -15,6 +15,10 @@ const boundedSyncMigration = fs.readFileSync(
   new URL("../supabase/migrations/20260903030000_bound_sheet_sync_batches.sql", import.meta.url),
   "utf8"
 );
+const singleItemSyncMigration = fs.readFileSync(
+  new URL("../supabase/migrations/20260903031500_drain_sheet_sync_one_item_at_a_time.sql", import.meta.url),
+  "utf8"
+);
 
 test("서울 날짜를 기준으로 아직 실행하지 않은 당일 백업은 알림에서 제외한다", () => {
   const result = buildSheetBackupNotifications([
@@ -84,9 +88,11 @@ test("관리자 알림 버튼은 백업 결과 API, 읽음 표시, 실패 상세
   assert.match(adminSource, /BACKUP_NOTIFICATION_POLL_MS = 60 \* 1000/);
 });
 
-test("야간 백업은 요청 제한 시간을 넘지 않도록 10건씩 나누어 반복 실행한다", () => {
+test("야간 백업은 요청 제한 시간을 넘지 않도록 한 건씩 나누어 반복 실행한다", () => {
   assert.match(edgeSource, /const maxBatches = 1;/);
-  assert.match(edgeSource, /p_limit: 10/);
+  assert.match(edgeSource, /p_limit: 1/);
   assert.match(boundedSyncMigration, /'10-59\/5 11 \* \* \*'/);
-  assert.match(boundedSyncMigration, /'\*\/5 12 \* \* \*'/);
+  assert.match(singleItemSyncMigration, /'10-58\/2 11 \* \* \*'/);
+  assert.match(singleItemSyncMigration, /'\*\/2 12-20 \* \* \*'/);
+  assert.match(singleItemSyncMigration, /'0 21 \* \* \*'/);
 });

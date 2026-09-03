@@ -453,7 +453,7 @@ async function runNightlySheetSync() {
   for (let batchIndex = 0; batchIndex < maxBatches; batchIndex += 1) {
     const items = await databaseRequest("rpc/claim_dev_sheet_outbox", {
       method: "POST",
-      body: JSON.stringify({ p_limit: 10 })
+      body: JSON.stringify({ p_limit: 1 })
     }) as JsonRecord[];
     if (!items.length) break;
     claimed += items.length;
