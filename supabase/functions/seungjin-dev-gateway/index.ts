@@ -322,7 +322,7 @@ async function readSheetBackupNotifications() {
   const startDate = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
-  const select = [
+  const summarySelect = [
     "id",
     "action",
     "status",
@@ -330,7 +330,23 @@ async function readSheetBackupNotifications() {
     "attempts",
     "last_error",
     "synced_at",
-    "processing_started_at",
+    "processing_started_at"
+  ].join(",");
+  const rows = await databaseRows(
+    `dev_sheet_outbox?select=${encodeURIComponent(summarySelect)}&business_date=gte.${startDate}&order=business_date.desc,id.asc`
+  );
+  const summary = buildSheetBackupNotifications(rows, new Date());
+  const issueIds = [...new Set(
+    (summary.notifications || [])
+      .flatMap((notification: JsonRecord) => Array.isArray(notification.issues) ? notification.issues : [])
+      .map((issue: JsonRecord) => Number(issue.id || 0))
+      .filter((id: number) => id > 0)
+  )];
+
+  if (!issueIds.length) return summary;
+
+  const issueSelect = [
+    "id",
     "management_id:payload->>managementId",
     "purchase_order_id:payload->>purchaseOrderId",
     "product_id:payload->>productId",
@@ -338,10 +354,20 @@ async function readSheetBackupNotifications() {
     "product_name:payload->>productName",
     "legacy_product_name:payload->>제품명"
   ].join(",");
-  const rows = await databaseRows(
-    `dev_sheet_outbox?select=${encodeURIComponent(select)}&business_date=gte.${startDate}&order=business_date.desc,id.asc`
+  const issueDetails: JsonRecord[] = [];
+  for (let offset = 0; offset < issueIds.length; offset += 100) {
+    const ids = issueIds.slice(offset, offset + 100).join(",");
+    issueDetails.push(...await databaseRows(
+      `dev_sheet_outbox?select=${encodeURIComponent(issueSelect)}&id=in.(${ids})`
+    ));
+  }
+  const issueDetailsById = new Map(
+    issueDetails.map((row) => [Number(row.id || 0), row])
   );
-  return buildSheetBackupNotifications(rows, new Date());
+  return buildSheetBackupNotifications(
+    rows.map((row) => ({ ...row, ...(issueDetailsById.get(Number(row.id || 0)) || {}) })),
+    new Date()
+  );
 }
 
 async function sha256(value: string) {

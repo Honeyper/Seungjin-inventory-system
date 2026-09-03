@@ -92,6 +92,15 @@ test("관리자 알림 버튼은 백업 결과 API, 읽음 표시, 실패 상세
   assert.match(adminSource, /BACKUP_NOTIFICATION_POLL_MS = 60 \* 1000/);
 });
 
+test("백업 알림 기본 조회는 대용량 첨부 payload를 읽지 않고 미반영 항목만 상세 조회한다", () => {
+  assert.match(edgeSource, /const summarySelect = \[/);
+  assert.match(edgeSource, /const summary = buildSheetBackupNotifications\(rows, new Date\(\)\)/);
+  assert.match(edgeSource, /if \(!issueIds\.length\) return summary/);
+  assert.match(edgeSource, /const issueSelect = \[/);
+  assert.match(edgeSource, /id=in\.\(\$\{ids\}\)/);
+  assert.match(edgeSource, /issueDetailsById/);
+});
+
 test("야간 백업은 요청 제한 시간을 넘지 않도록 한 건씩 나누어 반복 실행한다", () => {
   assert.match(edgeSource, /const maxBatches = 1;/);
   assert.match(edgeSource, /p_limit: 1/);
