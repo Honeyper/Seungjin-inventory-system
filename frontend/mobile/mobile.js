@@ -169,7 +169,6 @@ const state = {
   hardwareScannerBuffer: "",
   hardwareScannerLastInputAt: 0,
   hardwareScannerMaxInputGapMs: 0,
-  hardwareScannerEarlySubmittedValue: "",
   hardwareScannerSubmitTimer: null,
   hardwareScannerStatusTimer: null,
   hardwareScannerBufferRevision: 0,
@@ -5525,7 +5524,6 @@ function resetHardwareScannerBuffer() {
   state.hardwareScannerBuffer = "";
   state.hardwareScannerLastInputAt = 0;
   state.hardwareScannerMaxInputGapMs = 0;
-  state.hardwareScannerEarlySubmittedValue = "";
   state.hardwareScannerLastStatusAt = 0;
 }
 
@@ -5583,10 +5581,6 @@ function scheduleHardwareScannerSubmit() {
 
     const bufferedValue = state.hardwareScannerBuffer;
     state.hardwareScannerSubmitTimer = null;
-    if (state.hardwareScannerEarlySubmittedValue) {
-      resetHardwareScannerBuffer();
-      return;
-    }
     void submitHardwareScannerValue(bufferedValue);
   }, submitDelayMs);
 }
@@ -5617,35 +5611,15 @@ function appendHardwareScannerInput(input) {
   state.hardwareScannerBufferRevision += 1;
 
   if (
-    !state.hardwareScannerEarlySubmittedValue
-    && (
-      state.hardwareScannerBuffer.length === chunk.length
-      || now - state.hardwareScannerLastStatusAt >= HARDWARE_SCANNER_STATUS_UPDATE_MS
-    )
+    state.hardwareScannerBuffer.length === chunk.length
+    || now - state.hardwareScannerLastStatusAt >= HARDWARE_SCANNER_STATUS_UPDATE_MS
   ) {
     setHardwareScannerStatus(`QR 입력 감지 중… ${state.hardwareScannerBuffer.length}자`, "receiving");
     state.hardwareScannerLastStatusAt = now;
   }
 
   const bufferedValue = state.hardwareScannerBuffer.trim();
-  if (!state.hardwareScannerEarlySubmittedValue) {
-    const earlyBoxId = extractHardwareScannerBoxId(bufferedValue);
-    if (earlyBoxId) {
-      state.hardwareScannerEarlySubmittedValue = earlyBoxId;
-      queueHardwareScannerValue(earlyBoxId);
-    }
-  }
-
   const isJsonInputStillReceiving = bufferedValue.startsWith("{") && !bufferedValue.endsWith("}");
-  if (state.hardwareScannerEarlySubmittedValue) {
-    if (!isJsonInputStillReceiving) {
-      resetHardwareScannerBuffer();
-      return;
-    }
-    scheduleHardwareScannerSubmit();
-    return;
-  }
-
   if (!isJsonInputStillReceiving && isCompleteHardwareScannerValue(bufferedValue)) {
     void submitHardwareScannerValue(bufferedValue);
     return;
@@ -5671,10 +5645,6 @@ function handleHardwareScannerKeydown(event) {
   if (event.key === "Enter" || event.key === "Tab" || event.code === "NumpadEnter") {
     event.preventDefault();
     clearHardwareScannerStatusTimer();
-    if (state.hardwareScannerEarlySubmittedValue) {
-      resetHardwareScannerBuffer();
-      return;
-    }
     const bufferedValue = state.hardwareScannerBuffer.trim();
     if (bufferedValue) {
       void submitHardwareScannerValue(bufferedValue);
@@ -5723,24 +5693,14 @@ function isCompleteHardwareScannerValue(rawValue) {
       const boxId = parsed?.b || parsed?.boxId;
       const managementId = parsed?.m || parsed?.managementId;
       const productId = parsed?.p || parsed?.productId;
-      return Boolean(boxId && (managementId || productId));
+      return Boolean(boxId && (managementId || productId))
+        && isParsedQrIdentityConsistent(parseQrValue(restoredValue));
     } catch (error) {
       return false;
     }
   }
 
   return /^[^\s{}]+-B\d{3}$/i.test(restoredValue);
-}
-
-function extractHardwareScannerBoxId(rawValue) {
-  const value = String(rawValue || "").trim();
-  if (!value || !value.includes(":")) {
-    return "";
-  }
-
-  const restoredValue = restoreHardwareScannerQrValue(value);
-  const matched = restoredValue.match(/(?:^|[,\{])\s*["'](?:b|boxId)["']\s*:\s*["']([^"']+-B\d{3})["']/i);
-  return matched?.[1] || "";
 }
 
 function handleHardwareScannerPaste(event) {
@@ -5841,6 +5801,13 @@ async function handleQrValue(rawValue) {
     ? restoreHardwareScannerQrValue(scannedValue)
     : scannedValue;
   if (!value) {
+    return;
+  }
+
+  const parsedIdentity = parseQrValue(value);
+  if (!isParsedQrIdentityConsistent(parsedIdentity)) {
+    setScannerHelp("QR 입력 정보가 일치하지 않습니다. 해당 박스의 QR을 다시 스캔해주세요.");
+    showToast("QR 입력이 정확하지 않습니다. 다시 스캔해주세요.");
     return;
   }
 
@@ -6047,6 +6014,13 @@ function syncPendingShippingRowsFromDashboard() {
 
 function findShippingByQrValue(rawValue) {
   const parsed = parseQrValue(rawValue);
+  if (!isParsedQrIdentityConsistent(parsed)) {
+    return null;
+  }
+  const hasExactBoxIdentity = Boolean(parsed.boxId || parsed.boxNumber);
+  if (!hasExactBoxIdentity) {
+    return null;
+  }
 
   for (const row of state.dashboard) {
     const boxes = getKnownBoxes(row);
@@ -6064,10 +6038,6 @@ function findShippingByQrValue(rawValue) {
       return buildScannedBoxItem(row, matchedBox, parsed, rawValue);
     }
 
-    if (parsed.managementId || parsed.productId) {
-      return buildScannedBoxItem(row, createParsedBox(parsed), parsed, rawValue);
-    }
-
   }
 
   return null;
@@ -6075,6 +6045,13 @@ function findShippingByQrValue(rawValue) {
 
 function findInventoryMoveByQrValue(rawValue) {
   const parsed = parseQrValue(rawValue);
+  if (!isParsedQrIdentityConsistent(parsed)) {
+    return null;
+  }
+  const hasExactBoxIdentity = Boolean(parsed.boxId || parsed.boxNumber);
+  if (!hasExactBoxIdentity) {
+    return null;
+  }
 
   for (const row of state.dashboard) {
     const boxes = getMovableBoxes(row);
@@ -6090,10 +6067,6 @@ function findInventoryMoveByQrValue(rawValue) {
     const matchedBox = findMatchedBox(boxes, parsed);
     if (matchedBox) {
       return buildInventoryMoveItem(row, matchedBox, parsed, rawValue);
-    }
-
-    if ((parsed.managementId || parsed.productId) && boxes.length) {
-      return buildInventoryMoveItem(row, boxes[0], parsed, rawValue);
     }
 
   }
@@ -6154,15 +6127,6 @@ function buildScannedBoxItem(row, box, parsed, rawValue) {
   };
 }
 
-function createParsedBox(parsed) {
-  return {
-    boxId: parsed.boxId || "",
-    number: parsed.boxNumber || "",
-    status: "",
-    quantity: ""
-  };
-}
-
 function parseQrValue(rawValue) {
   const text = String(rawValue || "").trim();
   try {
@@ -6181,6 +6145,26 @@ function parseQrValue(rawValue) {
       boxNumber: ""
     };
   }
+}
+
+function isParsedQrIdentityConsistent(parsed) {
+  const boxId = normalizeScanValue(parsed?.boxId);
+  const managementId = normalizeScanValue(parsed?.managementId);
+  const boxNumber = String(parsed?.boxNumber || "").trim();
+  if (!boxId) {
+    return true;
+  }
+
+  if (managementId && !boxId.startsWith(`${managementId}-`)) {
+    return false;
+  }
+
+  const boxIdNumber = boxId.match(/-B(\d{3})$/i)?.[1] || "";
+  if (boxNumber && boxIdNumber && Number(boxIdNumber) !== Number(boxNumber)) {
+    return false;
+  }
+
+  return true;
 }
 
 function renderScannerScannedList() {
