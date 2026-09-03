@@ -8,6 +8,7 @@ import { buildSheetBackupNotifications } from "./backup-notifications.js";
 const DEV_APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzSz-9IspdGb_wcAIUVhokQdQR0egaiR5M1sJ9PQVX5pjm_w7-FPU3gaj-cmLwjAvxvsg/exec";
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_CACHE_TTL_MS = 60 * 1000;
 const SNAPSHOT_TTL_MS = 30 * 1000;
 const ALLOWED_ORIGINS = new Set([
   "https://honeyper.github.io",
@@ -17,6 +18,9 @@ const ALLOWED_ORIGINS = new Set([
 
 type JsonRecord = Record<string, unknown>;
 type SnapshotDataset = "products" | "purchase_orders" | "inbounds" | "inventory_dashboard";
+type SessionRecord = { user_payload: JsonRecord; expires_at: string };
+
+const sessionCache = new Map<string, { value: SessionRecord; validUntil: number }>();
 
 interface SnapshotDefinition {
   action: string;
@@ -153,6 +157,18 @@ function mapInboundQrBox(row: JsonRecord) {
   };
 }
 
+function mapInventoryRecordRows(rows: JsonRecord[]) {
+  return rows.map((row) => ({
+    ...(row.data as JsonRecord),
+    recordKey: row.record_key,
+    originalStorage: row.storage
+  }));
+}
+
+function mapInventoryBoxRows(rows: JsonRecord[]) {
+  return rows.map(mapInboundQrBox);
+}
+
 async function loadInboundQrState(payload: JsonRecord) {
   const { query } = buildInboundQrFilters(payload);
   const [stateRows, inboundRows, boxRows] = await Promise.all([
@@ -265,9 +281,13 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
 }
 
 function scheduleInboundQrStatusUpdate(payload: JsonRecord, result: JsonRecord) {
-  const update = commitCanonicalMutation("getInboundBoxQrs", payload, {
-    managementId: result.managementId,
-    boxCount: result.boxCount
+  const update = databaseRequest("rpc/mark_dev_inbound_qr_generated", {
+    method: "POST",
+    body: JSON.stringify({
+      p_management_id: String(result.managementId || payload.managementId || "").trim(),
+      p_product_id: String(payload.productId || "").trim(),
+      p_box_count: Number(result.boxCount) || 0
+    })
   }).catch((error) => {
     console.error("Inbound QR status update failed:", error instanceof Error ? error.message : String(error));
   });
@@ -305,7 +325,12 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
       databaseRequest("rpc/read_dev_inventory_state", {
         method: "POST",
         body: "{}"
-      }) as Promise<{ records?: JsonRecord[]; boxes?: JsonRecord[] }>,
+      }) as Promise<{
+        records?: JsonRecord[];
+        boxes?: JsonRecord[];
+        recordRows?: JsonRecord[];
+        boxRows?: JsonRecord[];
+      }>,
       databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity")
     ]);
     const products = productRows.map((row) => ({
@@ -313,7 +338,13 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
       trayQuantity: row.tray_quantity,
       boxQuantity: row.box_quantity
     }));
-    return buildInventoryDashboard(state.records || [], state.boxes || [], products) as JsonRecord;
+    const records = Array.isArray(state.recordRows)
+      ? mapInventoryRecordRows(state.recordRows)
+      : state.records || [];
+    const boxes = Array.isArray(state.boxRows)
+      ? mapInventoryBoxRows(state.boxRows)
+      : state.boxes || [];
+    return buildInventoryDashboard(records, boxes, products) as JsonRecord;
   }
   throw new Error(`지원하지 않는 Supabase 조회 요청입니다: ${action}`);
 }
@@ -403,11 +434,28 @@ async function readSession(request: Request) {
   if (!token) return null;
 
   const tokenHash = await sha256(token);
+  const cached = sessionCache.get(tokenHash);
+  if (cached && cached.validUntil > Date.now()) {
+    return cached.value;
+  }
+  if (cached) sessionCache.delete(tokenHash);
+
   const now = new Date().toISOString();
   const rows = await databaseRequest(
     `app_sessions?token_hash=eq.${tokenHash}&expires_at=gt.${encodeURIComponent(now)}&select=user_payload,expires_at&limit=1`
-  ) as Array<{ user_payload: JsonRecord; expires_at: string }>;
-  return rows?.[0] || null;
+  ) as SessionRecord[];
+  const session = rows?.[0] || null;
+  if (session) {
+    sessionCache.set(tokenHash, {
+      value: session,
+      validUntil: Math.min(Date.now() + SESSION_CACHE_TTL_MS, new Date(session.expires_at).getTime())
+    });
+    if (sessionCache.size > 500) {
+      const oldestKey = sessionCache.keys().next().value;
+      if (oldestKey) sessionCache.delete(oldestKey);
+    }
+  }
+  return session;
 }
 
 async function fetchAppsScript(action: string, payload: JsonRecord) {
