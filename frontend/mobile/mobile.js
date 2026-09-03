@@ -38,7 +38,11 @@ const SLOW_NATIVE_DETECT_LIMIT = 3;
 const JSQR_TRANSIENT_ERROR_NOTICE_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
 const HARDWARE_SCANNER_PROCESSING_LOCK_MS = 40;
-const HARDWARE_SCANNER_IDLE_SUBMIT_MS = IS_LOW_POWER_SCANNER ? 1800 : 500;
+const HARDWARE_SCANNER_IDLE_SUBMIT_MIN_MS = 80;
+const HARDWARE_SCANNER_IDLE_SUBMIT_MAX_MS = 480;
+const HARDWARE_SCANNER_IDLE_GAP_MULTIPLIER = 4;
+const HARDWARE_SCANNER_FAST_SUBMIT_MIN_LENGTH = 10;
+const HARDWARE_SCANNER_SHORT_INPUT_SUBMIT_MS = 900;
 const HARDWARE_SCANNER_INTER_KEY_RESET_MS = IS_LOW_POWER_SCANNER ? 3200 : 1400;
 const HARDWARE_SCANNER_STATUS_UPDATE_MS = IS_LOW_POWER_SCANNER ? 120 : 70;
 const KOREAN_SCANNER_INITIAL_KEYS = ["r", "R", "s", "e", "E", "f", "a", "q", "Q", "t", "T", "d", "w", "W", "c", "z", "x", "v", "g"];
@@ -166,6 +170,7 @@ const state = {
   scannerViewDirty: false,
   hardwareScannerBuffer: "",
   hardwareScannerLastInputAt: 0,
+  hardwareScannerMaxInputGapMs: 0,
   hardwareScannerSubmitTimer: null,
   hardwareScannerStatusTimer: null,
   hardwareScannerBufferRevision: 0,
@@ -5520,6 +5525,7 @@ function resetHardwareScannerBuffer() {
   state.hardwareScannerBufferRevision += 1;
   state.hardwareScannerBuffer = "";
   state.hardwareScannerLastInputAt = 0;
+  state.hardwareScannerMaxInputGapMs = 0;
   state.hardwareScannerLastStatusAt = 0;
 }
 
@@ -5545,19 +5551,32 @@ function clearHardwareScannerStatusTimer() {
   state.hardwareScannerStatusTimer = null;
 }
 
+function getHardwareScannerIdleSubmitMs() {
+  if (state.hardwareScannerBuffer.trim().length < HARDWARE_SCANNER_FAST_SUBMIT_MIN_LENGTH) {
+    return HARDWARE_SCANNER_SHORT_INPUT_SUBMIT_MS;
+  }
+
+  const observedGap = Math.max(0, Number(state.hardwareScannerMaxInputGapMs) || 0);
+  return Math.min(
+    HARDWARE_SCANNER_IDLE_SUBMIT_MAX_MS,
+    Math.max(HARDWARE_SCANNER_IDLE_SUBMIT_MIN_MS, observedGap * HARDWARE_SCANNER_IDLE_GAP_MULTIPLIER)
+  );
+}
+
 function scheduleHardwareScannerSubmit() {
   if (state.hardwareScannerSubmitTimer) {
     clearTimeout(state.hardwareScannerSubmitTimer);
   }
 
   const revision = state.hardwareScannerBufferRevision;
+  const submitDelayMs = getHardwareScannerIdleSubmitMs();
   state.hardwareScannerSubmitTimer = window.setTimeout(() => {
     if (revision !== state.hardwareScannerBufferRevision) {
       return;
     }
 
     const elapsed = Date.now() - state.hardwareScannerLastInputAt;
-    if (elapsed < HARDWARE_SCANNER_IDLE_SUBMIT_MS) {
+    if (elapsed < submitDelayMs) {
       scheduleHardwareScannerSubmit();
       return;
     }
@@ -5565,7 +5584,7 @@ function scheduleHardwareScannerSubmit() {
     const bufferedValue = state.hardwareScannerBuffer;
     state.hardwareScannerSubmitTimer = null;
     void submitHardwareScannerValue(bufferedValue);
-  }, HARDWARE_SCANNER_IDLE_SUBMIT_MS);
+  }, submitDelayMs);
 }
 
 function appendHardwareScannerInput(input) {
@@ -5577,11 +5596,16 @@ function appendHardwareScannerInput(input) {
   clearHardwareScannerStatusTimer();
 
   const now = Date.now();
+  const inputGapMs = state.hardwareScannerLastInputAt
+    ? now - state.hardwareScannerLastInputAt
+    : 0;
   if (
     state.hardwareScannerLastInputAt
-    && now - state.hardwareScannerLastInputAt > HARDWARE_SCANNER_INTER_KEY_RESET_MS
+    && inputGapMs > HARDWARE_SCANNER_INTER_KEY_RESET_MS
   ) {
     resetHardwareScannerBuffer();
+  } else if (inputGapMs > 0) {
+    state.hardwareScannerMaxInputGapMs = Math.max(state.hardwareScannerMaxInputGapMs, inputGapMs);
   }
 
   state.hardwareScannerBuffer += chunk;
@@ -5677,7 +5701,7 @@ function isCompleteHardwareScannerValue(rawValue) {
     }
   }
 
-  return /^IN-\d{6}-.+-\d{3}(?:-[A-Z0-9]+-\d{4})?-B\d{3}$/i.test(restoredValue);
+  return /^[^\s{}]+-B\d{3}$/i.test(restoredValue);
 }
 
 function handleHardwareScannerPaste(event) {
