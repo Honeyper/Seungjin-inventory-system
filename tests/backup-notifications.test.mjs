@@ -19,6 +19,10 @@ const singleItemSyncMigration = fs.readFileSync(
   new URL("../supabase/migrations/20260903031500_drain_sheet_sync_one_item_at_a_time.sql", import.meta.url),
   "utf8"
 );
+const largeAttachmentMigration = fs.readFileSync(
+  new URL("../supabase/migrations/20260903033000_stream_large_sheet_sync_attachments.sql", import.meta.url),
+  "utf8"
+);
 
 test("서울 날짜를 기준으로 아직 실행하지 않은 당일 백업은 알림에서 제외한다", () => {
   const result = buildSheetBackupNotifications([
@@ -95,4 +99,12 @@ test("야간 백업은 요청 제한 시간을 넘지 않도록 한 건씩 나�
   assert.match(singleItemSyncMigration, /'10-58\/2 11 \* \* \*'/);
   assert.match(singleItemSyncMigration, /'\*\/2 12-20 \* \* \*'/);
   assert.match(singleItemSyncMigration, /'0 21 \* \* \*'/);
+});
+
+test("4MB를 넘는 거래명세서는 작은 조각으로 읽어 원본 길이를 검증한 뒤 백업한다", () => {
+  assert.match(largeAttachmentMigration, /length\(coalesce\(p_payload #>> '\{invoiceFile,data\}', ''\)\) > 4000000/);
+  assert.match(largeAttachmentMigration, /read_dev_sheet_outbox_invoice_chunk/);
+  assert.match(edgeSource, /SHEET_SYNC_ATTACHMENT_CHUNK_SIZE = 750_000/);
+  assert.match(edgeSource, /invoiceData\.length !== expectedLength/);
+  assert.match(edgeSource, /items: replayItems/);
 });
