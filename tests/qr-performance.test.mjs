@@ -37,6 +37,6 @@ test("QR 이미지는 외부 서버별 요청 대신 브라우저에서 나누�
   assert.match(adminSource, /data-qr-value=/);
 });
 
-test("QR에는 외부 스캐너가 빠르게 전송할 수 있도록 박스 ID만 우선 인코딩한다", () => {
-  assert.match(adminSource, /const qrData = box\.boxId \|\| box\.qrData \|\| "";/);
+test("QR에는 짧은 박스 ID와 오인식 방지 검증코드를 인코딩한다", () => {
+  assert.match(adminSource, /globalThis\.SeungjinQrPayload\?\.create\?\.\(box\.boxId\)/);
 });
