@@ -27,7 +27,6 @@ export const SUPABASE_MUTATION_ACTIONS = new Set([
   "createInbound",
   "updateInbound",
   "deleteInbound",
-  "getInboundBoxQrs",
   "saveShippingInspection",
   "cancelDiscardedBoxes",
   "classifyRemainingInventory",
@@ -1049,6 +1048,17 @@ export function buildInventoryDashboard(records, boxes, products = []) {
     text(product.productId || product.productCode),
     product
   ]));
+  const boxesByInbound = new Map();
+  boxes.forEach((box) => {
+    const key = `${text(box.managementId)}\u0000${text(box.productId)}`;
+    const related = boxesByInbound.get(key) || [];
+    related.push(box);
+    boxesByInbound.set(key, related);
+  });
+  boxesByInbound.forEach((related) => {
+    related.sort((left, right) => integer(left.number) - integer(right.number));
+  });
+
   const rows = records.map((source) => {
     const row = clone(source);
     const product = productsById.get(text(row.productId));
@@ -1056,8 +1066,8 @@ export function buildInventoryDashboard(records, boxes, products = []) {
       row.trayQuantity = text(product.trayQuantity) || row.trayQuantity || "";
       row.boxQuantity = text(product.boxQuantity) || row.boxQuantity || "";
     }
-    const related = boxes.filter((box) => text(box.managementId) === text(row.managementId) && text(box.productId) === text(row.productId));
-    const all = related.sort((left, right) => integer(left.number) - integer(right.number));
+    const relatedKey = `${text(row.managementId)}\u0000${text(row.productId)}`;
+    const all = boxesByInbound.get(relatedKey) || [];
     const active = all.filter((box) => number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status)));
     const shipped = all.filter((box) => /출고완료/.test(normalizeStatus(box.rawStatus || box.status)));
     const transfer = shipped.filter((box) => text(box.shippingType).startsWith("이관"));

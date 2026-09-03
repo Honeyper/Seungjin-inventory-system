@@ -21,9 +21,10 @@ test("QR 목록 조회는 쓰기가 아니라 Supabase 빠른 읽기 경로를 �
   assert.match(gatewayFunctionSource, /meta: \{ source: "supabase-canonical-scoped" \}/);
 });
 
-test("QR 상태 기록은 화면 응답을 막지 않고 해당 입고 범위에서 처리한다", () => {
-  assert.match(gatewayFunctionSource, /async function loadInboundQrState\(payload: JsonRecord\)/);
+test("QR 상태 기록은 전체 상태 충돌 없이 화면 응답 뒤 해당 입고만 갱신한다", () => {
   assert.match(gatewayFunctionSource, /scheduleInboundQrStatusUpdate\(payload, result\);/);
+  assert.match(gatewayFunctionSource, /rpc\/mark_dev_inbound_qr_generated/);
+  assert.doesNotMatch(gatewayFunctionSource, /commitCanonicalMutation\("getInboundBoxQrs"/);
   assert.match(gatewayFunctionSource, /EdgeRuntime\?: \{ waitUntil\?:/);
 });
 
