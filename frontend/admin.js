@@ -191,6 +191,7 @@ const state = {
   inventoryPage: 1,
   inventoryPageSize: 10,
   inventoryLoaded: false,
+  inventoryStateVersion: null,
   inventoryFilters: {
     query: "",
     client: "",
@@ -1791,8 +1792,8 @@ function setActiveView(view) {
   closeInboundRowActionMenu();
   document.querySelector(".admin-main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
 
-  if (view === "inventory" && !state.inventoryLoaded) {
-    loadInventoryDashboard();
+  if (view === "inventory") {
+    loadInventoryDashboard(!state.inventoryLoaded);
   }
 
   if (view === "purchase-orders" && !state.purchaseOrdersLoaded) {
@@ -1805,6 +1806,7 @@ function setActiveView(view) {
     } else {
       renderShippingTable();
       updateShippingSettlementSummary();
+      loadInventoryDashboard(false);
     }
   }
 }
@@ -6755,7 +6757,10 @@ function applyTodayInboundsResult(result, message = "") {
   renderTodayInbounds(message);
 }
 
-async function refreshInboundMutationData({ includeProducts = false, includeInventory = state.inventoryLoaded } = {}) {
+async function refreshInboundMutationData({
+  includeProducts = false,
+  includeInventory = ["inventory", "shipping"].includes(getCurrentView())
+} = {}) {
   const refreshTasks = [loadTodayInbounds(), loadPurchaseOrders()];
 
   if (includeProducts) {
@@ -6770,7 +6775,7 @@ async function refreshInboundMutationData({ includeProducts = false, includeInve
 }
 
 async function refreshInboundMutationDataAfterMutation(options = {}) {
-  const includeInventory = options.includeInventory ?? state.inventoryLoaded;
+  const includeInventory = options.includeInventory ?? ["inventory", "shipping"].includes(getCurrentView());
   const activeRefreshes = [
     state.purchaseOrdersLoadPromise,
     includeInventory ? state.inventoryLoadPromise : null
@@ -6837,13 +6842,14 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
   }
 
   try {
-    if (cachedResult?.stateVersion) {
+    const currentStateVersion = cachedResult?.stateVersion ?? state.inventoryStateVersion;
+    if (currentStateVersion !== null && currentStateVersion !== undefined) {
       const versionResult = await requestApi("getInventoryVersion");
-      if (Number(versionResult?.stateVersion) === Number(cachedResult.stateVersion)) {
+      if (Number(versionResult?.stateVersion) === Number(currentStateVersion)) {
         if (showLoadingToast) {
           showToast("최신 재고 정보를 표시했습니다.");
         }
-        return;
+        return true;
       }
     }
 
@@ -6910,6 +6916,7 @@ async function refreshInventoryDashboard() {
 
 function applyInventoryDashboardResult(result) {
   state.inventoryLoaded = true;
+  state.inventoryStateVersion = Number(result?.stateVersion) || null;
   state.inventoryRows = normalizeInventoryRows(Array.isArray(result?.rows) ? result.rows : [])
     .map(applyMasterFinalProcess);
   state.inventoryLocationBoxStats = Array.isArray(result?.locationBoxStats) ? result.locationBoxStats : [];

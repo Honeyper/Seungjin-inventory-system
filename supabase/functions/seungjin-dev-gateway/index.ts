@@ -281,6 +281,22 @@ async function loadInboundUpdateState(payload: JsonRecord) {
   };
 }
 
+async function loadProductMutationState() {
+  const [version, productRows] = await Promise.all([
+    loadStateVersion(),
+    databaseRows("dev_products?select=product_id,data")
+  ]);
+  return { version, products: productRows.map((row) => row.data), orders: [], inbounds: [], records: [], boxes: [] };
+}
+
+async function loadPurchaseOrderMutationState() {
+  const [version, orderRows] = await Promise.all([
+    loadStateVersion(),
+    databaseRows("dev_purchase_orders?select=purchase_order_id,product_id,data")
+  ]);
+  return { version, products: [], orders: orderRows.map((row) => row.data), inbounds: [], records: [], boxes: [] };
+}
+
 async function loadShippingMutationState(payload: JsonRecord) {
   const productId = String(payload.productId || "").trim();
   const managementId = String(payload.managementId || "").trim();
@@ -318,8 +334,14 @@ async function loadCanonicalState(action: string, payload: JsonRecord) {
   if (action === "getInboundBoxQrs") {
     return loadInboundQrState(payload);
   }
-  if (action === "updateInbound") {
+  if (action === "createInbound" || action === "updateInbound") {
     return loadInboundUpdateState(payload);
+  }
+  if (["createProduct", "updateProduct", "deleteProduct"].includes(action)) {
+    return loadProductMutationState();
+  }
+  if (["createPurchaseOrder", "updatePurchaseOrder", "deletePurchaseOrder"].includes(action)) {
+    return loadPurchaseOrderMutationState();
   }
   if (action === "updateShippingStatus" || action === "updateInventoryBoxMove") {
     return loadShippingMutationState(payload);

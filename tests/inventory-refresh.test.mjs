@@ -26,3 +26,15 @@ test("이미 표시 중인 재고는 새로고침 요청 동안 빈 로딩 화�
   assert.match(adminSource, /return true;\s*\} catch \(error\)/);
   assert.match(adminSource, /return false;/);
 });
+
+test("재고 새로고침은 중복 요청을 합치고 버전이 같으면 전체 데이터를 다시 받지 않는다", () => {
+  assert.match(adminSource, /inventoryLoadPromise: null/);
+  assert.match(adminSource, /cachedResult\?\.stateVersion \?\? state\.inventoryStateVersion/);
+  assert.match(adminSource, /requestApi\("getInventoryVersion"\)/);
+  assert.match(adminSource, /state\.inventoryStateVersion = Number\(result\?\.stateVersion\) \|\| null/);
+});
+
+test("입고 화면의 저장 후에는 전체 재고를 백그라운드에서 다시 받지 않는다", () => {
+  assert.match(adminSource, /includeInventory = \["inventory", "shipping"\]\.includes\(getCurrentView\(\)\)/);
+  assert.doesNotMatch(adminSource, /includeInventory = state\.inventoryLoaded/);
+});
