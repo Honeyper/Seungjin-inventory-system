@@ -547,6 +547,43 @@ async function finishSheetOutbox(results: JsonRecord[]) {
   }) as JsonRecord;
 }
 
+const SHEET_SYNC_ATTACHMENT_CHUNK_SIZE = 750_000;
+
+async function hydrateSheetOutboxItem(item: JsonRecord) {
+  const payload = { ...((item.payload || {}) as JsonRecord) };
+  const outboxId = Number(payload._sheetSyncLargeInvoiceOutboxId || 0);
+  const expectedLength = Number(payload._sheetSyncLargeInvoiceLength || 0);
+  delete payload._sheetSyncLargeInvoiceOutboxId;
+  delete payload._sheetSyncLargeInvoiceLength;
+
+  if (!outboxId || !expectedLength) {
+    return { ...item, payload };
+  }
+
+  let invoiceData = "";
+  for (let offset = 0; offset < expectedLength; offset += SHEET_SYNC_ATTACHMENT_CHUNK_SIZE) {
+    const chunk = await databaseRequest("rpc/read_dev_sheet_outbox_invoice_chunk", {
+      method: "POST",
+      body: JSON.stringify({
+        p_id: outboxId,
+        p_offset: offset,
+        p_length: Math.min(SHEET_SYNC_ATTACHMENT_CHUNK_SIZE, expectedLength - offset)
+      })
+    });
+    invoiceData += String(chunk || "");
+  }
+
+  if (invoiceData.length !== expectedLength) {
+    throw new Error(`거래명세서 데이터를 완전히 읽지 못했습니다: ${invoiceData.length}/${expectedLength}`);
+  }
+
+  payload.invoiceFile = {
+    ...((payload.invoiceFile || {}) as JsonRecord),
+    data: invoiceData
+  };
+  return { ...item, payload };
+}
+
 async function applyInboundAttachmentResults(items: JsonRecord[], results: JsonRecord[]) {
   const itemsById = new Map(items.map((item) => [String(item.id), item]));
   for (const result of results) {
@@ -579,9 +616,11 @@ async function runNightlySheetSync() {
     claimed += items.length;
 
     let results: JsonRecord[];
+    let replayItems = items;
     try {
+      replayItems = await Promise.all(items.map((item) => hydrateSheetOutboxItem(item)));
       const token = await createSheetSyncToken("apps_script", 10 * 60 * 1000);
-      const response = await fetchAppsScript("applySupabaseOutbox", { token, items });
+      const response = await fetchAppsScript("applySupabaseOutbox", { token, items: replayItems });
       results = Array.isArray(response.results) ? response.results as JsonRecord[] : [];
       const returnedIds = new Set(results.map((result) => String(result.id)));
       for (const item of items) {
@@ -594,7 +633,7 @@ async function runNightlySheetSync() {
       results = items.map((item) => ({ id: item.id, ok: false, message }));
     }
 
-    await applyInboundAttachmentResults(items, results);
+    await applyInboundAttachmentResults(replayItems, results);
     const summary = await finishSheetOutbox(results);
     synced += Number(summary.synced || 0);
     failed += Number(summary.failed || 0);
