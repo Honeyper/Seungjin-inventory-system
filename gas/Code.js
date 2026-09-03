@@ -255,6 +255,15 @@ function buildSupabaseReplayPayload_(item) {
   return payload;
 }
 
+function isSupabaseReplaySupersededError_(action, error) {
+  if (action !== 'updateShippingStatus') {
+    return false;
+  }
+  const message = String(error && error.message ? error.message : error || '');
+  return message.includes('현재 상태에서 변경할 수 있는 박스가 없습니다.')
+    || message.includes('선택한 박스는 이미 출고완료 상태입니다.');
+}
+
 function applySupabaseOutbox(payload) {
   const token = String(payload.token || '').trim();
   const items = Array.isArray(payload.items) ? payload.items.slice(0, 100) : [];
@@ -304,6 +313,16 @@ function applySupabaseOutbox(payload) {
       properties.setProperty(propertyName, String(id));
       results.push({ id, ok: true, data: data || {} });
     } catch (error) {
+      if (isSupabaseReplaySupersededError_(action, error)) {
+        lastSyncedId = id;
+        properties.setProperty(propertyName, String(id));
+        results.push({
+          id,
+          ok: true,
+          data: { alreadyApplied: true, superseded: true, message: error.message || String(error) }
+        });
+        return;
+      }
       stoppedByFailure = true;
       results.push({ id, ok: false, message: error.message || String(error) });
     }
