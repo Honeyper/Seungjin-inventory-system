@@ -10,6 +10,11 @@ import {
 const adminSource = fs.readFileSync(new URL("../frontend/admin.js", import.meta.url), "utf8");
 const adminHtml = fs.readFileSync(new URL("../frontend/admin.html", import.meta.url), "utf8");
 const gatewaySource = fs.readFileSync(new URL("../frontend/supabase-gateway.js", import.meta.url), "utf8");
+const edgeSource = fs.readFileSync(new URL("../supabase/functions/seungjin-dev-gateway/index.ts", import.meta.url), "utf8");
+const boundedSyncMigration = fs.readFileSync(
+  new URL("../supabase/migrations/20260903030000_bound_sheet_sync_batches.sql", import.meta.url),
+  "utf8"
+);
 
 test("서울 날짜를 기준으로 아직 실행하지 않은 당일 백업은 알림에서 제외한다", () => {
   const result = buildSheetBackupNotifications([
@@ -77,4 +82,11 @@ test("관리자 알림 버튼은 백업 결과 API, 읽음 표시, 실패 상세
   assert.match(adminSource, /BACKUP_NOTIFICATION_READ_KEY/);
   assert.match(adminSource, /실패·미반영 항목/);
   assert.match(adminSource, /BACKUP_NOTIFICATION_POLL_MS = 60 \* 1000/);
+});
+
+test("야간 백업은 요청 제한 시간을 넘지 않도록 10건씩 나누어 반복 실행한다", () => {
+  assert.match(edgeSource, /const maxBatches = 1;/);
+  assert.match(edgeSource, /p_limit: 10/);
+  assert.match(boundedSyncMigration, /'10-59\/5 11 \* \* \*'/);
+  assert.match(boundedSyncMigration, /'\*\/5 12 \* \* \*'/);
 });
