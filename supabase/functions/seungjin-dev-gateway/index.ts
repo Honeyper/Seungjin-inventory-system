@@ -230,9 +230,70 @@ async function readInboundBoxQrs(payload: JsonRecord) {
   };
 }
 
+async function loadStateVersion() {
+  const rows = await databaseRows("dev_state?singleton=eq.true&select=version&limit=1");
+  const version = Number(rows[0]?.version);
+  if (!Number.isFinite(version)) throw new Error("재고 데이터 버전을 확인할 수 없습니다.");
+  return version;
+}
+
+async function loadInboundMutationState(payload: JsonRecord) {
+  const productId = String(payload.productId || "").trim();
+  if (!productId) {
+    return await databaseRequest("rpc/read_dev_canonical_state", {
+      method: "POST",
+      body: "{}"
+    }) as JsonRecord;
+  }
+
+  const encodedProductId = encodeURIComponent(productId);
+  const [version, productRows, orderRows, inboundRows, recordRows, boxRows] = await Promise.all([
+    loadStateVersion(),
+    databaseRows(`dev_products?product_id=eq.${encodedProductId}&select=product_id,data`),
+    databaseRows(`dev_purchase_orders?product_id=eq.${encodedProductId}&select=purchase_order_id,product_id,data`),
+    databaseRows(`dev_inbounds?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,inbound_date,data`),
+    databaseRows(`dev_inventory_records?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,storage,data`),
+    databaseRows(`dev_inventory_boxes?product_id=eq.${encodedProductId}&select=box_id,management_id,product_id,storage,box_number,data`)
+  ]);
+
+  return {
+    version,
+    products: productRows.map((row) => row.data),
+    orders: orderRows.map((row) => row.data),
+    inbounds: inboundRows.map((row) => row.data),
+    records: mapInventoryRecordRows(recordRows),
+    boxes: mapInventoryBoxRows(boxRows)
+  };
+}
+
+async function loadProductMutationState() {
+  const [version, productRows] = await Promise.all([
+    loadStateVersion(),
+    databaseRows("dev_products?select=product_id,data")
+  ]);
+  return { version, products: productRows.map((row) => row.data), orders: [], inbounds: [], records: [], boxes: [] };
+}
+
+async function loadPurchaseOrderMutationState() {
+  const [version, orderRows] = await Promise.all([
+    loadStateVersion(),
+    databaseRows("dev_purchase_orders?select=purchase_order_id,product_id,data")
+  ]);
+  return { version, products: [], orders: orderRows.map((row) => row.data), inbounds: [], records: [], boxes: [] };
+}
+
 async function loadCanonicalState(action = "", payload: JsonRecord = {}) {
   if (action === "getInboundBoxQrs") {
     return loadInboundQrState(payload);
+  }
+  if (action === "createInbound" || action === "updateInbound") {
+    return loadInboundMutationState(payload);
+  }
+  if (["createProduct", "updateProduct", "deleteProduct"].includes(action)) {
+    return loadProductMutationState();
+  }
+  if (["createPurchaseOrder", "updatePurchaseOrder", "deletePurchaseOrder"].includes(action)) {
+    return loadPurchaseOrderMutationState();
   }
   return await databaseRequest("rpc/read_dev_canonical_state", {
     method: "POST",
@@ -321,7 +382,7 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     };
   }
   if (action === "getInventoryDashboard") {
-    const [state, productRows] = await Promise.all([
+    const [state, stateRows, productRows] = await Promise.all([
       databaseRequest("rpc/read_dev_inventory_state", {
         method: "POST",
         body: "{}"
@@ -331,6 +392,7 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
         recordRows?: JsonRecord[];
         boxRows?: JsonRecord[];
       }>,
+      databaseRows("dev_state?singleton=eq.true&select=version&limit=1"),
       databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity")
     ]);
     const products = productRows.map((row) => ({
@@ -344,7 +406,13 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     const boxes = Array.isArray(state.boxRows)
       ? mapInventoryBoxRows(state.boxRows)
       : state.boxes || [];
-    return buildInventoryDashboard(records, boxes, products) as JsonRecord;
+    return {
+      ...(buildInventoryDashboard(records, boxes, products) as JsonRecord),
+      stateVersion: Number(stateRows[0]?.version) || null
+    };
+  }
+  if (action === "getInventoryVersion") {
+    return { stateVersion: await loadStateVersion() };
   }
   throw new Error(`지원하지 않는 Supabase 조회 요청입니다: ${action}`);
 }
@@ -773,7 +841,7 @@ async function handleRequest(request: Request) {
     });
   }
 
-  if (ACTION_DATASETS[action]) {
+  if (ACTION_DATASETS[action] || action === "getInventoryVersion") {
     const data = await readCanonicalAction(action, payload);
     return jsonResponse(request, {
       ok: true,

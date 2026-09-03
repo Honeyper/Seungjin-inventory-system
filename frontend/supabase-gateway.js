@@ -7,6 +7,7 @@
     "getProducts",
     "getPurchaseOrders",
     "getTodayInbounds",
+    "getInventoryVersion",
     "getInboundBoxQrs",
     "getInventoryDashboard",
     "getSheetBackupNotifications"
