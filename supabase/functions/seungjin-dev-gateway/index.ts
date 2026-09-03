@@ -568,8 +568,9 @@ async function runNightlySheetSync() {
   let claimed = 0;
   let synced = 0;
   let failed = 0;
+  const maxBatches = 1;
 
-  for (let batchIndex = 0; batchIndex < 10; batchIndex += 1) {
+  for (let batchIndex = 0; batchIndex < maxBatches; batchIndex += 1) {
     const items = await databaseRequest("rpc/claim_dev_sheet_outbox", {
       method: "POST",
       body: JSON.stringify({ p_limit: 10 })
