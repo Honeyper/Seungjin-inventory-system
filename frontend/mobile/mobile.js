@@ -171,6 +171,7 @@ const state = {
   hardwareScannerBuffer: "",
   hardwareScannerLastInputAt: 0,
   hardwareScannerMaxInputGapMs: 0,
+  hardwareScannerEarlySubmittedValue: "",
   hardwareScannerSubmitTimer: null,
   hardwareScannerStatusTimer: null,
   hardwareScannerBufferRevision: 0,
@@ -5526,6 +5527,7 @@ function resetHardwareScannerBuffer() {
   state.hardwareScannerBuffer = "";
   state.hardwareScannerLastInputAt = 0;
   state.hardwareScannerMaxInputGapMs = 0;
+  state.hardwareScannerEarlySubmittedValue = "";
   state.hardwareScannerLastStatusAt = 0;
 }
 
@@ -5583,6 +5585,10 @@ function scheduleHardwareScannerSubmit() {
 
     const bufferedValue = state.hardwareScannerBuffer;
     state.hardwareScannerSubmitTimer = null;
+    if (state.hardwareScannerEarlySubmittedValue) {
+      resetHardwareScannerBuffer();
+      return;
+    }
     void submitHardwareScannerValue(bufferedValue);
   }, submitDelayMs);
 }
@@ -5613,15 +5619,35 @@ function appendHardwareScannerInput(input) {
   state.hardwareScannerBufferRevision += 1;
 
   if (
-    state.hardwareScannerBuffer.length === chunk.length
-    || now - state.hardwareScannerLastStatusAt >= HARDWARE_SCANNER_STATUS_UPDATE_MS
+    !state.hardwareScannerEarlySubmittedValue
+    && (
+      state.hardwareScannerBuffer.length === chunk.length
+      || now - state.hardwareScannerLastStatusAt >= HARDWARE_SCANNER_STATUS_UPDATE_MS
+    )
   ) {
     setHardwareScannerStatus(`QR 입력 감지 중… ${state.hardwareScannerBuffer.length}자`, "receiving");
     state.hardwareScannerLastStatusAt = now;
   }
 
   const bufferedValue = state.hardwareScannerBuffer.trim();
+  if (!state.hardwareScannerEarlySubmittedValue) {
+    const earlyBoxId = extractHardwareScannerBoxId(bufferedValue);
+    if (earlyBoxId) {
+      state.hardwareScannerEarlySubmittedValue = earlyBoxId;
+      queueHardwareScannerValue(earlyBoxId);
+    }
+  }
+
   const isJsonInputStillReceiving = bufferedValue.startsWith("{") && !bufferedValue.endsWith("}");
+  if (state.hardwareScannerEarlySubmittedValue) {
+    if (!isJsonInputStillReceiving) {
+      resetHardwareScannerBuffer();
+      return;
+    }
+    scheduleHardwareScannerSubmit();
+    return;
+  }
+
   if (!isJsonInputStillReceiving && isCompleteHardwareScannerValue(bufferedValue)) {
     void submitHardwareScannerValue(bufferedValue);
     return;
@@ -5647,6 +5673,10 @@ function handleHardwareScannerKeydown(event) {
   if (event.key === "Enter" || event.key === "Tab" || event.code === "NumpadEnter") {
     event.preventDefault();
     clearHardwareScannerStatusTimer();
+    if (state.hardwareScannerEarlySubmittedValue) {
+      resetHardwareScannerBuffer();
+      return;
+    }
     const bufferedValue = state.hardwareScannerBuffer.trim();
     if (bufferedValue) {
       void submitHardwareScannerValue(bufferedValue);
@@ -5704,6 +5734,17 @@ function isCompleteHardwareScannerValue(rawValue) {
   return /^[^\s{}]+-B\d{3}$/i.test(restoredValue);
 }
 
+function extractHardwareScannerBoxId(rawValue) {
+  const value = String(rawValue || "").trim();
+  if (!value || !value.includes(":")) {
+    return "";
+  }
+
+  const restoredValue = restoreHardwareScannerQrValue(value);
+  const matched = restoredValue.match(/(?:^|[,\{])\s*["'](?:b|boxId)["']\s*:\s*["']([^"']+-B\d{3})["']/i);
+  return matched?.[1] || "";
+}
+
 function handleHardwareScannerPaste(event) {
   if (elements.scannerScreen?.hidden || state.scannerInputMode !== "hardware") {
     return;
@@ -5738,6 +5779,10 @@ async function submitHardwareScannerValue(rawValue) {
     return;
   }
 
+  queueHardwareScannerValue(value);
+}
+
+function queueHardwareScannerValue(value) {
   clearHardwareScannerStatusTimer();
 
   state.hardwareScannerQueue.push(value);

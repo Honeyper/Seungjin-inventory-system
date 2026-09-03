@@ -8793,8 +8793,7 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
 
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
-    const qrData = box.qrData || box.boxId || "";
-
+    const qrData = box.boxId || box.qrData || "";
     return renderInboundQrReferenceLabel({
       box,
       inbound,
