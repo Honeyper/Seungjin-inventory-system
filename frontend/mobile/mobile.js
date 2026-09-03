@@ -5622,7 +5622,7 @@ function appendHardwareScannerInput(input) {
 
   const bufferedValue = state.hardwareScannerBuffer.trim();
   const isJsonInputStillReceiving = bufferedValue.startsWith("{") && !bufferedValue.endsWith("}");
-  if (!isJsonInputStillReceiving && isCompleteHardwareScannerValue(bufferedValue)) {
+  if (!isJsonInputStillReceiving && shouldSubmitHardwareScannerValueImmediately(bufferedValue)) {
     void submitHardwareScannerValue(bufferedValue);
     return;
   }
@@ -5702,7 +5702,25 @@ function isCompleteHardwareScannerValue(rawValue) {
     }
   }
 
+  const qrPayload = globalThis.SeungjinQrPayload?.parse?.(restoredValue);
+  if (qrPayload?.hasChecksum) {
+    return qrPayload.isValid && /^[^\s{}]+-B\d{3}$/i.test(qrPayload.boxId);
+  }
+
   return /^[^\s{}]+-B\d{3}$/i.test(restoredValue);
+}
+
+function shouldSubmitHardwareScannerValueImmediately(rawValue) {
+  const restoredValue = restoreHardwareScannerQrValue(rawValue);
+  if (!isCompleteHardwareScannerValue(restoredValue)) {
+    return false;
+  }
+
+  if (restoredValue.startsWith("{") && restoredValue.endsWith("}")) {
+    return true;
+  }
+
+  return Boolean(globalThis.SeungjinQrPayload?.parse?.(restoredValue)?.hasChecksum);
 }
 
 function handleHardwareScannerPaste(event) {
@@ -5735,7 +5753,13 @@ async function submitHardwareScannerValue(rawValue) {
   }
 
   if (!isCompleteHardwareScannerValue(value)) {
-    setHardwareScannerStatus("QR 입력이 완성되지 않았습니다. 다시 스캔해주세요.");
+    const restoredValue = restoreHardwareScannerQrValue(value);
+    const qrPayload = globalThis.SeungjinQrPayload?.parse?.(restoredValue);
+    setHardwareScannerStatus(
+      qrPayload?.hasChecksum && !qrPayload.isValid
+        ? "QR 검증에 실패했습니다. 잘못 인식된 코드이므로 다시 스캔해주세요."
+        : "QR 입력이 완성되지 않았습니다. 다시 스캔해주세요."
+    );
     return;
   }
 
@@ -6137,19 +6161,28 @@ function parseQrValue(rawValue) {
       boxId: normalizeScanValue(parsed.b || parsed.boxId),
       managementId: normalizeScanValue(parsed.m || parsed.managementId),
       productId: normalizeScanValue(parsed.p || parsed.productId),
-      boxNumber: String(parsed.n || parsed.number || "").trim()
+      boxNumber: String(parsed.n || parsed.number || "").trim(),
+      qrChecksumPresent: false,
+      qrChecksumValid: true
     };
   } catch (error) {
+    const qrPayload = globalThis.SeungjinQrPayload?.parse?.(text);
     return {
-      boxId: normalizeScanValue(text),
+      boxId: normalizeScanValue(qrPayload?.boxId || text),
       managementId: "",
       productId: "",
-      boxNumber: ""
+      boxNumber: "",
+      qrChecksumPresent: Boolean(qrPayload?.hasChecksum),
+      qrChecksumValid: qrPayload?.hasChecksum ? qrPayload.isValid : true
     };
   }
 }
 
 function isParsedQrIdentityConsistent(parsed) {
+  if (parsed?.qrChecksumPresent && !parsed.qrChecksumValid) {
+    return false;
+  }
+
   const boxId = normalizeScanValue(parsed?.boxId);
   const managementId = normalizeScanValue(parsed?.managementId);
   const boxNumber = String(parsed?.boxNumber || "").trim();

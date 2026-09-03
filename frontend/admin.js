@@ -8793,7 +8793,9 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
 
   inboundQrSheet.innerHTML = boxes.map((box) => {
     const sequence = Number(box.sequence) || 0;
-    const qrData = box.boxId || box.qrData || "";
+    const qrData = box.boxId
+      ? (globalThis.SeungjinQrPayload?.create?.(box.boxId) || box.boxId)
+      : (box.qrData || "");
     return renderInboundQrReferenceLabel({
       box,
       inbound,
