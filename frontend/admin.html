@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260904-product-image-prd" />
+    <link rel="stylesheet" href="./styles.css?v=20260904-product-upload-fixes-prd" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260902-qr-batch-highlight-prd" />
   </head>
   <body class="admin-body">
@@ -467,7 +467,7 @@
                   <div class="inbound-file-actions quantity-file-actions">
                     <div class="upload-field">
                       <input class="visually-hidden" id="inboundInvoiceFile" type="file" accept="image/*" />
-                      <button class="secondary-action upload-tile" type="button" id="inboundInvoiceUploadButton">
+                      <button class="secondary-action upload-tile" type="button" id="inboundInvoiceUploadButton" data-file-drop-zone data-drop-input="inboundInvoiceFile" aria-label="거래명세서 이미지를 선택하거나 끌어다 놓기">
                         <img id="inboundInvoicePreview" alt="거래명세서 미리보기" hidden />
                         <span class="upload-tile-content">
                           <i class="ti ti-file-invoice upload-tile-icon" aria-hidden="true"></i>
@@ -477,7 +477,7 @@
                     </div>
                     <div class="upload-field">
                       <input class="visually-hidden" id="inboundDefectFiles" type="file" accept="image/*" multiple />
-                      <button class="secondary-action upload-tile" type="button" id="inboundDefectUploadButton">
+                      <button class="secondary-action upload-tile" type="button" id="inboundDefectUploadButton" data-file-drop-zone data-drop-input="inboundDefectFiles" aria-label="불량 사진을 선택하거나 끌어다 놓기">
                         <img id="inboundDefectPreview" alt="불량 사진 대표 미리보기" hidden />
                         <span class="upload-preview-badge" id="inboundDefectCount" hidden>대표</span>
                         <span class="upload-tile-content">
@@ -2268,7 +2268,7 @@
                 </datalist>
               </label>
 
-              <div class="product-image-field full-span">
+              <div class="product-image-field full-span" data-file-drop-zone data-drop-input="productImageFile" aria-label="제품 이미지를 선택하거나 끌어다 놓기">
                 <div class="product-image-preview" id="productImagePreview" aria-live="polite">
                   <span class="product-image-placeholder" id="productImagePlaceholder">
                     <i class="ti ti-photo" aria-hidden="true"></i>
@@ -2278,8 +2278,8 @@
                 </div>
                 <div class="product-image-controls">
                   <span>제품 이미지</span>
-                  <strong id="productImageFileName">이미지를 선택해주세요.</strong>
-                  <small>JPG, PNG, WEBP 등 이미지 파일을 10MB 이하로 등록할 수 있습니다. 파일은 Google Drive에 저장됩니다.</small>
+                  <strong id="productImageFileName">이미지를 끌어다 놓거나 선택해주세요.</strong>
+                  <small>이 영역에 이미지를 끌어다 놓을 수 있습니다. JPG, PNG, WEBP 등 10MB 이하 파일은 Google Drive에 저장됩니다.</small>
                   <div>
                     <label class="product-image-select-button" for="productImageFile">
                       <i class="ti ti-upload" aria-hidden="true"></i>
@@ -2902,6 +2902,6 @@
     <script src="./inbound-sort.js?v=20260901-recent-first-prd"></script>
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-prd"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-prd"></script>
-    <script src="./admin.js?v=20260904-product-image-prd"></script>
+    <script src="./admin.js?v=20260904-product-upload-fixes-prd"></script>
   </body>
 </html>

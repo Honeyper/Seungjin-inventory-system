@@ -339,6 +339,7 @@ const productImagePreviewImage = document.querySelector("#productImagePreviewIma
 const productImagePlaceholder = document.querySelector("#productImagePlaceholder");
 const productImageFileName = document.querySelector("#productImageFileName");
 const removeProductImageButton = document.querySelector("#removeProductImageButton");
+const productImageDropZone = document.querySelector('[data-drop-input="productImageFile"]');
 const productFinalProcess = document.querySelector("#productFinalProcess");
 const productProcessType = document.querySelector("#productProcessType");
 const productProcessStages = document.querySelector("#productProcessStages");
@@ -1448,6 +1449,9 @@ inboundDefectFiles?.addEventListener("change", () => {
     badge: inboundDefectCount
   });
 });
+bindFileDropZone(inboundInvoiceUploadButton, inboundInvoiceFile);
+bindFileDropZone(inboundDefectUploadButton, inboundDefectFiles);
+bindFileDropZone(productImageDropZone, productImageFile);
 
 editInboundClientButton.addEventListener("click", () => {
   setInboundClientEditable(inboundClient.disabled);
@@ -5663,6 +5667,67 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function isFileDragEvent(event) {
+  return Array.from(event.dataTransfer?.types || []).includes("Files");
+}
+
+function setInputFilesFromDrop(input, droppedFiles) {
+  const files = Array.from(droppedFiles || []);
+  const selectedFiles = input.multiple ? files : files.slice(0, 1);
+
+  if (!selectedFiles.length) {
+    return false;
+  }
+  if (selectedFiles.some((file) => !file.type.startsWith("image/"))) {
+    showToast("이미지 파일만 끌어다 놓을 수 있습니다.");
+    return false;
+  }
+
+  const transfer = new DataTransfer();
+  selectedFiles.forEach((file) => transfer.items.add(file));
+  input.files = transfer.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+function bindFileDropZone(zone, input) {
+  if (!zone || !input) {
+    return;
+  }
+
+  const clearDragging = () => zone.classList.remove("is-dragging");
+
+  zone.addEventListener("dragenter", (event) => {
+    if (!isFileDragEvent(event)) {
+      return;
+    }
+    event.preventDefault();
+    zone.classList.add("is-dragging");
+  });
+  zone.addEventListener("dragover", (event) => {
+    if (!isFileDragEvent(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    zone.classList.add("is-dragging");
+  });
+  zone.addEventListener("dragleave", (event) => {
+    if (!zone.contains(event.relatedTarget)) {
+      clearDragging();
+    }
+  });
+  zone.addEventListener("drop", (event) => {
+    if (!isFileDragEvent(event)) {
+      return;
+    }
+    event.preventDefault();
+    clearDragging();
+    setInputFilesFromDrop(input, event.dataTransfer.files);
+  });
+  zone.addEventListener("dragend", clearDragging);
+}
+
 function revokeProductImagePreviewUrl() {
   if (state.productImagePreviewUrl) {
     URL.revokeObjectURL(state.productImagePreviewUrl);
@@ -5689,7 +5754,7 @@ function renderProductImageSelection() {
       ? selectedFile.name
       : state.productImageUrl && !state.productImageRemoved
         ? "현재 등록된 이미지"
-        : "이미지를 선택해주세요.";
+        : "이미지를 끌어다 놓거나 선택해주세요.";
   }
   if (removeProductImageButton) {
     removeProductImageButton.hidden = !previewUrl;

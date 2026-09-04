@@ -8,6 +8,7 @@ import {
 
 const adminHtml = await readFile(new URL("../frontend/admin.html", import.meta.url), "utf8");
 const adminSource = await readFile(new URL("../frontend/admin.js", import.meta.url), "utf8");
+const stylesSource = await readFile(new URL("../frontend/styles.css", import.meta.url), "utf8");
 const gasSource = await readFile(new URL("../gas/Code.js", import.meta.url), "utf8");
 const mobileHtml = await readFile(new URL("../frontend/mobile/index.html", import.meta.url), "utf8");
 const mobileSource = await readFile(new URL("../frontend/mobile/mobile.js", import.meta.url), "utf8");
@@ -24,6 +25,12 @@ test("product registration uploads only the selected image to Google Drive and s
   assert.match(gasSource, /DriveApp\.Access\.ANYONE_WITH_LINK/);
   assert.match(gasSource, /drive\.google\.com\/thumbnail\?id=/);
   assert.match(gasSource, /'제품 이미지'/);
+});
+
+test("product image empty state is hidden when a preview is available", () => {
+  assert.match(adminSource, /productImagePlaceholder\.hidden = Boolean\(previewUrl\)/);
+  assert.match(adminSource, /removeProductImageButton\.hidden = !previewUrl/);
+  assert.match(stylesSource, /\.product-image-placeholder\[hidden\],[\s\S]*?\.product-image-remove-button\[hidden\][\s\S]*?display: none/);
 });
 
 test("product image URL is preserved in products and reaches PRD inventory rows", () => {
