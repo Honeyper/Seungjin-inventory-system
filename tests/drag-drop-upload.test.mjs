@@ -22,9 +22,8 @@ test("드롭한 파일을 기존 입력과 검증 흐름으로 전달한다", ()
   assert.match(adminSource, /selectedFiles\.some\(\(file\) => !file\.type\.startsWith\("image\/"\)\)/);
 });
 
-test("드래그 중인 영역을 기존 네이비와 골드 계열로 강조한다", () => {
+test("드래그 중인 영역을 기존 네이비와 골드 계열로 강조하고 보조 문구는 표시하지 않는다", () => {
   assert.match(stylesSource, /\.upload-tile\.is-dragging/);
   assert.match(stylesSource, /\.product-image-field\.is-dragging/);
-  assert.match(adminHtml, /클릭 또는 끌어다 놓기/);
-  assert.match(adminHtml, /여러 장 클릭 또는 끌어다 놓기/);
+  assert.doesNotMatch(adminHtml, /class="upload-drop-hint"/);
 });

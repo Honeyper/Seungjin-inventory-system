@@ -8915,17 +8915,6 @@ input {
   gap: 0.62rem;
 }
 
-.upload-drop-hint {
-  color: #7b8799;
-  font-size: 0.64rem;
-  font-weight: 750;
-  line-height: 1.2;
-}
-
-.upload-tile.is-dragging .upload-drop-hint {
-  color: #9b650e;
-}
-
 .upload-tile.has-preview .upload-tile-content {
   position: absolute;
   right: 0;
@@ -8937,10 +8926,6 @@ input {
   color: #fff;
   background: rgba(5, 28, 67, 0.72);
   backdrop-filter: blur(6px);
-}
-
-.upload-tile.has-preview .upload-drop-hint {
-  color: rgba(255, 255, 255, 0.82);
 }
 
 .upload-preview-badge {
