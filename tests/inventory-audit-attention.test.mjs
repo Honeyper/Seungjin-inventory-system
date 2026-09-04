@@ -35,5 +35,5 @@ test("재고 상세는 박스별 확인 상태를 나누고 미확인 박스를 
 
 test("새 박스 상태 필드를 받도록 이전 재고 캐시를 무효화한다", () => {
   assert.match(adminSource, /seungjinAdminCache:v3/);
-  assert.match(adminHtml, /admin\.js\?v=20260904-product-image-dev/);
+  assert.match(adminHtml, /admin\.js\?v=20260904-drag-drop-upload-dev/);
 });

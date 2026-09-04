@@ -106,6 +106,50 @@ final result: blocked; authenticated live visual capture pending
 
 final result: passed
 
+## 76. DEV 첨부 이미지 드래그앤드롭
+
+- 기준 화면:
+  - `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_Mobwmj/스크린샷 2026-09-04 오후 2.19.54.png`
+  - `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_OYtixY/스크린샷 2026-09-04 오후 2.20.01.png`
+- 구현 화면:
+  - `/private/tmp/seungjin-inbound-upload-1556x900.png`
+  - `/private/tmp/seungjin-product-image-dropzone.png`
+- 동일 화면 비교:
+  - `/private/tmp/seungjin-inbound-upload-comparison.png`
+  - `/private/tmp/seungjin-product-image-comparison.png`
+- 구현 뷰포트: 1556 × 900 CSS px, device scale factor 1
+- 기준 이미지 크기: 입고 첨부 816 × 366px, 제품 이미지 1556 × 316px
+- 구현 캡처 크기: 각 1556 × 900px. 집중 영역은 원본 밀도를 유지한 채 잘라 같은 높이의 비교 캔버스에 배치했다.
+- 비교 상태: 입고 등록의 빈 거래명세서·불량 사진 영역과 선택 미리보기, 신규 제품 등록의 빈 이미지 영역과 선택 미리보기
+
+### 전체 화면 및 집중 영역 비교
+
+- 입고 첨부는 기준 화면의 2열 위치, 점선 테두리, 네이비 아이콘과 제목, 동일한 카드 크기를 유지했다. 클릭과 드롭을 알리는 보조 문구만 추가했다.
+- 제품 이미지는 기준 화면의 미리보기 정사각형, 제목, 파일 안내, 선택·제거 버튼 구조를 그대로 유지하고 기존 안내 문구 안에 드롭 방법을 추가했다.
+- 글꼴은 Noto Sans KR과 기존 굵기·위계를 유지했으며 보조 문구는 기존 보조 텍스트 크기와 색상을 사용한다.
+- 간격·테두리·반경은 기존 관리자 폼 규격을 유지하고, 드래그 중에만 골드 경계선과 옅은 골드 배경을 표시한다.
+- 기존 Tabler 아이콘과 실제 이미지 미리보기를 그대로 사용했으며 새 대체 이미지나 임시 아이콘은 추가하지 않았다.
+- `거래명세서`, `불량 사진`, `제품 이미지` 용어와 Google Drive 저장 안내를 유지했다.
+
+### 기능 및 접근성 확인
+
+- 기존 파일 선택 방식으로 거래명세서 1장, 불량 사진 2장, 제품 이미지 1장을 선택해 미리보기, `대표 1/2`, 파일명, 이미지 제거 버튼 활성화를 확인했다.
+- 드롭된 파일은 기존 `change` 이벤트로 전달되어 현재 미리보기·검증·저장 흐름을 그대로 사용한다.
+- 이미지가 아닌 드롭 파일은 입력에 반영하지 않고 안내 메시지를 표시한다.
+- 브라우저 콘솔 경고·오류는 없다.
+
+### 비교 이력 및 결과
+
+1. 첫 비교에서 기존 폼 구조와 참고 화면의 시각 위계가 일치했고 P0·P1·P2 차이는 없었다.
+2. 드롭 보조 문구는 새 기능의 발견성을 위한 의도된 추가이며 기존 필드나 작업 버튼을 가리지 않는다.
+
+- P0: 없음
+- P1: 없음
+- P2: 없음
+- P3: 없음
+
+final result: passed
+
 ## 27. 관리자 로그인 화면 및 참고 컴포넌트 적용
 
 ### 비교 환경
