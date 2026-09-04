@@ -183,6 +183,45 @@ final result: passed
 
 final result: passed
 
+## 78. DEV 제품 이미지 빈 상태 중첩 수정
+
+- 기준 화면: `/var/folders/01/8n9r8rnd7dv5hkhfy_7p521w0000gn/T/TemporaryItems/NSIRD_screencaptureui_M71SwR/스크린샷 2026-09-04 오후 4.19.08.png`
+- 구현 화면: `/private/tmp/seungjin-product-image-hidden-state-fixed.png`
+- 동일 화면 비교: `/private/tmp/seungjin-product-image-hidden-state-comparison.png`
+- 구현 뷰포트: 1280 × 720 CSS px, device scale factor 2
+- 기준 이미지 크기: 1080 × 256px
+- 구현 전체 캡처 크기: 1280 × 810px. 제품 이미지 영역을 원본 밀도로 잘라 1080px 너비로 정규화해 기준 화면과 한 캔버스에서 비교했다.
+- 비교 상태: 신규 제품 등록에서 PNG 이미지 1장을 선택한 미리보기 상태
+
+### 전체 화면 및 집중 영역 비교
+
+- 기준 화면에서는 실제 미리보기 위에 `등록된 이미지 없음` 아이콘과 문구가 함께 표시되는 P1 중첩 오류가 있었다.
+- 구현 화면에서는 선택한 이미지 미리보기만 표시되고 빈 상태 아이콘·문구는 완전히 숨겨졌다.
+- 글꼴·제목·파일명 위계, 2열 이미지 영역 구조, 패딩·테두리·반경, 네이비·빨간색 버튼 토큰은 변경하지 않았다.
+- 실제 선택한 PNG 이미지를 `object-fit: contain`으로 유지해 자르거나 늘리지 않았고 대체 이미지나 임시 자산은 사용하지 않았다.
+- `제품 이미지`, 파일명, Google Drive 저장 안내, 이미지 선택·제거 문구는 그대로 유지했다.
+
+### 기능 및 접근성 확인
+
+- 이미지 선택 후 빈 상태: `hidden=true`, 계산 스타일 `display:none`.
+- 미리보기 이미지: `hidden=false`, 계산 스타일 `display:block`.
+- 이미지 제거 버튼: 선택 후 표시되고, 제거 후 다시 `display:none`으로 복귀한다.
+- 제거 후 빈 상태 문구가 다시 정상 표시되며 이미지 입력도 초기화된다.
+- 브라우저 콘솔 경고·오류: 없음.
+
+### 비교 이력
+
+1. 첫 비교에서 `display:grid`와 `display:inline-flex`가 HTML `hidden` 상태를 덮어써 빈 상태 문구와 제거 버튼이 잘못 표시되는 P1 문제를 확인했다.
+2. 빈 상태 요소와 제거 버튼의 `[hidden]` 선택자에 `display:none`을 명시했다.
+3. 이미지 선택·제거를 다시 실행하고 수정 화면을 재캡처했으며 P0/P1/P2 문제는 남지 않았다.
+
+- P0: 없음
+- P1: 없음
+- P2: 없음
+- P3: 없음
+
+final result: passed
+
 ## 27. 관리자 로그인 화면 및 참고 컴포넌트 적용
 
 ### 비교 환경

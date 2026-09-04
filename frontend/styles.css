@@ -5962,6 +5962,11 @@ input {
   font-weight: 800;
 }
 
+.product-image-placeholder[hidden],
+.product-image-remove-button[hidden] {
+  display: none;
+}
+
 .product-image-controls {
   display: grid;
   gap: 0.3rem;
