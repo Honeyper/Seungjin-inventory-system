@@ -40,6 +40,7 @@ const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v3:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const BACKUP_NOTIFICATION_POLL_MS = 60 * 1000;
+const SERVER_USAGE_POLL_MS = 30 * 1000;
 const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
 const adminEnvironmentBadge = document.querySelector("#adminEnvironmentBadge");
 
@@ -190,7 +191,9 @@ const state = {
     direction: "desc"
   },
   backupNotifications: [],
-  isLoadingBackupNotifications: false
+  isLoadingBackupNotifications: false,
+  serverUsage: null,
+  isLoadingServerUsage: false
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -205,6 +208,12 @@ const backupNotificationPanel = document.querySelector("#backupNotificationPanel
 const backupNotificationBadge = document.querySelector("#backupNotificationBadge");
 const backupNotificationList = document.querySelector("#backupNotificationList");
 const refreshBackupNotificationsButton = document.querySelector("#refreshBackupNotifications");
+const serverUsageCard = document.querySelector("#serverUsageCard");
+const serverUsageValue = document.querySelector("#serverUsageValue");
+const serverUsagePercent = document.querySelector("#serverUsagePercent");
+const serverUsageProgress = document.querySelector(".server-usage-progress");
+const serverUsageProgressBar = document.querySelector("#serverUsageProgressBar");
+const serverUsageDescription = document.querySelector("#serverUsageDescription");
 const productTotal = document.querySelector("#productTotal");
 const clientTotal = document.querySelector("#clientTotal");
 const recentDate = document.querySelector("#recentDate");
@@ -722,13 +731,94 @@ function renderBackupNotifications() {
   updateBackupNotificationBadge();
 }
 
+function formatServerUsageBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return "-";
+  const megabytes = bytes / (1024 * 1024);
+  return `${megabytes.toLocaleString("ko-KR", { maximumFractionDigits: 1 })} MB`;
+}
+
+function formatServerUsageMeasuredAt(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "측정 시간 미확인";
+  return `${new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).format(date)} 기준`;
+}
+
+function renderServerUsage() {
+  if (!serverUsageCard || !serverUsageValue || !serverUsagePercent || !serverUsageProgress || !serverUsageProgressBar || !serverUsageDescription) {
+    return;
+  }
+
+  const usage = state.serverUsage;
+  if (!usage) {
+    serverUsageCard.classList.remove("is-warning", "is-critical", "has-error");
+    serverUsageValue.textContent = state.isLoadingServerUsage ? "확인 중" : "확인 불가";
+    serverUsagePercent.textContent = "-";
+    serverUsageProgressBar.style.width = "0%";
+    serverUsageProgress.setAttribute("aria-valuenow", "0");
+    serverUsageDescription.textContent = state.isLoadingServerUsage
+      ? "Supabase 데이터베이스 사용량을 확인하고 있습니다."
+      : "서버 사용량을 불러오지 못했습니다. 새로고침해주세요.";
+    serverUsageCard.classList.toggle("has-error", !state.isLoadingServerUsage);
+    return;
+  }
+
+  const databaseBytes = Math.max(0, Number(usage.databaseBytes) || 0);
+  const limitBytes = Math.max(1, Number(usage.databaseLimitBytes) || 1);
+  const percent = Math.max(0, (databaseBytes / limitBytes) * 100);
+  const boundedPercent = Math.min(100, percent);
+
+  serverUsageValue.textContent = `${formatServerUsageBytes(databaseBytes)} / ${formatServerUsageBytes(limitBytes)}`;
+  serverUsagePercent.textContent = `${percent.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`;
+  serverUsageProgressBar.style.width = `${boundedPercent}%`;
+  serverUsageProgress.setAttribute("aria-valuenow", String(Math.round(boundedPercent)));
+  serverUsageDescription.textContent = `데이터베이스 용량 · ${formatServerUsageMeasuredAt(usage.measuredAt)}`;
+  serverUsageCard.classList.remove("has-error");
+  serverUsageCard.classList.toggle("is-warning", percent >= 70 && percent < 90);
+  serverUsageCard.classList.toggle("is-critical", percent >= 90);
+}
+
+function updateNotificationRefreshButton() {
+  refreshBackupNotificationsButton?.toggleAttribute(
+    "disabled",
+    state.isLoadingBackupNotifications || state.isLoadingServerUsage
+  );
+}
+
+async function loadServerUsage({ showLoading = false } = {}) {
+  if (!window.SeungjinDataGateway?.canRead("getServerUsage") || state.isLoadingServerUsage) {
+    return;
+  }
+
+  state.isLoadingServerUsage = true;
+  updateNotificationRefreshButton();
+  if (showLoading && !state.serverUsage) renderServerUsage();
+
+  try {
+    state.serverUsage = await requestApi("getServerUsage");
+  } catch (error) {
+    if (!state.serverUsage) renderServerUsage();
+    if (showLoading) showToast(error.message || "서버 사용량을 불러오지 못했습니다.");
+  } finally {
+    state.isLoadingServerUsage = false;
+    renderServerUsage();
+    updateNotificationRefreshButton();
+  }
+}
+
 async function loadBackupNotifications({ showLoading = false } = {}) {
   if (!window.SeungjinDataGateway?.canRead("getSheetBackupNotifications") || state.isLoadingBackupNotifications) {
     return;
   }
 
   state.isLoadingBackupNotifications = true;
-  refreshBackupNotificationsButton?.toggleAttribute("disabled", true);
+  updateNotificationRefreshButton();
   if (showLoading && backupNotificationList && !state.backupNotifications.length) {
     backupNotificationList.innerHTML = '<p class="backup-notification-empty">백업 결과를 불러오고 있습니다.</p>';
   }
@@ -747,7 +837,7 @@ async function loadBackupNotifications({ showLoading = false } = {}) {
     if (showLoading) showToast(error.message || "백업 알림을 불러오지 못했습니다.");
   } finally {
     state.isLoadingBackupNotifications = false;
-    refreshBackupNotificationsButton?.toggleAttribute("disabled", false);
+    updateNotificationRefreshButton();
   }
 }
 
@@ -760,6 +850,7 @@ function setBackupNotificationPanelOpen(shouldOpen) {
     adminUserMenuButton?.setAttribute("aria-expanded", "false");
     markBackupNotificationsRead();
     loadBackupNotifications({ showLoading: true });
+    loadServerUsage({ showLoading: true });
   }
 }
 
@@ -769,6 +860,7 @@ backupNotificationButton?.addEventListener("click", () => {
 
 refreshBackupNotificationsButton?.addEventListener("click", () => {
   loadBackupNotifications({ showLoading: true });
+  loadServerUsage({ showLoading: true });
 });
 
 document.addEventListener("click", (event) => {
@@ -1596,8 +1688,16 @@ if (window.SeungjinDataGateway?.canRead("getSheetBackupNotifications")) {
   loadBackupNotifications();
   window.setInterval(loadBackupNotifications, BACKUP_NOTIFICATION_POLL_MS);
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) loadBackupNotifications();
+    if (!document.hidden) {
+      loadBackupNotifications();
+      if (!backupNotificationPanel?.hidden) loadServerUsage();
+    }
   });
+}
+if (window.SeungjinDataGateway?.canRead("getServerUsage")) {
+  window.setInterval(() => {
+    if (!backupNotificationPanel?.hidden) loadServerUsage();
+  }, SERVER_USAGE_POLL_MS);
 }
 
 function getCurrentView() {

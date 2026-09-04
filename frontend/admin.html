@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260902-inventory-refresh-dev" />
+    <link rel="stylesheet" href="./styles.css?v=20260904-notification-usage-dev" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260902-qr-batch-highlight-dev" />
   </head>
   <body class="admin-body">
@@ -32,7 +32,7 @@
               class="icon-button backup-notification-button"
               id="backupNotificationButton"
               type="button"
-              aria-label="백업 알림"
+              aria-label="알림"
               aria-haspopup="dialog"
               aria-expanded="false"
               aria-controls="backupNotificationPanel"
@@ -53,13 +53,27 @@
             >
               <header class="backup-notification-header">
                 <div>
-                  <h2 id="backupNotificationTitle">백업 알림</h2>
+                  <h2 id="backupNotificationTitle">알림</h2>
                 </div>
                 <button class="backup-notification-refresh" id="refreshBackupNotifications" type="button">
                   <i class="ti ti-refresh" aria-hidden="true"></i>
                   새로고침
                 </button>
               </header>
+              <section class="server-usage-card" id="serverUsageCard" aria-live="polite">
+                <div class="server-usage-heading">
+                  <span>현재 서버 사용량</span>
+                  <b>실시간</b>
+                </div>
+                <div class="server-usage-summary">
+                  <strong id="serverUsageValue">확인 중</strong>
+                  <span id="serverUsagePercent">-</span>
+                </div>
+                <div class="server-usage-progress" role="progressbar" aria-label="데이터베이스 사용량" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                  <span id="serverUsageProgressBar"></span>
+                </div>
+                <p id="serverUsageDescription">Supabase 데이터베이스 사용량을 확인하고 있습니다.</p>
+              </section>
               <div class="backup-notification-list" id="backupNotificationList">
                 <p class="backup-notification-empty">백업 결과를 확인하고 있습니다.</p>
               </div>
@@ -2761,11 +2775,11 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <script src="./config.js"></script>
-    <script src="./supabase-gateway.js?v=20260903-write-refresh-perf-dev"></script>
+    <script src="./supabase-gateway.js?v=20260904-notification-usage-dev"></script>
     <script src="./product-sort.js?v=20260901-product-picker-sort"></script>
     <script src="./inbound-sort.js?v=20260901-recent-first"></script>
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-v2"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-dev"></script>
-    <script src="./admin.js?v=20260904-box-checksum-dev"></script>
+    <script src="./admin.js?v=20260904-notification-usage-dev"></script>
   </body>
 </html>

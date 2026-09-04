@@ -10,7 +10,8 @@
     "getInventoryVersion",
     "getInboundBoxQrs",
     "getInventoryDashboard",
-    "getSheetBackupNotifications"
+    "getSheetBackupNotifications",
+    "getServerUsage"
   ]);
   const mutationActions = new Set([
     "createProduct",

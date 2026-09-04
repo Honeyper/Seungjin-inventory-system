@@ -1690,6 +1690,91 @@ input {
   opacity: 0.6;
 }
 
+.server-usage-card {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.82rem 0.82rem 0;
+  padding: 0.82rem 0.9rem;
+  border: 1px solid #dbe5f2;
+  border-radius: 0.72rem;
+  background: linear-gradient(135deg, #f5f9ff 0%, #fff 100%);
+}
+
+.server-usage-heading,
+.server-usage-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.server-usage-heading span {
+  color: #53637b;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.server-usage-heading b {
+  padding: 0.18rem 0.42rem;
+  color: #13734a;
+  border-radius: 999px;
+  background: #e7f7ee;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.server-usage-summary strong {
+  color: #102a55;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.server-usage-summary span {
+  color: #1f5da8;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.server-usage-progress {
+  height: 0.46rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dfe8f3;
+}
+
+.server-usage-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1b68b5, #1ca46b);
+  transition: width 180ms ease;
+}
+
+.server-usage-card p {
+  margin: 0;
+  color: #748198;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.server-usage-card.is-warning .server-usage-summary span {
+  color: #9a6510;
+}
+
+.server-usage-card.is-warning .server-usage-progress span {
+  background: #d79c2e;
+}
+
+.server-usage-card.is-critical .server-usage-summary span,
+.server-usage-card.has-error .server-usage-summary span {
+  color: #bd2d20;
+}
+
+.server-usage-card.is-critical .server-usage-progress span {
+  background: #d92d20;
+}
+
 .backup-notification-list {
   display: grid;
   gap: 0.7rem;

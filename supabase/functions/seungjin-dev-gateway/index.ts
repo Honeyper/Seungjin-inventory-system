@@ -10,6 +10,7 @@ const DEV_APPS_SCRIPT_URL =
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_CACHE_TTL_MS = 60 * 1000;
 const SNAPSHOT_TTL_MS = 30 * 1000;
+const FREE_DATABASE_LIMIT_BYTES = 500 * 1024 * 1024;
 const ALLOWED_ORIGINS = new Set([
   "https://honeyper.github.io",
   "http://localhost:8000",
@@ -469,6 +470,24 @@ async function readSheetBackupNotifications() {
   );
 }
 
+async function readServerUsage() {
+  const rows = await databaseRequest("rpc/read_seungjin_database_usage", {
+    method: "POST",
+    body: "{}"
+  }) as Array<{ database_bytes?: number | string; measured_at?: string }>;
+  const databaseBytes = Number(rows?.[0]?.database_bytes);
+  if (!Number.isFinite(databaseBytes) || databaseBytes < 0) {
+    throw new Error("데이터베이스 사용량을 확인할 수 없습니다.");
+  }
+
+  return {
+    databaseBytes,
+    databaseLimitBytes: FREE_DATABASE_LIMIT_BYTES,
+    databaseUsagePercent: Math.round((databaseBytes / FREE_DATABASE_LIMIT_BYTES) * 1000) / 10,
+    measuredAt: String(rows?.[0]?.measured_at || new Date().toISOString())
+  };
+}
+
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest))
@@ -819,6 +838,14 @@ async function handleRequest(request: Request) {
       ok: true,
       data: await readSheetBackupNotifications(),
       meta: { source: "supabase-sheet-outbox" }
+    });
+  }
+
+  if (action === "getServerUsage") {
+    return jsonResponse(request, {
+      ok: true,
+      data: await readServerUsage(),
+      meta: { source: "supabase-live-database-size" }
     });
   }
 
