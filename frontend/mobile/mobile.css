@@ -9151,11 +9151,13 @@ body {
   display: grid;
   width: 68px;
   height: 68px;
+  padding: 0;
   overflow: hidden;
   place-items: center;
   border: 1px solid #edf0f5;
   border-radius: 13px;
   background: #f7f9fc;
+  font: inherit;
 }
 
 .shipping-product-visual img {
@@ -9196,6 +9198,93 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+button.shipping-product-visual.has-photo {
+  cursor: zoom-in;
+}
+
+button.shipping-product-visual.has-photo:focus-visible {
+  outline: 3px solid rgba(208, 161, 75, 0.5);
+  outline-offset: 2px;
+}
+
+.product-image-lightbox {
+  z-index: 360;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+}
+
+.product-image-lightbox > section {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 760px);
+  max-height: min(88dvh, 820px);
+  overflow: hidden;
+  border: 1px solid var(--mobile-border);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: var(--mobile-shadow-float);
+}
+
+.product-image-lightbox header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--mobile-border);
+}
+
+.product-image-lightbox header > div {
+  min-width: 0;
+}
+
+.product-image-lightbox header span {
+  color: var(--mobile-gold);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.product-image-lightbox h2 {
+  overflow: hidden;
+  margin: 3px 0 0;
+  color: var(--mobile-navy);
+  font-size: 19px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-image-lightbox header button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--mobile-border);
+  border-radius: 13px;
+  color: var(--mobile-navy);
+  background: #f7f9fc;
+  font-size: 23px;
+}
+
+.product-image-lightbox-stage {
+  display: grid;
+  min-height: 260px;
+  padding: 18px;
+  overflow: auto;
+  place-items: center;
+  background: #f2f5f9;
+}
+
+.product-image-lightbox-stage img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(88dvh - 118px);
+  object-fit: contain;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(4, 22, 54, 0.12);
 }
 
 #shippingScreen .manual-shipping-open-button {

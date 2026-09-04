@@ -397,6 +397,7 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     accumulatedInboundQuantity: current?.accumulatedInboundQuantity || "0 ea",
     boxQuantity: formatEa(number(boxQuantity)),
     trayQuantity: formatEa(number(trayQuantity)),
+    productImageUrl: text(payload.productImageUrl ?? payload["제품 이미지"] ?? current?.productImageUrl),
     dueDate: dash(payload["납기일"] ?? current?.dueDate),
     note: dash(payload["비고"] ?? current?.note),
     updatedAt: parts.date.replaceAll("-", "."),
@@ -985,6 +986,7 @@ export function buildInventoryDashboard(records, boxes, products = []) {
     if (product) {
       row.trayQuantity = text(product.trayQuantity) || row.trayQuantity || "";
       row.boxQuantity = text(product.boxQuantity) || row.boxQuantity || "";
+      row.productImageUrl = text(product.productImageUrl) || row.productImageUrl || "";
     }
     const relatedKey = `${text(row.managementId)}\u0000${text(row.productId)}`;
     const all = boxesByInbound.get(relatedKey) || [];

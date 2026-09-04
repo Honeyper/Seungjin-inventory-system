@@ -187,6 +187,7 @@ function getApiRoutes_() {
       getTodayInbounds,
       getInventoryDashboard,
       getInboundBoxQrs,
+      uploadProductImage,
       uploadShippingDefectPhotos,
       saveShippingInspection,
       cancelDiscardedBoxes,
@@ -991,7 +992,8 @@ function ensureProductOptionHeaders_(sheet) {
     '화염처리 유무',
     '1도 공정',
     '2도 공정',
-    '3도 공정'
+    '3도 공정',
+    '제품 이미지'
   ];
   const existingHeaders = new Set(headerInfo.headers.map((header) => normalizeHeaderKey_(header)));
   const missingHeaders = requiredHeaders.filter((header) => !existingHeaders.has(normalizeHeaderKey_(header)));
@@ -1188,6 +1190,7 @@ function getProducts() {
         accumulatedInboundQuantity: formatEa_(accumulatedInboundQuantityMap[productCode] || 0),
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         trayQuantity: pickCell_(row, indexes, ['트레이 수량', '트레이수량']),
+        productImageUrl: pickCell_(row, indexes, ['제품 이미지', '제품 이미지 URL']),
         dueDate: pickCell_(row, indexes, ['납기일']),
         updatedAt: pickCell_(row, indexes, ['최종 수정일', '수정일']),
         updatedTime: pickCell_(row, indexes, ['최종 수정시간', '수정시간']),
@@ -1358,6 +1361,7 @@ function getInventoryDashboard() {
       productId,
       clientName,
       productName,
+      productImageUrl: product.productImageUrl || '',
       stockStatus,
       registrant: getObjectCell_(stockRow, ['등록자']),
       registeredAt: getObjectCell_(stockRow, ['등록 일시', '등록일시']),
@@ -1625,6 +1629,7 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
   setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
   setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
+  setRowValue_(row, indexes, ['제품 이미지', '제품 이미지 URL'], payload.productImageUrl || payload['제품 이미지'] || '');
   setRowValue_(row, indexes, ['납기일'], payload['납기일'] || '');
   setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
   setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
@@ -1899,6 +1904,11 @@ function updateProduct(payload) {
       const now = new Date();
       const timezone = 'Asia/Seoul';
       const row = headers.map((_, columnIndex) => values[rowIndex][columnIndex] || '');
+      const hasProductImageValue = Object.prototype.hasOwnProperty.call(payload, 'productImageUrl')
+        || Object.prototype.hasOwnProperty.call(payload, '제품 이미지');
+      const productImageUrl = hasProductImageValue
+        ? String(payload.productImageUrl ?? payload['제품 이미지'] ?? '').trim()
+        : pickCell_(row, indexes, ['제품 이미지', '제품 이미지 URL']);
 
       setRowValue_(row, indexes, ['업체명', '거래처명'], payload['업체명']);
       setRowValue_(row, indexes, ['제품명'], payload['제품명']);
@@ -1916,6 +1926,7 @@ function updateProduct(payload) {
       setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
       setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
       setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
+      setRowValue_(row, indexes, ['제품 이미지', '제품 이미지 URL'], productImageUrl);
       setRowValue_(row, indexes, ['납기일'], payload['납기일'] || '');
       setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
       setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
@@ -3908,6 +3919,64 @@ function uploadShippingDefectPhotos(payload) {
     folderUrl: uploadedUrls.length ? targetFolder.getUrl() : '',
     uploadedCount: uploadedUrls.length,
     fileUrls: uploadedUrls
+  };
+}
+
+function uploadProductImage(payload) {
+  const file = payload && payload.imageFile;
+  const encodedData = String(file && file.data || '').trim();
+  const mimeType = String(file && file.mimeType || '').trim().toLowerCase();
+
+  if (!encodedData) {
+    throw new Error('업로드할 제품 이미지가 없습니다.');
+  }
+  if (!/^image\//.test(mimeType)) {
+    throw new Error('제품 이미지는 이미지 파일만 등록할 수 있습니다.');
+  }
+
+  const bytes = Utilities.base64Decode(encodedData);
+  if (bytes.length > 10 * 1024 * 1024) {
+    throw new Error('제품 이미지는 10MB 이하로 등록해주세요.');
+  }
+
+  const productId = String(payload.productId || '').trim();
+  const productName = dash_(payload.productName);
+  const clientName = dash_(payload.clientName);
+  const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+  const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
+    '제품이미지',
+    sanitizeDriveName_(clientName),
+    sanitizeDriveName_(productId || productName)
+  ]);
+  const extension = getFileExtension_(file.name, mimeType);
+  const timestamp = Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone() || 'Asia/Seoul',
+    'yyyyMMdd_HHmmss'
+  );
+  const baseFileName = sanitizeDriveName_(`${productId || productName}_${timestamp}`);
+  const blob = Utilities.newBlob(bytes, mimeType, `${baseFileName}${extension}`);
+  const createdFile = targetFolder.createFile(blob);
+
+  createdFile.setDescription(`제품 이미지 · ${clientName} · ${productName}${productId ? ` · ${productId}` : ''}`);
+  try {
+    createdFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (error) {
+    createdFile.setTrashed(true);
+    throw new Error('모바일에서 이미지를 볼 수 있도록 Google Drive 링크 공유 권한을 설정하지 못했습니다.');
+  }
+
+  const fileId = createdFile.getId();
+  const resourceKey = typeof createdFile.getResourceKey === 'function'
+    ? String(createdFile.getResourceKey() || '').trim()
+    : '';
+  const resourceKeyQuery = resourceKey ? `&resourcekey=${encodeURIComponent(resourceKey)}` : '';
+
+  return {
+    fileId,
+    imageUrl: `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1200${resourceKeyQuery}`,
+    driveUrl: createdFile.getUrl(),
+    folderUrl: targetFolder.getUrl()
   };
 }
 
@@ -6086,6 +6155,7 @@ function buildInventoryProductMap_(productRows) {
         productId,
         clientName: getObjectCell_(row, ['업체명', '거래처명']),
         productName: getObjectCell_(row, ['제품명']),
+        productImageUrl: getObjectCell_(row, ['제품 이미지', '제품 이미지 URL']),
         orderQuantity: getObjectCell_(row, ['발주량', '주문량']),
         dueDate: getObjectCell_(row, ['납기일'])
       };

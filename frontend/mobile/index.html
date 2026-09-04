@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260902-inventory-box-discard-dev" />
+    <link rel="stylesheet" href="./mobile.css?v=20260904-product-image-dev" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -503,6 +503,23 @@
         </section>
       </div>
 
+      <div class="modal-backdrop product-image-lightbox" id="productImageModal" hidden>
+        <section role="dialog" aria-modal="true" aria-labelledby="productImageModalTitle">
+          <header>
+            <div>
+              <span>제품 이미지</span>
+              <h2 id="productImageModalTitle">제품 이미지</h2>
+            </div>
+            <button id="closeProductImageModalButton" type="button" aria-label="제품 이미지 닫기">
+              <i class="ti ti-x" aria-hidden="true"></i>
+            </button>
+          </header>
+          <div class="product-image-lightbox-stage">
+            <img id="productImageModalImage" alt="" />
+          </div>
+        </section>
+      </div>
+
       <section class="scanner-screen" id="scannerScreen" hidden>
         <div class="scanner-camera" id="scannerCamera">
           <video id="scannerVideo" playsinline muted></video>
@@ -628,6 +645,6 @@
     <script src="../supabase-gateway.js?v=20260901-supabase-dev-2"></script>
     <script src="../vendor/jsQR.min.js"></script>
     <script src="../qr-payload.js?v=20260904-box-checksum-dev"></script>
-    <script src="./mobile.js?v=20260904-box-checksum-dev"></script>
+    <script src="./mobile.js?v=20260904-product-image-dev"></script>
   </body>
 </html>

@@ -264,6 +264,10 @@ const elements = {
   refreshInventoryMoveButton: document.querySelector("#refreshInventoryMoveButton"),
   inventoryMoveListPanel: document.querySelector("#inventoryMoveListPanel"),
   openInventoryScannerButton: document.querySelector("#openInventoryScannerButton"),
+  productImageModal: document.querySelector("#productImageModal"),
+  productImageModalTitle: document.querySelector("#productImageModalTitle"),
+  productImageModalImage: document.querySelector("#productImageModalImage"),
+  closeProductImageModalButton: document.querySelector("#closeProductImageModalButton"),
   confirmModal: document.querySelector("#confirmModal"),
   confirmEyebrow: document.querySelector("#confirmEyebrow"),
   confirmIcon: document.querySelector("#confirmIcon"),
@@ -388,6 +392,7 @@ function bindEvents() {
   elements.increaseShippingQuantityButton?.addEventListener("click", () => adjustShippingQuantity(1));
   elements.openInventoryScannerButton?.addEventListener("click", openInventoryMoveScanner);
   elements.refreshInventoryMoveButton?.addEventListener("click", handleRefreshInventoryMove);
+  elements.closeProductImageModalButton?.addEventListener("click", closeProductImageModal);
   elements.inventoryMoveSearchInput?.addEventListener("input", (event) => {
     state.moveQuery = normalizeSearchText(event.target.value);
     renderInventoryMoveList();
@@ -421,10 +426,12 @@ function bindEvents() {
   window.addEventListener("focus", resumeShippingClock);
   window.addEventListener("pageshow", resumeShippingClock);
   document.addEventListener("click", closeShippingSortMenu);
+  document.addEventListener("click", handleProductImageClick);
   document.addEventListener("click", handleShippingCardMenuDocumentClick);
   document.addEventListener("keydown", handleShippingCardMenuKeydown);
   document.addEventListener("keydown", handleShippingQuantityKeydown);
   document.addEventListener("keydown", handleConfirmDialogKeydown);
+  document.addEventListener("keydown", handleProductImageKeydown);
   document.addEventListener("error", handleProductImageError, true);
   window.addEventListener("pagehide", releaseScannerStream);
   window.addEventListener("resize", syncManualShippingViewport);
@@ -528,6 +535,11 @@ function bindEvents() {
   elements.shippingQuantityModal?.addEventListener("click", (event) => {
     if (event.target === elements.shippingQuantityModal) {
       closeShippingQuantityEditor();
+    }
+  });
+  elements.productImageModal?.addEventListener("click", (event) => {
+    if (event.target === elements.productImageModal) {
+      closeProductImageModal();
     }
   });
 }
@@ -1682,12 +1694,25 @@ function getProductImageUrl(item) {
     for (const key of keys) {
       const value = normalizeText(candidate?.[key]);
       if (/^(https?:|data:image\/|blob:)/i.test(value)) {
-        return value;
+        return normalizeProductImageUrl(value);
       }
     }
   }
 
   return "";
+}
+
+function normalizeProductImageUrl(value) {
+  const url = normalizeText(value);
+  const driveFileMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/i);
+  const driveIdMatch = url.match(/[?&]id=([^&#]+)/i);
+  const fileId = driveFileMatch?.[1] || driveIdMatch?.[1] || "";
+  if (!fileId || /drive\.google\.com\/thumbnail/i.test(url)) {
+    return url;
+  }
+
+  const resourceKey = url.match(/[?&]resourcekey=([^&#]+)/i)?.[1] || "";
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(decodeURIComponent(fileId))}&sz=w1200${resourceKey ? `&resourcekey=${encodeURIComponent(decodeURIComponent(resourceKey))}` : ""}`;
 }
 
 function renderProductVisual(item) {
@@ -1703,15 +1728,68 @@ function renderProductVisual(item) {
   }
 
   return `
-    <span class="shipping-product-visual has-photo">
+    <button
+      class="shipping-product-visual has-photo"
+      type="button"
+      data-product-image-open
+      data-product-image-url="${escapeHtml(productImageUrl)}"
+      data-product-image-name="${escapeHtml(productName)}"
+      aria-label="${escapeHtml(productName)} 제품 이미지 크게 보기"
+    >
       <img
         src="${escapeHtml(productImageUrl)}"
         data-product-image
         alt="${escapeHtml(productName)} 제품 사진"
         loading="lazy"
       />
-    </span>
+    </button>
   `;
+}
+
+function handleProductImageClick(event) {
+  const trigger = event.target.closest("[data-product-image-open]");
+  if (!trigger) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  openProductImageModal(trigger.dataset.productImageUrl, trigger.dataset.productImageName);
+}
+
+function openProductImageModal(imageUrl, productName) {
+  const url = normalizeProductImageUrl(imageUrl);
+  if (!url || !elements.productImageModal || !elements.productImageModalImage) {
+    return;
+  }
+
+  const name = normalizeDisplay(productName || "제품");
+  elements.productImageModalTitle.textContent = name;
+  elements.productImageModalImage.src = url;
+  elements.productImageModalImage.alt = `${name} 제품 이미지`;
+  elements.productImageModal.hidden = false;
+  document.body.classList.add("modal-open");
+  elements.closeProductImageModalButton?.focus();
+}
+
+function closeProductImageModal() {
+  if (!elements.productImageModal || elements.productImageModal.hidden) {
+    return;
+  }
+
+  elements.productImageModal.hidden = true;
+  if (elements.productImageModalImage) {
+    elements.productImageModalImage.removeAttribute("src");
+    elements.productImageModalImage.alt = "";
+  }
+  document.body.classList.remove("modal-open");
+}
+
+function handleProductImageKeydown(event) {
+  if (event.key === "Escape" && elements.productImageModal && !elements.productImageModal.hidden) {
+    event.preventDefault();
+    closeProductImageModal();
+  }
 }
 
 function handleProductImageError(event) {

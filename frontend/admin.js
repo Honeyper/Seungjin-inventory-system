@@ -1,6 +1,7 @@
 const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "https://script.google.com/macros/s/AKfycbyPiTM2wEZ5d549g0R8pqLQB2FKE0Hz-7h_GYGfA_MVUq45-F3tTyITbT4A-yJ1ZldOCA/exec";
 const MAX_INVOICE_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_DEFECT_PHOTO_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_PRODUCT_IMAGE_FILE_SIZE = 10 * 1024 * 1024;
 
 const DEFAULT_CLIENTS = [
   "아이원(아이텍)",
@@ -145,6 +146,9 @@ const state = {
   productFormMode: "create",
   productFormReturnTarget: "",
   editingProductCode: "",
+  productImageUrl: "",
+  productImagePreviewUrl: "",
+  productImageRemoved: false,
   activeDetailProductCode: "",
   activeDetailInboundId: "",
   activeDetailInboundProductId: "",
@@ -234,6 +238,12 @@ const productClientName = document.querySelector("#productClientName");
 const productNameInput = document.querySelector("#productNameInput");
 const productColor = document.querySelector("#productColor");
 const productColorPreview = document.querySelector("#productColorPreview");
+const productImageFile = document.querySelector("#productImageFile");
+const productImagePreview = document.querySelector("#productImagePreview");
+const productImagePreviewImage = document.querySelector("#productImagePreviewImage");
+const productImagePlaceholder = document.querySelector("#productImagePlaceholder");
+const productImageFileName = document.querySelector("#productImageFileName");
+const removeProductImageButton = document.querySelector("#removeProductImageButton");
 const productFinalProcess = document.querySelector("#productFinalProcess");
 const productProcessType = document.querySelector("#productProcessType");
 const productProcessStages = document.querySelector("#productProcessStages");
@@ -1601,6 +1611,8 @@ productForm.addEventListener("submit", (event) => {
 });
 
 productColor?.addEventListener("input", updateProductColorPreview);
+productImageFile?.addEventListener("change", handleProductImageSelection);
+removeProductImageButton?.addEventListener("click", removeProductImageSelection);
 
 rowActionMenu.querySelector('[data-menu-action="delete"]').addEventListener("click", (event) => {
   event.stopPropagation();
@@ -5198,6 +5210,103 @@ function readFileAsDataUrl(file) {
     reader.addEventListener("error", () => reject(new Error("파일을 읽지 못했습니다.")));
     reader.readAsDataURL(file);
   });
+}
+
+function revokeProductImagePreviewUrl() {
+  if (state.productImagePreviewUrl) {
+    URL.revokeObjectURL(state.productImagePreviewUrl);
+    state.productImagePreviewUrl = "";
+  }
+}
+
+function renderProductImageSelection() {
+  const selectedFile = productImageFile?.files?.[0] || null;
+  const previewUrl = state.productImagePreviewUrl || state.productImageUrl;
+
+  if (productImagePreviewImage) {
+    productImagePreviewImage.hidden = !previewUrl;
+    productImagePreviewImage.src = previewUrl || "";
+  }
+  if (productImagePlaceholder) {
+    productImagePlaceholder.hidden = Boolean(previewUrl);
+  }
+  if (productImagePreview) {
+    productImagePreview.classList.toggle("has-image", Boolean(previewUrl));
+  }
+  if (productImageFileName) {
+    productImageFileName.textContent = selectedFile
+      ? selectedFile.name
+      : state.productImageUrl && !state.productImageRemoved
+        ? "현재 등록된 이미지"
+        : "이미지를 선택해주세요.";
+  }
+  if (removeProductImageButton) {
+    removeProductImageButton.hidden = !previewUrl;
+  }
+}
+
+function handleProductImageSelection() {
+  const file = productImageFile?.files?.[0] || null;
+  revokeProductImagePreviewUrl();
+
+  if (!file) {
+    renderProductImageSelection();
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    productImageFile.value = "";
+    setFormMessage("제품 이미지는 이미지 파일만 등록할 수 있습니다.");
+    renderProductImageSelection();
+    return;
+  }
+  if (file.size > MAX_PRODUCT_IMAGE_FILE_SIZE) {
+    productImageFile.value = "";
+    setFormMessage("제품 이미지는 10MB 이하로 등록해주세요.");
+    renderProductImageSelection();
+    return;
+  }
+
+  state.productImageRemoved = false;
+  state.productImagePreviewUrl = URL.createObjectURL(file);
+  setFormMessage("");
+  renderProductImageSelection();
+}
+
+function removeProductImageSelection() {
+  revokeProductImagePreviewUrl();
+  if (productImageFile) {
+    productImageFile.value = "";
+  }
+  state.productImageRemoved = true;
+  renderProductImageSelection();
+}
+
+async function resolveProductImageUrl(payload) {
+  const selectedFile = productImageFile?.files?.[0] || null;
+  if (!selectedFile) {
+    return state.productImageRemoved ? "" : state.productImageUrl;
+  }
+
+  const imageFile = await getFilePayload(selectedFile, {
+    label: "제품 이미지",
+    maxSize: MAX_PRODUCT_IMAGE_FILE_SIZE
+  });
+  const uploadResult = await requestApi("uploadProductImage", {
+    productId: state.editingProductCode,
+    clientName: payload["업체명"],
+    productName: payload["제품명"],
+    imageFile
+  });
+  const productImageUrl = String(uploadResult?.imageUrl || "").trim();
+  if (!productImageUrl) {
+    throw new Error("제품 이미지 링크를 생성하지 못했습니다.");
+  }
+  state.productImageUrl = productImageUrl;
+  state.productImageRemoved = false;
+  revokeProductImagePreviewUrl();
+  productImageFile.value = "";
+  renderProductImageSelection();
+  return productImageUrl;
 }
 
 function validateInboundPayload(payload) {
@@ -9849,6 +9958,9 @@ function syncProductProcessFields() {
 function openProductModal(mode = "create", product = null) {
   state.productFormMode = mode;
   state.editingProductCode = mode === "edit" ? product?.productCode || "" : "";
+  revokeProductImagePreviewUrl();
+  state.productImageUrl = mode === "edit" ? String(product?.productImageUrl || "").trim() : "";
+  state.productImageRemoved = false;
 
   productForm.reset();
   ensureCommonContainerCountOption(1);
@@ -9890,6 +10002,7 @@ function openProductModal(mode = "create", product = null) {
     productNote.value = normalizeEditableValue(product.note);
   }
 
+  renderProductImageSelection();
   updateProductColorPreview();
   setProductSaving(false);
   productModal.hidden = false;
@@ -9906,6 +10019,9 @@ function closeProductModal() {
   const returnTarget = state.productFormReturnTarget;
   state.productFormReturnTarget = "";
   productModal.hidden = true;
+  revokeProductImagePreviewUrl();
+  state.productImageUrl = "";
+  state.productImageRemoved = false;
   state.productFormMode = "create";
   state.editingProductCode = "";
   productModalTitle.textContent = "신규 제품 등록";
@@ -10088,6 +10204,9 @@ async function saveProduct() {
   try {
     const isEdit = state.productFormMode === "edit";
     const returnTarget = state.productFormReturnTarget;
+    const productImageUrl = await resolveProductImageUrl(payload);
+    payload.productImageUrl = productImageUrl;
+    payload["제품 이미지"] = productImageUrl;
     const result = await requestApi(
       isEdit ? "updateProduct" : "createProduct",
       isEdit ? { ...payload, productId: state.editingProductCode } : payload
@@ -10164,6 +10283,8 @@ function getProductFormPayload() {
     "납기일": productDueDate.value.trim(),
     "박스당 수량": boxQuantity ? `${Number(boxQuantity).toLocaleString("ko-KR")} ea` : "",
     "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
+    "제품 이미지": state.productImageRemoved ? "" : state.productImageUrl,
+    productImageUrl: state.productImageRemoved ? "" : state.productImageUrl,
     "비고": productNote.value.trim()
   };
 }
