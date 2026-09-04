@@ -6221,14 +6221,6 @@ input {
   font-weight: 900;
 }
 
-.product-process-summary::before {
-  margin-right: 0.42rem;
-  content: "자동 적용";
-  color: #53657d;
-  font-size: 0.68rem;
-  font-weight: 800;
-}
-
 .product-create-form fieldset.usage-field:has(input[name="productUsage"][value="사용중"]:checked) {
   border-color: rgba(208, 161, 75, 0.72);
   background: #fffaf0;
