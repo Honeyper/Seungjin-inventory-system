@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260904-notification-usage-prd" />
+    <link rel="stylesheet" href="./styles.css?v=20260904-product-image-prd" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260902-qr-batch-highlight-prd" />
   </head>
   <body class="admin-body">
@@ -2268,6 +2268,32 @@
                 </datalist>
               </label>
 
+              <div class="product-image-field full-span">
+                <div class="product-image-preview" id="productImagePreview" aria-live="polite">
+                  <span class="product-image-placeholder" id="productImagePlaceholder">
+                    <i class="ti ti-photo" aria-hidden="true"></i>
+                    <small>등록된 이미지 없음</small>
+                  </span>
+                  <img id="productImagePreviewImage" alt="선택한 제품 이미지 미리보기" hidden />
+                </div>
+                <div class="product-image-controls">
+                  <span>제품 이미지</span>
+                  <strong id="productImageFileName">이미지를 선택해주세요.</strong>
+                  <small>JPG, PNG, WEBP 등 이미지 파일을 10MB 이하로 등록할 수 있습니다. 파일은 Google Drive에 저장됩니다.</small>
+                  <div>
+                    <label class="product-image-select-button" for="productImageFile">
+                      <i class="ti ti-upload" aria-hidden="true"></i>
+                      이미지 선택
+                    </label>
+                    <input class="visually-hidden" id="productImageFile" type="file" accept="image/*" />
+                    <button class="product-image-remove-button" id="removeProductImageButton" type="button" hidden>
+                      <i class="ti ti-trash" aria-hidden="true"></i>
+                      이미지 제거
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div class="form-field product-process-field full-span">
                 <span>SKU 고정 공정 <b>*</b></span>
                 <input id="productFinalProcess" type="hidden" />
@@ -2876,6 +2902,6 @@
     <script src="./inbound-sort.js?v=20260901-recent-first-prd"></script>
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-prd"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-prd"></script>
-    <script src="./admin.js?v=20260904-notification-usage-prd"></script>
+    <script src="./admin.js?v=20260904-product-image-prd"></script>
   </body>
 </html>

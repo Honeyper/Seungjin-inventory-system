@@ -42,7 +42,7 @@ test("storage route only appears for the move action", () => {
 });
 
 test("scanner action bar stays fixed while only the scanned list scrolls", () => {
-  assert.match(html, /mobile\.css\?v=20260902-inventory-box-discard-prd/);
+  assert.match(html, /mobile\.css\?v=20260904-product-image-prd/);
   assert.match(
     css,
     /\.scanner-list-panel\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-rows:\s*20px auto auto minmax\(0, 1fr\) auto;[\s\S]*?overflow:\s*hidden;/
