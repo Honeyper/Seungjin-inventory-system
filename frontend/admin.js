@@ -1856,7 +1856,9 @@ updateShippingSettlementSummary();
 renderInboundDefectReasons();
 if (window.SeungjinDataGateway?.canRead("getSheetBackupNotifications")) {
   loadBackupNotifications();
-  window.setInterval(loadBackupNotifications, BACKUP_NOTIFICATION_POLL_MS);
+  window.setInterval(() => {
+    if (!document.hidden) loadBackupNotifications();
+  }, BACKUP_NOTIFICATION_POLL_MS);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       loadBackupNotifications();
@@ -1866,7 +1868,7 @@ if (window.SeungjinDataGateway?.canRead("getSheetBackupNotifications")) {
 }
 if (window.SeungjinDataGateway?.canRead("getServerUsage")) {
   window.setInterval(() => {
-    if (!backupNotificationPanel?.hidden) loadServerUsage();
+    if (!document.hidden && !backupNotificationPanel?.hidden) loadServerUsage();
   }, SERVER_USAGE_POLL_MS);
 }
 
@@ -7109,6 +7111,7 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
   const cachedResult = state.inventoryLoaded ? null : await readAdminLargeCache("inventory-dashboard");
 
   if (cachedResult) {
+    if (cachedResult.versionCheckedBeforeRead !== true) cachedResult.stateVersion = null;
     applyInventoryDashboardResult(cachedResult);
   } else if (!hadLoadedData) {
     renderInventoryLoading();
@@ -7117,9 +7120,15 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
 
   try {
     const currentStateVersion = cachedResult?.stateVersion ?? state.inventoryStateVersion;
-    if (currentStateVersion !== null && currentStateVersion !== undefined) {
+    let checkedVersion = null;
+    if (window.SeungjinDataGateway?.canRead("getInventoryVersion")) {
       const versionResult = await requestApi("getInventoryVersion");
-      if (Number(versionResult?.stateVersion) === Number(currentStateVersion)) {
+      if (versionResult?.stateVersion !== null && versionResult?.stateVersion !== undefined
+        && Number.isSafeInteger(Number(versionResult.stateVersion))) {
+        checkedVersion = Number(versionResult.stateVersion);
+      }
+      if (checkedVersion !== null && currentStateVersion !== null && currentStateVersion !== undefined
+        && Number(versionResult?.stateVersion) === Number(currentStateVersion)) {
         if (showLoadingToast) {
           showToast("최신 재고 정보를 표시했습니다.");
         }
@@ -7127,7 +7136,10 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
       }
     }
 
-    const result = await requestApi("getInventoryDashboard");
+    const result = await requestApi("getInventoryDashboard", { knownStateVersion: checkedVersion });
+    // The pre-read version prevents a simultaneous write from making older rows appear current.
+    result.stateVersion = checkedVersion;
+    result.versionCheckedBeforeRead = checkedVersion !== null;
     applyInventoryDashboardResult(result);
     writeAdminLargeCache("inventory-dashboard", result);
 

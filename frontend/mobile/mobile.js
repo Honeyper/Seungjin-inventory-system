@@ -136,6 +136,7 @@ const state = {
   user: null,
   dashboard: [],
   dashboardLoadedAt: 0,
+  dashboardStateVersion: null,
   dashboardLoadPromise: null,
   filteredRows: [],
   scannedShippingRows: [],
@@ -196,6 +197,8 @@ const state = {
 };
 
 let activeShippingCardMenu = null;
+let dashboardQrIndex = null;
+let qrDecoderLoadPromise = null;
 let quantityEditorReturnFocus = null;
 let confirmDialogReturnFocus = null;
 
@@ -1133,6 +1136,8 @@ function logout() {
   state.user = null;
   state.dashboard = [];
   state.dashboardLoadedAt = 0;
+  state.dashboardStateVersion = null;
+  dashboardQrIndex = null;
   state.dashboardLoadPromise = null;
   state.filteredRows = [];
   state.scannedShippingRows = [];
@@ -1280,17 +1285,35 @@ async function loadShippingDashboard(options = {}) {
     renderShippingLoading();
   }
 
+  const currentUser = state.user;
   const loadPromise = (async () => {
     try {
-      const data = await requestApi("getInventoryDashboard");
+      let checkedVersion = null;
+      if (window.SeungjinDataGateway?.canRead("getInventoryVersion")) {
+        const version = await requestApi("getInventoryVersion");
+        if (state.user !== currentUser) return false;
+        checkedVersion = getDashboardStateVersion(version?.stateVersion);
+        if (checkedVersion !== null && checkedVersion === state.dashboardStateVersion) {
+          state.dashboardLoadedAt = Date.now();
+          applyShippingFilters();
+          return true;
+        }
+      }
+
+      const data = await requestApi("getInventoryDashboard", { knownStateVersion: checkedVersion });
+      if (state.user !== currentUser) return false;
       state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
       state.dashboardLoadedAt = Date.now();
+      // Use the version read before the rows so a concurrent write cannot mark old rows as current.
+      state.dashboardStateVersion = checkedVersion;
+      dashboardQrIndex = null;
       syncPendingShippingRowsFromDashboard();
       syncScannedMoveRowsFromDashboard();
       applyShippingFilters();
       saveDashboardCache();
       return true;
     } catch (error) {
+      if (state.user !== currentUser) return false;
       if (options.silent) {
         if (!options.suppressToast) {
           showToast(error.message || "출고 목록을 불러오지 못했습니다.");
@@ -1314,7 +1337,7 @@ async function loadShippingDashboard(options = {}) {
 
 async function refreshDashboardInBackground() {
   const cacheAge = Date.now() - state.dashboardLoadedAt;
-  if (state.dashboard.length && cacheAge >= 0 && cacheAge < DASHBOARD_BACKGROUND_REFRESH_MS) {
+  if (state.dashboardLoadedAt && cacheAge >= 0 && cacheAge < DASHBOARD_BACKGROUND_REFRESH_MS) {
     return true;
   }
 
@@ -1344,7 +1367,7 @@ async function refreshDashboardInBackground() {
 }
 
 function applyShippingFilters() {
-  const query = state.query;
+  const query = normalizeSearchText(state.query);
   const rows = groupScannedShippingRows(state.scannedShippingRows
     .filter((row) => {
       if (!state.showCompletedShippingBoxes && isCompletedShippingItem(row)) {
@@ -1368,7 +1391,7 @@ function applyShippingFilters() {
         row.scannedBox?.boxId,
         row.scannedBox?.number,
         row.scannedBox?.status
-      ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query)));
+      ].some((value) => normalizeSearchText(value).includes(query));
     }));
 
   const sortedRows = sortShippingRows(rows);
@@ -4987,6 +5010,34 @@ async function setScannerInputMode(mode, options = {}) {
   await startScannerCamera();
 }
 
+function ensureQrDecoderLoaded() {
+  if (typeof window.jsQR === "function") return Promise.resolve();
+  if (qrDecoderLoadPromise) return qrDecoderLoadPromise;
+
+  qrDecoderLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    const timeout = window.setTimeout(() => finish(new Error("QR 인식 코드를 불러오지 못했습니다.")), 10000);
+    function finish(error) {
+      window.clearTimeout(timeout);
+      script.onload = null;
+      script.onerror = null;
+      if (error) {
+        script.remove();
+        qrDecoderLoadPromise = null;
+        reject(error);
+      } else {
+        resolve();
+      }
+    }
+    script.src = "../vendor/jsQR.min.js";
+    script.async = true;
+    script.onload = () => finish(typeof window.jsQR === "function" ? null : new Error("QR 인식 코드를 확인하지 못했습니다."));
+    script.onerror = () => finish(new Error("QR 인식 코드를 불러오지 못했습니다."));
+    document.head.append(script);
+  });
+  return qrDecoderLoadPromise;
+}
+
 async function startScannerCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
     showToast("카메라를 사용할 수 없어 외부 스캐너 모드로 전환합니다.");
@@ -5000,6 +5051,8 @@ async function startScannerCamera() {
 
   state.scannerCameraRequestPending = true;
   try {
+    await ensureQrDecoderLoaded();
+    if (document.hidden || state.scannerInputMode !== "camera" || elements.scannerScreen?.hidden) return;
     const stream = await getScannerStream();
     if (document.hidden || state.scannerInputMode !== "camera" || elements.scannerScreen?.hidden) {
       stopScannerCamera();
@@ -6056,7 +6109,7 @@ function convertKoreanScannerCharacter(character) {
 }
 
 async function ensureDashboardLoaded() {
-  if (state.dashboard.length) {
+  if (state.dashboardLoadedAt) {
     return;
   }
   const loaded = await loadShippingDashboard({ silent: true, suppressToast: true });
@@ -6116,6 +6169,32 @@ function syncPendingShippingRowsFromDashboard() {
   saveScannedShippingRows();
 }
 
+function getDashboardQrCandidates(parsed) {
+  if (dashboardQrIndex?.rows !== state.dashboard) {
+    const byManagement = new Map();
+    const byProduct = new Map();
+    state.dashboard.forEach((row) => {
+      for (const [index, value] of [[byManagement, row.managementId], [byProduct, row.productId]]) {
+        const key = normalizeScanValue(value);
+        if (!key) continue;
+        const rows = index.get(key) || [];
+        rows.push(row);
+        index.set(key, rows);
+      }
+    });
+    dashboardQrIndex = { rows: state.dashboard, byManagement, byProduct };
+  }
+
+  const inferredManagementId = parsed.boxId?.match(/^(.*)-B\d+$/i)?.[1];
+  const managementId = parsed.managementId || inferredManagementId;
+  if (managementId && dashboardQrIndex.byManagement.has(managementId)) {
+    return dashboardQrIndex.byManagement.get(managementId);
+  }
+  if (parsed.managementId) return [];
+  if (parsed.productId) return dashboardQrIndex.byProduct.get(parsed.productId) || [];
+  return state.dashboard;
+}
+
 function findShippingByQrValue(rawValue) {
   const parsed = parseQrValue(rawValue);
   if (!isParsedQrIdentityConsistent(parsed)) {
@@ -6126,9 +6205,7 @@ function findShippingByQrValue(rawValue) {
     return null;
   }
 
-  for (const row of state.dashboard) {
-    const boxes = getKnownBoxes(row);
-
+  for (const row of getDashboardQrCandidates(parsed)) {
     if (parsed.managementId && normalizeScanValue(row.managementId) !== parsed.managementId) {
       continue;
     }
@@ -6137,7 +6214,7 @@ function findShippingByQrValue(rawValue) {
       continue;
     }
 
-    const matchedBox = findMatchedBox(boxes, parsed);
+    const matchedBox = findMatchedBox(getKnownBoxes(row), parsed);
     if (matchedBox) {
       return buildScannedBoxItem(row, matchedBox, parsed, rawValue);
     }
@@ -6157,9 +6234,7 @@ function findInventoryMoveByQrValue(rawValue) {
     return null;
   }
 
-  for (const row of state.dashboard) {
-    const boxes = getMovableBoxes(row);
-
+  for (const row of getDashboardQrCandidates(parsed)) {
     if (parsed.managementId && normalizeScanValue(row.managementId) !== parsed.managementId) {
       continue;
     }
@@ -6168,7 +6243,7 @@ function findInventoryMoveByQrValue(rawValue) {
       continue;
     }
 
-    const matchedBox = findMatchedBox(boxes, parsed);
+    const matchedBox = findMatchedBox(getMovableBoxes(row), parsed);
     if (matchedBox) {
       return buildInventoryMoveItem(row, matchedBox, parsed, rawValue);
     }
@@ -6198,9 +6273,7 @@ function findMatchedBox(boxes, parsed) {
     const matchedById = boxes.find((box) => {
       return [box?.boxId, box?.id, box?.qrId].some((value) => normalizeScanValue(value) === parsed.boxId);
     });
-    if (matchedById) {
-      return matchedById;
-    }
+    return matchedById || null;
   }
 
   if (parsed.boxNumber) {
@@ -6940,6 +7013,8 @@ function restoreCachedDashboard() {
 
     state.dashboard = cached.rows;
     state.dashboardLoadedAt = savedAt;
+    state.dashboardStateVersion = getDashboardStateVersion(cached.stateVersion);
+    dashboardQrIndex = null;
     syncPendingShippingRowsFromDashboard();
     syncScannedMoveRowsFromDashboard();
     return true;
@@ -6948,11 +7023,18 @@ function restoreCachedDashboard() {
   }
 }
 
+function getDashboardStateVersion(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const version = Number(value);
+  return Number.isSafeInteger(version) && version >= 0 ? version : null;
+}
+
 function saveDashboardCache() {
   try {
     localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({
       userKey: getMobileCacheUserKey(),
       savedAt: state.dashboardLoadedAt || Date.now(),
+      stateVersion: state.dashboardStateVersion,
       rows: state.dashboard
     }));
   } catch (error) {
