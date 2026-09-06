@@ -37,7 +37,8 @@ const SLOW_NATIVE_DETECT_MS = IS_LOW_POWER_SCANNER ? 150 : 190;
 const SLOW_NATIVE_DETECT_LIMIT = 3;
 const JSQR_TRANSIENT_ERROR_NOTICE_LIMIT = 3;
 const SCAN_PROCESSING_LOCK_MS = 380;
-const HARDWARE_SCANNER_PROCESSING_LOCK_MS = 40;
+const HARDWARE_SCANNER_RENDER_INTERVAL_MS = 100;
+const HARDWARE_SCANNER_BATCH_SIZE = 8;
 const HARDWARE_SCANNER_IDLE_SUBMIT_MIN_MS = 80;
 const HARDWARE_SCANNER_IDLE_SUBMIT_MAX_MS = 480;
 const HARDWARE_SCANNER_IDLE_GAP_MULTIPLIER = 4;
@@ -182,6 +183,11 @@ const state = {
   hardwareScannerLastStatusAt: 0,
   hardwareScannerQueue: [],
   hardwareScannerQueueProcessing: false,
+  hardwareScannerQueuePromise: null,
+  hardwareScannerSession: 0,
+  hardwareScannerResults: { added: 0, duplicate: 0, failed: 0 },
+  hardwareScannerRenderTimer: null,
+  hardwareScannerViewDirty: false,
   scannerLastValue: "",
   isProcessingScan: false,
   clockTimer: null,
@@ -1228,6 +1234,10 @@ function showScreen(name) {
 function handlePageVisibilityChange() {
   if (document.hidden) {
     stopShippingClock();
+    if (state.scannerInputMode === "hardware" && !elements.scannerScreen?.hidden) {
+      flushHardwareScannerView();
+      return;
+    }
     if (!state.scannerCameraRequestPending) {
       releaseScannerStream();
     }
@@ -3587,6 +3597,7 @@ async function handleCompleteScannedShipping(action = "complete") {
 }
 
 function handleScannerPendingAction() {
+  if (isHardwareScannerBusy()) return;
   if (state.activeWorkflow === "inventoryMove") {
     openScannedInventoryMoveConfirmModal("single");
     return;
@@ -3596,6 +3607,7 @@ function handleScannerPendingAction() {
 }
 
 function handleScannerDoneAction() {
+  if (isHardwareScannerBusy()) return;
   if (state.activeWorkflow === "inventoryMove") {
     const action = getInventoryMoveScanAction();
     if (action === "audit") {
@@ -3610,6 +3622,7 @@ function handleScannerDoneAction() {
 }
 
 function handleScannerInjectionAction() {
+  if (isHardwareScannerBusy()) return;
   if (state.activeWorkflow !== "inventoryMove") {
     return;
   }
@@ -3618,6 +3631,7 @@ function handleScannerInjectionAction() {
 }
 
 function handleScannerInventoryAuditAction() {
+  if (isHardwareScannerBusy()) return;
   if (state.activeWorkflow !== "inventoryMove") {
     return;
   }
@@ -4918,6 +4932,10 @@ function openInventoryMoveScanner() {
 }
 
 function handleInventoryMoveActionChange(event) {
+  if (isHardwareScannerBusy()) {
+    updateScannerActionLabels();
+    return;
+  }
   const action = event.target?.value;
   if (state.activeWorkflow !== "inventoryMove" || !INVENTORY_MOVE_SCAN_ACTIONS[action]) {
     return;
@@ -4932,6 +4950,7 @@ function handleInventoryMoveActionChange(event) {
 
 async function openScanner() {
   flushScannerViewUpdates();
+  state.hardwareScannerResults = { added: 0, duplicate: 0, failed: 0 };
   if (elements.inventoryMoveScreen?.classList.contains("active")) {
     state.activeWorkflow = "inventoryMove";
   } else {
@@ -4963,6 +4982,11 @@ async function toggleScannerInputMode() {
 
 async function setScannerInputMode(mode, options = {}) {
   const nextMode = mode === "hardware" ? "hardware" : "camera";
+  if (state.scannerInputMode === "hardware" && nextMode !== "hardware") {
+    const session = state.hardwareScannerSession;
+    await finishHardwareScannerInput();
+    if (session !== state.hardwareScannerSession) return;
+  }
   state.scannerInputMode = nextMode;
   resetHardwareScannerBuffer();
   elements.scannerScreen?.classList.toggle("scanner-mode-hardware", nextMode === "hardware");
@@ -5154,6 +5178,7 @@ function updateScannerActionLabels() {
     return;
   }
 
+  const scanPending = isHardwareScannerBusy();
   const scannerBottom = elements.scannerDoneButton.closest(".scanner-bottom");
   if (state.activeWorkflow === "inventoryMove") {
     const hasScannedMoveRows = state.scannedMoveRows.length > 0;
@@ -5163,6 +5188,7 @@ function updateScannerActionLabels() {
       elements.inventoryMoveActionPicker.hidden = false;
       elements.inventoryMoveActionPicker.querySelectorAll("input[name='inventoryMoveScanAction']").forEach((input) => {
         input.checked = input.value === action;
+        input.disabled = scanPending || state.isCompletingShipping;
       });
     }
     elements.scannerPendingButton.hidden = !isMoveAction;
@@ -5183,8 +5209,8 @@ function updateScannerActionLabels() {
       <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
       ${INVENTORY_MOVE_SCAN_ACTIONS[action].label}
     `;
-    elements.scannerPendingButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
-    elements.scannerDoneButton.disabled = state.isCompletingShipping || !hasScannedMoveRows;
+    elements.scannerPendingButton.disabled = scanPending || state.isCompletingShipping || !hasScannedMoveRows;
+    elements.scannerDoneButton.disabled = scanPending || state.isCompletingShipping || !hasScannedMoveRows;
     return;
   }
 
@@ -5203,14 +5229,14 @@ function updateScannerActionLabels() {
     <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
     출고대기 등록
   `;
-  elements.scannerPendingButton.disabled = state.isCompletingShipping
+  elements.scannerPendingButton.disabled = scanPending || state.isCompletingShipping
     || !scannerRows.length
     || scannerRows.every((item) => isShippingItemPending(item));
   elements.scannerDoneButton.innerHTML = `
     <svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"></path></svg>
     출고
   `;
-  elements.scannerDoneButton.disabled = state.isCompletingShipping || !scannerRows.length;
+  elements.scannerDoneButton.disabled = scanPending || state.isCompletingShipping || !scannerRows.length;
 }
 
 async function getScannerStream() {
@@ -5472,12 +5498,16 @@ function showScannerFocusFeedback() {
   }, 850);
 }
 
-function closeScanner() {
+async function closeScanner() {
+  const session = state.hardwareScannerSession;
+  await finishHardwareScannerInput();
+  if (session !== state.hardwareScannerSession) return;
   releaseScannerStream();
   flushScannerViewUpdates();
 }
 
 function flushScannerViewUpdates() {
+  flushHardwareScannerView();
   if (!state.scannerViewDirty) {
     return;
   }
@@ -5521,6 +5551,9 @@ function pauseScannerDetection() {
 }
 
 function releaseScannerStream() {
+  flushHardwareScannerView();
+  state.hardwareScannerSession += 1;
+  state.hardwareScannerQueue = [];
   stopScannerCamera();
   resetHardwareScannerBuffer();
 
@@ -5819,6 +5852,20 @@ function appendHardwareScannerInput(input) {
     return;
   }
 
+  // Keyboard wedges may deliver several CR/LF/Tab-terminated scans in one event.
+  if (/[\r\n\t]/.test(chunk)) {
+    chunk.split(/([\r\n\t]+)/).forEach((part) => {
+      if (/^[\r\n\t]+$/.test(part)) {
+        if (state.hardwareScannerBuffer.trim()) {
+          void submitHardwareScannerValue(state.hardwareScannerBuffer);
+        }
+      } else if (part) {
+        appendHardwareScannerInput(part);
+      }
+    });
+    return;
+  }
+
   clearHardwareScannerStatusTimer();
 
   const now = Date.now();
@@ -5829,7 +5876,11 @@ function appendHardwareScannerInput(input) {
     state.hardwareScannerLastInputAt
     && inputGapMs > HARDWARE_SCANNER_INTER_KEY_RESET_MS
   ) {
-    resetHardwareScannerBuffer();
+    if (state.hardwareScannerBuffer.trim()) {
+      void submitHardwareScannerValue(state.hardwareScannerBuffer);
+    } else {
+      resetHardwareScannerBuffer();
+    }
   } else if (inputGapMs > 0) {
     state.hardwareScannerMaxInputGapMs = Math.max(state.hardwareScannerMaxInputGapMs, inputGapMs);
   }
@@ -5837,6 +5888,10 @@ function appendHardwareScannerInput(input) {
   state.hardwareScannerBuffer += chunk;
   state.hardwareScannerLastInputAt = now;
   state.hardwareScannerBufferRevision += 1;
+
+  if (state.hardwareScannerBuffer.length === chunk.length) {
+    updateScannerActionLabels();
+  }
 
   if (
     state.hardwareScannerBuffer.length === chunk.length
@@ -5856,13 +5911,18 @@ function appendHardwareScannerInput(input) {
   scheduleHardwareScannerSubmit();
 }
 
+function isHardwareScannerEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target.matches("textarea, select")) return true;
+  return target.matches("input") && !["radio", "checkbox", "button", "submit", "reset"].includes(target.type);
+}
+
 function handleHardwareScannerKeydown(event) {
-  if (elements.scannerScreen?.hidden || state.scannerInputMode !== "hardware" || event.isComposing || event.repeat) {
+  if (elements.scannerScreen?.hidden || state.scannerInputMode !== "hardware" || event.isComposing) {
     return;
   }
 
-  const target = event.target;
-  if (target instanceof HTMLElement && (target.matches("input, textarea, select") || target.isContentEditable)) {
+  if (isHardwareScannerEditableTarget(event.target)) {
     return;
   }
 
@@ -5883,6 +5943,7 @@ function handleHardwareScannerKeydown(event) {
   if (event.key === "Escape") {
     event.preventDefault();
     resetHardwareScannerBuffer();
+    updateScannerActionLabels();
     setHardwareScannerStatus("입력을 취소했습니다. 다음 QR을 스캔해주세요.");
     return;
   }
@@ -5900,8 +5961,7 @@ function handleHardwareScannerCompositionEnd(event) {
     return;
   }
 
-  const target = event.target;
-  if (target instanceof HTMLElement && (target.matches("input, textarea, select") || target.isContentEditable)) {
+  if (isHardwareScannerEditableTarget(event.target)) {
     return;
   }
 
@@ -5930,23 +5990,20 @@ function isCompleteHardwareScannerValue(rawValue) {
 
   const qrPayload = globalThis.SeungjinQrPayload?.parse?.(restoredValue);
   if (qrPayload?.hasChecksum) {
-    return qrPayload.isValid && /^[^\s{}]+-B\d{3}$/i.test(qrPayload.boxId);
+    return qrPayload.isValid && /^[^\s{}~]+-B\d{3}$/i.test(qrPayload.boxId);
   }
 
-  return /^[^\s{}]+-B\d{3}$/i.test(restoredValue);
+  return /^[^\s{}~]+-B\d{3}$/i.test(restoredValue);
 }
 
 function shouldSubmitHardwareScannerValueImmediately(rawValue) {
   const restoredValue = restoreHardwareScannerQrValue(rawValue);
-  if (!isCompleteHardwareScannerValue(restoredValue)) {
-    return false;
-  }
-
   if (restoredValue.startsWith("{") && restoredValue.endsWith("}")) {
-    return true;
+    return isCompleteHardwareScannerValue(restoredValue);
   }
 
-  return Boolean(globalThis.SeungjinQrPayload?.parse?.(restoredValue)?.hasChecksum);
+  // Frame first, validate on submission: a bad checksum must not absorb the next QR.
+  return /~[0-9a-f]{6}$/i.test(restoredValue);
 }
 
 function handleHardwareScannerPaste(event) {
@@ -5954,8 +6011,7 @@ function handleHardwareScannerPaste(event) {
     return;
   }
 
-  const target = event.target;
-  if (target instanceof HTMLElement && (target.matches("input, textarea") || target.isContentEditable)) {
+  if (isHardwareScannerEditableTarget(event.target)) {
     return;
   }
 
@@ -5966,7 +6022,14 @@ function handleHardwareScannerPaste(event) {
 
   event.preventDefault();
   clearHardwareScannerStatusTimer();
-  void submitHardwareScannerValue(value);
+  if (isCompleteHardwareScannerValue(value)) {
+    void submitHardwareScannerValue(value);
+  } else {
+    appendHardwareScannerInput(value);
+    if (state.hardwareScannerBuffer.trim()) {
+      void submitHardwareScannerValue(state.hardwareScannerBuffer);
+    }
+  }
 }
 
 async function submitHardwareScannerValue(rawValue) {
@@ -5974,11 +6037,14 @@ async function submitHardwareScannerValue(rawValue) {
   resetHardwareScannerBuffer();
 
   if (!value) {
+    updateScannerActionLabels();
     setHardwareScannerStatus("QR 입력을 인식하지 못했습니다. 다시 스캔해주세요.");
     return;
   }
 
   if (!isCompleteHardwareScannerValue(value)) {
+    state.hardwareScannerResults.failed += 1;
+    updateScannerActionLabels();
     const restoredValue = restoreHardwareScannerQrValue(value);
     const qrPayload = globalThis.SeungjinQrPayload?.parse?.(restoredValue);
     setHardwareScannerStatus(
@@ -5996,14 +6062,50 @@ function queueHardwareScannerValue(value) {
   clearHardwareScannerStatusTimer();
 
   state.hardwareScannerQueue.push(value);
-  const pendingCount = state.hardwareScannerQueue.length;
-  setHardwareScannerStatus(
-    pendingCount > 1
-      ? `QR 인식 완료. ${pendingCount}건을 순서대로 처리합니다.`
-      : "QR 인식 완료. 제품 정보를 확인하고 있습니다…",
-    "success"
-  );
+  renderHardwareScannerProgress();
   void processHardwareScannerQueue();
+}
+
+function isHardwareScannerBusy() {
+  return state.scannerInputMode === "hardware" && Boolean(
+    state.hardwareScannerQueueProcessing || state.hardwareScannerQueue.length || state.hardwareScannerBuffer.trim()
+  );
+}
+
+function renderHardwareScannerProgress() {
+  const { added, duplicate, failed } = state.hardwareScannerResults;
+  const pending = state.hardwareScannerQueue.length + (state.hardwareScannerQueueProcessing ? 1 : 0);
+  const parts = [`등록 ${added}`];
+  if (duplicate) parts.push(`중복 ${duplicate}`);
+  if (failed) parts.push(`확인 필요 ${failed}`);
+  if (pending) parts.push(`대기 ${pending}`);
+  setHardwareScannerStatus(parts.join(" · "), pending ? "receiving" : "success");
+}
+
+async function finishHardwareScannerInput() {
+  if (state.scannerInputMode !== "hardware") return;
+  if (state.hardwareScannerBuffer.trim()) {
+    void submitHardwareScannerValue(state.hardwareScannerBuffer);
+  }
+  await processHardwareScannerQueue();
+  flushHardwareScannerView();
+}
+
+function scheduleHardwareScannerView() {
+  state.hardwareScannerViewDirty = true;
+  if (state.hardwareScannerRenderTimer) return;
+  state.hardwareScannerRenderTimer = window.setTimeout(flushHardwareScannerView, HARDWARE_SCANNER_RENDER_INTERVAL_MS);
+}
+
+function flushHardwareScannerView() {
+  window.clearTimeout(state.hardwareScannerRenderTimer);
+  state.hardwareScannerRenderTimer = null;
+  if (!state.hardwareScannerViewDirty) return;
+  state.hardwareScannerViewDirty = false;
+  if (state.activeWorkflow === "inventoryMove") saveScannedMoveRows();
+  else saveScannedShippingRows();
+  renderScannerScannedList();
+  updateScannerActionLabels();
 }
 
 async function waitForScannerProcessingToFinish() {
@@ -6012,44 +6114,59 @@ async function waitForScannerProcessingToFinish() {
   }
 }
 
-async function processHardwareScannerQueue() {
+function processHardwareScannerQueue() {
   if (state.hardwareScannerQueueProcessing) {
-    return;
+    return state.hardwareScannerQueuePromise;
   }
+  if (!state.hardwareScannerQueue.length) return Promise.resolve();
 
   state.hardwareScannerQueueProcessing = true;
-
-  try {
-    while (state.hardwareScannerQueue.length) {
-      const value = state.hardwareScannerQueue.shift();
-      const remainingCount = state.hardwareScannerQueue.length;
-      setHardwareScannerStatus(
-        remainingCount
-          ? `QR 처리 중… ${remainingCount}건이 대기 중입니다.`
-          : "QR 처리 중… 제품 정보를 확인하고 있습니다.",
-        "success"
-      );
-      await waitForScannerProcessingToFinish();
-      await handleQrValue(value);
-      await waitForScannerProcessingToFinish();
-    }
-
-    setHardwareScannerStatus("입력 처리 완료. 다음 QR을 스캔할 수 있습니다.", "success");
-    state.hardwareScannerStatusTimer = window.setTimeout(() => {
-      setHardwareScannerStatus("스캐너 입력을 기다리고 있습니다.");
-      state.hardwareScannerStatusTimer = null;
-    }, 1200);
-  } finally {
+  const session = state.hardwareScannerSession;
+  updateScannerActionLabels();
+  state.hardwareScannerQueuePromise = drainHardwareScannerQueue(session).finally(() => {
     state.hardwareScannerQueueProcessing = false;
-    if (state.hardwareScannerQueue.length) {
-      void processHardwareScannerQueue();
+    state.hardwareScannerQueuePromise = null;
+    flushHardwareScannerView();
+    updateScannerActionLabels();
+    if (session === state.hardwareScannerSession) renderHardwareScannerProgress();
+    if (state.hardwareScannerQueue.length) return processHardwareScannerQueue();
+  });
+  return state.hardwareScannerQueuePromise;
+}
+
+async function drainHardwareScannerQueue(session) {
+  let processed = 0;
+  while (session === state.hardwareScannerSession && state.hardwareScannerQueue.length) {
+    await waitForScannerProcessingToFinish();
+    if (session !== state.hardwareScannerSession) return;
+    const value = state.hardwareScannerQueue.shift();
+    renderHardwareScannerProgress();
+    try {
+      const result = await handleQrValue(value, { inputMode: "hardware", session });
+      if (session !== state.hardwareScannerSession) return;
+      if (result === "added" || result === "duplicate") state.hardwareScannerResults[result] += 1;
+      else state.hardwareScannerResults.failed += 1;
+    } catch (error) {
+      if (session !== state.hardwareScannerSession) return;
+      state.hardwareScannerResults.failed += 1;
+      showToast(error?.message || "QR 처리에 실패했습니다. 해당 박스를 다시 스캔해주세요.");
+    }
+    processed += 1;
+    // Yield in batches so keyboard events keep arriving even with a cached dashboard.
+    if (processed % HARDWARE_SCANNER_BATCH_SIZE === 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
     }
   }
 }
 
-async function handleQrValue(rawValue) {
+async function handleQrValue(rawValue, options = {}) {
+  const inputMode = options.inputMode || state.scannerInputMode;
+  const session = options.session ?? state.hardwareScannerSession;
+  const workflow = state.activeWorkflow;
+  const user = state.user;
+  const isCurrentScan = () => session === state.hardwareScannerSession && workflow === state.activeWorkflow && user === state.user;
   const scannedValue = String(rawValue || "").trim();
-  const value = state.scannerInputMode === "hardware"
+  const value = inputMode === "hardware"
     ? restoreHardwareScannerQrValue(scannedValue)
     : scannedValue;
   if (!value) {
@@ -6072,12 +6189,14 @@ async function handleQrValue(rawValue) {
 
   try {
     await ensureDashboardLoaded();
+    if (!isCurrentScan()) return;
     let matched = state.activeWorkflow === "inventoryMove"
       ? findInventoryMoveByQrValue(value)
       : findShippingByQrValue(value);
 
     if (!matched) {
       const refreshed = await loadShippingDashboard({ silent: true, suppressToast: true });
+      if (!isCurrentScan()) return;
       if (refreshed) {
         matched = state.activeWorkflow === "inventoryMove"
           ? findInventoryMoveByQrValue(value)
@@ -6096,7 +6215,7 @@ async function handleQrValue(rawValue) {
       triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
       setScannerHelp("이미 출고된 박스입니다. 다른 박스를 스캔해주세요.");
       showToast("이미 출고된 박스입니다.");
-      return;
+      return "duplicate";
     }
 
     const key = state.activeWorkflow === "inventoryMove" ? getInventoryMoveKey(matched) : getShippingKey(matched);
@@ -6108,19 +6227,16 @@ async function handleQrValue(rawValue) {
       triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
       setScannerHelp("이미 스캔된 박스입니다. 다른 박스를 계속 스캔할 수 있습니다.");
       showToast("이미 등록된 박스입니다.");
-      return;
+      return "duplicate";
     }
 
     if (state.activeWorkflow === "inventoryMove") {
       state.scannedMoveRows = [matched, ...state.scannedMoveRows];
-      saveScannedMoveRows();
       state.moveQuery = "";
       if (elements.inventoryMoveSearchInput) {
         elements.inventoryMoveSearchInput.value = "";
       }
       state.scannerViewDirty = true;
-      renderScannerScannedList();
-      updateScannerActionLabels();
     } else {
       // QR scans remain local until the user explicitly chooses an action.
       const existingRow = state.scannedShippingRows.find((row) => getShippingKey(row) === key);
@@ -6128,36 +6244,42 @@ async function handleQrValue(rawValue) {
         state.scannedShippingRows = [matched, ...state.scannedShippingRows];
       }
       state.scannerSessionShippingKeys = [key, ...state.scannerSessionShippingKeys];
-      saveScannedShippingRows();
       state.query = "";
       if (elements.shippingSearchInput) {
         elements.shippingSearchInput.value = "";
       }
       state.scannerViewDirty = true;
+    }
+
+    if (inputMode === "hardware") {
+      scheduleHardwareScannerView();
+    } else {
+      if (state.activeWorkflow === "inventoryMove") saveScannedMoveRows();
+      else saveScannedShippingRows();
       renderScannerScannedList();
       updateScannerActionLabels();
     }
-
     triggerScanFeedback(SCAN_SUCCESS_VIBRATION);
     if (state.activeWorkflow === "inventoryMove") {
       setScannerHelp("스캔 완료. 다음 제품 박스를 계속 스캔할 수 있습니다.");
-      showToast("박스가 성공적으로 등록되었습니다.");
+      if (inputMode !== "hardware") showToast("박스가 성공적으로 등록되었습니다.");
     } else {
       const successMessage = "스캔 완료. 목록에 성공적으로 추가했습니다.";
       setScannerHelp(successMessage);
-      showToast(successMessage);
+      if (inputMode !== "hardware") showToast(successMessage);
     }
+    return "added";
   } catch (error) {
+    if (!isCurrentScan()) return;
     setScannerHelp(error.message || "스캔한 제품 정보를 확인하지 못했습니다.");
     showToast(error.message || "제품 정보를 확인하지 못했습니다.");
   } finally {
-    const processingLockMs = state.scannerInputMode === "hardware"
-      ? HARDWARE_SCANNER_PROCESSING_LOCK_MS
-      : SCAN_PROCESSING_LOCK_MS;
-    window.setTimeout(() => {
+    const releaseProcessing = () => {
       state.scannerLastValue = "";
       state.isProcessingScan = false;
-    }, processingLockMs);
+    };
+    if (inputMode === "hardware") releaseProcessing();
+    else window.setTimeout(releaseProcessing, SCAN_PROCESSING_LOCK_MS);
   }
 }
 
@@ -6542,6 +6664,10 @@ function renderScannerScannedList() {
 }
 
 function handleScannerListClick(event) {
+  if (isHardwareScannerBusy()) {
+    showToast("받은 QR을 목록에 반영하고 있습니다.");
+    return;
+  }
   const scopeButton = event.target.closest("[data-inventory-box-scope]");
   if (scopeButton && state.activeWorkflow === "inventoryMove") {
     const key = scopeButton.dataset.inventoryMoveKey;
