@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260904-product-image-prd" />
+    <link rel="stylesheet" href="./mobile.css?v=20260906-scanner-torch" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -546,7 +546,9 @@
             <svg viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"></path></svg>
           </button>
           <h2 id="scannerTitle">QR 스캔</h2>
-          <button class="scanner-flash" id="toggleFlashButton" type="button">OFF</button>
+          <button class="scanner-flash" id="toggleFlashButton" type="button" aria-label="플래시 켜기" aria-pressed="false" disabled>
+            <i class="ti ti-bolt" aria-hidden="true"></i><span>OFF</span>
+          </button>
         </header>
         <p class="scanner-tip" id="scannerTip">제품 박스의 QR 코드를 스캔해 주세요.</p>
         <p class="scanner-help" id="scannerHelpText">카메라 또는 외부 스캐너로 QR을 읽어주세요.</p>
@@ -644,6 +646,6 @@
     <script src="../config.js"></script>
     <script src="../supabase-gateway.js?v=20260906-inventory-performance"></script>
     <script src="../qr-payload.js?v=20260904-box-checksum-prd"></script>
-    <script src="./mobile.js?v=20260906-inventory-performance"></script>
+    <script src="./mobile.js?v=20260906-scanner-torch"></script>
   </body>
 </html>

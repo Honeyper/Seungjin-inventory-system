@@ -5354,9 +5354,28 @@ img {
 
 .scanner-flash {
   min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   border-radius: 999px;
   color: var(--gold);
   font-size: 12px;
+}
+
+.scanner-flash .ti {
+  font-size: 16px;
+}
+
+.scanner-flash.is-on {
+  color: #061f4c;
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+.scanner-flash.is-unavailable,
+.scanner-flash:disabled {
+  opacity: 0.5;
 }
 
 .scanner-tip {
