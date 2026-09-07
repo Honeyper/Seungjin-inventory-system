@@ -9251,6 +9251,10 @@ button.shipping-product-visual.has-photo:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   gap: 16px;
   padding: 18px 20px;
   border-bottom: 1px solid var(--mobile-border);
@@ -9269,6 +9273,7 @@ button.shipping-product-visual.has-photo:focus-visible {
 }
 
 .product-image-lightbox h2 {
+  display: block;
   width: 100%;
   max-width: 100%;
   overflow: hidden;
@@ -9278,6 +9283,14 @@ button.shipping-product-visual.has-photo:focus-visible {
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.product-image-lightbox h2.is-multiline {
+  overflow: visible;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .product-image-lightbox header button {
