@@ -13,7 +13,7 @@ function scannerRuntime(t, workflow = "shipping") {
     hardwareScannerLastInputAt: 0, hardwareScannerMaxInputGapMs: 0,
     hardwareScannerLastStatusAt: 0, hardwareScannerQueue: [],
     hardwareScannerQueueProcessing: false, hardwareScannerQueuePromise: null,
-    hardwareScannerSession: 0, hardwareScannerResults: { added: 0, duplicate: 0, failed: 0 },
+    hardwareScannerSession: 0,
     scannedShippingRows: [], scannedMoveRows: [], scannerSessionShippingKeys: [],
     isProcessingScan: false, scannerLastValue: ""
   });
@@ -33,7 +33,7 @@ function scannerRuntime(t, workflow = "shipping") {
     "scheduleHardwareScannerSubmit", "appendHardwareScannerInput", "isHardwareScannerEditableTarget", "handleHardwareScannerKeydown",
     "handleHardwareScannerPaste", "handleHardwareScannerCompositionEnd", "isCompleteHardwareScannerValue",
     "shouldSubmitHardwareScannerValueImmediately", "submitHardwareScannerValue", "queueHardwareScannerValue",
-    "isHardwareScannerBusy", "renderHardwareScannerProgress", "finishHardwareScannerInput",
+    "isHardwareScannerBusy", "finishHardwareScannerInput",
     "scheduleHardwareScannerView", "flushHardwareScannerView", "waitForScannerProcessingToFinish",
     "processHardwareScannerQueue", "drainHardwareScannerQueue", "handleQrValue", "closeScanner",
     "releaseScannerStream", "handleScannerPendingAction", "handleScannerDoneAction"
@@ -93,15 +93,13 @@ for (const workflow of ["shipping", "inventoryMove"]) {
     await app.processHardwareScannerQueue();
     assert.deepEqual(calls.matched, payloads);
     assert.deepEqual(Array.from(snapshot()).reverse(), ids.slice(0, 60));
-    assert.equal(state.hardwareScannerResults.added, 60);
-    assert.equal(state.hardwareScannerResults.failed, 0);
     assert.equal(app.isHardwareScannerBusy(), false);
     assert.ok(calls.rendered.length < 10, `unexpected render count ${calls.rendered.length}`);
     assert.equal(calls.saved.at(-1).length, 60);
     assert.ok(!calls.delays.includes(40), "hardware processing must not use a per-item cooldown");
     assert.deepEqual(calls.messages, [], "success toasts should not interrupt a burst");
-    assert.match(calls.status.at(-1), /등록 60/);
-    assert.doesNotMatch(calls.status.at(-1), /대기/);
+    assert.equal(calls.status.at(-1), "스캔 완료. 다음 QR을 스캔해주세요.");
+    assert.doesNotMatch(calls.status.join(" "), /등록 \d|중복 \d|대기 \d/);
     app.handleScannerPendingAction();
     assert.equal(calls.actions.length, 1);
   });
@@ -117,9 +115,7 @@ test("duplicate and malformed scans do not block later valid scans", async (t) =
   scan(globalThis.SeungjinQrPayload.create(ids[2]), "");
   await app.processHardwareScannerQueue();
   assert.deepEqual(Array.from(snapshot()).reverse(), [ids[0], ids[2]]);
-  assert.equal(state.hardwareScannerResults.added, 2);
-  assert.equal(state.hardwareScannerResults.duplicate, 1);
-  assert.equal(state.hardwareScannerResults.failed, 1);
+  assert.equal(app.isHardwareScannerBusy(), false);
 });
 
 test("CR/LF/Tab paste bursts and complete JSON frames are split without merging codes", async (t) => {
@@ -152,7 +148,7 @@ test("a closing brace inside a JSON field cannot truncate a scan", async (t) => 
   scan(json);
   await app.processHardwareScannerQueue();
   assert.deepEqual(Array.from(snapshot()), [ids[0]]);
-  assert.equal(app.state.hardwareScannerResults.failed, 0);
+  assert.equal(app.isHardwareScannerBusy(), false);
 });
 
 test("a delayed idle timer cannot discard the previous complete scan", async (t) => {
@@ -171,7 +167,6 @@ test("a failed lookup does not stop or lock the queue", async (t) => {
   ids.slice(0, 3).forEach((id) => scan(id));
   await app.processHardwareScannerQueue();
   assert.deepEqual(Array.from(snapshot()).reverse(), ids.slice(1, 3));
-  assert.equal(state.hardwareScannerResults.failed, 1);
   assert.equal(state.isProcessingScan, false);
   scan(ids[0]);
   await app.processHardwareScannerQueue();

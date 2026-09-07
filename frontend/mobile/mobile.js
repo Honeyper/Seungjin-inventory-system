@@ -185,7 +185,6 @@ const state = {
   hardwareScannerQueueProcessing: false,
   hardwareScannerQueuePromise: null,
   hardwareScannerSession: 0,
-  hardwareScannerResults: { added: 0, duplicate: 0, failed: 0 },
   hardwareScannerRenderTimer: null,
   hardwareScannerViewDirty: false,
   scannerLastValue: "",
@@ -4950,7 +4949,6 @@ function handleInventoryMoveActionChange(event) {
 
 async function openScanner() {
   flushScannerViewUpdates();
-  state.hardwareScannerResults = { added: 0, duplicate: 0, failed: 0 };
   if (elements.inventoryMoveScreen?.classList.contains("active")) {
     state.activeWorkflow = "inventoryMove";
   } else {
@@ -6065,7 +6063,6 @@ async function submitHardwareScannerValue(rawValue) {
   }
 
   if (!isCompleteHardwareScannerValue(value)) {
-    state.hardwareScannerResults.failed += 1;
     updateScannerActionLabels();
     const restoredValue = restoreHardwareScannerQrValue(value);
     const qrPayload = globalThis.SeungjinQrPayload?.parse?.(restoredValue);
@@ -6084,7 +6081,7 @@ function queueHardwareScannerValue(value) {
   clearHardwareScannerStatusTimer();
 
   state.hardwareScannerQueue.push(value);
-  renderHardwareScannerProgress();
+  setHardwareScannerStatus("QR을 확인하고 있습니다…", "receiving");
   void processHardwareScannerQueue();
 }
 
@@ -6092,16 +6089,6 @@ function isHardwareScannerBusy() {
   return state.scannerInputMode === "hardware" && Boolean(
     state.hardwareScannerQueueProcessing || state.hardwareScannerQueue.length || state.hardwareScannerBuffer.trim()
   );
-}
-
-function renderHardwareScannerProgress() {
-  const { added, duplicate, failed } = state.hardwareScannerResults;
-  const pending = state.hardwareScannerQueue.length + (state.hardwareScannerQueueProcessing ? 1 : 0);
-  const parts = [`등록 ${added}`];
-  if (duplicate) parts.push(`중복 ${duplicate}`);
-  if (failed) parts.push(`확인 필요 ${failed}`);
-  if (pending) parts.push(`대기 ${pending}`);
-  setHardwareScannerStatus(parts.join(" · "), pending ? "receiving" : "success");
 }
 
 async function finishHardwareScannerInput() {
@@ -6150,7 +6137,14 @@ function processHardwareScannerQueue() {
     state.hardwareScannerQueuePromise = null;
     flushHardwareScannerView();
     updateScannerActionLabels();
-    if (session === state.hardwareScannerSession) renderHardwareScannerProgress();
+    if (session === state.hardwareScannerSession && !state.hardwareScannerQueue.length) {
+      clearHardwareScannerStatusTimer();
+      setHardwareScannerStatus("스캔 완료. 다음 QR을 스캔해주세요.", "success");
+      state.hardwareScannerStatusTimer = window.setTimeout(() => {
+        setHardwareScannerStatus("스캐너 입력을 기다리고 있습니다.");
+        state.hardwareScannerStatusTimer = null;
+      }, 700);
+    }
     if (state.hardwareScannerQueue.length) return processHardwareScannerQueue();
   });
   return state.hardwareScannerQueuePromise;
@@ -6162,15 +6156,11 @@ async function drainHardwareScannerQueue(session) {
     await waitForScannerProcessingToFinish();
     if (session !== state.hardwareScannerSession) return;
     const value = state.hardwareScannerQueue.shift();
-    renderHardwareScannerProgress();
     try {
-      const result = await handleQrValue(value, { inputMode: "hardware", session });
+      await handleQrValue(value, { inputMode: "hardware", session });
       if (session !== state.hardwareScannerSession) return;
-      if (result === "added" || result === "duplicate") state.hardwareScannerResults[result] += 1;
-      else state.hardwareScannerResults.failed += 1;
     } catch (error) {
       if (session !== state.hardwareScannerSession) return;
-      state.hardwareScannerResults.failed += 1;
       showToast(error?.message || "QR 처리에 실패했습니다. 해당 박스를 다시 스캔해주세요.");
     }
     processed += 1;
