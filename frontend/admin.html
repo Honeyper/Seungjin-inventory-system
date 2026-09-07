@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260904-process-summary-prd" />
+    <link rel="stylesheet" href="./styles.css?v=20260907-inbound-summary-image-prd" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260902-qr-batch-highlight-prd" />
   </head>
   <body class="admin-body">
@@ -498,6 +498,13 @@
                 </span>
                 입고 정보
               </h2>
+              <figure class="inbound-summary-product-image" id="inboundSummaryProductVisual" aria-label="선택한 제품 이미지">
+                <span class="inbound-summary-product-placeholder" id="inboundSummaryProductPlaceholder">
+                  <i class="ti ti-photo" aria-hidden="true"></i>
+                  <span id="inboundSummaryProductImageLabel">제품 이미지</span>
+                </span>
+                <img id="inboundSummaryProductImage" alt="" hidden />
+              </figure>
               <dl>
                 <div><dt>박스당 수량</dt><dd><strong id="calcBoxQty">-</strong> ea</dd></div>
                 <div><dt>완박스 수</dt><dd><strong id="calcBoxCount">-</strong> box</dd></div>
@@ -2902,6 +2909,6 @@
     <script src="./inbound-sort.js?v=20260901-recent-first-prd"></script>
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-prd"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-prd"></script>
-    <script src="./admin.js?v=20260906-inventory-performance"></script>
+    <script src="./admin.js?v=20260907-inbound-summary-image-prd"></script>
   </body>
 </html>
