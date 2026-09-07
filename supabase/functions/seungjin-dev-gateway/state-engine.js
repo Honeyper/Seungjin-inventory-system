@@ -63,6 +63,24 @@ function dash(value) {
   return text(value) || "-";
 }
 
+function stringList(value, fallback = "") {
+  let values = value;
+  if (!Array.isArray(values)) {
+    const serialized = text(values);
+    if (serialized.startsWith("[")) {
+      try {
+        values = JSON.parse(serialized);
+      } catch (_error) {
+        values = [];
+      }
+    } else {
+      values = serialized ? [serialized] : [];
+    }
+  }
+  const urls = [...values, text(fallback)].map(text).filter(Boolean);
+  return [...new Set(urls)].slice(0, 10);
+}
+
 function dateParts(now = new Date()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
@@ -371,6 +389,10 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     try { shippingProductNames = JSON.parse(text(namesValue) || "[]").map(text).filter(Boolean); } catch (_error) { shippingProductNames = []; }
   }
   const isCommonContainer = [true, "유", "예", "true", "1"].includes(payload["공용용기 제품"] ?? current?.isCommonContainer ?? false);
+  const productImageUrls = stringList(
+    payload.productImageUrls ?? payload["제품 이미지 목록"] ?? current?.productImageUrls,
+    payload.productImageUrl ?? payload["제품 이미지"] ?? current?.productImageUrl
+  );
   const product = {
     ...(current || {}),
     registeredAt: current?.registeredAt || parts.date.replaceAll("-", "."),
@@ -397,7 +419,8 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     accumulatedInboundQuantity: current?.accumulatedInboundQuantity || "0 ea",
     boxQuantity: formatEa(number(boxQuantity)),
     trayQuantity: formatEa(number(trayQuantity)),
-    productImageUrl: text(payload.productImageUrl ?? payload["제품 이미지"] ?? current?.productImageUrl),
+    productImageUrl: productImageUrls[0] || "",
+    productImageUrls,
     dueDate: dash(payload["납기일"] ?? current?.dueDate),
     note: dash(payload["비고"] ?? current?.note),
     updatedAt: parts.date.replaceAll("-", "."),
@@ -987,6 +1010,7 @@ export function buildInventoryDashboard(records, boxes, products = []) {
       row.trayQuantity = text(product.trayQuantity) || row.trayQuantity || "";
       row.boxQuantity = text(product.boxQuantity) || row.boxQuantity || "";
       row.productImageUrl = text(product.productImageUrl) || row.productImageUrl || "";
+      row.productImageUrls = stringList(product.productImageUrls, product.productImageUrl);
     }
     const relatedKey = `${text(row.managementId)}\u0000${text(row.productId)}`;
     const all = boxesByInbound.get(relatedKey) || [];

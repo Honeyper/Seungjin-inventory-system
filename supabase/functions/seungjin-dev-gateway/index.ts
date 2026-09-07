@@ -394,13 +394,14 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
         boxRows?: JsonRecord[];
       }>,
       databaseRows("dev_state?singleton=eq.true&select=version&limit=1"),
-      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity,product_image_url:data->>productImageUrl")
+      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity,product_image_url:data->>productImageUrl,product_image_urls:data->productImageUrls")
     ]);
     const products = productRows.map((row) => ({
       productId: row.product_id,
       trayQuantity: row.tray_quantity,
       boxQuantity: row.box_quantity,
-      productImageUrl: row.product_image_url
+      productImageUrl: row.product_image_url,
+      productImageUrls: Array.isArray(row.product_image_urls) ? row.product_image_urls : []
     }));
     const records = Array.isArray(state.recordRows)
       ? mapInventoryRecordRows(state.recordRows)

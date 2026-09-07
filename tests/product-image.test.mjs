@@ -12,27 +12,32 @@ const stylesSource = await readFile(new URL("../frontend/styles.css", import.met
 const gasSource = await readFile(new URL("../gas/Code.js", import.meta.url), "utf8");
 const mobileHtml = await readFile(new URL("../frontend/mobile/index.html", import.meta.url), "utf8");
 const mobileSource = await readFile(new URL("../frontend/mobile/mobile.js", import.meta.url), "utf8");
+const edgeSource = await readFile(new URL("../supabase/functions/seungjin-dev-gateway/index.ts", import.meta.url), "utf8");
 
-test("product registration uploads only the selected image to Google Drive and stores its URL", () => {
-  assert.match(adminHtml, /id="productImageFile"[^>]+accept="image\/\*"/);
+test("product registration uploads multiple selected images to Google Drive and stores compatible fields", () => {
+  assert.match(adminHtml, /id="productImageFile"[^>]+accept="image\/\*"[^>]+multiple/);
   assert.match(adminSource, /requestApi\("uploadProductImage"/);
-  assert.match(adminSource, /payload\.productImageUrl = productImageUrl/);
+  assert.match(adminSource, /async function resolveProductImageUrls/);
+  assert.match(adminSource, /payload\.productImageUrls = productImageUrls/);
+  assert.match(adminSource, /payload\.productImageUrl = productImageUrls\[0\] \|\| ""/);
   assert.match(gasSource, /function uploadProductImage\(payload\)/);
   assert.match(gasSource, /getOrCreateDriveFolderPath_\(rootFolder, \[/);
   assert.match(gasSource, /'제품이미지'/);
   assert.match(gasSource, /DriveApp\.Access\.ANYONE_WITH_LINK/);
   assert.match(gasSource, /drive\.google\.com\/thumbnail\?id=/);
   assert.match(gasSource, /'제품 이미지'/);
+  assert.match(gasSource, /'제품 이미지 목록'/);
 });
 
 test("product image empty state is hidden when a preview is available", () => {
-  assert.match(adminSource, /productImagePlaceholder\.hidden = Boolean\(previewUrl\)/);
-  assert.match(adminSource, /removeProductImageButton\.hidden = !previewUrl/);
+  assert.match(adminSource, /productImagePlaceholder\.hidden = previewUrls\.length > 0/);
+  assert.match(adminSource, /removeProductImageButton\.hidden = previewUrls\.length === 0/);
   assert.match(stylesSource, /\.product-image-placeholder\[hidden\],[\s\S]*?\.product-image-remove-button\[hidden\][\s\S]*?display: none/);
 });
 
 test("product image URL survives canonical product mutation and reaches inventory rows", () => {
   const imageUrl = "https://drive.google.com/thumbnail?id=test-image&sz=w1200";
+  const secondImageUrl = "https://drive.google.com/thumbnail?id=test-image-2&sz=w1200";
   const state = {
     products: [],
     orders: [],
@@ -46,10 +51,12 @@ test("product image URL survives canonical product mutation and reaches inventor
     boxQuantity: 100,
     trayQuantity: 10,
     stage1Process: "실크",
-    productImageUrl: imageUrl
+    productImageUrl: imageUrl,
+    productImageUrls: [imageUrl, secondImageUrl]
   }, state, new Date("2026-09-04T00:00:00.000Z"));
   const product = mutation.state.products[0];
   assert.equal(product.productImageUrl, imageUrl);
+  assert.deepEqual(product.productImageUrls, [imageUrl, secondImageUrl]);
 
   const dashboard = buildInventoryDashboard([
     {
@@ -73,11 +80,19 @@ test("product image URL survives canonical product mutation and reaches inventor
     }
   ], mutation.state.products);
   assert.equal(dashboard.rows[0].productImageUrl, imageUrl);
+  assert.deepEqual(dashboard.rows[0].productImageUrls, [imageUrl, secondImageUrl]);
+  assert.match(edgeSource, /product_image_urls:data->productImageUrls/);
+  assert.match(edgeSource, /productImageUrls: Array\.isArray\(row\.product_image_urls\)/);
 });
 
-test("mobile product cards open registered images in a large dialog", () => {
+test("PC and mobile product images open as navigable multi-image galleries", () => {
+  assert.match(adminHtml, /id="productImageGalleryModal"/);
+  assert.match(adminSource, /function openProductImageGallery/);
+  assert.match(adminSource, /data-detail-product-image/);
   assert.match(mobileSource, /data-product-image-open/);
   assert.match(mobileSource, /function openProductImageModal/);
+  assert.match(mobileSource, /function moveProductImageModal/);
   assert.match(mobileHtml, /id="productImageModal"/);
   assert.match(mobileHtml, /id="productImageModalImage"/);
+  assert.match(mobileHtml, /id="productImageModalThumbnails"/);
 });

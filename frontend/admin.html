@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260907-inbound-summary-image-dev" />
+    <link rel="stylesheet" href="./styles.css?v=20260907-product-image-gallery-dev" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260902-qr-batch-highlight-dev" />
   </head>
   <body class="admin-body">
@@ -499,13 +499,14 @@
                 </span>
                 입고 정보
               </h2>
-              <figure class="inbound-summary-product-image" id="inboundSummaryProductVisual" aria-label="선택한 제품 이미지">
+              <button class="inbound-summary-product-image" id="inboundSummaryProductVisual" type="button" aria-label="선택한 제품 이미지 크게 보기" disabled>
                 <span class="inbound-summary-product-placeholder" id="inboundSummaryProductPlaceholder">
                   <i class="ti ti-photo" aria-hidden="true"></i>
                   <span id="inboundSummaryProductImageLabel">제품 이미지</span>
                 </span>
                 <img id="inboundSummaryProductImage" alt="" hidden />
-              </figure>
+                <span class="product-image-count" id="inboundSummaryProductImageCount" hidden></span>
+              </button>
               <dl>
                 <div><dt>박스당 수량</dt><dd><strong id="calcBoxQty">-</strong> ea</dd></div>
                 <div><dt>완박스 수</dt><dd><strong id="calcBoxCount">-</strong> box</dd></div>
@@ -2217,21 +2218,21 @@
                     <i class="ti ti-photo" aria-hidden="true"></i>
                     <small>등록된 이미지 없음</small>
                   </span>
-                  <img id="productImagePreviewImage" alt="선택한 제품 이미지 미리보기" hidden />
+                  <div class="product-image-preview-list" id="productImagePreviewList"></div>
                 </div>
                 <div class="product-image-controls">
                   <span>제품 이미지</span>
-                  <strong id="productImageFileName">이미지를 끌어다 놓거나 선택해주세요.</strong>
-                  <small>이 영역에 이미지를 끌어다 놓을 수 있습니다. JPG, PNG, WEBP 등 10MB 이하 파일은 Google Drive에 저장됩니다.</small>
+                  <strong id="productImageFileName">이미지를 여러 장 끌어다 놓거나 선택해주세요.</strong>
+                  <small>JPG, PNG, WEBP 등 이미지 파일을 최대 10장까지 등록할 수 있으며, 각 파일은 10MB 이하로 Google Drive에 저장됩니다.</small>
                   <div>
                     <label class="product-image-select-button" for="productImageFile">
                       <i class="ti ti-upload" aria-hidden="true"></i>
-                      이미지 선택
+                      이미지 추가
                     </label>
-                    <input class="visually-hidden" id="productImageFile" type="file" accept="image/*" />
+                    <input class="visually-hidden" id="productImageFile" type="file" accept="image/*" multiple />
                     <button class="product-image-remove-button" id="removeProductImageButton" type="button" hidden>
                       <i class="ti ti-trash" aria-hidden="true"></i>
-                      이미지 제거
+                      모두 제거
                     </button>
                   </div>
                 </div>
@@ -2805,6 +2806,33 @@
       </section>
     </div>
 
+    <div class="modal-backdrop product-image-gallery-backdrop" id="productImageGalleryModal" hidden>
+      <section class="product-image-gallery-modal" role="dialog" aria-modal="true" aria-labelledby="productImageGalleryTitle">
+        <header class="modal-header">
+          <div>
+            <span>제품 이미지</span>
+            <h2 id="productImageGalleryTitle">제품 이미지</h2>
+          </div>
+          <button class="modal-close" type="button" id="closeProductImageGalleryModal" aria-label="제품 이미지 닫기">
+            <i class="ti ti-x" aria-hidden="true"></i>
+          </button>
+        </header>
+        <div class="product-image-gallery-stage">
+          <button class="product-image-gallery-nav previous" id="previousProductImageButton" type="button" aria-label="이전 제품 이미지">
+            <i class="ti ti-chevron-left" aria-hidden="true"></i>
+          </button>
+          <img id="productImageGalleryImage" alt="" />
+          <button class="product-image-gallery-nav next" id="nextProductImageButton" type="button" aria-label="다음 제품 이미지">
+            <i class="ti ti-chevron-right" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="product-image-gallery-footer">
+          <strong id="productImageGalleryCounter">1 / 1</strong>
+          <div class="product-image-gallery-thumbnails" id="productImageGalleryThumbnails"></div>
+        </div>
+      </section>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <script src="./config.js"></script>
@@ -2813,6 +2841,6 @@
     <script src="./inbound-sort.js?v=20260901-recent-first"></script>
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-v2"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-dev"></script>
-    <script src="./admin.js?v=20260907-inbound-summary-image-dev"></script>
+    <script src="./admin.js?v=20260907-product-image-gallery-dev"></script>
   </body>
 </html>

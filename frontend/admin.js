@@ -2,6 +2,7 @@ const API_URL = window.SEUNGJIN_CONFIG?.API_URL || "https://script.google.com/ma
 const MAX_INVOICE_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_DEFECT_PHOTO_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PRODUCT_IMAGE_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_PRODUCT_IMAGE_COUNT = 10;
 
 const DEFAULT_CLIENTS = [
   "아이원(아이텍)",
@@ -146,9 +147,12 @@ const state = {
   productFormMode: "create",
   productFormReturnTarget: "",
   editingProductCode: "",
-  productImageUrl: "",
-  productImagePreviewUrl: "",
-  productImageRemoved: false,
+  productImageUrls: [],
+  productImagePendingFiles: [],
+  activeProductImageUrls: [],
+  activeProductImageIndex: 0,
+  activeProductImageName: "",
+  inboundSummaryProductImageUrls: [],
   activeDetailProductCode: "",
   activeDetailInboundId: "",
   activeDetailInboundProductId: "",
@@ -240,7 +244,7 @@ const productColor = document.querySelector("#productColor");
 const productColorPreview = document.querySelector("#productColorPreview");
 const productImageFile = document.querySelector("#productImageFile");
 const productImagePreview = document.querySelector("#productImagePreview");
-const productImagePreviewImage = document.querySelector("#productImagePreviewImage");
+const productImagePreviewList = document.querySelector("#productImagePreviewList");
 const productImagePlaceholder = document.querySelector("#productImagePlaceholder");
 const productImageFileName = document.querySelector("#productImageFileName");
 const removeProductImageButton = document.querySelector("#removeProductImageButton");
@@ -315,6 +319,15 @@ const inboundSummaryProductVisual = document.querySelector("#inboundSummaryProdu
 const inboundSummaryProductImage = document.querySelector("#inboundSummaryProductImage");
 const inboundSummaryProductPlaceholder = document.querySelector("#inboundSummaryProductPlaceholder");
 const inboundSummaryProductImageLabel = document.querySelector("#inboundSummaryProductImageLabel");
+const inboundSummaryProductImageCount = document.querySelector("#inboundSummaryProductImageCount");
+const productImageGalleryModal = document.querySelector("#productImageGalleryModal");
+const productImageGalleryTitle = document.querySelector("#productImageGalleryTitle");
+const productImageGalleryImage = document.querySelector("#productImageGalleryImage");
+const productImageGalleryCounter = document.querySelector("#productImageGalleryCounter");
+const productImageGalleryThumbnails = document.querySelector("#productImageGalleryThumbnails");
+const closeProductImageGalleryModalButton = document.querySelector("#closeProductImageGalleryModal");
+const previousProductImageButton = document.querySelector("#previousProductImageButton");
+const nextProductImageButton = document.querySelector("#nextProductImageButton");
 const inboundPurchaseOrder = document.querySelector("#inboundPurchaseOrder");
 const inboundRegistrant = document.querySelector("#inboundRegistrant");
 const inboundBatch = document.querySelector("#inboundBatch");
@@ -1382,11 +1395,21 @@ productShippingProductCount?.addEventListener("change", () => {
 });
 inboundSummaryProductImage?.addEventListener("error", () => {
   inboundSummaryProductVisual?.classList.remove("has-image");
+  inboundSummaryProductVisual.disabled = true;
   inboundSummaryProductImage.hidden = true;
   inboundSummaryProductPlaceholder.hidden = false;
+  if (inboundSummaryProductImageCount) {
+    inboundSummaryProductImageCount.hidden = true;
+  }
   if (inboundSummaryProductImageLabel) {
     inboundSummaryProductImageLabel.textContent = "이미지 없음";
   }
+});
+inboundSummaryProductVisual?.addEventListener("click", () => {
+  openProductImageGallery(
+    state.inboundSummaryProductImageUrls,
+    inboundProductName?.value || "선택한 제품"
+  );
 });
 productProcessType?.addEventListener("change", () => {
   productFinalProcess.dataset.legacyFinalProcess = "";
@@ -1532,6 +1555,20 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (!productImageGalleryModal?.hidden) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeProductImageGallery();
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      moveProductImageGallery(-1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      moveProductImageGallery(1);
+    }
+    return;
+  }
+
   if (event.key !== "Escape") {
     return;
   }
@@ -1629,6 +1666,23 @@ productForm.addEventListener("submit", (event) => {
 productColor?.addEventListener("input", updateProductColorPreview);
 productImageFile?.addEventListener("change", handleProductImageSelection);
 removeProductImageButton?.addEventListener("click", removeProductImageSelection);
+productImagePreviewList?.addEventListener("click", handleProductImagePreviewClick);
+closeProductImageGalleryModalButton?.addEventListener("click", closeProductImageGallery);
+previousProductImageButton?.addEventListener("click", () => moveProductImageGallery(-1));
+nextProductImageButton?.addEventListener("click", () => moveProductImageGallery(1));
+productImageGalleryThumbnails?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-product-gallery-index]");
+  if (!button) {
+    return;
+  }
+  state.activeProductImageIndex = Number(button.dataset.productGalleryIndex) || 0;
+  renderProductImageGallery();
+});
+productImageGalleryModal?.addEventListener("click", (event) => {
+  if (event.target === productImageGalleryModal) {
+    closeProductImageGallery();
+  }
+});
 
 rowActionMenu.querySelector('[data-menu-action="delete"]').addEventListener("click", (event) => {
   event.stopPropagation();
@@ -5111,14 +5165,46 @@ function normalizeInboundSummaryProductImageUrl(value) {
   return `https://drive.google.com/thumbnail?id=${encodeURIComponent(decodeURIComponent(fileId))}&sz=w600${resourceKey ? `&resourcekey=${encodeURIComponent(decodeURIComponent(resourceKey))}` : ""}`;
 }
 
+function normalizeProductImageUrls(value, fallback = "") {
+  let values = value;
+  if (!Array.isArray(values)) {
+    const serialized = String(values || "").trim();
+    if (serialized.startsWith("[")) {
+      try {
+        values = JSON.parse(serialized);
+      } catch (_error) {
+        values = [];
+      }
+    } else {
+      values = serialized ? [serialized] : [];
+    }
+  }
+
+  const fallbackUrl = String(fallback || "").trim();
+  const urls = [...values, fallbackUrl]
+    .map((url) => String(url || "").trim())
+    .filter((url) => /^(https?:|data:image\/|blob:)/i.test(url));
+  return [...new Set(urls)].slice(0, MAX_PRODUCT_IMAGE_COUNT);
+}
+
+function getProductImageUrls(product) {
+  return normalizeProductImageUrls(
+    product?.productImageUrls ?? product?.["제품 이미지 목록"],
+    product?.productImageUrl ?? product?.["제품 이미지"]
+  );
+}
+
 function updateInboundSummaryProductImage(product) {
   if (!inboundSummaryProductVisual || !inboundSummaryProductImage || !inboundSummaryProductPlaceholder) {
     return;
   }
 
-  const imageUrl = normalizeInboundSummaryProductImageUrl(product?.productImageUrl);
+  const imageUrls = getProductImageUrls(product).map(normalizeInboundSummaryProductImageUrl);
+  const imageUrl = imageUrls[0] || "";
   const hasImage = /^(https?:|data:image\/|blob:)/i.test(imageUrl);
+  state.inboundSummaryProductImageUrls = imageUrls;
   inboundSummaryProductVisual.classList.toggle("has-image", hasImage);
+  inboundSummaryProductVisual.disabled = !hasImage;
   inboundSummaryProductImage.hidden = !hasImage;
   inboundSummaryProductPlaceholder.hidden = hasImage;
 
@@ -5132,6 +5218,75 @@ function updateInboundSummaryProductImage(product) {
 
   if (inboundSummaryProductImageLabel) {
     inboundSummaryProductImageLabel.textContent = product ? "이미지 없음" : "제품 이미지";
+  }
+  if (inboundSummaryProductImageCount) {
+    inboundSummaryProductImageCount.hidden = imageUrls.length < 2;
+    inboundSummaryProductImageCount.textContent = imageUrls.length > 1 ? `${imageUrls.length}장` : "";
+  }
+}
+
+function openProductImageGallery(imageUrls, productName, initialIndex = 0) {
+  const urls = normalizeProductImageUrls(imageUrls).map(normalizeInboundSummaryProductImageUrl);
+  if (!urls.length || !productImageGalleryModal || !productImageGalleryImage) {
+    return;
+  }
+
+  state.activeProductImageUrls = urls;
+  state.activeProductImageIndex = Math.max(0, Math.min(Number(initialIndex) || 0, urls.length - 1));
+  state.activeProductImageName = String(productName || "제품").trim() || "제품";
+  productImageGalleryModal.hidden = false;
+  document.body.classList.add("modal-open");
+  renderProductImageGallery();
+  closeProductImageGalleryModalButton?.focus();
+}
+
+function renderProductImageGallery() {
+  const urls = state.activeProductImageUrls;
+  if (!urls.length || !productImageGalleryImage) {
+    return;
+  }
+
+  const index = Math.max(0, Math.min(state.activeProductImageIndex, urls.length - 1));
+  state.activeProductImageIndex = index;
+  productImageGalleryTitle.textContent = state.activeProductImageName;
+  productImageGalleryImage.src = urls[index];
+  productImageGalleryImage.alt = `${state.activeProductImageName} 제품 이미지 ${index + 1}`;
+  productImageGalleryCounter.textContent = `${index + 1} / ${urls.length}`;
+  previousProductImageButton.hidden = urls.length < 2;
+  nextProductImageButton.hidden = urls.length < 2;
+  productImageGalleryThumbnails.innerHTML = urls.map((url, thumbnailIndex) => `
+    <button
+      class="product-image-gallery-thumbnail${thumbnailIndex === index ? " active" : ""}"
+      type="button"
+      data-product-gallery-index="${thumbnailIndex}"
+      aria-label="${thumbnailIndex + 1}번째 제품 이미지 보기"
+      aria-current="${thumbnailIndex === index ? "true" : "false"}"
+    >
+      <img src="${escapeAttribute(url)}" alt="" />
+    </button>
+  `).join("");
+}
+
+function moveProductImageGallery(direction) {
+  const count = state.activeProductImageUrls.length;
+  if (count < 2) {
+    return;
+  }
+  state.activeProductImageIndex = (state.activeProductImageIndex + direction + count) % count;
+  renderProductImageGallery();
+}
+
+function closeProductImageGallery() {
+  if (!productImageGalleryModal || productImageGalleryModal.hidden) {
+    return;
+  }
+  productImageGalleryModal.hidden = true;
+  productImageGalleryImage?.removeAttribute("src");
+  state.activeProductImageUrls = [];
+  state.activeProductImageIndex = 0;
+  state.activeProductImageName = "";
+  if (productModal?.hidden && productDetailModal?.hidden && inboundDetailModal?.hidden) {
+    document.body.classList.remove("modal-open");
   }
 }
 
@@ -5328,101 +5483,161 @@ function bindFileDropZone(zone, input) {
   zone.addEventListener("dragend", clearDragging);
 }
 
-function revokeProductImagePreviewUrl() {
-  if (state.productImagePreviewUrl) {
-    URL.revokeObjectURL(state.productImagePreviewUrl);
-    state.productImagePreviewUrl = "";
-  }
+function revokeProductImagePreviewUrls() {
+  state.productImagePendingFiles.forEach((item) => {
+    if (item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+  });
+  state.productImagePendingFiles = [];
+}
+
+function getPendingProductImageUrls() {
+  return state.productImagePendingFiles.map((item) => item.previewUrl).filter(Boolean);
 }
 
 function renderProductImageSelection() {
-  const selectedFile = productImageFile?.files?.[0] || null;
-  const previewUrl = state.productImagePreviewUrl || state.productImageUrl;
+  const existingUrls = state.productImageUrls;
+  const pendingUrls = getPendingProductImageUrls();
+  const previewUrls = [...existingUrls, ...pendingUrls];
 
-  if (productImagePreviewImage) {
-    productImagePreviewImage.hidden = !previewUrl;
-    productImagePreviewImage.src = previewUrl || "";
+  if (productImagePreviewList) {
+    productImagePreviewList.innerHTML = previewUrls.map((url, index) => {
+      const isPending = index >= existingUrls.length;
+      return `
+        <div class="product-image-preview-item">
+          <button class="product-image-preview-open" type="button" data-product-preview-index="${index}" aria-label="${index + 1}번째 제품 이미지 크게 보기">
+            <img src="${escapeAttribute(normalizeInboundSummaryProductImageUrl(url))}" alt="제품 이미지 ${index + 1}" />
+          </button>
+          <button
+            class="product-image-preview-remove"
+            type="button"
+            data-remove-product-image="${index}"
+            data-pending-image="${isPending ? "true" : "false"}"
+            aria-label="${index + 1}번째 제품 이미지 제거"
+          >
+            <i class="ti ti-x" aria-hidden="true"></i>
+          </button>
+        </div>
+      `;
+    }).join("");
   }
   if (productImagePlaceholder) {
-    productImagePlaceholder.hidden = Boolean(previewUrl);
+    productImagePlaceholder.hidden = previewUrls.length > 0;
   }
   if (productImagePreview) {
-    productImagePreview.classList.toggle("has-image", Boolean(previewUrl));
+    productImagePreview.classList.toggle("has-image", previewUrls.length > 0);
   }
   if (productImageFileName) {
-    productImageFileName.textContent = selectedFile
-      ? selectedFile.name
-      : state.productImageUrl && !state.productImageRemoved
-        ? "현재 등록된 이미지"
-        : "이미지를 끌어다 놓거나 선택해주세요.";
+    productImageFileName.textContent = previewUrls.length
+      ? `${previewUrls.length}장 선택됨${pendingUrls.length ? ` · 새 이미지 ${pendingUrls.length}장` : ""}`
+      : "이미지를 여러 장 끌어다 놓거나 선택해주세요.";
   }
   if (removeProductImageButton) {
-    removeProductImageButton.hidden = !previewUrl;
+    removeProductImageButton.hidden = previewUrls.length === 0;
   }
 }
 
 function handleProductImageSelection() {
-  const file = productImageFile?.files?.[0] || null;
-  revokeProductImagePreviewUrl();
-
-  if (!file) {
-    renderProductImageSelection();
-    return;
-  }
-  if (!file.type.startsWith("image/")) {
-    productImageFile.value = "";
-    setFormMessage("제품 이미지는 이미지 파일만 등록할 수 있습니다.");
-    renderProductImageSelection();
-    return;
-  }
-  if (file.size > MAX_PRODUCT_IMAGE_FILE_SIZE) {
-    productImageFile.value = "";
-    setFormMessage("제품 이미지는 10MB 이하로 등록해주세요.");
-    renderProductImageSelection();
-    return;
-  }
-
-  state.productImageRemoved = false;
-  state.productImagePreviewUrl = URL.createObjectURL(file);
-  setFormMessage("");
-  renderProductImageSelection();
-}
-
-function removeProductImageSelection() {
-  revokeProductImagePreviewUrl();
+  const files = Array.from(productImageFile?.files || []);
   if (productImageFile) {
     productImageFile.value = "";
   }
-  state.productImageRemoved = true;
+  if (!files.length) {
+    return;
+  }
+  if (files.some((file) => !file.type.startsWith("image/"))) {
+    setFormMessage("제품 이미지는 이미지 파일만 등록할 수 있습니다.");
+    return;
+  }
+  if (files.some((file) => file.size > MAX_PRODUCT_IMAGE_FILE_SIZE)) {
+    setFormMessage("제품 이미지는 파일당 10MB 이하로 등록해주세요.");
+    return;
+  }
+
+  const remainingCount = MAX_PRODUCT_IMAGE_COUNT - state.productImageUrls.length - state.productImagePendingFiles.length;
+  if (remainingCount <= 0) {
+    setFormMessage(`제품 이미지는 최대 ${MAX_PRODUCT_IMAGE_COUNT}장까지 등록할 수 있습니다.`);
+    return;
+  }
+
+  const existingSignatures = new Set(state.productImagePendingFiles.map(({ file }) => `${file.name}:${file.size}:${file.lastModified}`));
+  files.slice(0, remainingCount).forEach((file) => {
+    const signature = `${file.name}:${file.size}:${file.lastModified}`;
+    if (!existingSignatures.has(signature)) {
+      state.productImagePendingFiles.push({ file, previewUrl: URL.createObjectURL(file) });
+      existingSignatures.add(signature);
+    }
+  });
+  if (files.length > remainingCount) {
+    setFormMessage(`제품 이미지는 최대 ${MAX_PRODUCT_IMAGE_COUNT}장까지 등록할 수 있습니다.`);
+  } else {
+    setFormMessage("");
+  }
   renderProductImageSelection();
 }
 
-async function resolveProductImageUrl(payload) {
-  const selectedFile = productImageFile?.files?.[0] || null;
-  if (!selectedFile) {
-    return state.productImageRemoved ? "" : state.productImageUrl;
+function handleProductImagePreviewClick(event) {
+  const removeButton = event.target.closest("[data-remove-product-image]");
+  if (removeButton) {
+    const index = Number(removeButton.dataset.removeProductImage);
+    if (index < state.productImageUrls.length) {
+      state.productImageUrls.splice(index, 1);
+    } else {
+      const pendingIndex = index - state.productImageUrls.length;
+      const [removed] = state.productImagePendingFiles.splice(pendingIndex, 1);
+      if (removed?.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+    }
+    renderProductImageSelection();
+    return;
   }
 
-  const imageFile = await getFilePayload(selectedFile, {
-    label: "제품 이미지",
-    maxSize: MAX_PRODUCT_IMAGE_FILE_SIZE
-  });
-  const uploadResult = await requestApi("uploadProductImage", {
-    productId: state.editingProductCode,
-    clientName: payload["업체명"],
-    productName: payload["제품명"],
-    imageFile
-  });
-  const productImageUrl = String(uploadResult?.imageUrl || "").trim();
-  if (!productImageUrl) {
-    throw new Error("제품 이미지 링크를 생성하지 못했습니다.");
+  const openButton = event.target.closest("[data-product-preview-index]");
+  if (openButton) {
+    openProductImageGallery(
+      [...state.productImageUrls, ...getPendingProductImageUrls()],
+      productNameInput?.value || "제품",
+      Number(openButton.dataset.productPreviewIndex) || 0
+    );
   }
-  state.productImageUrl = productImageUrl;
-  state.productImageRemoved = false;
-  revokeProductImagePreviewUrl();
-  productImageFile.value = "";
+}
+
+function removeProductImageSelection() {
+  revokeProductImagePreviewUrls();
+  state.productImageUrls = [];
+  if (productImageFile) {
+    productImageFile.value = "";
+  }
   renderProductImageSelection();
-  return productImageUrl;
+}
+
+async function resolveProductImageUrls(payload) {
+  const uploadedUrls = [];
+  for (const { file } of state.productImagePendingFiles) {
+    const imageFile = await getFilePayload(file, {
+      label: "제품 이미지",
+      maxSize: MAX_PRODUCT_IMAGE_FILE_SIZE
+    });
+    const uploadResult = await requestApi("uploadProductImage", {
+      productId: state.editingProductCode,
+      clientName: payload["업체명"],
+      productName: payload["제품명"],
+      imageFile
+    });
+    const productImageUrl = String(uploadResult?.imageUrl || "").trim();
+    if (!productImageUrl) {
+      throw new Error("제품 이미지 링크를 생성하지 못했습니다.");
+    }
+    uploadedUrls.push(productImageUrl);
+  }
+
+  const productImageUrls = normalizeProductImageUrls([...state.productImageUrls, ...uploadedUrls]);
+  state.productImageUrls = productImageUrls;
+  revokeProductImagePreviewUrls();
+  renderProductImageSelection();
+  return productImageUrls;
 }
 
 function validateInboundPayload(payload) {
@@ -8933,6 +9148,7 @@ function renderProductDetail(product) {
   const commonContainerProductCount = isCommonContainer
     ? Math.max(Number(product.shippingProductTypeCount) || 0, commonContainerProductNames.length)
     : 0;
+  const productImageUrls = getProductImageUrls(product).map(normalizeInboundSummaryProductImageUrl);
 
   productDetailContent.innerHTML = `
     ${renderDetailOverview({
@@ -8945,6 +9161,19 @@ function renderProductDetail(product) {
         { label: "사용 상태", value: renderUsageStatus(product.useStatus), isHtml: true }
       ]
     })}
+
+    ${productImageUrls.length ? `
+      <section class="detail-section" aria-labelledby="detailProductImageTitle">
+        <h3 id="detailProductImageTitle">제품 이미지 <span class="detail-image-count">${productImageUrls.length}장</span></h3>
+        <div class="detail-product-image-list">
+          ${productImageUrls.map((url, index) => `
+            <button type="button" data-detail-product-image="${index}" aria-label="${index + 1}번째 제품 이미지 크게 보기">
+              <img src="${escapeAttribute(url)}" alt="${escapeAttribute(product.productName)} 제품 이미지 ${index + 1}" loading="lazy" />
+            </button>
+          `).join("")}
+        </div>
+      </section>
+    ` : ""}
 
     <section class="detail-section" aria-labelledby="detailBaseTitle">
       <h3 id="detailBaseTitle">제품 기본 정보</h3>
@@ -8981,6 +9210,12 @@ function renderProductDetail(product) {
       </div>
     </section>
   `;
+
+  productDetailContent.querySelectorAll("[data-detail-product-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openProductImageGallery(productImageUrls, product.productName, Number(button.dataset.detailProductImage) || 0);
+    });
+  });
 }
 
 function renderInboundDetail(inbound) {
@@ -10074,9 +10309,8 @@ function syncProductProcessFields() {
 function openProductModal(mode = "create", product = null) {
   state.productFormMode = mode;
   state.editingProductCode = mode === "edit" ? product?.productCode || "" : "";
-  revokeProductImagePreviewUrl();
-  state.productImageUrl = mode === "edit" ? String(product?.productImageUrl || "").trim() : "";
-  state.productImageRemoved = false;
+  revokeProductImagePreviewUrls();
+  state.productImageUrls = mode === "edit" ? getProductImageUrls(product) : [];
 
   productForm.reset();
   ensureCommonContainerCountOption(1);
@@ -10135,9 +10369,8 @@ function closeProductModal() {
   const returnTarget = state.productFormReturnTarget;
   state.productFormReturnTarget = "";
   productModal.hidden = true;
-  revokeProductImagePreviewUrl();
-  state.productImageUrl = "";
-  state.productImageRemoved = false;
+  revokeProductImagePreviewUrls();
+  state.productImageUrls = [];
   state.productFormMode = "create";
   state.editingProductCode = "";
   productModalTitle.textContent = "신규 제품 등록";
@@ -10320,9 +10553,11 @@ async function saveProduct() {
   try {
     const isEdit = state.productFormMode === "edit";
     const returnTarget = state.productFormReturnTarget;
-    const productImageUrl = await resolveProductImageUrl(payload);
-    payload.productImageUrl = productImageUrl;
-    payload["제품 이미지"] = productImageUrl;
+    const productImageUrls = await resolveProductImageUrls(payload);
+    payload.productImageUrls = productImageUrls;
+    payload["제품 이미지 목록"] = JSON.stringify(productImageUrls);
+    payload.productImageUrl = productImageUrls[0] || "";
+    payload["제품 이미지"] = productImageUrls[0] || "";
     const result = await requestApi(
       isEdit ? "updateProduct" : "createProduct",
       isEdit ? { ...payload, productId: state.editingProductCode } : payload
@@ -10399,8 +10634,10 @@ function getProductFormPayload() {
     "납기일": productDueDate.value.trim(),
     "박스당 수량": boxQuantity ? `${Number(boxQuantity).toLocaleString("ko-KR")} ea` : "",
     "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
-    "제품 이미지": state.productImageRemoved ? "" : state.productImageUrl,
-    productImageUrl: state.productImageRemoved ? "" : state.productImageUrl,
+    "제품 이미지": state.productImageUrls[0] || "",
+    "제품 이미지 목록": JSON.stringify(state.productImageUrls),
+    productImageUrl: state.productImageUrls[0] || "",
+    productImageUrls: [...state.productImageUrls],
     "비고": productNote.value.trim()
   };
 }
