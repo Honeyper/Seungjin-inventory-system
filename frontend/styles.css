@@ -8641,17 +8641,22 @@ input {
 }
 
 .purchase-order-form .segmented-date-fields {
-  display: flex;
+  display: grid;
+  grid-template-columns: 4.25rem 0.45rem 2.6rem 0.45rem 2.6rem 0.45rem;
   align-items: center;
-  gap: 0.18rem;
   min-width: 0;
   color: #263449;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.purchase-order-form .segmented-date-fields > span {
+  text-align: center;
 }
 
 .purchase-order-form .form-field .segmented-date-part {
-  flex: 0 0 auto;
-  width: 2rem;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   padding: 0;
   text-align: center;
@@ -8660,10 +8665,6 @@ input {
   outline: 0;
   background: transparent;
   box-shadow: none;
-}
-
-.purchase-order-form .form-field .segmented-date-part.year {
-  width: 3.45rem;
 }
 
 .purchase-order-form .form-field .segmented-date-part::placeholder {
