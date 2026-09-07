@@ -9257,7 +9257,9 @@ button.shipping-product-visual.has-photo:focus-visible {
 }
 
 .product-image-lightbox header > div {
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .product-image-lightbox header span {
@@ -9267,6 +9269,8 @@ button.shipping-product-visual.has-photo:focus-visible {
 }
 
 .product-image-lightbox h2 {
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
   margin: 3px 0 0;
   color: var(--mobile-navy);
