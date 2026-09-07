@@ -1859,17 +1859,32 @@ function fitProductImageModalTitle() {
     return;
   }
 
-  title.style.fontSize = "19px";
-  window.requestAnimationFrame(() => {
-    const availableWidth = title.clientWidth;
-    const contentWidth = title.scrollWidth;
-    if (!availableWidth || contentWidth <= availableWidth) {
+  const applyFit = () => {
+    if (elements.productImageModal?.hidden) {
       return;
     }
 
-    const fittedSize = Math.max(11, Math.floor((19 * availableWidth / contentWidth) * 10) / 10);
-    title.style.fontSize = `${fittedSize}px`;
-  });
+    title.classList.remove("is-multiline");
+    title.style.fontSize = "19px";
+    const availableWidth = title.clientWidth;
+    if (!availableWidth) {
+      return;
+    }
+
+    let fittedSize = 19;
+    while (title.scrollWidth > availableWidth + 1 && fittedSize > 13) {
+      fittedSize -= 0.5;
+      title.style.fontSize = `${fittedSize}px`;
+    }
+
+    if (title.scrollWidth > availableWidth + 1) {
+      title.classList.add("is-multiline");
+      title.style.fontSize = "13px";
+    }
+  };
+
+  window.requestAnimationFrame(() => window.requestAnimationFrame(applyFit));
+  document.fonts?.ready.then(() => window.requestAnimationFrame(applyFit));
 }
 
 function moveProductImageModal(direction) {

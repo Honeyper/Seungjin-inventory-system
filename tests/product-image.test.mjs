@@ -102,15 +102,19 @@ test("모바일 제품 이미지는 하단 썸네일 영역을 침범하지 않�
   assert.match(mobileCss, /\.product-image-lightbox-stage\s*\{[\s\S]*?min-height:\s*260px;[\s\S]*?overflow:\s*hidden;/);
   assert.match(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?max-height:\s*100%;/);
   assert.doesNotMatch(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?max-height:\s*calc\(88dvh - 118px\);/);
-  assert.match(mobileHtml, /mobile\.css\?v=20260907-(?:product-image-boundary|product-image-title-fit)-(?:dev|prd)/);
+  assert.match(mobileHtml, /mobile\.css\?v=2026090[78]-(?:product-image-boundary|product-image-title-fit|product-image-title-fit-v2)-(?:dev|prd)/);
 });
 
-test("긴 모바일 제품명은 닫기 버튼을 침범하지 않도록 실제 폭에 맞춰 축소한다", () => {
+test("긴 모바일 제품명은 글꼴 로딩 뒤에도 실제 폭에 맞춰 축소하고 필요하면 줄바꿈한다", () => {
+  assert.match(mobileCss, /\.product-image-lightbox header\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;[\s\S]*?overflow:\s*hidden;/);
   assert.match(mobileCss, /\.product-image-lightbox header > div\s*\{[\s\S]*?flex:\s*1 1 auto;[\s\S]*?overflow:\s*hidden;/);
   assert.match(mobileCss, /\.product-image-lightbox h2\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;/);
-  assert.match(mobileSource, /function fitProductImageModalTitle\(\)[\s\S]*?title\.scrollWidth[\s\S]*?Math\.max\(11,/);
+  assert.match(mobileCss, /\.product-image-lightbox h2\.is-multiline\s*\{[\s\S]*?overflow-wrap:\s*anywhere;[\s\S]*?white-space:\s*normal;/);
+  assert.match(mobileSource, /function fitProductImageModalTitle\(\)[\s\S]*?while \(title\.scrollWidth > availableWidth \+ 1 && fittedSize > 13\)/);
+  assert.match(mobileSource, /title\.classList\.add\("is-multiline"\)/);
+  assert.match(mobileSource, /document\.fonts\?\.ready\.then/);
   assert.match(mobileSource, /elements\.productImageModalTitle\.textContent = state\.activeProductImageName;\s*fitProductImageModalTitle\(\);/);
-  assert.match(mobileHtml, /mobile\.js\?v=20260907-product-image-title-fit-(?:dev|prd)/);
+  assert.match(mobileHtml, /mobile\.js\?v=20260908-product-image-title-fit-v2-(?:dev|prd)/);
 });
 
 test("제품 이미지 삭제 버튼은 고정 SVG X 아이콘으로 가운데 정렬한다", () => {
