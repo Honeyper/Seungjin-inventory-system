@@ -283,6 +283,62 @@ test("같은 제품과 발주 차수는 중복 등록하지 않는다", () => {
   );
 });
 
+test("발주량을 달성하거나 초과한 발주에도 추가 입고를 연결할 수 있다", () => {
+  const purchaseOrderId = "PO-260908-ION-0001-001";
+  const holder = {
+    state: {
+      products: [product("ION-0001", "제품 A")],
+      orders: [{
+        purchaseOrderId,
+        productId: "ION-0001",
+        clientName: "아이원(아이텍)",
+        productName: "제품 A",
+        orderRound: "1차",
+        startDate: "2026-09-08",
+        totalOrderQuantity: 100,
+        accumulatedInboundQuantity: 100,
+        remainingQuantity: 0,
+        achievementRate: "100%",
+        status: "입고완료"
+      }],
+      inbounds: [{
+        managementId: "OLD-PO",
+        productId: "ION-0001",
+        purchaseOrderId,
+        inboundTotalQuantity: "100 ea"
+      }],
+      records: [{
+        ...inventoryRecord("OLD-PO", "ION-0001", 100),
+        purchaseOrderId
+      }],
+      boxes: [inventoryBox("OLD-PO", "ION-0001", 1, 100)]
+    }
+  };
+
+  mutate(holder, "createInbound", {
+    registrant: "테스터",
+    inboundDate: "2026-09-08",
+    inboundTime: "13:00",
+    inboundType: "정상입고",
+    productId: "ION-0001",
+    productName: "제품 A",
+    clientName: "아이원(아이텍)",
+    purchaseOrderId,
+    batch: "추가입고",
+    storage: "A",
+    boxQuantity: 25,
+    inboundBoxCount: 1,
+    inspectionQuantity: 0,
+    defectQuantity: 0,
+    defectReason: "양호"
+  });
+
+  assert.equal(holder.state.orders[0].accumulatedInboundQuantity, 125);
+  assert.equal(holder.state.orders[0].remainingQuantity, 0);
+  assert.equal(holder.state.orders[0].inboundRate, 1.25);
+  assert.equal(holder.state.orders[0].status, "입고완료");
+});
+
 test("processed legacy inbound can link a purchase order without rebuilding boxes", () => {
   const managementId = "IN-260708-IRP-0002-001";
   const productId = "IRP-0002";

@@ -7279,7 +7279,7 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
   const previousValue = preferredOrderId || inboundPurchaseOrder.value;
   const orders = state.purchaseOrders.filter((order) => (
     order.productId === productId
-    && !["취소", "입고완료"].includes(order.status)
+    && order.status !== "취소"
   ));
   if (!productId) {
     inboundPurchaseOrder.innerHTML = '<option value="">제품을 먼저 선택해주세요.</option>';
@@ -10358,7 +10358,7 @@ function renderInboundEditForm(inbound) {
   const currentPurchaseOrderId = String(inbound.purchaseOrderId || "").trim();
   const editablePurchaseOrders = state.purchaseOrders.filter((order) => (
     order.productId === inbound.productId
-    && (order.purchaseOrderId === currentPurchaseOrderId || !["취소", "입고완료"].includes(order.status))
+    && (order.purchaseOrderId === currentPurchaseOrderId || order.status !== "취소")
   ));
   if (currentPurchaseOrderId && !editablePurchaseOrders.some((order) => order.purchaseOrderId === currentPurchaseOrderId)) {
     editablePurchaseOrders.unshift({
