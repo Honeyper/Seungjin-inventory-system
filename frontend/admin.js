@@ -5969,7 +5969,9 @@ function renderProductImageSelection() {
             data-pending-image="${isPending ? "true" : "false"}"
             aria-label="${index + 1}번째 제품 이미지 제거"
           >
-            <i class="ti ti-x" aria-hidden="true"></i>
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path d="M5 5l10 10M15 5 5 15"></path>
+            </svg>
           </button>
         </div>
       `;
