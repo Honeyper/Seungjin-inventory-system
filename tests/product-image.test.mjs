@@ -12,6 +12,7 @@ const stylesSource = await readFile(new URL("../frontend/styles.css", import.met
 const gasSource = await readFile(new URL("../gas/Code.js", import.meta.url), "utf8");
 const mobileHtml = await readFile(new URL("../frontend/mobile/index.html", import.meta.url), "utf8");
 const mobileSource = await readFile(new URL("../frontend/mobile/mobile.js", import.meta.url), "utf8");
+const mobileCss = await readFile(new URL("../frontend/mobile/mobile.css", import.meta.url), "utf8");
 const gatewaySource = await readFile(new URL("../supabase/functions/seungjin-dev-gateway/index.ts", import.meta.url), "utf8");
 const stateEngineSource = await readFile(new URL("../supabase/functions/seungjin-dev-gateway/state-engine.js", import.meta.url), "utf8");
 
@@ -102,4 +103,11 @@ test("PC and mobile product images open as navigable multi-image galleries", () 
   assert.match(mobileHtml, /id="productImageModal"/);
   assert.match(mobileHtml, /id="productImageModalImage"/);
   assert.match(mobileHtml, /id="productImageModalThumbnails"/);
+});
+
+test("모바일 제품 이미지는 하단 썸네일 영역을 침범하지 않는다", () => {
+  assert.match(mobileCss, /\.product-image-lightbox-stage\s*\{[\s\S]*?min-height:\s*260px;[\s\S]*?overflow:\s*hidden;/);
+  assert.match(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?max-height:\s*100%;/);
+  assert.doesNotMatch(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?max-height:\s*calc\(88dvh - 118px\);/);
+  assert.match(mobileHtml, /mobile\.css\?v=20260907-product-image-boundary-(?:dev|prd)/);
 });
