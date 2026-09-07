@@ -4100,8 +4100,8 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
         productName: normalizeDisplay(row?.productName || "-"),
         scannedBoxKeys: new Set(),
         activeBoxCount: 0,
-        adjustmentBoxCount: 0,
-        adjustmentQuantity: 0
+        unscannedBoxCount: 0,
+        unscannedQuantity: 0
       });
     }
     return productSummaries.get(productKey);
@@ -4120,7 +4120,6 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
     }
   });
 
-  const adjustmentGroups = new Map();
   const seenActiveBoxKeys = new Set();
   let invalidBoxCount = 0;
   let protectedBoxCount = 0;
@@ -4158,41 +4157,11 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
         return;
       }
 
-      const managementId = String(row?.managementId || "").trim();
-      if (!managementId) {
-        invalidBoxCount += 1;
-        return;
-      }
-
-      const groupKey = `${managementId}|${productKey}`;
-      if (!adjustmentGroups.has(groupKey)) {
-        adjustmentGroups.set(groupKey, {
-          managementId,
-          productId: row.productId || "",
-          clientName: row.clientName || "",
-          productName: row.productName || "",
-          selectedBoxes: [],
-          adjustmentQuantity: 0,
-          productKey
-        });
-      }
-
       const quantity = getBoxCurrentQuantity(box, row);
-      const group = adjustmentGroups.get(groupKey);
-      group.selectedBoxes.push(boxNumber);
-      group.adjustmentQuantity += quantity;
-
-      summary.adjustmentBoxCount += 1;
-      summary.adjustmentQuantity += quantity;
+      summary.unscannedBoxCount += 1;
+      summary.unscannedQuantity += quantity;
     });
   });
-
-  const adjustments = Array.from(adjustmentGroups.values()).map((group) => ({
-    ...group,
-    selectedBoxes: group.selectedBoxes
-      .slice()
-      .sort((left, right) => parseNumber(left) - parseNumber(right))
-  }));
 
   const confirmationGroups = new Map();
   const seenConfirmedBoxKeys = new Set();
@@ -4239,13 +4208,13 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
     ...summary,
     scannedBoxCount: summary.scannedBoxKeys.size
   }));
-  const affectedProducts = summarizedProducts.filter((summary) => summary.adjustmentBoxCount > 0);
+  const affectedProducts = summarizedProducts.filter((summary) => summary.scannedBoxCount > 0);
 
   return {
     scope: normalizedScope,
     scopeLabel: INVENTORY_AUDIT_SCOPE_DEFINITIONS.find((option) => option.value === normalizedScope)?.label || "재고 실물 확인",
     anchorItem,
-    adjustments,
+    adjustments: [],
     confirmedBoxes,
     invalidBoxCount,
     protectedBoxCount,
@@ -4255,22 +4224,22 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
     productSummaries: summarizedProducts,
     affectedProductCount: affectedProducts.length,
     confirmedBoxCount: confirmedBoxes.reduce((sum, group) => sum + group.selectedBoxes.length, 0),
-    adjustmentBoxCount: adjustments.reduce((sum, group) => sum + group.selectedBoxes.length, 0),
-    adjustmentQuantity: adjustments.reduce((sum, group) => sum + group.adjustmentQuantity, 0)
+    unscannedBoxCount: summarizedProducts.reduce((sum, summary) => sum + summary.unscannedBoxCount, 0),
+    unscannedQuantity: summarizedProducts.reduce((sum, summary) => sum + summary.unscannedQuantity, 0)
   };
 }
 
 function getInventoryAuditScopeDescription(scope, plan) {
   if (scope === "management") {
-    return `관리 ID ${normalizeDisplay(plan.anchorItem?.managementId || "-")}의 박스만 비교합니다.`;
+    return "현재 선택한 입고 건에서 스캔한 박스만 실물확인 처리합니다.";
   }
   if (scope === "product") {
-    return `${normalizeDisplay(plan.anchorItem?.productName || "선택 제품")}의 모든 입고 건을 비교합니다.`;
+    return "현재 제품에서 스캔한 박스만 실물확인 처리합니다.";
   }
   if (scope === "scannedProducts") {
-    return `이번에 QR을 찍은 ${formatNumber(plan.productSummaries.length)}개 제품을 함께 비교합니다.`;
+    return "이번에 스캔한 모든 제품의 박스만 실물확인 처리합니다.";
   }
-  return "QR을 찍지 않은 다른 제품까지 전체 일반재고를 비교합니다.";
+  return "이번 조사에서 스캔한 모든 박스만 실물확인 처리합니다.";
 }
 
 function handleInventoryAuditScopeChange(event) {
@@ -4299,7 +4268,7 @@ function renderInventoryAuditScopeOptions(anchorItem, preparedPlans = null) {
     const disabled = plan.confirmedBoxCount <= 0 || plan.invalidBoxCount > 0;
     const metric = disabled
       ? "실물 확인할 일반재고 없음"
-      : `${formatNumber(plan.activeBoxCount)}박스 범위 · 확인 ${formatNumber(plan.confirmedBoxCount)}박스 · 미확인 ${formatNumber(plan.adjustmentBoxCount)}박스`;
+      : `${formatNumber(plan.activeBoxCount)}박스 범위 · 스캔 ${formatNumber(plan.confirmedBoxCount)}박스 · 미스캔 ${formatNumber(plan.unscannedBoxCount)}박스 유지`;
     return `
       <label class="mobile-inventory-audit-scope-option ${value === "allInventory" ? "danger" : ""} ${disabled ? "disabled" : ""}">
         <input type="radio" name="mobileInventoryAuditScope" value="${value}" ${value === selectedScope ? "checked" : ""} ${disabled ? "disabled" : ""} />
@@ -4345,7 +4314,7 @@ function openMissingInventoryAdjustmentScopePicker(selectedItem = null, preferre
     icon: "ti-adjustments-horizontal",
     tone: "move",
     title: "재고 실물 확인 범위 선택",
-    message: "QR로 확인한 실재고를 기준으로 어느 범위까지 전산 재고와 비교할지 선택해주세요.",
+    message: "실물 확인 처리할 스캔 박스의 범위를 선택해주세요. 스캔하지 않은 박스는 변경되지 않습니다.",
     subject: normalizeDisplay(anchorItem?.productName || "스캔 제품"),
     subjectLabel: "기준으로 스캔한 제품",
     meta: [`스캔 ${formatNumber(state.scannedMoveRows.length)}박스`, "다음 화면에서 최종 대상을 다시 확인합니다."],
@@ -4372,25 +4341,21 @@ function openMissingInventoryAdjustmentConfirm({ scope = "management", selectedI
     return;
   }
 
-  const affectedProducts = plan.productSummaries.filter((summary) => summary.scannedBoxCount > 0 || summary.adjustmentBoxCount > 0);
+  const affectedProducts = plan.productSummaries.filter((summary) => summary.scannedBoxCount > 0);
   const visibleProducts = affectedProducts.slice(0, 4);
   const remainingProductCount = Math.max(0, affectedProducts.length - visibleProducts.length);
-  const scopeMessage = plan.adjustmentBoxCount <= 0
-    ? `${plan.scopeLabel} 범위의 전산 재고와 실재고가 일치합니다. QR로 확인한 박스의 최종 재고 확인일시를 저장합니다.`
-    : plan.scope === "allInventory"
-      ? "제품군과 QR 스캔 여부에 관계없이 모든 일반재고 중 스캔하지 않은 박스를 재고 없음으로 처리합니다. 전체 범위를 반드시 다시 확인해주세요."
-      : `${plan.scopeLabel} 범위에서 이번 조사 중 스캔하지 않은 박스를 재고 없음으로 처리합니다.`;
+  const scopeMessage = `QR로 스캔한 ${formatNumber(plan.confirmedBoxCount)}개 박스만 실물확인 처리합니다. 스캔하지 않은 박스는 변경하지 않습니다.`;
   openCallbackConfirm({
     eyebrow: "재고 조사",
     icon: "ti-clipboard-check",
-    tone: plan.adjustmentBoxCount > 0 ? "danger" : "move",
+    tone: "move",
     title: "재고 실물 확인 최종 확인",
     message: scopeMessage,
-    subject: `${plan.scopeLabel} · 실물 확인 ${formatNumber(plan.confirmedBoxCount)}박스 · 미확인 ${formatNumber(plan.adjustmentBoxCount)}박스`,
+    subject: `${plan.scopeLabel} · 실물 확인 ${formatNumber(plan.confirmedBoxCount)}박스 · 미스캔 ${formatNumber(plan.unscannedBoxCount)}박스 유지`,
     subjectLabel: "확인 결과",
     meta: [
       ...visibleProducts.map((summary) => (
-        `${summary.productName} · 실물 확인 ${formatNumber(summary.scannedBoxCount)}박스 · 미확인 ${formatNumber(summary.adjustmentBoxCount)}박스 / ${formatNumber(summary.adjustmentQuantity)}ea`
+        `${summary.productName} · 실물 확인 ${formatNumber(summary.scannedBoxCount)}박스 · 미스캔 ${formatNumber(summary.unscannedBoxCount)}박스 유지`
       )),
       ...(remainingProductCount > 0 ? [`외 ${formatNumber(remainingProductCount)}개 제품 포함`] : []),
       ...(plan.protectedBoxCount > 0
@@ -4421,12 +4386,12 @@ async function completeMissingInventoryAdjustment(plan) {
 
   try {
     const result = await requestApi("adjustMissingInventory", {
-      adjustments: plan.adjustments,
+      adjustments: [],
       confirmedBoxes: plan.confirmedBoxes,
+      confirmationOnly: true,
       userName: state.user?.name || "Admin"
     });
     const confirmedBoxCount = parseNumber(result?.confirmedBoxRows);
-    const updatedBoxCount = parseNumber(result?.updatedBoxRows);
     if (confirmedBoxCount <= 0) {
       throw new Error("서버에서 실물 확인된 박스를 확인하지 못했습니다.");
     }
@@ -4439,9 +4404,7 @@ async function completeMissingInventoryAdjustment(plan) {
     renderInventoryMoveList();
     renderScannerScannedList();
     triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
-    showToast(updatedBoxCount > 0
-      ? `${formatNumber(confirmedBoxCount)}개 박스 실물 확인 · ${formatNumber(updatedBoxCount)}개 미확인 박스 재고조정 완료`
-      : `${formatNumber(confirmedBoxCount)}개 박스의 실물 재고 확인일시를 저장했습니다.`);
+    showToast(`${formatNumber(confirmedBoxCount)}개 스캔 박스의 실물 재고 확인일시를 저장했습니다.`);
     if (!state.scannedMoveRows.length && !elements.scannerScreen?.hidden) {
       closeScanner();
     }

@@ -4697,7 +4697,9 @@ function updateShippingStatus(payload) {
 }
 
 function adjustMissingInventory(payload) {
-  const rawAdjustments = Array.isArray(payload.adjustments) ? payload.adjustments : [];
+  const rawAdjustments = payload.confirmationOnly === true
+    ? []
+    : Array.isArray(payload.adjustments) ? payload.adjustments : [];
   const rawConfirmedBoxes = Array.isArray(payload.confirmedBoxes) ? payload.confirmedBoxes : [];
   if (!rawAdjustments.length && !rawConfirmedBoxes.length) {
     throw new Error('재고 실물 확인 또는 재고조정할 박스가 없습니다.');

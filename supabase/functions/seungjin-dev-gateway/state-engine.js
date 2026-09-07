@@ -867,7 +867,9 @@ function adjustMissingInventory(payload, state, changes, now) {
       confirmedBoxRows += 1;
     });
   });
-  const adjustments = Array.isArray(payload.adjustments) ? payload.adjustments : [];
+  const adjustments = payload.confirmationOnly === true
+    ? []
+    : Array.isArray(payload.adjustments) ? payload.adjustments : [];
   const adjusted = [];
   adjustments.forEach((group) => {
     selectBoxes(state, { ...group, productId: group.productId }, { requireSelection: true }).forEach((box) => {
