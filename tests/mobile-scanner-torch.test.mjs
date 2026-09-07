@@ -2,24 +2,28 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadFunctions, mobileSource } from "./helpers/frontend-runtime.mjs";
 
-function torchRuntime(capability = true) {
+function torchRuntime(options = {}) {
   let constraints = { width: { ideal: 1920 }, frameRate: { ideal: 30, max: 30 }, advanced: [{ focusMode: "continuous" }] };
   const calls = [];
   const messages = [];
   const attributes = {};
   const text = { textContent: "OFF" };
-  const button = { setAttribute: (key, value) => { attributes[key] = value; }, classList: { toggle() {} }, querySelector: () => text };
+  const button = { disabled: false, setAttribute: (key, value) => { attributes[key] = value; }, classList: { toggle() {} }, querySelector: () => text };
   const track = {
     readyState: "live",
-    getCapabilities: () => ({ torch: capability }),
-    getSettings: () => ({ torch: false }),
+    getCapabilities: options.getCapabilities || (() => ({})),
+    getSettings: options.getSettings || (() => ({})),
     getConstraints: () => structuredClone(constraints),
     async applyConstraints(value) {
       calls.push(structuredClone(value));
+      if (options.rejectAdvancedTorch && value.advanced?.some((entry) => typeof entry.torch === "boolean")) {
+        throw new Error("OverconstrainedError");
+      }
       constraints = value;
     },
     stop() { this.readyState = "ended"; }
   };
+  if (options.noApplyConstraints) delete track.applyConstraints;
   const stream = { getVideoTracks: () => [track], getTracks: () => [track] };
   const app = loadFunctions(mobileSource, [
     "syncScannerTorchControl", "renderScannerTorchButton", "toggleScannerTorch",
@@ -37,40 +41,35 @@ function torchRuntime(capability = true) {
   return { app, track, calls, messages, attributes, text, button };
 }
 
-test("torch toggles ON/OFF even when the browser reports stale settings", async () => {
+test("a live rear-camera track can probe torch even without capability metadata", async () => {
   const { app, calls, attributes, text } = torchRuntime();
   await app.toggleScannerTorch();
-  assert.equal(calls[0].torch, true);
   assert.equal(calls[0].advanced.at(-1).torch, true);
   assert.equal(attributes["aria-pressed"], "true");
   assert.equal(text.textContent, "ON");
   await app.toggleScannerTorch();
-  assert.equal(calls[1].torch, false);
   assert.equal(calls[1].advanced.at(-1).torch, false);
   assert.equal(attributes["aria-pressed"], "false");
   assert.equal(text.textContent, "OFF");
 });
 
-test("boolean-sequence capabilities and settings fallback detect camera torch support", async () => {
-  const { app, track } = torchRuntime([false, true]);
-  assert.equal(app.state.scannerTorchSupported, true);
-  track.getCapabilities = () => ({});
-  app.syncScannerTorchControl();
-  assert.equal(app.state.scannerTorchSupported, true);
-  track.getSettings = () => ({});
-  app.syncScannerTorchControl();
-  assert.equal(app.state.scannerTorchSupported, false);
+test("torch retries with a basic constraint when an Android browser rejects advanced", async () => {
+  const { app, calls, text } = torchRuntime({ rejectAdvancedTorch: true });
+  await app.toggleScannerTorch();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].advanced.at(-1).torch, true);
+  assert.equal(calls[1].torch, true);
+  assert.equal(calls[1].advanced.some((entry) => "torch" in entry), false);
+  assert.equal(text.textContent, "ON");
 });
 
-test("unsupported hardware never claims the torch is enabled and explains the unavailable control", async () => {
-  for (const capability of [false, [false]]) {
-    const { app, calls, messages, attributes } = torchRuntime(capability);
-    await app.toggleScannerTorch();
-    assert.equal(calls.length, 0);
-    assert.equal(attributes["aria-pressed"], "false");
-    assert.equal(attributes["aria-disabled"], "true");
-    assert.match(messages[0], /지원하지/);
-  }
+test("a track without constraint control remains unavailable", async () => {
+  const { app, calls, messages, attributes } = torchRuntime({ noApplyConstraints: true });
+  await app.toggleScannerTorch();
+  assert.equal(calls.length, 0);
+  assert.equal(attributes["aria-pressed"], "false");
+  assert.equal(attributes["aria-disabled"], "true");
+  assert.match(messages[0], /사용할 수 없습니다/);
 });
 
 test("focus and exposure adjustments preserve the enabled torch and original video settings", async () => {
@@ -78,13 +77,13 @@ test("focus and exposure adjustments preserve the enabled torch and original vid
   await app.toggleScannerTorch();
   await app.applyScannerTrackControls(track, { focusMode: "single-shot", pointsOfInterest: [{ x: 0.5, y: 0.5 }] });
   const focus = calls.at(-1);
-  assert.equal(focus.torch, true);
+  assert.equal(focus.advanced.some((entry) => entry.torch === true), true);
   assert.equal(focus.width.ideal, 1920);
   assert.equal(focus.frameRate.max, 30);
   assert.equal(focus.advanced.some((entry) => entry.focusMode === "continuous"), false);
   await app.toggleScannerTorch();
   const off = calls.at(-1);
-  assert.equal(off.torch, false);
+  assert.equal(off.advanced.some((entry) => entry.torch === false), true);
   assert.equal(off.advanced.some((entry) => entry.torch === true), false);
   assert.equal(off.advanced.some((entry) => entry.focusMode === "single-shot"), true);
   for (let i = 0; i < 10; i += 1) {
@@ -114,7 +113,7 @@ test("rapid taps coalesce and a simultaneous focus adjustment waits for the torc
   pending.resolve();
   await Promise.all([toggle, focus]);
   assert.equal(calls.length, 2);
-  assert.equal(calls[1].torch, true);
+  assert.equal(calls[1].advanced.some((entry) => entry.torch === true), true);
   assert.equal(button.disabled, false);
 });
 
@@ -125,7 +124,7 @@ test("constraint errors preserve the previous state and allow another attempt", 
   await app.toggleScannerTorch();
   assert.equal(text.textContent, "OFF");
   assert.equal(button.disabled, false);
-  assert.match(messages[0], /변경하지 못했습니다/);
+  assert.match(messages[0], /켤 수 없습니다/);
   track.applyConstraints = apply;
   await app.toggleScannerTorch();
   assert.equal(text.textContent, "ON");
