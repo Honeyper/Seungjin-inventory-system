@@ -104,3 +104,10 @@ test("모바일 제품 이미지는 하단 썸네일 영역을 침범하지 않�
   assert.doesNotMatch(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?max-height:\s*calc\(88dvh - 118px\);/);
   assert.match(mobileHtml, /mobile\.css\?v=20260907-product-image-boundary-(?:dev|prd)/);
 });
+
+test("제품 이미지 삭제 버튼은 고정 SVG X 아이콘으로 가운데 정렬한다", () => {
+  assert.match(adminSource, /class="product-image-preview-remove"[\s\S]*?<svg viewBox="0 0 20 20"/);
+  assert.doesNotMatch(adminSource, /class="product-image-preview-remove"[\s\S]*?<i class="ti ti-x"/);
+  assert.match(stylesSource, /\.product-image-preview-remove\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?padding:\s*0;/);
+  assert.match(stylesSource, /\.product-image-preview-remove svg\s*\{[\s\S]*?stroke:\s*currentColor;[\s\S]*?stroke-linecap:\s*round;/);
+});
