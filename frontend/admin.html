@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260907-product-image-spacing-dev" />
+    <link rel="stylesheet" href="./styles.css?v=20260907-purchase-date-auto-advance-dev" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260902-qr-batch-highlight-dev" />
   </head>
   <body class="admin-body">
@@ -2731,14 +2731,36 @@
                   <i>ea</i>
                 </span>
               </label>
-              <label class="form-field">
-                <span>발주 시작일 <b>*</b></span>
-                <input id="purchaseOrderStartDate" type="date" required />
-              </label>
-              <label class="form-field">
-                <span>납기일</span>
-                <input id="purchaseOrderEndDate" type="date" />
-              </label>
+              <div class="form-field">
+                <span id="purchaseOrderStartDateLabel">발주 시작일 <b>*</b></span>
+                <div class="segmented-date-control" data-segmented-date="purchaseOrderStartDate" role="group" aria-labelledby="purchaseOrderStartDateLabel">
+                  <div class="segmented-date-fields">
+                    <input class="segmented-date-part year" data-date-part="year" type="text" inputmode="numeric" maxlength="4" placeholder="연도" autocomplete="off" aria-label="발주 시작일 연도" />
+                    <span aria-hidden="true">.</span>
+                    <input class="segmented-date-part month" data-date-part="month" type="text" inputmode="numeric" maxlength="2" placeholder="월" autocomplete="off" aria-label="발주 시작일 월" />
+                    <span aria-hidden="true">.</span>
+                    <input class="segmented-date-part day" data-date-part="day" type="text" inputmode="numeric" maxlength="2" placeholder="일" autocomplete="off" aria-label="발주 시작일 일" />
+                    <span aria-hidden="true">.</span>
+                  </div>
+                  <input class="segmented-date-native-picker" id="purchaseOrderStartDate" type="date" aria-label="달력에서 발주 시작일 선택" aria-required="true" />
+                  <i class="ti ti-calendar segmented-date-calendar-icon" aria-hidden="true"></i>
+                </div>
+              </div>
+              <div class="form-field">
+                <span id="purchaseOrderEndDateLabel">납기일</span>
+                <div class="segmented-date-control" data-segmented-date="purchaseOrderEndDate" role="group" aria-labelledby="purchaseOrderEndDateLabel">
+                  <div class="segmented-date-fields">
+                    <input class="segmented-date-part year" data-date-part="year" type="text" inputmode="numeric" maxlength="4" placeholder="연도" autocomplete="off" aria-label="납기일 연도" />
+                    <span aria-hidden="true">.</span>
+                    <input class="segmented-date-part month" data-date-part="month" type="text" inputmode="numeric" maxlength="2" placeholder="월" autocomplete="off" aria-label="납기일 월" />
+                    <span aria-hidden="true">.</span>
+                    <input class="segmented-date-part day" data-date-part="day" type="text" inputmode="numeric" maxlength="2" placeholder="일" autocomplete="off" aria-label="납기일 일" />
+                    <span aria-hidden="true">.</span>
+                  </div>
+                  <input class="segmented-date-native-picker" id="purchaseOrderEndDate" type="date" aria-label="달력에서 납기일 선택" />
+                  <i class="ti ti-calendar segmented-date-calendar-icon" aria-hidden="true"></i>
+                </div>
+              </div>
               <label class="form-field" id="purchaseOrderStatusField" hidden>
                 <span>상태</span>
                 <select id="purchaseOrderFormStatus">
@@ -2848,6 +2870,7 @@
     <script src="./inbound-sort.js?v=20260901-recent-first"></script>
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-v2"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-dev"></script>
-    <script src="./admin.js?v=20260907-product-picker-direction-dev"></script>
+    <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-dev"></script>
+    <script src="./admin.js?v=20260907-purchase-date-auto-advance-dev"></script>
   </body>
 </html>

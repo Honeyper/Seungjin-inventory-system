@@ -8378,6 +8378,85 @@ input {
   padding-top: 0.68rem;
 }
 
+.purchase-order-form .segmented-date-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.65rem;
+  padding: 0 3rem 0 0.85rem;
+  overflow: hidden;
+  border: 1px solid #dce3ec;
+  border-radius: 0.42rem;
+  background: #fff;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.purchase-order-form .segmented-date-control:focus-within {
+  border-color: rgba(8, 42, 98, 0.55);
+  box-shadow: 0 0 0 0.18rem rgba(8, 42, 98, 0.08);
+}
+
+.purchase-order-form .segmented-date-control.is-invalid {
+  border-color: rgba(214, 38, 38, 0.65);
+}
+
+.purchase-order-form .segmented-date-fields {
+  display: flex;
+  align-items: center;
+  gap: 0.18rem;
+  min-width: 0;
+  color: #263449;
+  font-weight: 800;
+}
+
+.purchase-order-form .form-field .segmented-date-part {
+  flex: 0 0 auto;
+  width: 2rem;
+  min-height: 0;
+  padding: 0;
+  text-align: center;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.purchase-order-form .form-field .segmented-date-part.year {
+  width: 3.45rem;
+}
+
+.purchase-order-form .form-field .segmented-date-part::placeholder {
+  color: #8a97aa;
+  opacity: 1;
+}
+
+.purchase-order-form .form-field .segmented-date-part:focus {
+  box-shadow: none;
+}
+
+.purchase-order-form .form-field .segmented-date-native-picker {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  width: 3rem;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.purchase-order-form .segmented-date-calendar-icon {
+  position: absolute;
+  right: 0.85rem;
+  color: #111;
+  font-size: 1rem;
+  pointer-events: none;
+}
+
 .purchase-order-form .field-with-button button {
   width: 2.05rem;
   height: 2.05rem;

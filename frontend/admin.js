@@ -400,6 +400,14 @@ const purchaseOrderRound = document.querySelector("#purchaseOrderRound");
 const purchaseOrderQuantity = document.querySelector("#purchaseOrderQuantity");
 const purchaseOrderStartDate = document.querySelector("#purchaseOrderStartDate");
 const purchaseOrderEndDate = document.querySelector("#purchaseOrderEndDate");
+const purchaseOrderStartDateControl = window.SeungjinSegmentedDate?.createController(
+  document.querySelector('[data-segmented-date="purchaseOrderStartDate"]'),
+  purchaseOrderStartDate
+);
+const purchaseOrderEndDateControl = window.SeungjinSegmentedDate?.createController(
+  document.querySelector('[data-segmented-date="purchaseOrderEndDate"]'),
+  purchaseOrderEndDate
+);
 const purchaseOrderStatusField = document.querySelector("#purchaseOrderStatusField");
 const purchaseOrderFormStatus = document.querySelector("#purchaseOrderFormStatus");
 const purchaseOrderNote = document.querySelector("#purchaseOrderNote");
@@ -6610,8 +6618,8 @@ function openPurchaseOrderModal(order = null) {
   purchaseOrderProductName.setAttribute("aria-disabled", String(isProductLocked));
   purchaseOrderRound.value = order?.orderRound || "";
   purchaseOrderQuantity.value = order?.totalOrderQuantity || "";
-  purchaseOrderStartDate.value = order?.startDate || getLocalDateInputValue();
-  purchaseOrderEndDate.value = order?.endDate || "";
+  purchaseOrderStartDateControl?.setValue(order?.startDate || getLocalDateInputValue());
+  purchaseOrderEndDateControl?.setValue(order?.endDate || "");
   purchaseOrderFormStatus.value = order?.status === "취소" ? "취소" : "";
   purchaseOrderNote.value = order?.note || "";
   purchaseOrderModal.hidden = false;
