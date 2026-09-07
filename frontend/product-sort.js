@@ -54,7 +54,9 @@
     );
   }
 
-  function sortProducts(products, sortKey = "registered") {
+  function sortProducts(products, sortKey = "registered", direction = "desc") {
+    const directionMultiplier = direction === "asc" ? 1 : -1;
+
     return [...products]
       .map((product, originalIndex) => ({ product, originalIndex }))
       .sort((left, right) => {
@@ -63,14 +65,14 @@
         if (sortKey === "name") {
           compared = compareNames(left.product, right.product);
         } else if (sortKey === "inboundQuantity") {
-          compared = parseQuantity(right.product?.accumulatedInboundQuantity)
-            - parseQuantity(left.product?.accumulatedInboundQuantity);
+          compared = parseQuantity(left.product?.accumulatedInboundQuantity)
+            - parseQuantity(right.product?.accumulatedInboundQuantity);
           compared ||= compareRegistered(left.product, right.product);
         } else {
           compared = compareRegistered(left.product, right.product);
         }
 
-        return compared || left.originalIndex - right.originalIndex;
+        return (compared * directionMultiplier) || left.originalIndex - right.originalIndex;
       })
       .map(({ product }) => product);
   }

@@ -187,6 +187,7 @@ const state = {
   isSavingTransferReturn: false,
   inboundProductPickerQuery: "",
   inboundProductPickerSort: "registered",
+  inboundProductPickerSortDirection: "desc",
   inboundProductPickerTarget: "inbound",
   inboundPreviewUrls: {
     invoice: "",
@@ -355,6 +356,7 @@ const inboundProductSearchTrigger = document.querySelector("#inboundProductSearc
 const inboundProductPickerModal = document.querySelector("#inboundProductPickerModal");
 const inboundProductPickerSearch = document.querySelector("#inboundProductPickerSearch");
 const inboundProductPickerSort = document.querySelector("#inboundProductPickerSort");
+const inboundProductPickerSortDirection = document.querySelector("#inboundProductPickerSortDirection");
 const inboundProductPickerCount = document.querySelector("#inboundProductPickerCount");
 const inboundProductPickerList = document.querySelector("#inboundProductPickerList");
 const inboundProductPickerEmpty = document.querySelector("#inboundProductPickerEmpty");
@@ -1367,6 +1369,12 @@ inboundProductPickerSearch.addEventListener("input", (event) => {
 
 inboundProductPickerSort.addEventListener("change", (event) => {
   state.inboundProductPickerSort = event.target.value;
+  renderInboundProductPicker();
+  inboundProductPickerList.scrollTop = 0;
+});
+
+inboundProductPickerSortDirection.addEventListener("change", (event) => {
+  state.inboundProductPickerSortDirection = event.target.value;
   renderInboundProductPicker();
   inboundProductPickerList.scrollTop = 0;
 });
@@ -6039,6 +6047,7 @@ function openInboundProductPicker(target = "inbound") {
   state.inboundProductPickerQuery = "";
   inboundProductPickerSearch.value = "";
   inboundProductPickerSort.value = state.inboundProductPickerSort;
+  inboundProductPickerSortDirection.value = state.inboundProductPickerSortDirection;
   const isExistingStockTarget = target === "existingStock";
   const isPurchaseOrderTarget = target === "purchaseOrder";
   document.querySelector("#inboundProductPickerTitle").textContent = "제품 선택";
@@ -6089,7 +6098,8 @@ function renderInboundProductPicker() {
   });
   const products = window.SeungjinProductSort?.sortProducts(
     filteredProducts,
-    state.inboundProductPickerSort
+    state.inboundProductPickerSort,
+    state.inboundProductPickerSortDirection
   ) || filteredProducts;
 
   inboundProductPickerCount.textContent = products.length.toLocaleString("ko-KR");
