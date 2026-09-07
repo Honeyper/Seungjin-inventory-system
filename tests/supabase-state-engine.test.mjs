@@ -771,4 +771,33 @@ test("physical unconfirmed inventory counts unchecked mobile-audit boxes and dec
   assert.equal(after.rows[0].inventoryUnconfirmedBoxCount, 0);
 });
 
+test("mobile inventory audit confirmation only updates scanned boxes", () => {
+  const holder = {
+    state: {
+      products: [product("ION-0101")],
+      orders: [],
+      inbounds: [],
+      records: [inventoryRecord("AUDIT-2", "ION-0101", 200)],
+      boxes: [
+        inventoryBox("AUDIT-2", "ION-0101", 1, 100),
+        inventoryBox("AUDIT-2", "ION-0101", 2, 100)
+      ]
+    }
+  };
+
+  const result = mutate(holder, "adjustMissingInventory", {
+    confirmationOnly: true,
+    confirmedBoxes: [{ managementId: "AUDIT-2", productId: "ION-0101", selectedBoxes: [1] }],
+    adjustments: [{ managementId: "AUDIT-2", productId: "ION-0101", productName: "제품", selectedBoxes: [2] }],
+    userName: "테스터"
+  });
+
+  assert.equal(result.result.confirmedBoxRows, 1);
+  assert.equal(result.result.updatedBoxRows, 0);
+  assert.ok(holder.state.boxes[0].lastInventoryCheckedAt);
+  assert.equal(holder.state.boxes[1].lastInventoryCheckedAt, undefined);
+  assert.equal(holder.state.boxes[1].status, "보관");
+  assert.equal(holder.state.boxes[1].quantity, 100);
+});
+
 console.log("supabase-state-engine-test=passed");
