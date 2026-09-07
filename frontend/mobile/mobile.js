@@ -161,6 +161,10 @@ const state = {
   scannerCanvas: null,
   scannerCanvasContext: null,
   scannerCameraRequestPending: false,
+  scannerTorchTrack: null,
+  scannerTorchSupported: false,
+  scannerTorchEnabled: false,
+  scannerTorchPending: false,
   scannerFocusRequestPending: false,
   scannerFocusFeedbackTimer: null,
   scannerTuneTimers: [],
@@ -194,6 +198,7 @@ const state = {
 };
 
 let activeShippingCardMenu = null;
+const scannerTrackControlQueues = new WeakMap();
 let quantityEditorReturnFocus = null;
 let confirmDialogReturnFocus = null;
 
@@ -410,9 +415,7 @@ function bindEvents() {
   elements.scannerDoneButton?.addEventListener("click", handleScannerDoneAction);
   elements.scannerInjectionButton?.addEventListener("click", handleScannerInjectionAction);
   elements.scannerInventoryAuditButton?.addEventListener("click", handleScannerInventoryAuditAction);
-  elements.toggleFlashButton?.addEventListener("click", () => {
-    showToast("플래시는 기기 지원 여부 확인 후 연결합니다.");
-  });
+  elements.toggleFlashButton?.addEventListener("click", toggleScannerTorch);
   elements.cancelConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.closeConfirmButton?.addEventListener("click", closeConfirmModal);
   elements.acceptConfirmButton?.addEventListener("click", handleConfirmShipping);
@@ -4997,6 +5000,7 @@ async function startScannerCamera() {
   }
 
   state.scannerCameraRequestPending = true;
+  syncScannerTorchControl();
   try {
     const stream = await getScannerStream();
     if (document.hidden || state.scannerInputMode !== "camera" || elements.scannerScreen?.hidden) {
@@ -5014,6 +5018,72 @@ async function startScannerCamera() {
     await setScannerInputMode("hardware");
   } finally {
     state.scannerCameraRequestPending = false;
+    syncScannerTorchControl();
+  }
+}
+
+function syncScannerTorchControl() {
+  const [track] = state.scannerInputMode === "camera" && !elements.scannerScreen?.hidden && !document.hidden
+    ? getReusableScannerStream()?.getVideoTracks() || []
+    : [];
+  if (track !== state.scannerTorchTrack) {
+    state.scannerTorchTrack = track || null;
+    state.scannerTorchEnabled = false;
+    state.scannerTorchPending = false;
+  }
+
+  // Android browsers do not consistently expose getCapabilities().torch even
+  // when the rear camera accepts a torch constraint. A live track with
+  // applyConstraints is therefore allowed one real capability probe on tap.
+  state.scannerTorchSupported = Boolean(track?.applyConstraints) && track.readyState === "live";
+  renderScannerTorchButton();
+  return track || null;
+}
+
+function renderScannerTorchButton() {
+  const button = elements.toggleFlashButton;
+  if (!button) return;
+  const ready = Boolean(state.scannerTorchTrack) && !state.scannerCameraRequestPending;
+  const label = !ready ? "카메라 준비 중" : !state.scannerTorchSupported
+    ? "현재 카메라에서는 플래시를 사용할 수 없습니다."
+    : state.scannerTorchPending ? "플래시 변경 중" : state.scannerTorchEnabled ? "플래시 끄기" : "플래시 켜기";
+  button.disabled = !ready || state.scannerTorchPending;
+  button.setAttribute("aria-disabled", String(button.disabled || !state.scannerTorchSupported));
+  button.setAttribute("aria-pressed", String(state.scannerTorchEnabled));
+  button.setAttribute("aria-busy", String(state.scannerTorchPending));
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.classList.toggle("is-on", state.scannerTorchEnabled);
+  button.classList.toggle("is-unavailable", !state.scannerTorchSupported);
+  const text = button.querySelector("span");
+  if (text) text.textContent = state.scannerTorchPending ? "..." : state.scannerTorchEnabled ? "ON" : "OFF";
+}
+
+async function toggleScannerTorch() {
+  const track = syncScannerTorchControl();
+  if (!track || state.scannerCameraRequestPending || state.scannerTorchPending) return;
+  if (!state.scannerTorchSupported) {
+    showToast("현재 카메라 또는 브라우저에서는 플래시를 사용할 수 없습니다.");
+    return;
+  }
+
+  const enabled = !state.scannerTorchEnabled;
+  state.scannerTorchPending = true;
+  renderScannerTorchButton();
+  try {
+    const applied = await applyScannerTrackControls(track, { torch: enabled });
+    if (applied && state.scannerTorchTrack === track && track.readyState === "live") {
+      state.scannerTorchEnabled = enabled;
+    }
+  } catch (error) {
+    if (state.scannerTorchTrack === track) {
+      showToast("이 카메라에서는 플래시를 켤 수 없습니다. 기본 카메라로 다시 열어주세요.");
+    }
+  } finally {
+    if (state.scannerTorchTrack === track) {
+      state.scannerTorchPending = false;
+      renderScannerTorchButton();
+    }
   }
 }
 
@@ -5091,7 +5161,6 @@ async function getScannerStream() {
   }
 
   const videoConstraints = {
-    facingMode: { ideal: "environment" },
     width: { min: 1280, ideal: 1920, max: 1920 },
     height: { min: 720, ideal: 1080, max: 1080 },
     frameRate: { ideal: 30, max: 30 }
@@ -5099,14 +5168,21 @@ async function getScannerStream() {
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: videoConstraints,
+      video: { ...videoConstraints, facingMode: { exact: "environment" } },
       audio: false
     });
   } catch (error) {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
-      audio: false
-    });
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { ...videoConstraints, facingMode: { ideal: "environment" } },
+        audio: false
+      });
+    } catch (fallbackError) {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+    }
   }
 
   state.scannerStream = stream;
@@ -5117,6 +5193,7 @@ async function getScannerStream() {
         if (elements.scannerVideo?.srcObject === stream) {
           elements.scannerVideo.srcObject = null;
         }
+        syncScannerTorchControl();
       }
     });
   });
@@ -5179,18 +5256,57 @@ async function tuneScannerCamera(stream) {
 }
 
 async function applyScannerTrackControls(track, controls) {
-  let currentConstraints = {};
-  try {
-    currentConstraints = track.getConstraints?.() || {};
-  } catch (error) {
-    currentConstraints = {};
-  }
+  const previous = scannerTrackControlQueues.get(track) || Promise.resolve();
+  const pending = previous.catch(() => {}).then(async () => {
+    if (track.readyState !== "live") return false;
+    let currentConstraints = {};
+    try {
+      currentConstraints = track.getConstraints?.() || {};
+    } catch (error) {
+      // Keep explicit controls available on browsers without getConstraints.
+    }
+    const updates = Array.isArray(controls) ? controls : [controls];
+    const changedKeys = new Set(updates.flatMap((entry) => Object.keys(entry)));
+    const retainUnchanged = (entry) => Object.fromEntries(Object.entries(entry).filter(([key]) => !changedKeys.has(key)));
+    const { advanced = [], ...base } = currentConstraints;
+    const torchUpdate = updates.find((entry) => typeof entry.torch === "boolean");
+    const torch = torchUpdate?.torch ?? (state.scannerTorchTrack === track && state.scannerTorchEnabled
+      ? true : undefined);
+    if (torch !== undefined) changedKeys.add("torch");
+    const persistentControls = advanced.map(retainUnchanged).filter((entry) => Object.keys(entry).length);
+    const nonTorchUpdates = updates
+      .map((entry) => Object.fromEntries(Object.entries(entry).filter(([key]) => key !== "torch")))
+      .filter((entry) => Object.keys(entry).length);
+    const preservedBase = retainUnchanged(base);
+    const attempts = torch === undefined ? [{
+      ...preservedBase,
+      advanced: [...persistentControls, ...nonTorchUpdates]
+    }] : [{
+      ...preservedBase,
+      advanced: [...persistentControls, ...nonTorchUpdates, { torch }]
+    }, {
+      ...preservedBase,
+      torch,
+      advanced: [...persistentControls, ...nonTorchUpdates]
+    }];
 
-  const { advanced: unusedAdvanced, ...persistentConstraints } = currentConstraints;
-  await track.applyConstraints({
-    ...persistentConstraints,
-    advanced: Array.isArray(controls) ? controls : [controls]
+    let lastError;
+    for (const constraints of attempts) {
+      try {
+        await track.applyConstraints(constraints);
+        return true;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
   });
+  scannerTrackControlQueues.set(track, pending);
+  try {
+    return await pending;
+  } finally {
+    if (scannerTrackControlQueues.get(track) === pending) scannerTrackControlQueues.delete(track);
+  }
 }
 
 function scheduleScannerCameraTuning(stream) {
@@ -5359,6 +5475,7 @@ function stopScannerCamera() {
     state.scannerStream.getTracks().forEach((track) => track.stop());
     state.scannerStream = null;
   }
+  syncScannerTorchControl();
 }
 
 function pauseScannerDetection() {
