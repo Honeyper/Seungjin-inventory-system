@@ -15,21 +15,24 @@ const mobileSource = await readFile(new URL("../frontend/mobile/mobile.js", impo
 const gatewaySource = await readFile(new URL("../supabase/functions/seungjin-dev-gateway/index.ts", import.meta.url), "utf8");
 const stateEngineSource = await readFile(new URL("../supabase/functions/seungjin-dev-gateway/state-engine.js", import.meta.url), "utf8");
 
-test("product registration uploads only the selected image to Google Drive and stores its URL", () => {
-  assert.match(adminHtml, /id="productImageFile"[^>]+accept="image\/\*"/);
+test("product registration uploads multiple selected images to Google Drive and stores compatible fields", () => {
+  assert.match(adminHtml, /id="productImageFile"[^>]+accept="image\/\*"[^>]+multiple/);
   assert.match(adminSource, /requestApi\("uploadProductImage"/);
-  assert.match(adminSource, /payload\.productImageUrl = productImageUrl/);
+  assert.match(adminSource, /async function resolveProductImageUrls/);
+  assert.match(adminSource, /payload\.productImageUrls = productImageUrls/);
+  assert.match(adminSource, /payload\.productImageUrl = productImageUrls\[0\] \|\| ""/);
   assert.match(gasSource, /function uploadProductImage\(payload\)/);
   assert.match(gasSource, /getOrCreateDriveFolderPath_\(rootFolder, \[/);
   assert.match(gasSource, /'제품이미지'/);
   assert.match(gasSource, /DriveApp\.Access\.ANYONE_WITH_LINK/);
   assert.match(gasSource, /drive\.google\.com\/thumbnail\?id=/);
   assert.match(gasSource, /'제품 이미지'/);
+  assert.match(gasSource, /'제품 이미지 목록'/);
 });
 
 test("product image empty state is hidden when a preview is available", () => {
-  assert.match(adminSource, /productImagePlaceholder\.hidden = Boolean\(previewUrl\)/);
-  assert.match(adminSource, /removeProductImageButton\.hidden = !previewUrl/);
+  assert.match(adminSource, /productImagePlaceholder\.hidden = previewUrls\.length > 0/);
+  assert.match(adminSource, /removeProductImageButton\.hidden = previewUrls\.length === 0/);
   assert.match(stylesSource, /\.product-image-placeholder\[hidden\],[\s\S]*?\.product-image-remove-button\[hidden\][\s\S]*?display: none/);
 });
 
@@ -38,22 +41,33 @@ test("product image URL is preserved in products and reaches PRD inventory rows"
   assert.match(gasSource, /productImageUrl:\s*product\.productImageUrl \|\| ''/);
   assert.match(gasSource, /productImageUrl:\s*getObjectCell_\(row, \['제품 이미지', '제품 이미지 URL'\]\)/);
   assert.match(gasSource, /hasProductImageValue[\s\S]*?pickCell_\(row, indexes, \['제품 이미지', '제품 이미지 URL'\]\)/);
-  assert.match(stateEngineSource, /productImageUrl:\s*text\(payload\.productImageUrl/);
+  assert.match(stateEngineSource, /const productImageUrls = stringList/);
+  assert.match(stateEngineSource, /productImageUrl:\s*productImageUrls\[0\] \|\| ""/);
   assert.match(stateEngineSource, /row\.productImageUrl = text\(product\.productImageUrl\)/);
+  assert.match(stateEngineSource, /row\.productImageUrls = stringList/);
   assert.match(gatewaySource, /product_image_url:data->>productImageUrl/);
 
   const imageUrl = "https://drive.google.com/thumbnail?id=test-image&sz=w1200";
-  const sourceState = { products: [], orders: [], inbounds: [], records: [], boxes: [] };
+  const secondImageUrl = "https://drive.google.com/thumbnail?id=test-image-2&sz=w1200";
+  const sourceState = {
+    products: [],
+    orders: [],
+    inbounds: [],
+    records: [],
+    boxes: []
+  };
   const mutation = applyMutation("createProduct", {
     clientName: "테스트 거래처",
     productName: "테스트 제품",
     boxQuantity: 100,
     trayQuantity: 10,
     stage1Process: "실크",
-    productImageUrl: imageUrl
+    productImageUrl: imageUrl,
+    productImageUrls: [imageUrl, secondImageUrl]
   }, sourceState, new Date("2026-09-04T00:00:00.000Z"));
   const product = mutation.state.products[0];
   assert.equal(product.productImageUrl, imageUrl);
+  assert.deepEqual(product.productImageUrls, [imageUrl, secondImageUrl]);
 
   const dashboard = buildInventoryDashboard([{
     managementId: "IN-TEST-001",
@@ -73,11 +87,19 @@ test("product image URL is preserved in products and reaches PRD inventory rows"
     rawStatus: "보관"
   }], mutation.state.products);
   assert.equal(dashboard.rows[0].productImageUrl, imageUrl);
+  assert.deepEqual(dashboard.rows[0].productImageUrls, [imageUrl, secondImageUrl]);
+  assert.match(gatewaySource, /product_image_urls:data->productImageUrls/);
+  assert.match(gatewaySource, /productImageUrls: Array\.isArray\(row\.product_image_urls\)/);
 });
 
-test("mobile product cards open registered images in a large dialog", () => {
+test("PC and mobile product images open as navigable multi-image galleries", () => {
+  assert.match(adminHtml, /id="productImageGalleryModal"/);
+  assert.match(adminSource, /function openProductImageGallery/);
+  assert.match(adminSource, /data-detail-product-image/);
   assert.match(mobileSource, /data-product-image-open/);
   assert.match(mobileSource, /function openProductImageModal/);
+  assert.match(mobileSource, /function moveProductImageModal/);
   assert.match(mobileHtml, /id="productImageModal"/);
   assert.match(mobileHtml, /id="productImageModalImage"/);
+  assert.match(mobileHtml, /id="productImageModalThumbnails"/);
 });

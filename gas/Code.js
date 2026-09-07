@@ -1164,6 +1164,32 @@ function normalizeCommonContainerProductNames_(value) {
   return names.map((name) => String(name || '').trim()).filter(Boolean);
 }
 
+function normalizeProductImageUrls_(value, fallback) {
+  let urls = value;
+  if (!Array.isArray(urls)) {
+    const normalized = String(value || '').trim();
+    if (normalized.charAt(0) === '[') {
+      try {
+        urls = JSON.parse(normalized);
+      } catch (error) {
+        urls = [];
+      }
+    } else {
+      urls = normalized ? [normalized] : [];
+    }
+  }
+
+  const fallbackUrl = String(fallback || '').trim();
+  const uniqueUrls = [];
+  (Array.isArray(urls) ? urls : []).concat(fallbackUrl ? [fallbackUrl] : []).forEach((url) => {
+    const normalizedUrl = String(url || '').trim();
+    if (normalizedUrl && uniqueUrls.indexOf(normalizedUrl) < 0) {
+      uniqueUrls.push(normalizedUrl);
+    }
+  });
+  return uniqueUrls.slice(0, 10);
+}
+
 function getCommonContainerProductPayload_(payload) {
   const isCommonContainer = isCommonContainerProduct_(
     payload['공용용기 제품'] || payload.commonContainerProduct || payload.isCommonContainer
@@ -1457,7 +1483,8 @@ function ensureProductCommonContainerHeaders_(sheet) {
     '1도 공정',
     '2도 공정',
     '3도 공정',
-    '제품 이미지'
+    '제품 이미지',
+    '제품 이미지 목록'
   ];
   const existingHeaders = new Set(headerInfo.headers.map((header) => normalizeHeaderKey_(header)));
   const missingHeaders = requiredHeaders.filter((header) => !existingHeaders.has(normalizeHeaderKey_(header)));
@@ -1652,6 +1679,10 @@ function getProducts() {
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         trayQuantity: pickCell_(row, indexes, ['트레이 수량', '트레이수량']),
         productImageUrl: pickCell_(row, indexes, ['제품 이미지', '제품 이미지 URL']),
+        productImageUrls: normalizeProductImageUrls_(
+          pickCell_(row, indexes, ['제품 이미지 목록']),
+          pickCell_(row, indexes, ['제품 이미지', '제품 이미지 URL'])
+        ),
         dueDate: pickCell_(row, indexes, ['납기일']),
         updatedAt: pickCell_(row, indexes, ['최종 수정일', '수정일']),
         updatedTime: pickCell_(row, indexes, ['최종 수정시간', '수정시간']),
@@ -1780,6 +1811,7 @@ function getInventoryDashboard() {
       clientName,
       productName,
       productImageUrl: product.productImageUrl || '',
+      productImageUrls: product.productImageUrls || (product.productImageUrl ? [product.productImageUrl] : []),
       stockStatus,
       registrant: getObjectCell_(stockRow, ['등록자']),
       registeredAt: getObjectCell_(stockRow, ['등록 일시', '등록일시']),
@@ -2112,6 +2144,10 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
   setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
   setRowValue_(row, indexes, ['제품 이미지', '제품 이미지 URL'], payload.productImageUrl || payload['제품 이미지'] || '');
+  setRowValue_(row, indexes, ['제품 이미지 목록'], JSON.stringify(normalizeProductImageUrls_(
+    payload.productImageUrls || payload['제품 이미지 목록'],
+    payload.productImageUrl || payload['제품 이미지']
+  )));
   setRowValue_(row, indexes, ['납기일'], payload['납기일'] || '');
   setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
   setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
@@ -2396,6 +2432,11 @@ function updateProduct(payload) {
       const productImageUrl = hasProductImageValue
         ? String(payload.productImageUrl ?? payload['제품 이미지'] ?? '').trim()
         : pickCell_(row, indexes, ['제품 이미지', '제품 이미지 URL']);
+      const hasProductImageUrlsValue = Object.prototype.hasOwnProperty.call(payload, 'productImageUrls')
+        || Object.prototype.hasOwnProperty.call(payload, '제품 이미지 목록');
+      const productImageUrls = hasProductImageUrlsValue
+        ? normalizeProductImageUrls_(payload.productImageUrls ?? payload['제품 이미지 목록'], productImageUrl)
+        : normalizeProductImageUrls_(pickCell_(row, indexes, ['제품 이미지 목록']), productImageUrl);
 
       setRowValue_(row, indexes, ['업체명', '거래처명'], normalizeClientName_(payload['업체명']));
       setRowValue_(row, indexes, ['제품명'], payload['제품명']);
@@ -2414,6 +2455,7 @@ function updateProduct(payload) {
       setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
       setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
       setRowValue_(row, indexes, ['제품 이미지', '제품 이미지 URL'], productImageUrl);
+      setRowValue_(row, indexes, ['제품 이미지 목록'], JSON.stringify(productImageUrls));
       setRowValue_(row, indexes, ['납기일'], payload['납기일'] || '');
       setRowValue_(row, indexes, ['최종 수정일', '수정일'], Utilities.formatDate(now, timezone, 'yyyy.MM.dd'));
       setRowValue_(row, indexes, ['최종 수정시간', '수정시간'], Utilities.formatDate(now, timezone, 'HH:mm'));
@@ -6768,6 +6810,10 @@ function buildInventoryProductMap_(productRows) {
         clientName: getObjectCell_(row, ['업체명', '거래처명']),
         productName: getObjectCell_(row, ['제품명']),
         productImageUrl: getObjectCell_(row, ['제품 이미지', '제품 이미지 URL']),
+        productImageUrls: normalizeProductImageUrls_(
+          getObjectCell_(row, ['제품 이미지 목록']),
+          getObjectCell_(row, ['제품 이미지', '제품 이미지 URL'])
+        ),
         orderQuantity: getObjectCell_(row, ['발주량', '주문량']),
         trayQuantity: getObjectCell_(row, ['트레이 수량', '트레이수량']),
         dustRemovalStatus: getObjectCell_(row, ['박가루제거 유무', '박가루 제거 유무']) || '무',

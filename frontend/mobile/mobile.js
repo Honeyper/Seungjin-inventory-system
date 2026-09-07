@@ -202,7 +202,10 @@ const state = {
   quantityEditorItems: [],
   quantityEditorSelectedIndex: -1,
   manualShippingQuery: "",
-  manualShippingViewportBaseHeight: 0
+  manualShippingViewportBaseHeight: 0,
+  activeProductImageUrls: [],
+  activeProductImageIndex: 0,
+  activeProductImageName: ""
 };
 
 let activeShippingCardMenu = null;
@@ -282,6 +285,10 @@ const elements = {
   productImageModal: document.querySelector("#productImageModal"),
   productImageModalTitle: document.querySelector("#productImageModalTitle"),
   productImageModalImage: document.querySelector("#productImageModalImage"),
+  productImageModalCounter: document.querySelector("#productImageModalCounter"),
+  productImageModalThumbnails: document.querySelector("#productImageModalThumbnails"),
+  previousProductImageModalButton: document.querySelector("#previousProductImageModalButton"),
+  nextProductImageModalButton: document.querySelector("#nextProductImageModalButton"),
   closeProductImageModalButton: document.querySelector("#closeProductImageModalButton"),
   confirmModal: document.querySelector("#confirmModal"),
   confirmEyebrow: document.querySelector("#confirmEyebrow"),
@@ -554,6 +561,16 @@ function bindEvents() {
     if (event.target === elements.productImageModal) {
       closeProductImageModal();
     }
+  });
+  elements.previousProductImageModalButton?.addEventListener("click", () => moveProductImageModal(-1));
+  elements.nextProductImageModalButton?.addEventListener("click", () => moveProductImageModal(1));
+  elements.productImageModalThumbnails?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-product-image-modal-index]");
+    if (!button) {
+      return;
+    }
+    state.activeProductImageIndex = Number(button.dataset.productImageModalIndex) || 0;
+    renderProductImageModal();
   });
 }
 
@@ -1716,9 +1733,32 @@ function isMobileShippingCandidate(row) {
   return hasActiveShippingBox || (status.includes("출고대기") && activeBoxes.length > 0);
 }
 
-function getProductImageUrl(item) {
+function normalizeProductImageUrls(value, fallback = "") {
+  let values = value;
+  if (!Array.isArray(values)) {
+    const serialized = normalizeText(values);
+    if (serialized.startsWith("[")) {
+      try {
+        values = JSON.parse(serialized);
+      } catch (_error) {
+        values = [];
+      }
+    } else {
+      values = serialized ? [serialized] : [];
+    }
+  }
+
+  const urls = [...values, fallback]
+    .map((url) => normalizeText(url))
+    .filter((url) => /^(https?:|data:image\/|blob:)/i.test(url))
+    .map(normalizeProductImageUrl);
+  return [...new Set(urls)].slice(0, 10);
+}
+
+function getProductImageUrls(item) {
   const items = Array.isArray(item?.scannedItems) ? [item, ...item.scannedItems] : [item];
-  const keys = [
+  const listKeys = ["productImageUrls", "제품 이미지 목록"];
+  const singleKeys = [
     "productImageUrl",
     "productPhotoUrl",
     "productThumbnailUrl",
@@ -1727,16 +1767,19 @@ function getProductImageUrl(item) {
     "photoUrl"
   ];
 
+  const urls = [];
   for (const candidate of items) {
-    for (const key of keys) {
+    for (const key of listKeys) {
+      urls.push(...normalizeProductImageUrls(candidate?.[key]));
+    }
+    for (const key of singleKeys) {
       const value = normalizeText(candidate?.[key]);
       if (/^(https?:|data:image\/|blob:)/i.test(value)) {
-        return normalizeProductImageUrl(value);
+        urls.push(normalizeProductImageUrl(value));
       }
     }
   }
-
-  return "";
+  return [...new Set(urls)].slice(0, 10);
 }
 
 function normalizeProductImageUrl(value) {
@@ -1753,7 +1796,8 @@ function normalizeProductImageUrl(value) {
 }
 
 function renderProductVisual(item) {
-  const productImageUrl = getProductImageUrl(item);
+  const productImageUrls = getProductImageUrls(item);
+  const productImageUrl = productImageUrls[0] || "";
   const productName = normalizeDisplay(item?.productName || "제품");
   if (!productImageUrl) {
     return `
@@ -1769,7 +1813,7 @@ function renderProductVisual(item) {
       class="shipping-product-visual has-photo"
       type="button"
       data-product-image-open
-      data-product-image-url="${escapeHtml(productImageUrl)}"
+      data-product-image-urls="${escapeHtml(JSON.stringify(productImageUrls))}"
       data-product-image-name="${escapeHtml(productName)}"
       aria-label="${escapeHtml(productName)} 제품 이미지 크게 보기"
     >
@@ -1791,22 +1835,63 @@ function handleProductImageClick(event) {
 
   event.preventDefault();
   event.stopPropagation();
-  openProductImageModal(trigger.dataset.productImageUrl, trigger.dataset.productImageName);
+  let imageUrls = [];
+  try {
+    imageUrls = JSON.parse(trigger.dataset.productImageUrls || "[]");
+  } catch (_error) {
+    imageUrls = [];
+  }
+  openProductImageModal(imageUrls, trigger.dataset.productImageName);
 }
 
-function openProductImageModal(imageUrl, productName) {
-  const url = normalizeProductImageUrl(imageUrl);
-  if (!url || !elements.productImageModal || !elements.productImageModalImage) {
+function openProductImageModal(imageUrls, productName, initialIndex = 0) {
+  const urls = normalizeProductImageUrls(imageUrls);
+  if (!urls.length || !elements.productImageModal || !elements.productImageModalImage) {
     return;
   }
 
-  const name = normalizeDisplay(productName || "제품");
-  elements.productImageModalTitle.textContent = name;
-  elements.productImageModalImage.src = url;
-  elements.productImageModalImage.alt = `${name} 제품 이미지`;
+  state.activeProductImageUrls = urls;
+  state.activeProductImageIndex = Math.max(0, Math.min(Number(initialIndex) || 0, urls.length - 1));
+  state.activeProductImageName = normalizeDisplay(productName || "제품");
   elements.productImageModal.hidden = false;
   document.body.classList.add("modal-open");
+  renderProductImageModal();
   elements.closeProductImageModalButton?.focus();
+}
+
+function renderProductImageModal() {
+  const urls = state.activeProductImageUrls;
+  if (!urls.length || !elements.productImageModalImage) {
+    return;
+  }
+  const index = Math.max(0, Math.min(state.activeProductImageIndex, urls.length - 1));
+  state.activeProductImageIndex = index;
+  elements.productImageModalTitle.textContent = state.activeProductImageName;
+  elements.productImageModalImage.src = urls[index];
+  elements.productImageModalImage.alt = `${state.activeProductImageName} 제품 이미지 ${index + 1}`;
+  elements.productImageModalCounter.textContent = `${index + 1} / ${urls.length}`;
+  elements.previousProductImageModalButton.hidden = urls.length < 2;
+  elements.nextProductImageModalButton.hidden = urls.length < 2;
+  elements.productImageModalThumbnails.innerHTML = urls.map((url, thumbnailIndex) => `
+    <button
+      class="product-image-lightbox-thumbnail${thumbnailIndex === index ? " active" : ""}"
+      type="button"
+      data-product-image-modal-index="${thumbnailIndex}"
+      aria-label="${thumbnailIndex + 1}번째 제품 이미지 보기"
+      aria-current="${thumbnailIndex === index ? "true" : "false"}"
+    >
+      <img src="${escapeHtml(url)}" alt="" />
+    </button>
+  `).join("");
+}
+
+function moveProductImageModal(direction) {
+  const count = state.activeProductImageUrls.length;
+  if (count < 2) {
+    return;
+  }
+  state.activeProductImageIndex = (state.activeProductImageIndex + direction + count) % count;
+  renderProductImageModal();
 }
 
 function closeProductImageModal() {
@@ -1819,13 +1904,25 @@ function closeProductImageModal() {
     elements.productImageModalImage.removeAttribute("src");
     elements.productImageModalImage.alt = "";
   }
+  state.activeProductImageUrls = [];
+  state.activeProductImageIndex = 0;
+  state.activeProductImageName = "";
   document.body.classList.remove("modal-open");
 }
 
 function handleProductImageKeydown(event) {
-  if (event.key === "Escape" && elements.productImageModal && !elements.productImageModal.hidden) {
+  if (!elements.productImageModal || elements.productImageModal.hidden) {
+    return;
+  }
+  if (event.key === "Escape") {
     event.preventDefault();
     closeProductImageModal();
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    moveProductImageModal(-1);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    moveProductImageModal(1);
   }
 }
 
