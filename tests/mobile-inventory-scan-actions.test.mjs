@@ -42,7 +42,7 @@ test("storage route only appears for the move action", () => {
 });
 
 test("scanner action bar stays fixed while only the scanned list scrolls", () => {
-  assert.match(html, /mobile\.css\?v=20260906-scanner-torch/);
+  assert.match(html, /mobile\.css\?v=20260907-scanner-empty-center/);
   assert.match(
     css,
     /\.scanner-list-panel\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-rows:\s*20px auto auto minmax\(0, 1fr\) auto;[\s\S]*?overflow:\s*hidden;/
@@ -56,4 +56,12 @@ test("scanner action bar stays fixed while only the scanned list scrolls", () =>
     /\.scanner-list-panel \.scanner-bottom\s*\{[\s\S]*?grid-row:\s*5;[\s\S]*?align-self:\s*end;[\s\S]*?width:\s*100%;/
   );
   assert.match(css, /\.scanner-list-panel \.inventory-move-action-picker\s*\{[\s\S]*?grid-row:\s*3;/);
+});
+
+test("empty scanner guidance is vertically centered as one text group", () => {
+  assert.match(script, /<div class="scanner-empty">\s*<strong>아직 스캔한 제품이 없습니다<\/strong>/);
+  assert.match(
+    css,
+    /\.scanner-empty\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;/
+  );
 });
