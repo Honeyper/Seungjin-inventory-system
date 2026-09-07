@@ -195,6 +195,41 @@ test("product, purchase-order, and inbound CRUD preserves historical product tot
   assert.equal(holder.state.orders.length, 0);
 });
 
+test("같은 제품과 발주 차수는 중복 등록하지 않는다", () => {
+  const holder = {
+    state: {
+      products: [product("JUS-0112", "테스트 제품")],
+      orders: [{
+        purchaseOrderId: "PO-260907-JUS-0112-001",
+        productId: "JUS-0112",
+        clientName: "(주)장업시스템",
+        productName: "테스트 제품",
+        orderRound: "08/20 발주",
+        startDate: "2026-08-20",
+        endDate: "",
+        totalOrderQuantity: 7890,
+        accumulatedInboundQuantity: 0
+      }],
+      inbounds: [],
+      records: [],
+      boxes: []
+    }
+  };
+
+  assert.throws(
+    () => mutate(holder, "createPurchaseOrder", {
+      productId: "JUS-0112",
+      clientName: "(주)장업시스템",
+      productName: "테스트 제품",
+      orderRound: "08/20 발주",
+      startDate: "2026-08-20",
+      endDate: "2026-10-11",
+      totalOrderQuantity: 14890
+    }),
+    /동일 제품과 발주 차수가 이미 등록되어 있습니다/
+  );
+});
+
 test("processed legacy inbound can link a purchase order without rebuilding boxes", () => {
   const managementId = "IN-260708-IRP-0002-001";
   const productId = "IRP-0002";

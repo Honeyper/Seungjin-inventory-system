@@ -16,6 +16,12 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:8000",
   "http://127.0.0.1:8000"
 ]);
+const CLIENT_SAFE_ERROR_MESSAGES = new Map([
+  [
+    "동일 제품과 발주 차수가 이미 등록되어 있습니다.",
+    "같은 제품에 동일한 발주 차수가 이미 등록되어 있습니다. 기존 발주를 수정하거나 다른 발주 차수를 입력해주세요."
+  ]
+]);
 
 type JsonRecord = Record<string, unknown>;
 type SnapshotDataset = "products" | "purchase_orders" | "inbounds" | "inventory_dashboard";
@@ -886,10 +892,12 @@ Deno.serve(async (request) => {
   try {
     return await handleRequest(request);
   } catch (error) {
-    console.error("Seungjin DEV gateway error:", error instanceof Error ? error.message : String(error));
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const clientMessage = CLIENT_SAFE_ERROR_MESSAGES.get(errorMessage);
+    console.error("Seungjin DEV gateway error:", errorMessage);
     return jsonResponse(request, {
       ok: false,
-      message: "Supabase 데이터 처리 중 문제가 발생했습니다."
-    }, 500);
+      message: clientMessage || "Supabase 데이터 처리 중 문제가 발생했습니다."
+    }, clientMessage ? 409 : 500);
   }
 });
