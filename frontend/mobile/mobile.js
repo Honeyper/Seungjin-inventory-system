@@ -455,6 +455,7 @@ function bindEvents() {
   document.addEventListener("error", handleProductImageError, true);
   window.addEventListener("pagehide", releaseScannerStream);
   window.addEventListener("resize", syncManualShippingViewport);
+  window.addEventListener("resize", fitProductImageModalTitle);
   window.visualViewport?.addEventListener("resize", syncManualShippingViewport);
   window.visualViewport?.addEventListener("scroll", syncManualShippingViewport);
 
@@ -1867,6 +1868,7 @@ function renderProductImageModal() {
   const index = Math.max(0, Math.min(state.activeProductImageIndex, urls.length - 1));
   state.activeProductImageIndex = index;
   elements.productImageModalTitle.textContent = state.activeProductImageName;
+  fitProductImageModalTitle();
   elements.productImageModalImage.src = urls[index];
   elements.productImageModalImage.alt = `${state.activeProductImageName} 제품 이미지 ${index + 1}`;
   elements.productImageModalCounter.textContent = `${index + 1} / ${urls.length}`;
@@ -1883,6 +1885,25 @@ function renderProductImageModal() {
       <img src="${escapeHtml(url)}" alt="" />
     </button>
   `).join("");
+}
+
+function fitProductImageModalTitle() {
+  const title = elements.productImageModalTitle;
+  if (!title || elements.productImageModal?.hidden) {
+    return;
+  }
+
+  title.style.fontSize = "19px";
+  window.requestAnimationFrame(() => {
+    const availableWidth = title.clientWidth;
+    const contentWidth = title.scrollWidth;
+    if (!availableWidth || contentWidth <= availableWidth) {
+      return;
+    }
+
+    const fittedSize = Math.max(11, Math.floor((19 * availableWidth / contentWidth) * 10) / 10);
+    title.style.fontSize = `${fittedSize}px`;
+  });
 }
 
 function moveProductImageModal(direction) {
