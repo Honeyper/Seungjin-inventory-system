@@ -7212,6 +7212,16 @@ function getPurchaseOrderPayload() {
   };
 }
 
+function findDuplicatePurchaseOrder(payload) {
+  if (state.purchaseOrderFormMode !== "create" || !payload.orderRound) return null;
+  const productId = String(payload.productId || "").trim();
+  const orderRound = String(payload.orderRound || "").trim();
+  return state.purchaseOrders.find((order) => (
+    String(order.productId || "").trim() === productId
+    && String(order.orderRound || "").trim() === orderRound
+  )) || null;
+}
+
 async function savePurchaseOrder() {
   if (state.isSavingPurchaseOrder) return;
   const payload = getPurchaseOrderPayload();
@@ -7221,6 +7231,10 @@ async function savePurchaseOrder() {
   }
   if (payload.endDate && payload.startDate > payload.endDate) {
     purchaseOrderFormMessage.textContent = "납기일은 발주 시작일보다 빠를 수 없습니다.";
+    return;
+  }
+  if (findDuplicatePurchaseOrder(payload)) {
+    purchaseOrderFormMessage.textContent = "같은 제품에 동일한 발주 차수가 이미 등록되어 있습니다. 기존 발주를 수정하거나 다른 발주 차수를 입력해주세요.";
     return;
   }
 
