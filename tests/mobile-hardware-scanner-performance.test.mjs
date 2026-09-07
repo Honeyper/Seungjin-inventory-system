@@ -35,5 +35,11 @@ test("external scanner fallback adapts to its observed key interval and stays be
   assert.match(source, /observedGap \* HARDWARE_SCANNER_IDLE_GAP_MULTIPLIER/);
   assert.match(source, /const submitDelayMs = getHardwareScannerIdleSubmitMs\(\);/);
   assert.doesNotMatch(source, /HARDWARE_SCANNER_IDLE_SUBMIT_MS = IS_LOW_POWER_SCANNER \? 1800 : 500/);
-  assert.match(html, /mobile\.js\?v=20260907-scanner-empty-center/);
+  assert.match(html, /mobile\.js\?v=20260907-simple-scanner-status/);
+});
+
+test("external scanner keeps queue safety without exposing registration counters", () => {
+  assert.match(source, /state\.hardwareScannerQueue\.push\(value\);/);
+  assert.match(source, /setHardwareScannerStatus\("QR을 확인하고 있습니다…", "receiving"\);/);
+  assert.doesNotMatch(source, /pendingCount|remainingCount|건을 순서대로 처리|건이 대기 중/);
 });
