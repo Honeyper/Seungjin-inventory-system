@@ -311,6 +311,10 @@ const inboundNote = document.querySelector("#inboundNote");
 const editInboundNoteButton = document.querySelector("#editInboundNoteButton");
 const inboundProductName = document.querySelector("#inboundProductName");
 const inboundProductId = document.querySelector("#inboundProductId");
+const inboundSummaryProductVisual = document.querySelector("#inboundSummaryProductVisual");
+const inboundSummaryProductImage = document.querySelector("#inboundSummaryProductImage");
+const inboundSummaryProductPlaceholder = document.querySelector("#inboundSummaryProductPlaceholder");
+const inboundSummaryProductImageLabel = document.querySelector("#inboundSummaryProductImageLabel");
 const inboundPurchaseOrder = document.querySelector("#inboundPurchaseOrder");
 const inboundRegistrant = document.querySelector("#inboundRegistrant");
 const inboundBatch = document.querySelector("#inboundBatch");
@@ -1375,6 +1379,14 @@ pageSizeSelect.addEventListener("change", (event) => {
 productCommonContainer?.addEventListener("change", syncCommonContainerFields);
 productShippingProductCount?.addEventListener("change", () => {
   renderCommonContainerProductNameFields(Number(productShippingProductCount.value) || 1);
+});
+inboundSummaryProductImage?.addEventListener("error", () => {
+  inboundSummaryProductVisual?.classList.remove("has-image");
+  inboundSummaryProductImage.hidden = true;
+  inboundSummaryProductPlaceholder.hidden = false;
+  if (inboundSummaryProductImageLabel) {
+    inboundSummaryProductImageLabel.textContent = "이미지 없음";
+  }
 });
 productProcessType?.addEventListener("change", () => {
   productFinalProcess.dataset.legacyFinalProcess = "";
@@ -5044,6 +5056,7 @@ function updateInboundSummary() {
   }
 
   const selectedProduct = getProductByCode(inboundProductId?.value.trim());
+  updateInboundSummaryProductImage(selectedProduct);
   const selectedPurchaseOrder = getInboundPurchaseOrder();
   const orderQuantity = selectedPurchaseOrder ? Number(selectedPurchaseOrder.totalOrderQuantity || 0) : 0;
   const accumulatedQuantity = selectedPurchaseOrder ? Number(selectedPurchaseOrder.accumulatedInboundQuantity || 0) : 0;
@@ -5081,6 +5094,44 @@ function updateInboundSummary() {
     orderProgressText.innerHTML = selectedPurchaseOrder
       ? `${escapeHtml(orderRoundLabel)} 입고율 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""}`
       : selectedProduct ? "발주 건은 나중에 연결할 수 있습니다." : "제품을 선택해주세요.";
+  }
+}
+
+function normalizeInboundSummaryProductImageUrl(value) {
+  const url = String(value || "").trim();
+  const driveFileMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/i);
+  const driveIdMatch = url.match(/[?&]id=([^&#]+)/i);
+  const fileId = driveFileMatch?.[1] || driveIdMatch?.[1] || "";
+
+  if (!fileId || /drive\.google\.com\/thumbnail/i.test(url)) {
+    return url;
+  }
+
+  const resourceKey = url.match(/[?&]resourcekey=([^&#]+)/i)?.[1] || "";
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(decodeURIComponent(fileId))}&sz=w600${resourceKey ? `&resourcekey=${encodeURIComponent(decodeURIComponent(resourceKey))}` : ""}`;
+}
+
+function updateInboundSummaryProductImage(product) {
+  if (!inboundSummaryProductVisual || !inboundSummaryProductImage || !inboundSummaryProductPlaceholder) {
+    return;
+  }
+
+  const imageUrl = normalizeInboundSummaryProductImageUrl(product?.productImageUrl);
+  const hasImage = /^(https?:|data:image\/|blob:)/i.test(imageUrl);
+  inboundSummaryProductVisual.classList.toggle("has-image", hasImage);
+  inboundSummaryProductImage.hidden = !hasImage;
+  inboundSummaryProductPlaceholder.hidden = hasImage;
+
+  if (hasImage) {
+    inboundSummaryProductImage.src = imageUrl;
+    inboundSummaryProductImage.alt = `${String(product?.productName || "선택한 제품").trim()} 제품 이미지`;
+  } else {
+    inboundSummaryProductImage.removeAttribute("src");
+    inboundSummaryProductImage.alt = "";
+  }
+
+  if (inboundSummaryProductImageLabel) {
+    inboundSummaryProductImageLabel.textContent = product ? "이미지 없음" : "제품 이미지";
   }
 }
 
