@@ -6576,6 +6576,14 @@ function closeInboundProductPicker() {
   }
 }
 
+function renderPickerProductImage(product) {
+  const imageUrl = normalizeInboundSummaryProductImageUrl(getProductImageUrls(product)[0] || "");
+  return `<span class="picker-product-icon" aria-hidden="true">
+    ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />` : ""}
+    <i class="ti ti-package"></i>
+  </span>`;
+}
+
 function renderInboundProductPicker() {
   const query = state.inboundProductPickerQuery;
   const filteredProducts = state.products.filter((product) => {
@@ -6601,9 +6609,7 @@ function renderInboundProductPicker() {
   inboundProductPickerList.innerHTML = products.map((product) => `
     <div class="picker-product-row">
       <button class="picker-product" type="button" data-product="${escapeHtml(product.productCode)}">
-        <span class="picker-product-icon" aria-hidden="true">
-          <i class="ti ti-package"></i>
-        </span>
+        ${renderPickerProductImage(product)}
         <span class="picker-product-main">
           <strong>${escapeHtml(product.productName)}</strong>
           <span class="picker-product-meta">
@@ -6631,6 +6637,11 @@ function renderInboundProductPicker() {
   `).join("");
 
   inboundProductPickerEmpty.hidden = products.length > 0;
+
+  inboundProductPickerList.querySelectorAll(".picker-product-icon img").forEach((image) => {
+    image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+    if (image.complete && !image.naturalWidth) image.hidden = true;
+  });
 
   inboundProductPickerList.querySelectorAll(".picker-product").forEach((button) => {
     button.addEventListener("click", () => {
