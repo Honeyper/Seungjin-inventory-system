@@ -1801,7 +1801,7 @@ if (window.SeungjinDataGateway?.canRead("getServerUsage")) {
 
 function getCurrentView() {
   const view = location.hash.replace("#", "");
-  return ["inbound", "purchase-orders", "inventory", "shipping", "products"].includes(view) ? view : "inbound";
+  return ["inbound", "purchase-orders", "inventory", "shipping", "products", "production-plan", "work-status"].includes(view) ? view : "inbound";
 }
 
 function setActiveView(view) {
@@ -1810,9 +1810,16 @@ function setActiveView(view) {
   });
 
   viewLinks.forEach((link) => {
-    const isActive = link.dataset.viewLink === view;
+    const isWorkGroup = link.dataset.viewGroup === "work";
+    const isActive = isWorkGroup
+      ? ["production-plan", "work-status"].includes(view)
+      : link.dataset.viewLink === view;
     link.classList.toggle("active", isActive);
-    link.toggleAttribute("aria-current", isActive);
+    if (isActive) {
+      link.setAttribute("aria-current", isWorkGroup ? "location" : "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
   });
 
   closeRowActionMenu();
