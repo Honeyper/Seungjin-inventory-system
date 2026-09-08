@@ -20,7 +20,8 @@ const DEFAULT_CLIENTS = [
   "보경",
   "CPI",
   "더승진(2공장)",
-  "SJ패키지"
+  "SJ패키지",
+  "월드코스매틱"
 ];
 
 const DEFECT_REASON_TONES = {
