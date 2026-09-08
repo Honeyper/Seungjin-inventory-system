@@ -773,10 +773,18 @@ function mutateInventory(action, payload, state, changes, now) {
     const rawStatus = text(payload.status) || status;
     const allowed = ["보관", "보류", "출고대기", "출고완료"];
     if (!allowed.includes(status)) throw new Error("지원하지 않는 출고 상태입니다.");
+    // Mobile QR shipping records inspection and completion in this same mutation.
+    // forceCompleteShipping alone must not bypass the inspection requirement.
+    const completesWithInspection = payload.forceCompleteShipping === true
+      && payload.autoShippingInspection === true
+      && number(payload.inspectionQuantity) > 0;
     const quantityMap = getBoxQuantityMap(payload);
     boxes.forEach((box) => {
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
-      if (status === "출고완료" && currentStatus !== "출고대기" && payload.allowInventoryAdjustment !== true) {
+      if (status === "출고완료" && /출고완료|폐기/.test(currentStatus)) {
+        throw new Error(`${box.number}번 박스는 이미 출고되었거나 폐기되어 출고할 수 없습니다.`);
+      }
+      if (status === "출고완료" && currentStatus !== "출고대기" && payload.allowInventoryAdjustment !== true && !completesWithInspection) {
         throw new Error(`${box.number}번 박스는 출고 검수가 완료되지 않았습니다.`);
       }
       if (status === "출고대기" && /출고완료|폐기/.test(currentStatus)) {
