@@ -9761,6 +9761,14 @@ input {
   color: #0aa58f;
 }
 
+.summary-order-loss {
+  display: block;
+  margin-top: 0.35rem;
+  color: #9a6515;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .summary-total > span {
   color: var(--navy-dark);
   font-size: 1rem;
