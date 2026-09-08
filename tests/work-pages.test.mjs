@@ -16,6 +16,8 @@ function navigation() {
     removeAttribute(name) { delete this[name]; },
   }));
   const context = vm.createContext({
+    workMenuButton: { classList: { toggle(name, value) { this[name] = value; } }, setAttribute(name, value) { this[name] = value; } },
+    workSubmenu: { hidden: true },
     location: { hash: "" }, pageViews: pages, viewLinks: links,
     closeRowActionMenu() {}, closeInboundRowActionMenu() {},
     document: { querySelector: () => ({ scrollTo() {} }) },
@@ -26,13 +28,17 @@ function navigation() {
   const routeStart = source.indexOf("function getCurrentView()");
   vm.runInContext(source.slice(routeStart, source.indexOf("\n}\n", routeStart) + 3), context);
   const start = source.indexOf("function setActiveView(view)");
+  const menuStart = source.indexOf("function setWorkMenuExpanded(expanded)");
+  vm.runInContext(source.slice(menuStart, source.indexOf("\n}\n", menuStart) + 3), context);
   vm.runInContext(source.slice(start, source.indexOf("\n}\n", start) + 3), context);
   return { context, pages, links };
 }
 
 test("작업 메뉴는 활성화되고 생산계획과 작업현황은 별도 페이지로 연결된다", () => {
-  assert.match(html, /href="#production-plan" data-view-link="production-plan" data-view-group="work"/);
-  assert.doesNotMatch(html, />\s*작업관리\s*</);
+  assert.match(html, /id="workMenuButton" type="button" aria-expanded="false" aria-controls="workSubmenu"/);
+  assert.match(html, /<span>작업관리 /);
+  assert.match(html, /id="workSubmenu" hidden/);
+  assert.doesNotMatch(html, /work-page-nav/);
   for (const route of ["production-plan", "work-status"]) {
     assert.match(html, new RegExp(`data-view="${route}" hidden`));
     assert.match(html, new RegExp(`href="#${route}" data-view-link="${route}"`));
@@ -53,6 +59,8 @@ test("작업 페이지 전환 시 하나만 표시하고 부모 메뉴와 현재
   const { context, pages, links } = navigation();
   for (const route of ["production-plan", "work-status", "production-plan", "products"]) {
     context.setActiveView(route);
+    assert.equal(context.workMenuButton.classList.active, route !== "products");
+    assert.equal(context.workSubmenu.hidden, route === "products");
     assert.deepEqual(pages.filter((page) => !page.hidden).map((page) => page.dataset.view), [route]);
     for (const link of links) {
       const active = link.dataset.viewGroup === "work" ? route !== "products" : link.dataset.viewLink === route;
@@ -60,4 +68,16 @@ test("작업 페이지 전환 시 하나만 표시하고 부모 메뉴와 현재
       assert.equal(link["aria-current"], active ? (link.dataset.viewGroup ? "location" : "page") : undefined);
     }
   }
+});
+
+test("부모 메뉴를 펼치거나 접어도 현재 페이지는 변경하지 않는다", () => {
+  const { context, pages } = navigation();
+  context.setActiveView("work-status");
+  context.setWorkMenuExpanded(false);
+  assert.equal(context.workSubmenu.hidden, true);
+  assert.equal(context.workMenuButton["aria-expanded"], "false");
+  assert.equal(pages.find((page) => page.dataset.view === "work-status").hidden, false);
+  context.setWorkMenuExpanded(true);
+  assert.equal(context.workSubmenu.hidden, false);
+  assert.equal(context.workMenuButton["aria-expanded"], "true");
 });
