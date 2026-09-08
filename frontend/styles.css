@@ -8385,6 +8385,75 @@ input {
   display: none;
 }
 
+.work-page-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.work-page-nav a {
+  padding: 0.85rem 1.5rem;
+  border-radius: 0.5rem;
+  color: var(--muted);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.work-page-nav a.active {
+  color: #fff;
+  background: var(--navy);
+}
+
+.work-page-nav a:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.work-page-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 20rem;
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: #fff;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.work-page-placeholder > i {
+  color: var(--gold);
+  font-size: 2.5rem;
+}
+
+.work-page-placeholder h2,
+.work-page-placeholder p {
+  margin: 0;
+}
+
+.work-page-placeholder h2 {
+  color: var(--navy);
+  font-size: 1.25rem;
+}
+
+.work-page-placeholder p,
+.work-page-placeholder span {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.work-page-placeholder span {
+  font-size: 0.875rem;
+}
+
 .inbound-purchase-order-field {
   grid-column: span 2;
 }
