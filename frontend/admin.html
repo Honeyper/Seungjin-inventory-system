@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260908-work-pages-prd" />
+    <link rel="stylesheet" href="./styles.css?v=20260908-work-submenu-prd" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260902-qr-batch-highlight-prd" />
   </head>
   <body class="admin-body">
@@ -163,13 +163,19 @@
               출고관리
             </a>
           </div>
-          <div class="side-nav-row">
-            <a class="side-nav-item" href="#production-plan" data-view-link="production-plan" data-view-group="work">
-              <span class="side-icon">
-                <i class="ti ti-clipboard-check" aria-hidden="true"></i>
-              </span>
-              작업
-            </a>
+          <div class="side-work-group">
+            <div class="side-nav-row">
+              <button class="side-nav-item side-work-toggle" id="workMenuButton" type="button" aria-expanded="false" aria-controls="workSubmenu">
+                <span class="side-icon">
+                  <i class="ti ti-clipboard-check" aria-hidden="true"></i>
+                </span>
+                <span>작업관리 <span class="side-work-chevron" aria-hidden="true"></span></span>
+              </button>
+            </div>
+            <div class="side-work-submenu" id="workSubmenu" hidden>
+              <a href="#production-plan" data-view-link="production-plan">생산계획</a>
+              <a href="#work-status" data-view-link="work-status">작업현황</a>
+            </div>
           </div>
           <div class="side-nav-row">
             <a class="side-nav-item" href="#products" data-view-link="products">
@@ -208,14 +214,10 @@
         <div class="page-view work-view" id="productionPlanView" data-view="production-plan" hidden>
           <section class="page-heading management-page-heading">
             <div class="management-heading-trail">
-              <p class="eyebrow">작업</p>
+              <p class="eyebrow">작업관리</p>
               <h1>생산계획</h1>
             </div>
           </section>
-          <nav class="work-page-nav" aria-label="작업 페이지">
-            <a href="#production-plan" data-view-link="production-plan">생산계획</a>
-            <a href="#work-status" data-view-link="work-status">작업현황</a>
-          </nav>
           <section class="work-page-placeholder" aria-labelledby="productionPlanEmptyTitle">
             <i class="ti ti-calendar" aria-hidden="true"></i>
             <h2 id="productionPlanEmptyTitle">생산계획을 준비하고 있습니다</h2>
@@ -226,14 +228,10 @@
         <div class="page-view work-view" id="workStatusView" data-view="work-status" hidden>
           <section class="page-heading management-page-heading">
             <div class="management-heading-trail">
-              <p class="eyebrow">작업</p>
+              <p class="eyebrow">작업관리</p>
               <h1>작업현황</h1>
             </div>
           </section>
-          <nav class="work-page-nav" aria-label="작업 페이지">
-            <a href="#production-plan" data-view-link="production-plan">생산계획</a>
-            <a href="#work-status" data-view-link="work-status">작업현황</a>
-          </nav>
           <section class="work-page-placeholder" aria-labelledby="workStatusEmptyTitle">
             <i class="ti ti-clipboard-check" aria-hidden="true"></i>
             <h2 id="workStatusEmptyTitle">작업현황을 준비하고 있습니다</h2>
@@ -3003,6 +3001,6 @@
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-prd"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-prd"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-prd"></script>
-    <script src="./admin.js?v=20260908-work-pages-prd"></script>
+    <script src="./admin.js?v=20260908-work-submenu-prd"></script>
   </body>
 </html>

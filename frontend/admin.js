@@ -471,6 +471,8 @@ const inboundDefectReasonPanel = document.querySelector("#inboundDefectReasonPan
 const inboundDefectReasonValue = document.querySelector("#inboundDefectReasonValue");
 const inboundDefectReasonInput = document.querySelector("#inboundDefectReason");
 const viewLinks = document.querySelectorAll("[data-view-link]");
+const workMenuButton = document.querySelector("#workMenuButton");
+const workSubmenu = document.querySelector("#workSubmenu");
 const pageViews = document.querySelectorAll("[data-view]");
 const newPurchaseOrderButton = document.querySelector("#newPurchaseOrderButton");
 const purchaseOrderTotal = document.querySelector("#purchaseOrderTotal");
@@ -1076,6 +1078,10 @@ purchaseOrderTableBody?.addEventListener("click", async (event) => {
 inboundPurchaseOrder?.addEventListener("change", () => {
   applySelectedInboundPurchaseOrder();
   updateInboundSummary();
+});
+
+workMenuButton?.addEventListener("click", () => {
+  setWorkMenuExpanded(workMenuButton.getAttribute("aria-expanded") !== "true");
 });
 
 viewLinks.forEach((link) => {
@@ -1978,23 +1984,30 @@ function scheduleInventoryDashboardWarmup() {
   }
 }
 
+function setWorkMenuExpanded(expanded) {
+  if (!workMenuButton || !workSubmenu) return;
+  workMenuButton.setAttribute("aria-expanded", String(expanded));
+  workSubmenu.hidden = !expanded;
+}
+
 function setActiveView(view) {
   pageViews.forEach((pageView) => {
     pageView.hidden = pageView.dataset.view !== view;
   });
 
   viewLinks.forEach((link) => {
-    const isWorkGroup = link.dataset.viewGroup === "work";
-    const isActive = isWorkGroup
-      ? ["production-plan", "work-status"].includes(view)
-      : link.dataset.viewLink === view;
+    const isActive = link.dataset.viewLink === view;
     link.classList.toggle("active", isActive);
     if (isActive) {
-      link.setAttribute("aria-current", isWorkGroup ? "location" : "page");
+      link.setAttribute("aria-current", "page");
     } else {
       link.removeAttribute("aria-current");
     }
   });
+
+  const isWorkView = ["production-plan", "work-status"].includes(view);
+  workMenuButton?.classList.toggle("active", isWorkView);
+  setWorkMenuExpanded(isWorkView);
 
   closeRowActionMenu();
   closeInboundRowActionMenu();
