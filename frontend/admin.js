@@ -5161,8 +5161,13 @@ function updateInboundSummary() {
 
   if (orderProgressText) {
     const orderRoundLabel = selectedPurchaseOrder?.orderRound || "차수 미정";
+    const currentLoss = orderQuantity > 0 ? Math.max(0, accumulatedQuantity - orderQuantity) : 0;
+    const projectedLoss = orderQuantity > 0 ? Math.max(0, nextAccumulatedQuantity - orderQuantity) : 0;
+    const lossSummary = currentLoss > 0 || projectedLoss > 0
+      ? `<span class="summary-order-loss">발주 초과분 · 현재 LOSS ${currentLoss.toLocaleString("ko-KR")} ea${incomingQuantity > 0 ? ` → 입고 후 예상 LOSS ${projectedLoss.toLocaleString("ko-KR")} ea` : ""}</span>`
+      : "";
     orderProgressText.innerHTML = selectedPurchaseOrder
-      ? `${escapeHtml(orderRoundLabel)} 입고율 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""}`
+      ? `${escapeHtml(orderRoundLabel)} 입고율 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""}${lossSummary}`
       : selectedProduct ? "발주 건은 나중에 연결할 수 있습니다." : "제품을 선택해주세요.";
   }
 }
