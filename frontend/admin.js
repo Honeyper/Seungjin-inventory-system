@@ -5163,8 +5163,15 @@ function updateInboundSummary() {
     const orderRoundLabel = selectedPurchaseOrder?.orderRound || "차수 미정";
     const currentLoss = orderQuantity > 0 ? Math.max(0, accumulatedQuantity - orderQuantity) : 0;
     const projectedLoss = orderQuantity > 0 ? Math.max(0, nextAccumulatedQuantity - orderQuantity) : 0;
+    const formatLoss = (quantity) => {
+      const rate = orderQuantity > 0 ? quantity / orderQuantity * 100 : 0;
+      const rateLabel = rate > 0 && rate < 0.01
+        ? "0.01% 미만"
+        : `${rate.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}%`;
+      return `${quantity.toLocaleString("ko-KR")} ea (${rateLabel})`;
+    };
     const lossSummary = currentLoss > 0 || projectedLoss > 0
-      ? `<span class="summary-order-loss">발주 초과분 · 현재 LOSS ${currentLoss.toLocaleString("ko-KR")} ea${incomingQuantity > 0 ? ` → 입고 후 예상 LOSS ${projectedLoss.toLocaleString("ko-KR")} ea` : ""}</span>`
+      ? `<span class="summary-order-loss">발주 초과분 · 현재 LOSS ${formatLoss(currentLoss)}${incomingQuantity > 0 ? ` → 입고 후 예상 LOSS ${formatLoss(projectedLoss)}` : ""}</span>`
       : "";
     orderProgressText.innerHTML = selectedPurchaseOrder
       ? `${escapeHtml(orderRoundLabel)} 입고율 <span class="summary-progress-rate">${progressRate.toLocaleString("ko-KR")}%</span>${incomingQuantity > 0 ? ` → <span class="summary-progress-rate summary-progress-rate-next">${nextProgressRate.toLocaleString("ko-KR")}%</span>` : ""}${lossSummary}`
