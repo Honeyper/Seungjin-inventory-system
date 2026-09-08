@@ -37,14 +37,21 @@ function createSummary() {
   };
 }
 
-test("발주 초과분의 현재 LOSS와 입고 후 예상 LOSS를 수량으로 표시한다", () => {
+test("발주 초과분의 현재 LOSS와 입고 후 예상 LOSS를 수량과 비율로 표시한다", () => {
   const render = createSummary();
   const text = render(15900, 14300);
-  assert.match(text, /현재 LOSS 1,010 ea/);
-  assert.match(text, /입고 후 예상 LOSS 15,310 ea/);
+  assert.match(text, /현재 LOSS 1,010 ea \(6\.78%\)/);
+  assert.match(text, /입고 후 예상 LOSS 15,310 ea \(102\.82%\)/);
   assert.match(text, /107%/);
   assert.match(text, /203%/);
   assert.doesNotMatch(render(15900, 0), /입고 후 예상/);
+});
+
+test("1,000개 발주에 1,400개 입고하면 LOSS는 400개, 40%이다", () => {
+  const render = createSummary();
+  assert.match(render(1400, 0, 1000), /현재 LOSS 400 ea \(40%\)/);
+  assert.match(render(1000, 400, 1000), /현재 LOSS 0 ea \(0%\).*예상 LOSS 400 ea \(40%\)/);
+  assert.match(render(100001, 0, 100000), /LOSS 1 ea \(0\.01% 미만\)/);
 });
 
 test("100% 이하에는 숨기고 실제 초과량으로 판단하며 입력 변경 시 다시 제거한다", () => {
