@@ -7025,6 +7025,24 @@ input {
   font-size: 1.18rem;
 }
 
+.picker-product-icon {
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.picker-product-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.picker-product-icon img[hidden],
+.picker-product-icon:has(img:not([hidden])) > .ti {
+  display: none;
+}
+
 .picker-product-main {
   display: flex;
   align-items: center;
