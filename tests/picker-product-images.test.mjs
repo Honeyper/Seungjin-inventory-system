@@ -4,7 +4,15 @@ import vm from "node:vm";
 import test from "node:test";
 
 const source = fs.readFileSync(new URL("../frontend/admin.js", import.meta.url), "utf8");
+const styles = fs.readFileSync(new URL("../frontend/styles.css", import.meta.url), "utf8");
 const context = vm.createContext({ MAX_PRODUCT_IMAGE_COUNT: 10 });
+
+test("제품 미리보기와 목록의 이미지 열은 3rem으로 함께 확대된다", () => {
+  assert.match(styles, /\.picker-product-icon\s*\{[^}]*width: 3rem;[^}]*height: 3rem;/);
+  assert.match(styles, /grid-template-columns: 3rem minmax\(0, 1fr\) auto 6\.6rem 1\.25rem;/);
+  assert.match(styles, /grid-template-columns: 3rem minmax\(0, 1fr\) 1\.25rem;/);
+  assert.match(styles, /\.picker-product-icon img\s*\{[^}]*object-fit: contain;/);
+});
 for (const name of ["escapeHtml", "normalizeInboundSummaryProductImageUrl", "normalizeProductImageUrls", "getProductImageUrls", "renderPickerProductImage"]) {
   const start = source.indexOf(`function ${name}(`);
   assert.ok(start >= 0);
