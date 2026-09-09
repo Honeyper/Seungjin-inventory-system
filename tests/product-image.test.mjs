@@ -114,7 +114,7 @@ test("긴 모바일 제품명은 글꼴 로딩 뒤에도 실제 폭에 맞춰 �
   assert.match(mobileSource, /title\.classList\.add\("is-multiline"\)/);
   assert.match(mobileSource, /document\.fonts\?\.ready\.then/);
   assert.match(mobileSource, /elements\.productImageModalTitle\.textContent = state\.activeProductImageName;\s*fitProductImageModalTitle\(\);/);
-  assert.match(mobileHtml, /mobile\.js\?v=20260909-shipping-totals-(?:dev|prd)/);
+  assert.match(mobileHtml, /mobile\.js\?v=20260909-shipping-refresh-race-(?:dev|prd)/);
 });
 
 test("제품 이미지 삭제 버튼은 고정 SVG X 아이콘으로 가운데 정렬한다", () => {
