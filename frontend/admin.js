@@ -6543,7 +6543,7 @@ function applyPurchaseOrderFilters() {
   const query = state.purchaseOrderQuery;
   const status = state.purchaseOrderStatusFilter;
   state.filteredPurchaseOrders = state.purchaseOrders.filter((order) => {
-    if (status && order.status !== status) return false;
+    if (status && getPurchaseOrderDisplayStatus(order) !== status) return false;
     if (!query) return true;
     return [
       order.purchaseOrderId,
@@ -6559,8 +6559,8 @@ function applyPurchaseOrderFilters() {
 
 function renderPurchaseOrderSummary() {
   const orders = state.purchaseOrders;
-  const activeCount = orders.filter((order) => ["진행 중", "기간 경과"].includes(order.status)).length;
-  const completedCount = orders.filter((order) => order.status === "입고완료").length;
+  const activeCount = orders.filter((order) => ["입고중", "작업중"].includes(getPurchaseOrderDisplayStatus(order))).length;
+  const completedCount = orders.filter((order) => getPurchaseOrderDisplayStatus(order) === "입고완료").length;
   const remaining = orders
     .filter((order) => order.status !== "취소")
     .reduce((sum, order) => sum + Number(order.remainingQuantity || 0), 0);
@@ -6615,7 +6615,7 @@ function renderPurchaseOrders(message = "") {
         <td>${hasShipping ? formatPurchaseOrderQuantity(order.accumulatedShippingQuantity) : "-"}</td>
         <td>${shippingProgress}</td>
         <td>${Number.isFinite(order.remainingShippingQuantity) ? formatPurchaseOrderQuantity(order.remainingShippingQuantity) : "-"}</td>
-        <td><span class="purchase-order-status-badge" data-status="${escapeAttribute(order.status || "")}">${escapeHtml(order.status || "-")}</span></td>
+        <td><span class="purchase-order-status-badge" data-status="${getPurchaseOrderDisplayStatus(order)}">${getPurchaseOrderDisplayStatus(order)}</span></td>
         <td>
           <span class="purchase-order-actions">
             <button type="button" data-purchase-order-action="edit" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">수정</button>
@@ -6625,6 +6625,15 @@ function renderPurchaseOrders(message = "") {
       </tr>
     `;
   }).join("");
+}
+
+function getPurchaseOrderDisplayStatus(order) {
+  if (order.status === "취소") return "취소";
+  if (Number(order.accumulatedShippingQuantity) > 0) return "작업중";
+  const total = Number(order.totalOrderQuantity);
+  const inbound = Number(order.accumulatedInboundQuantity);
+  const rate = total > 0 && Number.isFinite(inbound) ? inbound / total : Number(order.inboundRate || 0);
+  return rate >= 1 ? "입고완료" : "입고중";
 }
 
 function formatPurchaseOrderQuantity(value) {
