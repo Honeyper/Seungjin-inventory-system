@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260908-product-image-title-fit-v2-dev" />
+    <link rel="stylesheet" href="./mobile.css?v=20260909-shipping-totals-dev" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -221,6 +221,10 @@
               <path d="m9 18 6-6-6-6"></path>
             </svg>
           </button>
+          <section class="shipping-list-totals" aria-label="현재 목록 출고 합계" aria-live="polite">
+            <div><span>총 등록 박스 수</span><p><strong id="mobileShippingBoxTotal">0</strong><small>박스</small></p></div>
+            <div><span>총 출고 수량</span><p><strong id="mobileShippingQuantityTotal">0</strong><small>ea</small></p></div>
+          </section>
           <div class="shipping-action-row">
             <p>총 <strong id="mobileShippingCount">0</strong>건</p>
             <button class="control-button" id="refreshShippingButton" type="button">
@@ -657,6 +661,6 @@
     <script src="../supabase-gateway.js?v=20260901-supabase-dev-2"></script>
     <script src="../vendor/jsQR.min.js"></script>
     <script src="../qr-payload.js?v=20260904-box-checksum-dev"></script>
-    <script src="./mobile.js?v=20260908-product-image-title-fit-v2-dev"></script>
+    <script src="./mobile.js?v=20260909-shipping-totals-dev"></script>
   </body>
 </html>
