@@ -6581,7 +6581,7 @@ function renderPurchaseOrders(message = "") {
     purchaseOrderCountLabel.textContent = `전체 ${orders.length.toLocaleString("ko-KR")}건`;
   }
   if (!orders.length) {
-    purchaseOrderTableBody.innerHTML = `<tr><td class="empty-cell" colspan="11">${escapeHtml(message || "등록된 발주가 없습니다.")}</td></tr>`;
+    purchaseOrderTableBody.innerHTML = `<tr><td class="empty-cell" colspan="14">${escapeHtml(message || "등록된 발주가 없습니다.")}</td></tr>`;
     return;
   }
 
@@ -6589,6 +6589,13 @@ function renderPurchaseOrders(message = "") {
     const rate = Number(order.inboundRate || 0) * 100;
     const clampedRate = Math.max(0, Math.min(rate, 100));
     const displayRate = Math.round(rate);
+    const hasShipping = Number.isFinite(order.accumulatedShippingQuantity);
+    const shippingRate = Number.isFinite(order.shippingRate) ? order.shippingRate * 100 : null;
+    const shippingProgress = shippingRate === null ? "-" : `
+      <span class="purchase-order-progress purchase-order-shipping-progress">
+        <span class="purchase-order-progress-track"><span style="width:${Math.max(0, Math.min(shippingRate, 100))}%"></span></span>
+        <b>${shippingRate.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%</b>
+      </span>`;
     return `
       <tr>
         <td>${index + 1}</td>
@@ -6605,6 +6612,9 @@ function renderPurchaseOrders(message = "") {
             <b>${displayRate.toLocaleString("ko-KR")}%</b>
           </span>
         </td>
+        <td>${hasShipping ? formatPurchaseOrderQuantity(order.accumulatedShippingQuantity) : "-"}</td>
+        <td>${shippingProgress}</td>
+        <td>${Number.isFinite(order.remainingShippingQuantity) ? formatPurchaseOrderQuantity(order.remainingShippingQuantity) : "-"}</td>
         <td><span class="purchase-order-status-badge" data-status="${escapeAttribute(order.status || "")}">${escapeHtml(order.status || "-")}</span></td>
         <td>
           <span class="purchase-order-actions">

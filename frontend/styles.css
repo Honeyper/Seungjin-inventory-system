@@ -8263,11 +8263,11 @@ input {
 }
 
 .purchase-order-table {
-  min-width: 88rem;
+  min-width: 112rem;
 }
 
-.purchase-order-table th:nth-child(n + 6):nth-child(-n + 9),
-.purchase-order-table td:nth-child(n + 6):nth-child(-n + 9) {
+.purchase-order-table th:nth-child(n + 6):nth-child(-n + 12),
+.purchase-order-table td:nth-child(n + 6):nth-child(-n + 12) {
   text-align: right;
 }
 
@@ -8296,6 +8296,14 @@ input {
 .purchase-order-progress b {
   color: var(--navy-dark);
   font-size: 0.82rem;
+}
+
+.purchase-order-shipping-progress .purchase-order-progress-track span {
+  background: #197d75;
+}
+
+.purchase-order-shipping-progress b {
+  color: #197d75;
 }
 
 .purchase-order-status-badge {
