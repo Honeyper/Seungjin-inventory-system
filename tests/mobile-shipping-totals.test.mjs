@@ -11,6 +11,13 @@ test("수동 출고와 합계는 모바일에서도 한 행을 공유한다", ()
   assert.match(html, /class="shipping-registration-row">\s*<button[^>]*id="openManualShippingButton"[\s\S]*?<section class="shipping-list-totals"[\s\S]*?<\/section>\s*<\/div>/);
   assert.match(css, /\.shipping-registration-row\s*\{[^}]*display: grid;[^}]*grid-template-columns: 104px minmax\(0, 1fr\)/);
 });
+
+test("합계 항목명과 숫자는 부모의 기본 줄 높이에 밀리지 않는다", () => {
+  assert.match(css, /\.shipping-list-totals > div\s*\{[^}]*display: grid;[^}]*grid-template-rows: 12px 18px;[^}]*gap: 2px/);
+  assert.match(css, /\.shipping-list-totals span\s*\{[^}]*display: block;[^}]*line-height: 12px/);
+  assert.match(css, /\.shipping-list-totals p\s*\{[^}]*line-height: 18px;[^}]*white-space: nowrap/);
+  assert.match(css, /\.shipping-list-totals small\s*\{[^}]*line-height: 12px/);
+});
 const helpers = source.slice(source.indexOf("function getShippingDisplayMetrics("), source.indexOf("function renderShippingItem("));
 function context() {
   const ctx = { elements: { mobileShippingBoxTotal: {}, mobileShippingQuantityTotal: {} }, parseNumber: v => Number(String(v || 0).replace(/,/g, "")) || 0, formatNumber: v => Number(v).toLocaleString("ko-KR"), getScannedBox: row => row.scannedBox, getKnownBoxes: row => row.boxes || [], getBoxTotalQuantity: box => box.quantity, sumBoxQuantity: boxes => boxes.reduce((sum, box) => sum + box.quantity, 0) };
