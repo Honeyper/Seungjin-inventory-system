@@ -831,13 +831,21 @@ img {
   box-shadow: 0 10px 18px rgba(8, 42, 98, 0.18);
 }
 
+.shipping-registration-row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 6px;
+  margin: 5px 0;
+}
+
 .shipping-list-totals {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   height: 44px;
   box-sizing: border-box;
   align-items: center;
-  margin: 5px 0;
+  margin: 0;
   padding: 4px 0;
   border: 1px solid #cbd8e7;
   border-radius: 0.65rem;
@@ -847,7 +855,7 @@ img {
 
 .shipping-list-totals > div {
   min-width: 0;
-  padding: 0 0.7rem;
+  padding: 0 4px;
   text-align: center;
 }
 
@@ -857,14 +865,14 @@ img {
 
 .shipping-list-totals span {
   color: #66778f;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.2;
   font-weight: 700;
 }
 
 .shipping-list-totals p {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
   justify-content: center;
   gap: 0.3rem;
@@ -874,7 +882,7 @@ img {
 .shipping-list-totals strong {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.2;
 }
 
@@ -9447,36 +9455,40 @@ button.shipping-product-visual.has-photo:focus-visible {
   min-height: 44px;
   height: 44px;
   box-sizing: border-box;
-  grid-template-columns: 28px minmax(0, 1fr) 16px;
-  gap: 8px;
-  padding: 4px 10px;
+  min-width: 0;
+  margin: 0;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 4px;
+  padding: 4px 6px;
   border-color: #10366e;
   color: #fff;
   background: linear-gradient(135deg, var(--operations-navy), var(--operations-navy-2));
 }
 
 #shippingScreen .manual-shipping-open-button .manual-shipping-open-copy strong {
-  font-size: 14px;
+  font-size: 11px;
+  white-space: nowrap;
   line-height: 1.2;
   color: #fff;
 }
 
 #shippingScreen .manual-shipping-open-button .manual-shipping-open-copy small {
-  margin-top: 1px;
-  font-size: 10px;
-  line-height: 1.2;
-  color: rgba(255, 255, 255, 0.72);
+  display: none;
+}
+
+#shippingScreen .manual-shipping-open-button .manual-shipping-open-arrow {
+  display: none;
 }
 
 #shippingScreen .manual-shipping-open-button .manual-shipping-open-icon {
-  width: 28px;
-  height: 28px;
+  width: 16px;
+  height: 16px;
   border-radius: 8px;
 }
 
 #shippingScreen .manual-shipping-open-button .manual-shipping-open-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
 }
 
 .shipping-item-copy {

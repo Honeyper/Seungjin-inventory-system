@@ -5,6 +5,12 @@ import test from "node:test";
 
 const source = fs.readFileSync(new URL("../frontend/mobile/mobile.js", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../frontend/mobile/index.html", import.meta.url), "utf8");
+const css = fs.readFileSync(new URL("../frontend/mobile/mobile.css", import.meta.url), "utf8");
+
+test("수동 출고와 합계는 모바일에서도 한 행을 공유한다", () => {
+  assert.match(html, /class="shipping-registration-row">\s*<button[^>]*id="openManualShippingButton"[\s\S]*?<section class="shipping-list-totals"[\s\S]*?<\/section>\s*<\/div>/);
+  assert.match(css, /\.shipping-registration-row\s*\{[^}]*display: grid;[^}]*grid-template-columns: 104px minmax\(0, 1fr\)/);
+});
 const helpers = source.slice(source.indexOf("function getShippingDisplayMetrics("), source.indexOf("function renderShippingItem("));
 function context() {
   const ctx = { elements: { mobileShippingBoxTotal: {}, mobileShippingQuantityTotal: {} }, parseNumber: v => Number(String(v || 0).replace(/,/g, "")) || 0, formatNumber: v => Number(v).toLocaleString("ko-KR"), getScannedBox: row => row.scannedBox, getKnownBoxes: row => row.boxes || [], getBoxTotalQuantity: box => box.quantity, sumBoxQuantity: boxes => boxes.reduce((sum, box) => sum + box.quantity, 0) };
