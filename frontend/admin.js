@@ -10069,6 +10069,13 @@ function renderProductDetail(product) {
 
 function renderInboundDetail(inbound) {
   const isInventoryDetail = state.activeDetailInboundSource === "inventory";
+  const inventoryProduct = isInventoryDetail ? findInboundQrProduct(inbound) : null;
+  const productImageUrls = isInventoryDetail
+    ? normalizeProductImageUrls([
+      ...getProductImageUrls(inbound),
+      ...getProductImageUrls(inventoryProduct)
+    ]).map(normalizeInboundSummaryProductImageUrl)
+    : [];
   const remainderQuantities = getInboundRecordRemainderQuantities(inbound);
   const remainderDetail = remainderQuantities
     .map((value, index) => `${index + 1}번 ${Number(value).toLocaleString("ko-KR")} ea`)
@@ -10091,6 +10098,19 @@ function renderInboundDetail(inbound) {
           { label: "보관 위치", value: inbound.storage }
         ]
     })}
+
+    ${isInventoryDetail && productImageUrls.length ? `
+      <section class="detail-section" aria-labelledby="inventoryDetailProductImageTitle">
+        <h3 id="inventoryDetailProductImageTitle">제품 이미지 <span class="detail-image-count">${productImageUrls.length}장</span></h3>
+        <div class="detail-product-image-list">
+          ${productImageUrls.map((url, index) => `
+            <button type="button" data-inventory-detail-product-image="${index}" aria-label="${index + 1}번째 제품 이미지 크게 보기">
+              <img src="${escapeAttribute(url)}" alt="${escapeAttribute(inbound.productName)} 제품 이미지 ${index + 1}" loading="lazy" />
+            </button>
+          `).join("")}
+        </div>
+      </section>
+    ` : ""}
 
     <section class="detail-section" aria-labelledby="inboundDetailBaseTitle">
       <h3 id="inboundDetailBaseTitle">입고 기본 정보</h3>
@@ -10142,6 +10162,16 @@ function renderInboundDetail(inbound) {
 
     ${renderInboundAttachmentDetail(inbound)}
   `;
+
+  inboundDetailContent.querySelectorAll("[data-inventory-detail-product-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openProductImageGallery(
+        productImageUrls,
+        inbound.productName,
+        Number(button.dataset.inventoryDetailProductImage) || 0
+      );
+    });
+  });
 }
 
 function renderInventoryAuditBoxStatus(inbound) {
