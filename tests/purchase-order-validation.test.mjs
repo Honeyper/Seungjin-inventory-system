@@ -8,9 +8,9 @@ const gatewaySource = fs.readFileSync(
   "utf8"
 );
 
-test("신규 발주 화면은 서버 요청 전에 동일 제품과 발주 차수를 안내한다", () => {
+test("신규 발주 화면은 서버 요청 전에 동일 제품과 발주명을 안내한다", () => {
   assert.match(adminSource, /function findDuplicatePurchaseOrder\(payload\)/);
-  assert.match(adminSource, /기존 발주를 수정하거나 다른 발주 차수를 입력해주세요/);
+  assert.match(adminSource, /기존 발주를 수정하거나 다른 발주명을 입력해주세요/);
 });
 
 test("Supabase 함수도 중복 발주 검증 문구를 안전하게 반환한다", () => {

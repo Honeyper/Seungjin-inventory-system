@@ -1,6 +1,7 @@
 import {
   applyMutation,
   buildInventoryDashboard,
+  INBOUND_BOX_CONFIGURATION_CONFLICT,
   SUPABASE_MUTATION_ACTIONS
 } from "./state-engine.js";
 import { buildSheetBackupNotifications } from "./backup-notifications.js";
@@ -34,6 +35,10 @@ const CLIENT_SAFE_ERROR_MESSAGES = new Map([
   [
     "동일 제품과 발주 차수가 이미 등록되어 있습니다.",
     "같은 제품에 동일한 발주 차수가 이미 등록되어 있습니다. 기존 발주를 수정하거나 다른 발주 차수를 입력해주세요."
+  ],
+  [
+    INBOUND_BOX_CONFIGURATION_CONFLICT,
+    INBOUND_BOX_CONFIGURATION_CONFLICT
   ]
 ]);
 
