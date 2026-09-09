@@ -1318,12 +1318,14 @@ async function loadShippingDashboard(options = {}) {
   }
 
   const currentUser = state.user;
+  const loadRevision = state.shippingMutationRevision || 0;
   const loadPromise = (async () => {
     try {
       let checkedVersion = null;
       if (window.SeungjinDataGateway?.canRead("getInventoryVersion")) {
         const version = await requestApi("getInventoryVersion");
         if (state.user !== currentUser) return false;
+        if (loadRevision !== (state.shippingMutationRevision || 0)) return false;
         checkedVersion = getDashboardStateVersion(version?.stateVersion);
         if (checkedVersion !== null && checkedVersion === state.dashboardStateVersion) {
           state.dashboardLoadedAt = Date.now();
@@ -1334,6 +1336,7 @@ async function loadShippingDashboard(options = {}) {
 
       const data = await requestApi("getInventoryDashboard", { knownStateVersion: checkedVersion });
       if (state.user !== currentUser) return false;
+      if (loadRevision !== (state.shippingMutationRevision || 0)) return false;
       state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
       state.dashboardLoadedAt = Date.now();
       // Use the version read before the rows so a concurrent write cannot mark old rows as current.
@@ -1346,6 +1349,7 @@ async function loadShippingDashboard(options = {}) {
       return true;
     } catch (error) {
       if (state.user !== currentUser) return false;
+      if (loadRevision !== (state.shippingMutationRevision || 0)) return false;
       if (options.silent) {
         if (!options.suppressToast) {
           showToast(error.message || "출고 목록을 불러오지 못했습니다.");
@@ -3814,6 +3818,7 @@ async function completeShippingItems(items, action = "complete") {
       if (updatedCount <= 0) {
         throw new Error("서버에서 처리된 박스를 확인하지 못했습니다.");
       }
+      invalidateShippingDashboardRead();
       return { completedCount: updatedCount, failedItems: [], errors: [] };
     } catch (error) {
       return {
@@ -3832,14 +3837,26 @@ async function completeShippingItems(items, action = "complete") {
   }, { completedCount: 0, failedItems: [], errors: [] });
 }
 
+function invalidateShippingDashboardRead() {
+  // A response started before this successful write must never restore old pending boxes.
+  state.shippingMutationRevision = (state.shippingMutationRevision || 0) + 1;
+  state.dashboardLoadPromise = null;
+  state.dashboardStateVersion = null;
+  state.dashboardLoadedAt = 0;
+}
+
+function getSuccessfulShippingRows(items, failedItems) {
+  const failedKeys = new Set(failedItems.map(getShippingKey));
+  const successful = items.filter((item) => !failedKeys.has(getShippingKey(item)));
+  const keys = new Set(successful.map(getShippingKey));
+  // A refresh can replace row objects while the confirmation request is in flight.
+  return [...new Set([...successful, ...state.scannedShippingRows.filter((row) => keys.has(getShippingKey(row)))])];
+}
+
 function markShippingItemsPending(items, failedItems = []) {
-  const failedSet = new Set(failedItems);
+  items = getSuccessfulShippingRows(items, failedItems);
 
   items.forEach((item) => {
-    if (failedSet.has(item)) {
-      return;
-    }
-
     const box = getScannedBox(item);
     if (box) {
       box.status = "출고대기";
@@ -3852,13 +3869,9 @@ function markShippingItemsPending(items, failedItems = []) {
 }
 
 function markShippingItemsCompleted(items, failedItems = []) {
-  const failedSet = new Set(failedItems);
+  items = getSuccessfulShippingRows(items, failedItems);
 
   items.forEach((item) => {
-    if (failedSet.has(item)) {
-      return;
-    }
-
     const box = getScannedBox(item);
     if (box) {
       box.status = "출고완료";
@@ -3872,13 +3885,9 @@ function markShippingItemsCompleted(items, failedItems = []) {
 }
 
 function markShippingItemsAvailable(items, failedItems = []) {
-  const failedSet = new Set(failedItems);
+  items = getSuccessfulShippingRows(items, failedItems);
 
   items.forEach((item) => {
-    if (failedSet.has(item)) {
-      return;
-    }
-
     const box = getScannedBox(item);
     if (box) {
       box.status = "보관";
