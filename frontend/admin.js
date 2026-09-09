@@ -401,6 +401,7 @@ const purchaseOrderClient = document.querySelector("#purchaseOrderClient");
 const purchaseOrderProductId = document.querySelector("#purchaseOrderProductId");
 const purchaseOrderRound = document.querySelector("#purchaseOrderRound");
 const purchaseOrderQuantity = document.querySelector("#purchaseOrderQuantity");
+purchaseOrderQuantity?.addEventListener("input", () => formatPurchaseOrderQuantityField(purchaseOrderQuantity));
 const purchaseOrderStartDate = document.querySelector("#purchaseOrderStartDate");
 const purchaseOrderEndDate = document.querySelector("#purchaseOrderEndDate");
 const purchaseOrderStartDateControl = window.SeungjinSegmentedDate?.createController(
@@ -6636,6 +6637,31 @@ function getPurchaseOrderDisplayStatus(order) {
   return rate >= 1 ? "입고완료" : "입고중";
 }
 
+function formatPurchaseOrderQuantityInput(value) {
+  const digits = String(value ?? "").replace(/,/g, "").trim();
+  if (!/^\d*$/.test(digits)) return String(value ?? "");
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function formatPurchaseOrderQuantityField(input) {
+  const digitsBeforeCaret = input.value.slice(0, input.selectionStart ?? input.value.length).replace(/\D/g, "").length;
+  const formatted = formatPurchaseOrderQuantityInput(input.value);
+  if (formatted === input.value) return;
+  input.value = formatted;
+  let caret = 0;
+  let digits = 0;
+  while (caret < formatted.length && digits < digitsBeforeCaret) {
+    if (/\d/.test(formatted[caret])) digits++;
+    caret++;
+  }
+  input.setSelectionRange(caret, caret);
+}
+
+function parsePurchaseOrderQuantityInput(value) {
+  const text = String(value ?? "").replace(/,/g, "").trim();
+  return /^\d+$/.test(text) ? Number(text) : NaN;
+}
+
 function formatPurchaseOrderQuantity(value) {
   return `${Number(value || 0).toLocaleString("ko-KR")} ea`;
 }
@@ -6680,7 +6706,7 @@ function openPurchaseOrderModal(order = null) {
   purchaseOrderProductSearchButton.disabled = isProductLocked;
   purchaseOrderProductName.setAttribute("aria-disabled", String(isProductLocked));
   purchaseOrderRound.value = order?.orderRound || "";
-  purchaseOrderQuantity.value = order?.totalOrderQuantity || "";
+  purchaseOrderQuantity.value = formatPurchaseOrderQuantityInput(order?.totalOrderQuantity || "");
   purchaseOrderStartDateControl?.setValue(order?.startDate || getLocalDateInputValue());
   purchaseOrderEndDateControl?.setValue(order?.endDate || "");
   purchaseOrderFormStatus.value = order?.status === "취소" ? "취소" : "";
@@ -6711,7 +6737,7 @@ function getPurchaseOrderPayload() {
     orderRound: purchaseOrderRound.value.trim(),
     startDate: purchaseOrderStartDate.value,
     endDate: purchaseOrderEndDate.value,
-    totalOrderQuantity: Number(purchaseOrderQuantity.value || 0),
+    totalOrderQuantity: parsePurchaseOrderQuantityInput(purchaseOrderQuantity.value),
     status: purchaseOrderFormStatus.value,
     note: purchaseOrderNote.value.trim(),
     registrant: session?.name || "Admin"
@@ -6731,7 +6757,7 @@ function findDuplicatePurchaseOrder(payload) {
 async function savePurchaseOrder() {
   if (state.isSavingPurchaseOrder) return;
   const payload = getPurchaseOrderPayload();
-  if (!payload.productId || !payload.startDate || payload.totalOrderQuantity <= 0) {
+  if (!payload.productId || !payload.startDate || !Number.isSafeInteger(payload.totalOrderQuantity) || payload.totalOrderQuantity <= 0) {
     purchaseOrderFormMessage.textContent = "필수 항목을 모두 입력해주세요.";
     return;
   }
