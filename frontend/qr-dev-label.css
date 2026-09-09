@@ -53,6 +53,11 @@
   clip-path: inset(0 0.5pt);
 }
 
+.box-qr-reference-table-head,
+.box-qr-reference-row {
+  grid-template-columns: 21fr 23fr 37fr 19fr;
+}
+
 .box-qr-reference-title,
 .box-qr-reference-summary,
 .box-qr-reference-main,
@@ -182,9 +187,8 @@
 }
 
 .box-qr-reference-quantity,
-.box-qr-reference-month,
-.box-qr-reference-day,
-.box-qr-reference-sign {
+.box-qr-reference-work-date,
+.box-qr-reference-worker {
   font-size: 7.8pt;
   font-weight: 400;
 }
@@ -193,8 +197,7 @@
   color: #9aa3af;
 }
 
-.box-qr-reference-month,
-.box-qr-reference-day {
+.box-qr-reference-work-date {
   justify-content: flex-end;
   padding-right: 0.9mm;
 }
@@ -208,9 +211,8 @@
   color: #c7cdd5;
 }
 
-.box-qr-reference-row.is-disabled .box-qr-reference-month,
-.box-qr-reference-row.is-disabled .box-qr-reference-day,
-.box-qr-reference-row.is-disabled .box-qr-reference-sign {
+.box-qr-reference-row.is-disabled .box-qr-reference-work-date,
+.box-qr-reference-row.is-disabled .box-qr-reference-worker {
   color: #fff;
 }
 
@@ -286,9 +288,8 @@
   }
 
   .box-qr-reference-row.is-disabled .box-qr-reference-quantity,
-  .box-qr-reference-row.is-disabled .box-qr-reference-month,
-  .box-qr-reference-row.is-disabled .box-qr-reference-day,
-  .box-qr-reference-row.is-disabled .box-qr-reference-sign {
+  .box-qr-reference-row.is-disabled .box-qr-reference-work-date,
+  .box-qr-reference-row.is-disabled .box-qr-reference-worker {
     color: #9aa3af !important;
   }
 }

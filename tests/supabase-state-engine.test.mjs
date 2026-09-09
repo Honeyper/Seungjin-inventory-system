@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import {
   applyMutation,
-  buildInventoryDashboard
+  buildInventoryDashboard,
+  INBOUND_BOX_CONFIGURATION_CONFLICT
 } from "../supabase/functions/seungjin-dev-gateway/state-engine.js";
 
 const fixedNow = new Date("2026-09-01T04:00:00.000Z");
+
+test("박스 구성 충돌은 일반 서버 오류 대신 구체적인 안내로 반환한다", () => {
+  const gateway = fs.readFileSync(new URL("../supabase/functions/seungjin-dev-gateway/index.ts", import.meta.url), "utf8");
+  assert.match(gateway, /CLIENT_SAFE_ERROR_MESSAGES[\s\S]*INBOUND_BOX_CONFIGURATION_CONFLICT/);
+});
 
 function product(productId, productName = productId) {
   return {
@@ -286,6 +293,144 @@ test("발주량을 달성하거나 초과한 발주에도 추가 입고를 연�
   assert.equal(holder.state.orders[0].status, "입고완료");
 });
 
+test("처리된 박스를 유지할 수 있으면 미처리 박스 수만 안전하게 변경한다", () => {
+  const managementId = "IN-260909-TEST-0001-001";
+  const productId = "TEST-0001";
+  const inbound = {
+    ...inventoryRecord(managementId, productId, 550, "H-1"),
+    inboundDate: "2026-09-09",
+    inboundTime: "12:45",
+    inboundType: "정상입고",
+    productName: "박스 수 변경 테스트",
+    boxQuantity: "100 ea",
+    inboundBoxCount: "5 box",
+    remainQuantity: "50 ea",
+    remainderQuantities: [50],
+    boxTotalCount: "6 box",
+    inspectionQuantity: "20 ea",
+    defectQuantity: "0 ea",
+    defectReason: "양호"
+  };
+  const makeHolder = () => ({
+    state: {
+      products: [{ ...product(productId, inbound.productName), boxQuantity: "100 ea" }],
+      orders: [],
+      inbounds: [{ ...inbound }],
+      records: [{ ...inbound }],
+      boxes: Array.from({ length: 6 }, (_, index) => inventoryBox(
+        managementId,
+        productId,
+        index + 1,
+        index === 5 ? 50 : 100,
+        index === 0 ? { storage: "H-1", status: "출고완료", shippingType: "정상출고" } : { storage: "H-1" }
+      ))
+    }
+  });
+  const payload = {
+    managementId,
+    inboundDate: inbound.inboundDate,
+    inboundTime: inbound.inboundTime,
+    inboundType: inbound.inboundType,
+    productId,
+    productName: inbound.productName,
+    clientName: "아이원(아이텍)",
+    storage: "H-1",
+    stockStatus: "보관",
+    boxQuantity: 100,
+    inboundBoxCount: 3,
+    remainQuantity: 50,
+    remainderQuantities: [50],
+    inspectionQuantity: 20,
+    defectQuantity: 0,
+    defectReason: "양호"
+  };
+
+  const holder = makeHolder();
+  const updated = mutate(holder, "updateInbound", payload);
+  assert.equal(holder.state.boxes.length, 4);
+  assert.equal(holder.state.boxes[0].status, "출고완료");
+  assert.equal(holder.state.boxes[0].shippingType, "정상출고");
+  assert.equal(holder.state.boxes[3].quantity, 50);
+  assert.deepEqual(updated.changes.inventoryBoxes.deletes, [`${managementId}-B005`, `${managementId}-B006`]);
+  assert.deepEqual(updated.changes.inventoryBoxes.upserts.map((item) => item.box_id), [`${managementId}-B004`]);
+  assert.equal(updated.result.boxCount, 4);
+
+  const blocked = makeHolder();
+  blocked.state.boxes[5].status = "출고대기";
+  blocked.state.boxes[5].rawStatus = "출고대기";
+  assert.throws(() => mutate(blocked, "updateInbound", payload), new RegExp(INBOUND_BOX_CONFIGURATION_CONFLICT));
+});
+
+test("17완박스와 잔량 1박스를 19완박스와 잔량 1박스로 늘릴 때 처리 이력을 보존한다", () => {
+  const managementId = "IN-BOX-COUNT-INCREASE";
+  const productId = "BOX-COUNT-PRODUCT";
+  const processedNumbers = new Set([1, 3, 6, 7, 8, 10, 13, 16, 17]);
+  const inbound = {
+    ...inventoryRecord(managementId, productId, 25000, "H-1"),
+    inboundDate: "2026-09-09",
+    inboundTime: "12:45",
+    inboundType: "정상입고",
+    productName: "박스 수 증가 테스트",
+    boxQuantity: "1,440 ea",
+    inboundBoxCount: "17 box",
+    remainQuantity: "520 ea",
+    remainderQuantities: [520],
+    boxTotalCount: "18 box",
+    inspectionQuantity: "200 ea",
+    defectQuantity: "0 ea",
+    defectReason: "양호"
+  };
+  const holder = {
+    state: {
+      products: [{ ...product(productId, inbound.productName), boxQuantity: "1,440 ea" }],
+      orders: [],
+      inbounds: [{ ...inbound }],
+      records: [{ ...inbound }],
+      boxes: Array.from({ length: 18 }, (_, index) => inventoryBox(
+        managementId,
+        productId,
+        index + 1,
+        index === 17 ? 520 : 1440,
+        processedNumbers.has(index + 1)
+          ? { storage: "H-1", status: index % 2 ? "출고완료" : "출고대기", shippingType: index % 2 ? "정상출고" : "" }
+          : { storage: "H-1" }
+      ))
+    }
+  };
+
+  const updated = mutate(holder, "updateInbound", {
+    managementId,
+    inboundDate: inbound.inboundDate,
+    inboundTime: inbound.inboundTime,
+    inboundType: inbound.inboundType,
+    productId,
+    productName: inbound.productName,
+    clientName: "뉴파트너스",
+    storage: "H-1",
+    stockStatus: "보관",
+    boxQuantity: 1440,
+    inboundBoxCount: 19,
+    remainQuantity: 520,
+    remainderQuantities: [520],
+    inspectionQuantity: 200,
+    defectQuantity: 0,
+    defectReason: "양호"
+  });
+
+  assert.equal(holder.state.boxes.length, 20);
+  assert.equal(holder.state.boxes[17].quantity, 1440);
+  assert.equal(holder.state.boxes[18].quantity, 1440);
+  assert.equal(holder.state.boxes[19].quantity, 520);
+  assert.equal(holder.state.boxes[16].status, "출고대기");
+  assert.deepEqual(updated.changes.inventoryBoxes.upserts.map((item) => item.box_id), [
+    `${managementId}-B018`,
+    `${managementId}-B019`,
+    `${managementId}-B020`
+  ]);
+  assert.deepEqual(updated.changes.inventoryBoxes.deletes, []);
+  assert.equal(updated.result.boxCount, 20);
+});
+
 test("processed legacy inbound can link a purchase order without rebuilding boxes", () => {
   const managementId = "IN-260708-IRP-0002-001";
   const productId = "IRP-0002";
@@ -402,7 +547,7 @@ test("processed legacy inbound can link a purchase order without rebuilding boxe
     inboundBoxCount: 70,
     remainQuantity: 125,
     remainderQuantities: [125]
-  }, holder.state, fixedNow), /박스 구성을 수정할 수 없습니다/);
+  }, holder.state, fixedNow), new RegExp(INBOUND_BOX_CONFIGURATION_CONFLICT));
 });
 
 test("shipping inspection applies quantities once and clears only waiting boxes", () => {

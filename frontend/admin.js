@@ -5182,7 +5182,7 @@ function updateInboundSummary() {
   }
 
   if (orderProgressText) {
-    const orderRoundLabel = selectedPurchaseOrder?.orderRound || "차수 미정";
+    const orderRoundLabel = selectedPurchaseOrder?.orderRound || "발주명 미정";
     const currentLoss = orderQuantity > 0 ? Math.max(0, accumulatedQuantity - orderQuantity) : 0;
     const projectedLoss = orderQuantity > 0 ? Math.max(0, nextAccumulatedQuantity - orderQuantity) : 0;
     const formatLoss = (quantity) => {
@@ -5356,7 +5356,10 @@ async function saveInbound() {
   setInboundSaving(true);
 
   try {
-    payload.invoiceFile = await getInboundInvoicePayload();
+    const invoiceFile = await getInboundInvoicePayload();
+    if (invoiceFile) {
+      payload.invoiceFileUrl = await uploadInboundInvoiceFile(payload, invoiceFile);
+    }
     payload.defectFiles = await getInboundDefectFilePayloads();
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
@@ -5415,6 +5418,21 @@ async function getInboundInvoicePayload() {
     label: "거래명세서",
     maxSize: MAX_INVOICE_FILE_SIZE
   });
+}
+
+async function uploadInboundInvoiceFile(payload, invoiceFile) {
+  const result = await requestApi("uploadInboundInvoice", {
+    managementId: payload.managementId || "",
+    productName: payload.productName || "",
+    clientName: payload.clientName || "",
+    inboundDate: payload.inboundDate || "",
+    invoiceFile
+  });
+  const invoiceFileUrl = String(result?.invoiceFileUrl || "").trim();
+  if (!invoiceFileUrl) {
+    throw new Error("거래명세서 링크를 생성하지 못했습니다.");
+  }
+  return invoiceFileUrl;
 }
 
 async function getInboundDefectFilePayloads() {
@@ -6600,7 +6618,7 @@ function renderPurchaseOrders(message = "") {
     return `
       <tr>
         <td>${index + 1}</td>
-        <td><strong>${escapeHtml(order.orderRound || "차수 미정")}</strong><br><small>${escapeHtml(order.productId || "-")}</small></td>
+        <td><strong>${escapeHtml(order.orderRound || "발주명 미정")}</strong><br><small>${escapeHtml(order.productId || "-")}</small></td>
         <td>${escapeHtml(order.clientName || "-")}</td>
         <td>${escapeHtml(order.productName || "-")}</td>
         <td>발주 ${escapeHtml(order.startDate || "-")}<br><small>납기 ${escapeHtml(order.endDate || "미정")}</small></td>
@@ -6768,7 +6786,7 @@ async function savePurchaseOrder() {
     return;
   }
   if (findDuplicatePurchaseOrder(payload)) {
-    purchaseOrderFormMessage.textContent = "같은 제품에 동일한 발주 차수가 이미 등록되어 있습니다. 기존 발주를 수정하거나 다른 발주 차수를 입력해주세요.";
+    purchaseOrderFormMessage.textContent = "같은 제품에 동일한 발주명이 이미 등록되어 있습니다. 기존 발주를 수정하거나 다른 발주명을 입력해주세요.";
     return;
   }
 
@@ -6790,7 +6808,7 @@ async function savePurchaseOrder() {
 }
 
 async function deletePurchaseOrder(order) {
-  if (!window.confirm(`${order.productName} ${order.orderRound || "차수 미정"} 발주를 삭제하시겠습니까?`)) return;
+  if (!window.confirm(`${order.productName} ${order.orderRound || "발주명 미정"} 발주를 삭제하시겠습니까?`)) return;
   try {
     await requestApi("deletePurchaseOrder", { purchaseOrderId: order.purchaseOrderId });
     await loadPurchaseOrders();
@@ -6805,7 +6823,7 @@ function getInboundPurchaseOrder() {
 }
 
 function getInboundPurchaseOrderLabel(order) {
-  return `${order?.orderRound || "차수 미정"} · ${Number(order?.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order?.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea`;
+  return `${order?.orderRound || "발주명 미정"} · ${Number(order?.accumulatedInboundQuantity || 0).toLocaleString("ko-KR")} / ${Number(order?.totalOrderQuantity || 0).toLocaleString("ko-KR")}ea`;
 }
 
 function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
@@ -8837,17 +8855,15 @@ function renderInboundQrReferenceLabel({
       <div class="box-qr-reference-table-head" aria-hidden="true">
         <strong>공정</strong>
         <strong>포장수량</strong>
-        <strong>월</strong>
-        <strong>일</strong>
-        <strong>(인)</strong>
+        <strong>작업일</strong>
+        <strong>작업자</strong>
       </div>
       ${processData.processRows.map(renderQrReferenceProcessRow).join("")}
       <div class="box-qr-reference-row box-qr-reference-manager">
         <strong>관리자</strong>
         <span class="box-qr-reference-quantity">ea</span>
-        <span class="box-qr-reference-month">월</span>
-        <span class="box-qr-reference-day">일</span>
-        <span class="box-qr-reference-sign">(인)</span>
+        <span class="box-qr-reference-work-date">월&nbsp;&nbsp;&nbsp;일</span>
+        <span class="box-qr-reference-worker"></span>
       </div>
     </article>
   `;
@@ -8859,9 +8875,8 @@ function renderQrReferenceProcessRow(processRow) {
     <div class="box-qr-reference-row${disabledClass}"${processRow.disabled ? ' aria-disabled="true"' : ""}>
       <strong>${escapeHtml(processRow.label)}</strong>
       <span class="box-qr-reference-quantity">ea</span>
-      <span class="box-qr-reference-month">월</span>
-      <span class="box-qr-reference-day">일</span>
-      <span class="box-qr-reference-sign">(인)</span>
+      <span class="box-qr-reference-work-date">월&nbsp;&nbsp;&nbsp;일</span>
+      <span class="box-qr-reference-worker"></span>
     </div>
   `;
 }
@@ -9388,7 +9403,7 @@ function renderInboundDetail(inbound) {
         ${detailItem("제품 ID", inbound.productId)}
         ${detailItem("거래처명", inbound.clientName)}
         ${detailItem("제품명", inbound.productName, false, "full-span")}
-        ${detailItem("발주 차수", inbound.purchaseOrderRound)}
+        ${detailItem("발주명", inbound.purchaseOrderRound)}
         ${detailItem("차수", inbound.batch)}
         ${detailItem("최종공정", inbound.process)}
         ${detailItem("보관위치", inbound.storage)}
@@ -10065,6 +10080,10 @@ async function saveInboundEdit() {
       return;
     }
 
+    if (payload.invoiceFile) {
+      payload.invoiceFileUrl = await uploadInboundInvoiceFile(payload, payload.invoiceFile);
+    }
+    delete payload.invoiceFile;
     await requestApi("updateInbound", payload);
     await refreshInboundMutationData();
     state.activeDetailInboundId = payload.managementId;

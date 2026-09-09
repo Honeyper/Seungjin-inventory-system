@@ -51,6 +51,7 @@ const DATA_MUTATION_ACTIONS = new Set([
   'createInbound',
   'updateInbound',
   'deleteInbound',
+  'uploadInboundInvoice',
   'formatProductRows',
   'applySupabaseOutbox'
 ]);
@@ -187,6 +188,7 @@ function getApiRoutes_() {
       getTodayInbounds,
       getInventoryDashboard,
       getInboundBoxQrs,
+      uploadInboundInvoice,
       uploadProductImage,
       uploadShippingDefectPhotos,
       saveShippingInspection,
@@ -2190,7 +2192,7 @@ function createInbound(payload) {
     const invoiceFileUrl = uploadInboundInvoice_(payload, {
       managementId,
       registeredDate
-    });
+    }) || String(payload.invoiceFileUrl || '').trim();
     const defectPhotoUrls = uploadInboundDefectPhotos_(payload, {
       managementId,
       registeredDate
@@ -2378,7 +2380,7 @@ function updateInbound(payload) {
     const invoiceFileUrl = uploadInboundInvoice_(filePayload, {
       managementId,
       registeredDate
-    });
+    }) || String(payload.invoiceFileUrl || '').trim();
     const defectPhotoUrls = uploadInboundDefectPhotos_(filePayload, {
       managementId,
       registeredDate
@@ -3878,6 +3880,38 @@ function uploadInboundInvoice_(payload, context) {
 
   createdFile.setDescription(`관리ID: ${context.managementId}`);
   return createdFile.getUrl();
+}
+
+function uploadInboundInvoice(payload) {
+  const file = payload && payload.invoiceFile;
+  const encodedData = String(file && file.data || '').trim();
+  const mimeType = String(file && file.mimeType || '').trim().toLowerCase();
+
+  if (!encodedData) {
+    throw new Error('업로드할 거래명세서가 없습니다.');
+  }
+  if (!/^image\//.test(mimeType)) {
+    throw new Error('거래명세서는 이미지 파일만 등록할 수 있습니다.');
+  }
+
+  const bytes = Utilities.base64Decode(encodedData);
+  if (bytes.length > 10 * 1024 * 1024) {
+    throw new Error('거래명세서는 10MB 이하로 등록해주세요.');
+  }
+
+  const invoiceFileUrl = uploadInboundInvoice_(payload, {
+    managementId: String(payload.managementId || '').trim() || '-',
+    registeredDate: Utilities.formatDate(
+      new Date(),
+      Session.getScriptTimeZone() || 'Asia/Seoul',
+      'yyyy. M. d'
+    )
+  });
+  if (!invoiceFileUrl) {
+    throw new Error('거래명세서 링크를 생성하지 못했습니다.');
+  }
+
+  return { invoiceFileUrl };
 }
 
 function uploadInboundDefectPhotos_(payload, context) {

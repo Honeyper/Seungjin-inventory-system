@@ -15,7 +15,7 @@
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
     <link rel="stylesheet" href="./styles.css?v=20260909-work-complete-status-dev" />
-    <link rel="stylesheet" href="./qr-dev-label.css?v=20260902-qr-batch-highlight-dev" />
+    <link rel="stylesheet" href="./qr-dev-label.css?v=20260909-qr-work-columns-dev" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -666,8 +666,8 @@
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="sort-header-button" type="button" data-inbound-sort="6" aria-label="발주 차수 정렬">
-                        발주 차수
+                      <button class="sort-header-button" type="button" data-inbound-sort="6" aria-label="발주명 정렬">
+                        발주명
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path class="sort-icon-up" d="m8 10 4-4 4 4" />
                           <path class="sort-icon-down" d="m8 14 4 4 4-4" />
@@ -814,7 +814,7 @@
           <section class="list-tools purchase-order-tools" aria-label="발주 검색 도구">
             <label class="search-field">
               <i class="ti ti-search" aria-hidden="true"></i>
-              <input id="purchaseOrderSearch" type="search" placeholder="제품명, 제품 ID, 거래처명, 발주 차수 검색" />
+              <input id="purchaseOrderSearch" type="search" placeholder="제품명, 제품 ID, 거래처명, 발주명 검색" />
             </label>
             <label class="client-filter">
               <span>발주 상태</span>
@@ -1070,7 +1070,7 @@
                     <th>거래처명</th>
                     <th>제품명</th>
                     <th>차수</th>
-                    <th>발주 차수</th>
+                    <th>발주명</th>
                     <th>최종공정</th>
                     <th>현재 박스 수</th>
                     <th>현재 총 수량 (EA)</th>
@@ -2765,8 +2765,8 @@
                 <input id="purchaseOrderProductId" type="text" disabled />
               </label>
               <label class="form-field">
-                <span>발주 차수</span>
-                <input id="purchaseOrderRound" type="text" placeholder="예: 3차 (추후 입력 가능)" />
+                <span>발주명</span>
+                <input id="purchaseOrderRound" type="text" placeholder="예: 09/09 발주 (추후 입력 가능)" />
               </label>
               <label class="form-field">
                 <span>총 발주량 <b>*</b></span>
@@ -2915,6 +2915,6 @@
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-v2"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-dev"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-dev"></script>
-    <script src="./admin.js?v=20260909-work-complete-status-dev"></script>
+    <script src="./admin.js?v=20260909-qr-work-columns-dev"></script>
   </body>
 </html>

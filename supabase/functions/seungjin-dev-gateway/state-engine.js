@@ -37,6 +37,8 @@ export const SUPABASE_MUTATION_ACTIONS = new Set([
   "returnTakenOutInventory"
 ]);
 
+export const INBOUND_BOX_CONFIGURATION_CONFLICT = "출고 또는 재고 처리된 박스가 변경 범위에 포함되어 박스 수를 수정할 수 없습니다.";
+
 function text(value) {
   return String(value ?? "").trim();
 }
@@ -117,6 +119,10 @@ function normalizeStatus(value) {
     "출고보류": "보류"
   };
   return aliases[compact] || raw || "보관";
+}
+
+function isProcessedInboundBox(box) {
+  return /출고완료|폐기|출고대기|보류/.test(normalizeStatus(box?.rawStatus || box?.status));
 }
 
 function normalizeRemainders(payload) {
@@ -511,8 +517,8 @@ function makeInboundRecord(payload, managementId, product, order, now, current =
     defectQuantity: formatEa(defectQuantity),
     defectRate: `${inspectionQuantity > 0 ? Math.round((defectQuantity / inspectionQuantity) * 100) : 0}%`,
     defectReason: dash(payload.defectReason || "양호"),
-    invoiceFileUrl: current.invoiceFileUrl || "-",
-    defectPhotoUrls: current.defectPhotoUrls || "-",
+    invoiceFileUrl: text(payload.invoiceFileUrl) || current.invoiceFileUrl || "-",
+    defectPhotoUrls: text(payload.defectPhotoUrls) || current.defectPhotoUrls || "-",
     qrPrintStatus: current.qrPrintStatus || "미인쇄",
     qrGeneratedCount: number(current.qrGeneratedCount),
     note: dash(payload.note)
@@ -536,11 +542,14 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   const managementId = currentManagementId || generateManagementId(state.inbounds, state.records, productId, now);
   const inbound = makeInboundRecord(payload, managementId, product, order, now, currentInbound || currentRecord || {});
   const previousBoxes = state.boxes.filter((box) => text(box.managementId) === managementId && text(box.productId) === productId);
-  const hasProcessedBoxes = previousBoxes.some((box) => /출고완료|폐기|출고대기|보류/.test(normalizeStatus(box.rawStatus || box.status)));
+  const hasProcessedBoxes = previousBoxes.some(isProcessedInboundBox);
   const currentRemainders = normalizeRemainders(currentRecord || {});
   const nextRemainders = normalizeRemainders(payload);
   const previousBoxesByNumber = [...previousBoxes].sort((left, right) => integer(left.number) - integer(right.number));
   const currentFullBoxCount = integer(currentRecord?.inboundBoxCount);
+  const nextFullBoxCount = integer(payload.inboundBoxCount);
+  const nextBoxQuantity = integer(payload.boxQuantity);
+  const nextQuantities = [...Array.from({ length: nextFullBoxCount }, () => nextBoxQuantity), ...nextRemainders];
   const preservesProcessedBoxIdentity = action === "updateInbound"
     && hasProcessedBoxes
     && integer(payload.boxQuantity) === integer(currentRecord?.boxQuantity)
@@ -578,7 +587,75 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
 
   if (action === "updateInbound" && hasProcessedBoxes) {
     if (!preservesProcessedBoxIdentity) {
-      throw new Error("출고 또는 재고 처리가 시작된 입고는 박스 구성을 수정할 수 없습니다.");
+      const protectedBoxConflict = previousBoxesByNumber.some((box) => {
+        if (!isProcessedInboundBox(box)) return false;
+        const nextQuantity = nextQuantities[integer(box.number) - 1];
+        return nextQuantity === undefined || nextQuantity !== integer(box.quantity);
+      });
+      if (protectedBoxConflict) throw new Error(INBOUND_BOX_CONFIGURATION_CONFLICT);
+
+      const previousBoxesById = new Map(previousBoxes.map((box) => [text(box.boxId), box]));
+      const changedBoxes = [];
+      const boxes = nextQuantities.map((quantity, index) => {
+        const number = index + 1;
+        const boxId = `${managementId}-B${String(number).padStart(3, "0")}`;
+        const existingBox = previousBoxesById.get(boxId);
+        if (existingBox && integer(existingBox.quantity) === quantity) {
+          if (
+            text(existingBox.storage) !== text(inbound.storage)
+            && !/출고완료|폐기/.test(normalizeStatus(existingBox.rawStatus || existingBox.status))
+          ) {
+            existingBox.storage = inbound.storage;
+            existingBox.inventoryMovedAt = parts.timestamp;
+            existingBox.inventoryMover = text(payload.registrant || payload.userName || "Admin");
+            changedBoxes.push(existingBox);
+          }
+          return existingBox;
+        }
+        const replacement = {
+          boxId,
+          managementId,
+          number,
+          productId,
+          productName: inbound.productName,
+          quantity,
+          status: "보관",
+          rawStatus: "보관",
+          storage: inbound.storage,
+          inspectionDate: "",
+          inspectionTime: "",
+          inspectionQuantity: 0,
+          defectQuantity: 0,
+          defectRate: 0,
+          defectReason: "",
+          defectPhotoFolderUrl: "",
+          shippingUpdatedAt: "",
+          shippingDate: "",
+          shippingTime: "",
+          shippingType: "",
+          transferCompany: "",
+          shipper: ""
+        };
+        changedBoxes.push(replacement);
+        return replacement;
+      });
+      const nextBoxIds = new Set(boxes.map((box) => box.boxId));
+      previousBoxes
+        .filter((box) => !nextBoxIds.has(box.boxId))
+        .forEach((box) => changes.inventoryBoxes.deletes.push(box.boxId));
+      state.boxes = state.boxes.filter((box) => !previousBoxes.includes(box));
+      state.boxes.push(...boxes);
+      upsertBoxes(changedBoxes, changes);
+      touchInventoryRecords(state, [managementId], changes);
+      recalculateOrders(state.orders, state.inbounds, changes, parts.date);
+      recalculateProductInbound(state.products, state.records, state.boxes, changes, new Set([productId]));
+      return {
+        managementId,
+        boxCount: boxes.length,
+        boxIds: boxes.map((box) => box.boxId),
+        updatedBoxRows: changedBoxes.length,
+        deletedBoxRows: changes.inventoryBoxes.deletes.length
+      };
     }
     const updatedRemainderBoxes = [];
     previousBoxesByNumber.slice(currentFullBoxCount).forEach((box, index) => {
@@ -601,11 +678,7 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   }
   changes.inventoryRecords.upserts.push({ record_key: recordKey, management_id: managementId, product_id: productId, storage: inbound.storage, data: record });
   state.boxes = state.boxes.filter((box) => !previousBoxes.includes(box));
-  const remainders = normalizeRemainders(payload);
-  const fullBoxes = integer(payload.inboundBoxCount);
-  const boxQuantity = integer(payload.boxQuantity);
-  const quantities = [...Array.from({ length: fullBoxes }, () => boxQuantity), ...remainders];
-  const boxes = quantities.map((quantity, index) => ({
+  const boxes = nextQuantities.map((quantity, index) => ({
     boxId: `${managementId}-B${String(index + 1).padStart(3, "0")}`,
     managementId,
     number: index + 1,
