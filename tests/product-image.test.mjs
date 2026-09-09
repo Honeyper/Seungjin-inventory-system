@@ -109,7 +109,7 @@ test("모바일 제품 이미지는 하단 썸네일 영역을 침범하지 않�
   assert.match(mobileCss, /\.product-image-lightbox-stage\s*\{[\s\S]*?min-height:\s*260px;[\s\S]*?overflow:\s*hidden;/);
   assert.match(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?max-height:\s*100%;/);
   assert.doesNotMatch(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?max-height:\s*calc\(88dvh - 118px\);/);
-  assert.match(mobileHtml, /mobile\.css\?v=2026090[78]-(?:product-image-boundary|product-image-title-fit|product-image-title-fit-v2)-(?:dev|prd)/);
+  assert.match(mobileHtml, /mobile\.css\?v=20260909-shipping-totals-(?:dev|prd)/);
 });
 
 test("긴 모바일 제품명은 글꼴 로딩 뒤에도 실제 폭에 맞춰 축소하고 필요하면 줄바꿈한다", () => {
@@ -121,7 +121,7 @@ test("긴 모바일 제품명은 글꼴 로딩 뒤에도 실제 폭에 맞춰 �
   assert.match(mobileSource, /title\.classList\.add\("is-multiline"\)/);
   assert.match(mobileSource, /document\.fonts\?\.ready\.then/);
   assert.match(mobileSource, /elements\.productImageModalTitle\.textContent = state\.activeProductImageName;\s*fitProductImageModalTitle\(\);/);
-  assert.match(mobileHtml, /mobile\.js\?v=20260908-product-image-title-fit-v2-(?:dev|prd)/);
+  assert.match(mobileHtml, /mobile\.js\?v=20260909-shipping-totals-(?:dev|prd)/);
 });
 
 test("제품 이미지 삭제 버튼은 고정 SVG X 아이콘으로 가운데 정렬한다", () => {

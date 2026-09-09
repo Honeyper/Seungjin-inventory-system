@@ -236,6 +236,8 @@ const elements = {
   shippingLiveDate: document.querySelector("#shippingLiveDate"),
   shippingLiveTime: document.querySelector("#shippingLiveTime"),
   mobileShippingCount: document.querySelector("#mobileShippingCount"),
+  mobileShippingBoxTotal: document.querySelector("#mobileShippingBoxTotal"),
+  mobileShippingQuantityTotal: document.querySelector("#mobileShippingQuantityTotal"),
   refreshShippingButton: document.querySelector("#refreshShippingButton"),
   showCompletedShippingToggle: document.querySelector("#showCompletedShippingToggle"),
   filterShippingButton: document.querySelector("#filterShippingButton"),
@@ -2033,6 +2035,7 @@ function getShippingStatusTone(status) {
 
 function renderShippingList(rows) {
   elements.mobileShippingCount.textContent = String(rows.length);
+  renderShippingListTotals(rows);
 
   if (!rows.length) {
     const hasHiddenCompletedBoxes = !state.showCompletedShippingBoxes
@@ -3030,20 +3033,36 @@ function syncMobileTransferReturnSummary() {
   }
 }
 
+function getShippingDisplayMetrics(item) {
+  const scannedBox = getScannedBox(item);
+  const boxes = getKnownBoxes(item);
+  if (Array.isArray(item.scannedItems)) {
+    return { boxCount: parseNumber(item.scannedBoxCount), totalQuantity: parseNumber(item.scannedTotalQuantity) };
+  }
+  return {
+    boxCount: scannedBox ? 1 : boxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount),
+    totalQuantity: scannedBox ? getBoxTotalQuantity(scannedBox, item) : sumBoxQuantity(boxes) || parseNumber(item.currentTotalQuantity)
+  };
+}
+
+function renderShippingListTotals(rows) {
+  const totals = rows.reduce((sum, item) => {
+    const metrics = getShippingDisplayMetrics(item);
+    sum.boxCount += metrics.boxCount;
+    sum.totalQuantity += metrics.totalQuantity;
+    return sum;
+  }, { boxCount: 0, totalQuantity: 0 });
+  if (elements.mobileShippingBoxTotal) elements.mobileShippingBoxTotal.textContent = formatNumber(totals.boxCount);
+  if (elements.mobileShippingQuantityTotal) elements.mobileShippingQuantityTotal.textContent = formatNumber(totals.totalQuantity);
+}
+
 function renderShippingItem(item) {
   const key = getShippingKey(item);
   const scannedBox = getScannedBox(item);
   const displayBoxes = getKnownBoxes(item);
   const isProductGroup = Array.isArray(item.scannedItems);
-  const boxCount = isProductGroup
-    ? item.scannedBoxCount
-    : scannedBox ? 1 : displayBoxes.length || parseNumber(item.currentBoxCount || item.boxTotalCount);
+  const { boxCount, totalQuantity } = getShippingDisplayMetrics(item);
   const totalBoxCount = getShippingTotalBoxCount(item, boxCount);
-  const totalQuantity = isProductGroup
-    ? item.scannedTotalQuantity
-    : scannedBox
-      ? getBoxTotalQuantity(scannedBox, item)
-      : sumBoxQuantity(displayBoxes) || parseNumber(item.currentTotalQuantity);
   const currentQuantity = isProductGroup
     ? item.scannedCurrentQuantity
     : scannedBox
@@ -3136,7 +3155,7 @@ function renderShippingItem(item) {
             <span class="metric-value-row"><strong>${formatNumber(boxCount)}</strong><small>박스</small></span>
           </span>
           <span class="metric">
-            <span class="metric-label">출고 가능 수량</span>
+            <span class="metric-label">출고 수량</span>
             <span class="metric-value-row"><strong>${formatNumber(totalQuantity)}</strong><small>ea</small></span>
           </span>
         </div>
@@ -3169,6 +3188,8 @@ function renderShippingItem(item) {
 
 function renderShippingLoading() {
   elements.mobileShippingCount.textContent = "0";
+  if (elements.mobileShippingBoxTotal) elements.mobileShippingBoxTotal.textContent = "-";
+  if (elements.mobileShippingQuantityTotal) elements.mobileShippingQuantityTotal.textContent = "-";
   elements.shippingListPanel.innerHTML = `
     <div class="empty-state">
       <div>
@@ -3184,6 +3205,8 @@ function renderShippingLoading() {
 
 function renderShippingError(message) {
   elements.mobileShippingCount.textContent = "0";
+  if (elements.mobileShippingBoxTotal) elements.mobileShippingBoxTotal.textContent = "-";
+  if (elements.mobileShippingQuantityTotal) elements.mobileShippingQuantityTotal.textContent = "-";
   elements.shippingListPanel.innerHTML = `
     <div class="empty-state">
       <div>
