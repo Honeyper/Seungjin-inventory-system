@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260909-shipping-controls-compact-dev" />
+    <link rel="stylesheet" href="./mobile.css?v=20260909-shipping-single-row-dev" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -205,6 +205,7 @@
             <strong id="shippingLiveDate">-</strong>
             <time id="shippingLiveTime" datetime="">--:--:--</time>
           </div>
+          <div class="shipping-registration-row">
           <button class="manual-shipping-open-button" id="openManualShippingButton" type="button">
             <span class="manual-shipping-open-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24">
@@ -225,6 +226,7 @@
             <div><span>총 등록 박스 수</span><p><strong id="mobileShippingBoxTotal">0</strong><small>박스</small></p></div>
             <div><span>총 출고 수량</span><p><strong id="mobileShippingQuantityTotal">0</strong><small>ea</small></p></div>
           </section>
+          </div>
           <div class="shipping-action-row">
             <p>총 <strong id="mobileShippingCount">0</strong>건</p>
             <button class="control-button" id="refreshShippingButton" type="button">

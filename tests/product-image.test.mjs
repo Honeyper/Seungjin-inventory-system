@@ -102,7 +102,7 @@ test("모바일 제품 이미지는 하단 썸네일 영역을 침범하지 않�
   assert.match(mobileCss, /\.product-image-lightbox-stage\s*\{[\s\S]*?min-height:\s*260px;[\s\S]*?overflow:\s*hidden;/);
   assert.match(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?max-height:\s*100%;/);
   assert.doesNotMatch(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?max-height:\s*calc\(88dvh - 118px\);/);
-  assert.match(mobileHtml, /mobile\.css\?v=20260909-shipping-controls-compact-(?:dev|prd)/);
+  assert.match(mobileHtml, /mobile\.css\?v=20260909-shipping-single-row-(?:dev|prd)/);
 });
 
 test("긴 모바일 제품명은 글꼴 로딩 뒤에도 실제 폭에 맞춰 축소하고 필요하면 줄바꿈한다", () => {
