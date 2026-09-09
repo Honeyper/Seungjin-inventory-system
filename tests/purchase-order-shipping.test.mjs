@@ -15,6 +15,17 @@ const inbounds = [
 ];
 const box = (id, overrides = {}) => ({ box_id: id, management_id: "IN1", product_id: "P1", quantity: 100, status: "출고완료", shipping_type: "정상출고", ...overrides });
 
+test("발주 표 열 너비는 합계 100%이고 수량 및 진행률 제목과 본문을 중앙 정렬한다", () => {
+  const html = fs.readFileSync(new URL("../frontend/admin.html", import.meta.url), "utf8");
+  const css = fs.readFileSync(new URL("../frontend/styles.css", import.meta.url), "utf8");
+  const columns = html.match(/purchase-order-table">\s*<colgroup>([\s\S]*?)<\/colgroup>/)[1];
+  const widths = [...columns.matchAll(/width:([\d.]+)%/g)].map((match) => Number(match[1]));
+  assert.equal(widths.length, 14);
+  assert.equal(widths.reduce((a, b) => a + b, 0), 100);
+  assert.match(css, /\.purchase-order-table\s*\{[^}]*table-layout: fixed/);
+  assert.match(css, /\.purchase-order-table th:nth-child\(n \+ 6\),\s*\.purchase-order-table td:nth-child\(n \+ 6\)\s*\{\s*text-align: center/);
+});
+
 test("해당 발주에 연결된 정상 출고 박스만 집계하고 취소 및 특수출고는 제외한다", () => {
   const links = buildOrderShippingLinks(orders, [...inbounds, inbounds[0]]);
   const result = summarizePurchaseOrderShipping(orders, links, [
