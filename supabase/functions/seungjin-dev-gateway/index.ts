@@ -4,6 +4,7 @@ import {
   SUPABASE_MUTATION_ACTIONS
 } from "./state-engine.js";
 import { buildSheetBackupNotifications } from "./backup-notifications.js";
+import { readPurchaseOrdersWithShipping } from "./purchase-order-shipping.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const PROJECT_REF = (() => {
@@ -426,8 +427,7 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     return { products: rows.map((row) => row.data) };
   }
   if (action === "getPurchaseOrders") {
-    const rows = await databaseRows("dev_purchase_orders?select=data&order=updated_at.desc,purchase_order_id.desc");
-    return { purchaseOrders: rows.map((row) => row.data) };
+    return readPurchaseOrdersWithShipping(databaseRows);
   }
   if (action === "getTodayInbounds") {
     const requestedStart = String(payload.startDate || payload.date || "2000-01-01");
