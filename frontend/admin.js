@@ -6561,7 +6561,7 @@ function applyPurchaseOrderFilters() {
 function renderPurchaseOrderSummary() {
   const orders = state.purchaseOrders;
   const activeCount = orders.filter((order) => ["입고중", "작업중"].includes(getPurchaseOrderDisplayStatus(order))).length;
-  const completedCount = orders.filter((order) => getPurchaseOrderDisplayStatus(order) === "입고완료").length;
+  const completedCount = orders.filter((order) => ["입고완료", "작업완료"].includes(getPurchaseOrderDisplayStatus(order))).length;
   const remaining = orders
     .filter((order) => order.status !== "취소")
     .reduce((sum, order) => sum + Number(order.remainingQuantity || 0), 0);
@@ -6630,8 +6630,10 @@ function renderPurchaseOrders(message = "") {
 
 function getPurchaseOrderDisplayStatus(order) {
   if (order.status === "취소") return "취소";
-  if (Number(order.accumulatedShippingQuantity) > 0) return "작업중";
   const total = Number(order.totalOrderQuantity);
+  const shipped = Number(order.accumulatedShippingQuantity);
+  if (total > 0 && Number.isFinite(shipped) && shipped >= total) return "작업완료";
+  if (shipped > 0) return "작업중";
   const inbound = Number(order.accumulatedInboundQuantity);
   const rate = total > 0 && Number.isFinite(inbound) ? inbound / total : Number(order.inboundRate || 0);
   return rate >= 1 ? "입고완료" : "입고중";

@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260909-order-status-dev" />
+    <link rel="stylesheet" href="./styles.css?v=20260909-work-complete-status-dev" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260902-qr-batch-highlight-dev" />
   </head>
   <body class="admin-body">
@@ -807,7 +807,7 @@
           <section class="purchase-order-summary-grid" aria-label="발주 현황 요약">
             <article><span>전체 발주</span><strong id="purchaseOrderTotal">0 <em>건</em></strong></article>
             <article><span>입고중 · 작업중</span><strong id="purchaseOrderActive">0 <em>건</em></strong></article>
-            <article><span>입고완료</span><strong id="purchaseOrderCompleted">0 <em>건</em></strong></article>
+            <article><span>입고완료 · 작업완료</span><strong id="purchaseOrderCompleted">0 <em>건</em></strong></article>
             <article><span>미입고 수량</span><strong id="purchaseOrderRemaining">0 <em>ea</em></strong></article>
           </section>
 
@@ -823,6 +823,7 @@
                 <option>입고중</option>
                 <option>입고완료</option>
                 <option>작업중</option>
+                <option>작업완료</option>
                 <option>취소</option>
               </select>
             </label>
@@ -2914,6 +2915,6 @@
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-v2"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-dev"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-dev"></script>
-    <script src="./admin.js?v=20260909-order-quantity-format-dev"></script>
+    <script src="./admin.js?v=20260909-work-complete-status-dev"></script>
   </body>
 </html>
