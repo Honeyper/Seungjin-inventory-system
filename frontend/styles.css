@@ -8585,6 +8585,11 @@ input {
   background: #e8f1ff;
 }
 
+.purchase-order-status-badge[data-status="작업완료"] {
+  color: #5b3a9d;
+  background: #f0ebff;
+}
+
 .purchase-order-status-badge[data-status="기간 경과"],
 .purchase-order-status-badge[data-status="취소"] {
   color: #9a2732;
