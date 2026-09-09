@@ -188,7 +188,9 @@
 
 .box-qr-reference-quantity,
 .box-qr-reference-work-date,
-.box-qr-reference-worker {
+.box-qr-reference-worker,
+.box-qr-reference-month,
+.box-qr-reference-day {
   font-size: 7.8pt;
   font-weight: 400;
 }
@@ -198,8 +200,22 @@
 }
 
 .box-qr-reference-work-date {
+  display: grid;
+  grid-template-columns: 19fr 18fr;
+  padding: 0;
+}
+
+.box-qr-reference-month,
+.box-qr-reference-day {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
+  min-width: 0;
   padding-right: 0.9mm;
+}
+
+.box-qr-reference-day {
+  border-left: 0.4pt solid currentColor;
 }
 
 .box-qr-reference-row.is-disabled {
@@ -212,7 +228,9 @@
 }
 
 .box-qr-reference-row.is-disabled .box-qr-reference-work-date,
-.box-qr-reference-row.is-disabled .box-qr-reference-worker {
+.box-qr-reference-row.is-disabled .box-qr-reference-worker,
+.box-qr-reference-row.is-disabled .box-qr-reference-month,
+.box-qr-reference-row.is-disabled .box-qr-reference-day {
   color: #fff;
 }
 
@@ -285,7 +303,9 @@
 
   .box-qr-reference-row.is-disabled .box-qr-reference-quantity,
   .box-qr-reference-row.is-disabled .box-qr-reference-work-date,
-  .box-qr-reference-row.is-disabled .box-qr-reference-worker {
+  .box-qr-reference-row.is-disabled .box-qr-reference-worker,
+  .box-qr-reference-row.is-disabled .box-qr-reference-month,
+  .box-qr-reference-row.is-disabled .box-qr-reference-day {
     color: #9aa3af !important;
   }
 }

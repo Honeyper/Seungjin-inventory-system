@@ -9568,8 +9568,11 @@ function renderInboundQrReferenceLabel({
       <div class="box-qr-reference-row box-qr-reference-manager">
         <strong>관리자</strong>
         <span class="box-qr-reference-quantity">ea</span>
-        <span class="box-qr-reference-work-date">월&nbsp;&nbsp;&nbsp;일</span>
-        <span class="box-qr-reference-worker"></span>
+        <span class="box-qr-reference-work-date">
+          <span class="box-qr-reference-month">월</span>
+          <span class="box-qr-reference-day">일</span>
+        </span>
+        <span class="box-qr-reference-worker">(인)</span>
       </div>
     </article>
   `;
@@ -9581,8 +9584,11 @@ function renderQrReferenceProcessRow(processRow) {
     <div class="box-qr-reference-row${disabledClass}"${processRow.disabled ? ' aria-disabled="true"' : ""}>
       <strong>${escapeHtml(processRow.label)}</strong>
       <span class="box-qr-reference-quantity">ea</span>
-      <span class="box-qr-reference-work-date">월&nbsp;&nbsp;&nbsp;일</span>
-      <span class="box-qr-reference-worker"></span>
+      <span class="box-qr-reference-work-date">
+        <span class="box-qr-reference-month">월</span>
+        <span class="box-qr-reference-day">일</span>
+      </span>
+      <span class="box-qr-reference-worker">(인)</span>
     </div>
   `;
 }

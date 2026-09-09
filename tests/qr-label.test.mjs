@@ -80,7 +80,7 @@ test("인쇄 시 비활성 공정은 흰 배경과 회색 글자로 출력한다
   assert.doesNotMatch(printRules, /\.box-qr-reference-row\.is-disabled\s*\{[\s\S]*?background:\s*#050505\s*!important;/);
 });
 
-test("QR 작업표는 월과 일을 작업일 한 칸으로 병합하고 작업자 칸을 사용한다", async () => {
+test("QR 작업표는 작업일 제목 아래 월과 일을 다시 두 칸으로 나눈다", async () => {
   const css = await readFile(new URL("../frontend/qr-prd-legacy.css", import.meta.url), "utf8");
   const adminSource = await readFile(new URL("../frontend/admin.js", import.meta.url), "utf8");
 
@@ -89,7 +89,11 @@ test("QR 작업표는 월과 일을 작업일 한 칸으로 병합하고 작업�
   assert.match(adminSource, /<strong>공정<\/strong>\s*<strong>포장수량<\/strong>\s*<strong>작업일<\/strong>\s*<strong>작업자<\/strong>/);
   assert.match(adminSource, /box-qr-reference-work-date/);
   assert.match(adminSource, /box-qr-reference-worker/);
-  assert.doesNotMatch(adminSource, /box-qr-reference-(?:month|day|sign)/);
+  assert.match(adminSource, /box-qr-reference-work-date">\s*<span class="box-qr-reference-month">월<\/span>\s*<span class="box-qr-reference-day">일<\/span>/);
+  assert.match(adminSource, /<span class="box-qr-reference-worker">\(인\)<\/span>/);
+  assert.match(css, /\.box-qr-reference-work-date\s*\{[\s\S]*?grid-template-columns:\s*19fr 18fr;/);
+  assert.match(css, /\.box-qr-reference-day\s*\{[\s\S]*?border-left:\s*0\.4pt solid currentColor;/);
+  assert.doesNotMatch(adminSource, /box-qr-reference-sign/);
 });
 
 test("QR 외곽선은 내부 선보다 위에 그려져 왼쪽 선을 일자로 유지한다", async () => {
