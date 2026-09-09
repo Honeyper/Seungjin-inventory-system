@@ -96,6 +96,13 @@ test("QR 작업표는 작업일 제목 아래 월과 일을 다시 두 칸으로
   assert.doesNotMatch(adminSource, /box-qr-reference-sign/);
 });
 
+test("작업자 서명 안내 (인)은 옅은 회색으로 표시한다", async () => {
+  const css = await readFile(new URL("../frontend/qr-prd-legacy.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.box-qr-reference-worker\s*\{\s*color:\s*#9aa3af;/);
+  assert.match(css, /\.box-qr-reference-row\.is-disabled \.box-qr-reference-worker\s*\{\s*color:\s*#c7cdd5;/);
+});
+
 test("QR 외곽선은 내부 선보다 위에 그려져 왼쪽 선을 일자로 유지한다", async () => {
   const css = await readFile(new URL("../frontend/qr-prd-legacy.css", import.meta.url), "utf8");
 
