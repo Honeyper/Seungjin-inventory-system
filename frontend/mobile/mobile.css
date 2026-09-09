@@ -834,10 +834,10 @@ img {
 .shipping-list-totals {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  margin: 0.8rem 0;
-  padding: 0.9rem 0;
+  margin: 0.4rem 0;
+  padding: 0.4rem 0;
   border: 1px solid #cbd8e7;
-  border-radius: 0.9rem;
+  border-radius: 0.65rem;
   background: #fff;
   color: #0b234c;
 }
@@ -854,7 +854,7 @@ img {
 
 .shipping-list-totals span {
   color: #66778f;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -864,19 +864,19 @@ img {
   align-items: baseline;
   justify-content: center;
   gap: 0.3rem;
-  margin: 0.35rem 0 0;
+  margin: 0.1rem 0 0;
 }
 
 .shipping-list-totals strong {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   line-height: 1.25;
 }
 
 .shipping-list-totals small {
   color: #66778f;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
 }
 
 .shipping-action-row {
