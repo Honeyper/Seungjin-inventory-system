@@ -134,5 +134,5 @@ test("제품 이미지 삭제 버튼은 고정 SVG X 아이콘으로 가운데 �
 test("PC 제품 이미지와 하단 썸네일 영역 사이에 여백을 유지한다", () => {
   assert.match(stylesSource, /\.product-image-gallery-stage\s*\{[\s\S]*?padding:\s*1\.5rem 4\.5rem 2\.5rem;[\s\S]*?overflow:\s*hidden;/);
   assert.match(stylesSource, /\.product-image-gallery-stage > img\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?max-height:\s*100%;/);
-  assert.match(adminHtml, /styles\.css\?v=20260909-order-columns-(?:dev|prd)/);
+  assert.match(adminHtml, /styles\.css\?v=20260909-order-status-(?:dev|prd)/);
 });

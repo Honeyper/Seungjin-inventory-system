@@ -8570,7 +8570,7 @@ input {
   background: #edf3fa;
 }
 
-.purchase-order-status-badge[data-status="진행 중"] {
+.purchase-order-status-badge[data-status="입고중"] {
   color: #805300;
   background: #fff3d7;
 }
@@ -8578,6 +8578,11 @@ input {
 .purchase-order-status-badge[data-status="입고완료"] {
   color: #08733f;
   background: #e6f7ee;
+}
+
+.purchase-order-status-badge[data-status="작업중"] {
+  color: #1658a5;
+  background: #e8f1ff;
 }
 
 .purchase-order-status-badge[data-status="기간 경과"],

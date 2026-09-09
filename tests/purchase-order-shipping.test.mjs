@@ -15,6 +15,31 @@ const inbounds = [
 ];
 const box = (id, overrides = {}) => ({ box_id: id, management_id: "IN1", product_id: "P1", quantity: 100, status: "출고완료", shipping_type: "정상출고", ...overrides });
 
+test("입고 100% 경계와 출고 우선 상태를 필터 및 요약에도 동일하게 적용한다", () => {
+  const source = fs.readFileSync(new URL("../frontend/admin.js", import.meta.url), "utf8");
+  const functions = source.slice(source.indexOf("function applyPurchaseOrderFilters("), source.indexOf("function getPurchaseOrderById("));
+  const fixtures = [
+    { totalOrderQuantity: 1000, accumulatedInboundQuantity: 0 },
+    { totalOrderQuantity: 1000, accumulatedInboundQuantity: 999.9 },
+    { totalOrderQuantity: 1000, accumulatedInboundQuantity: 1000 },
+    { totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400 },
+    { totalOrderQuantity: 1000, accumulatedInboundQuantity: 500, accumulatedShippingQuantity: 1 },
+    { totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400, accumulatedShippingQuantity: 1400 },
+    { status: "취소", totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400 },
+  ];
+  const context = { state: { purchaseOrders: fixtures, purchaseOrderQuery: "", purchaseOrderStatusFilter: "" }, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, purchaseOrderTotal: {}, purchaseOrderActive: {}, purchaseOrderCompleted: {}, purchaseOrderRemaining: {}, escapeHtml: String, escapeAttribute: String };
+  vm.runInNewContext(functions + "\napplyPurchaseOrderFilters();", context);
+  const statuses = fixtures.map((order) => context.getPurchaseOrderDisplayStatus(order));
+  assert.deepEqual(statuses, ["입고중", "입고중", "입고완료", "입고완료", "작업중", "작업중", "취소"]);
+  assert.equal(context.purchaseOrderActive.innerHTML, "4 <em>건</em>");
+  assert.equal(context.purchaseOrderCompleted.innerHTML, "2 <em>건</em>");
+  context.state.purchaseOrderStatusFilter = "작업중";
+  vm.runInNewContext("applyPurchaseOrderFilters();", context);
+  assert.equal(context.state.filteredPurchaseOrders.length, 2);
+  assert.match(context.purchaseOrderTableBody.innerHTML, /data-status="작업중"/);
+  assert.equal(context.getPurchaseOrderDisplayStatus({ ...fixtures[4], accumulatedShippingQuantity: 0 }), "입고중");
+});
+
 test("발주 표 열 너비는 합계 100%이고 수량 및 진행률 제목과 본문을 중앙 정렬한다", () => {
   const html = fs.readFileSync(new URL("../frontend/admin.html", import.meta.url), "utf8");
   const css = fs.readFileSync(new URL("../frontend/styles.css", import.meta.url), "utf8");
