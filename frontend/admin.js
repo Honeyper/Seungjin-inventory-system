@@ -72,7 +72,7 @@ const SYSTEM_UPDATE_HISTORY = [
       "출고 결산의 조회기간별 출고대기·출고완료 집계가 목록과 일치하도록 수정했습니다.",
       "알림과 업데이트 내역의 카드 내용이 잘리지 않도록 내부 세로 스크롤을 적용했습니다.",
       "생산계획에 일일 계획표와 기계별 스케줄 보드를 추가하고 발주 잔량·납기 기준 자동 계획 생성을 연결했습니다.",
-      "생산계획표에서 발주 제품을 변경하면 거래처·공정·잔량·납기일이 함께 갱신되도록 개선했습니다."
+      "생산계획표의 제품을 기존 검색형 제품 선택창에서 변경하고 거래처·공정·잔량·납기일이 함께 갱신되도록 개선했습니다."
     ]
   },
   {
@@ -419,7 +419,8 @@ const state = {
   productionPlanFactory: "1공장",
   productionPlanActiveTab: "table",
   productionPlanProcessFilter: "",
-  productionPlanJobs: []
+  productionPlanJobs: [],
+  productionPlanPickerJobId: ""
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -1319,6 +1320,7 @@ printProductionPlanButton?.addEventListener("click", printProductionPlan);
 window.addEventListener("afterprint", () => document.body.classList.remove("printing-production-plan"));
 productionPlanTableBody?.addEventListener("input", handleProductionPlanFieldChange);
 productionPlanTableBody?.addEventListener("change", handleProductionPlanFieldChange);
+productionPlanTableBody?.addEventListener("click", handleProductionPlanProductPickerOpen);
 
 viewLinks.forEach((link) => {
   link.addEventListener("click", (event) => {
@@ -2366,20 +2368,6 @@ function getProductionPlanMachineOptions(job) {
   ].join("");
 }
 
-function getProductionPlanOrderOptions(job) {
-  const openOrders = getProductionPlanOpenOrders();
-  const currentOrder = state.purchaseOrders.find((order) => order.purchaseOrderId === job.purchaseOrderId);
-  const orders = currentOrder && !openOrders.some((order) => order.purchaseOrderId === currentOrder.purchaseOrderId)
-    ? [currentOrder, ...openOrders]
-    : openOrders;
-  return orders.map((order) => {
-    const label = [order.productName || "제품명 미등록", order.clientName || "거래처 미등록", order.orderRound || order.productId]
-      .filter(Boolean)
-      .join(" · ");
-    return `<option value="${escapeAttribute(order.purchaseOrderId)}" ${order.purchaseOrderId === job.purchaseOrderId ? "selected" : ""}>${escapeHtml(label)}</option>`;
-  }).join("");
-}
-
 function changeProductionPlanOrder(job, purchaseOrderId) {
   const order = state.purchaseOrders.find((item) => item.purchaseOrderId === purchaseOrderId);
   if (!order) return false;
@@ -2397,6 +2385,14 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
   job.balance = balance;
   job.dueDate = order.endDate || "";
   return true;
+}
+
+function replaceProductionPlanJobOrder(job, purchaseOrderId) {
+  const previousPurchaseOrderId = job.purchaseOrderId;
+  const swappedJob = state.productionPlanJobs.find((item) => item !== job && item.purchaseOrderId === purchaseOrderId);
+  if (!changeProductionPlanOrder(job, purchaseOrderId)) return false;
+  if (swappedJob) changeProductionPlanOrder(swappedJob, previousPurchaseOrderId);
+  return Boolean(swappedJob);
 }
 
 function renderProductionPlanTable() {
@@ -2425,8 +2421,10 @@ function renderProductionPlanTable() {
         <td><select data-plan-field="machine" aria-label="${escapeAttribute(job.productName)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
         <td>${escapeHtml(job.clientName || "-")}</td>
         <td class="production-plan-product">
-          <select class="production-plan-product-select" data-plan-field="purchaseOrderId" aria-label="생산 제품 변경">${getProductionPlanOrderOptions(job)}</select>
-          <small>${escapeHtml(job.orderRound || job.productId || "-")}</small>
+          <button class="production-plan-product-trigger" type="button" data-plan-product-picker aria-label="${escapeAttribute(job.productName || "제품")} 변경">
+            <span><strong>${escapeHtml(job.productName || "제품 선택")}</strong><small>${escapeHtml(job.orderRound || job.productId || "-")}</small></span>
+            <i class="ti ti-search" aria-hidden="true"></i>
+          </button>
         </td>
         <td><input data-plan-field="targetQuantity" type="number" min="0" step="1" value="${Number(job.targetQuantity || 0)}" aria-label="${escapeAttribute(job.productName)} 목표 생산량" /></td>
         <td class="production-plan-balance">${formatNumber(job.balance)} ea</td>
@@ -2521,26 +2519,50 @@ function handleProductionPlanFieldChange(event) {
   const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === row.dataset.planOrderId);
   if (!job) return;
   const key = field.dataset.planField;
-  if (key === "purchaseOrderId") {
-    const previousPurchaseOrderId = job.purchaseOrderId;
-    const swappedJob = state.productionPlanJobs.find((item) => item !== job && item.purchaseOrderId === field.value);
-    if (!changeProductionPlanOrder(job, field.value)) return;
-    if (swappedJob) changeProductionPlanOrder(swappedJob, previousPurchaseOrderId);
-    renderProductionPlan();
-    if (productionPlanStatus) {
-      productionPlanStatus.textContent = swappedJob
-        ? "두 작업의 제품 순서를 바꾸고 연결된 발주 정보를 함께 갱신했습니다. 계획 저장을 눌러 반영해주세요."
-        : "제품과 연결된 거래처·잔량·납기일·공정을 변경했습니다. 계획 저장을 눌러 반영해주세요.";
-      productionPlanStatus.dataset.type = "";
-    }
-    return;
-  }
   job[key] = ["targetQuantity", "hours"].includes(key) ? Number(field.value || 0) : field.value;
   renderProductionPlanSummary();
   if (productionPlanStatus) {
     productionPlanStatus.textContent = "수정된 내용이 있습니다. 계획 저장을 눌러 반영해주세요.";
     productionPlanStatus.dataset.type = "";
   }
+}
+
+async function handleProductionPlanProductPickerOpen(event) {
+  const button = event.target.closest("[data-plan-product-picker]");
+  const row = button?.closest("[data-plan-order-id]");
+  if (!button || !row) return;
+  state.productionPlanPickerJobId = row.dataset.planOrderId;
+  await ensureProductsLoaded();
+  openInboundProductPicker("productionPlan");
+}
+
+function selectProductionPlanProduct(product) {
+  const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === state.productionPlanPickerJobId);
+  if (!job) {
+    showToast("변경할 생산계획 작업을 찾을 수 없습니다.");
+    closeInboundProductPicker();
+    return;
+  }
+  const matchingOrders = getProductionPlanOpenOrders().filter((order) => (
+    String(order.productId || "").trim() === String(product.productCode || "").trim()
+  ));
+  if (!matchingOrders.length) {
+    showToast("현재 발주 잔량이 있는 제품만 생산계획에 선택할 수 있습니다.");
+    return;
+  }
+  const currentOrder = matchingOrders.find((order) => order.purchaseOrderId === job.purchaseOrderId);
+  const unusedOrder = matchingOrders.find((order) => !state.productionPlanJobs.some((item) => item !== job && item.purchaseOrderId === order.purchaseOrderId));
+  const selectedOrder = currentOrder || unusedOrder || matchingOrders[0];
+  const swapped = replaceProductionPlanJobOrder(job, selectedOrder.purchaseOrderId);
+  state.productionPlanPickerJobId = job.purchaseOrderId;
+  renderProductionPlan();
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = swapped
+      ? "두 작업의 제품 순서를 바꾸고 연결된 발주 정보를 함께 갱신했습니다. 계획 저장을 눌러 반영해주세요."
+      : "제품과 연결된 거래처·잔량·납기일·공정을 변경했습니다. 계획 저장을 눌러 반영해주세요.";
+    productionPlanStatus.dataset.type = "";
+  }
+  closeInboundProductPicker();
 }
 
 async function syncProductionPlanOrders() {
@@ -7318,14 +7340,19 @@ function openInboundProductPicker(target = "inbound") {
   inboundProductPickerSortDirection.value = state.inboundProductPickerSortDirection;
   const isExistingStockTarget = target === "existingStock";
   const isPurchaseOrderTarget = target === "purchaseOrder";
+  const isProductionPlanTarget = target === "productionPlan";
   document.querySelector("#inboundProductPickerTitle").textContent = "제품 선택";
-  document.querySelector("#inboundProductPickerTitle").nextElementSibling.textContent = isPurchaseOrderTarget
+  document.querySelector("#inboundProductPickerTitle").nextElementSibling.textContent = isProductionPlanTarget
+    ? "발주 잔량이 있는 제품을 검색해 생산계획의 제품을 변경하세요."
+    : isPurchaseOrderTarget
     ? "제품관리에 등록된 제품 목록에서 발주할 제품을 선택하세요."
     : isExistingStockTarget
       ? "제품관리에 등록된 제품 목록에서 기존 재고 제품을 선택하세요."
       : "제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.";
   if (inboundProductPickerHint) {
-    inboundProductPickerHint.textContent = isPurchaseOrderTarget
+    inboundProductPickerHint.textContent = isProductionPlanTarget
+      ? "선택하면 거래처·공정·잔량·납기일이 함께 변경됩니다."
+      : isPurchaseOrderTarget
       ? "선택하면 발주 정보에 자동으로 반영됩니다."
       : isExistingStockTarget
         ? "선택하면 기존 재고 정보에 자동으로 반영됩니다."
@@ -7360,7 +7387,13 @@ function renderPickerProductImage(product) {
 
 function renderInboundProductPicker() {
   const query = state.inboundProductPickerQuery;
+  const productionPlanProductIds = state.inboundProductPickerTarget === "productionPlan"
+    ? new Set(getProductionPlanOpenOrders().map((order) => String(order.productId || "").trim()))
+    : null;
   const filteredProducts = state.products.filter((product) => {
+    if (productionPlanProductIds && !productionPlanProductIds.has(String(product.productCode || "").trim())) {
+      return false;
+    }
     if (!query) {
       return true;
     }
@@ -7425,6 +7458,8 @@ function renderInboundProductPicker() {
           selectExistingStockProduct(product);
         } else if (state.inboundProductPickerTarget === "purchaseOrder") {
           selectPurchaseOrderProduct(product);
+        } else if (state.inboundProductPickerTarget === "productionPlan") {
+          selectProductionPlanProduct(product);
         } else {
           selectInboundProduct(product);
         }

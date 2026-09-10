@@ -8970,10 +8970,45 @@ input {
   display: block;
 }
 
-.production-plan-product-select {
-  min-height: 2.3rem;
+.production-plan-product-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #d8e1ec;
+  border-radius: 0.38rem;
   color: var(--navy-dark);
-  font-weight: 800;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.production-plan-product-trigger span {
+  min-width: 0;
+}
+
+.production-plan-product-trigger strong,
+.production-plan-product-trigger small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-plan-product-trigger i {
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 1rem;
+}
+
+.production-plan-product-trigger:hover,
+.production-plan-product-trigger:focus-visible {
+  border-color: var(--gold);
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(208, 161, 75, 0.14);
 }
 
 .production-plan-product strong {
