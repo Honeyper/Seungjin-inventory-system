@@ -197,7 +197,10 @@ const state = {
   manualShippingViewportBaseHeight: 0,
   activeProductImageUrls: [],
   activeProductImageIndex: 0,
-  activeProductImageName: ""
+  activeProductImageName: "",
+  productImageSwipePointerId: null,
+  productImageSwipeStartX: 0,
+  productImageSwipeStartY: 0
 };
 
 let activeShippingCardMenu = null;
@@ -276,11 +279,10 @@ const elements = {
   openInventoryScannerButton: document.querySelector("#openInventoryScannerButton"),
   productImageModal: document.querySelector("#productImageModal"),
   productImageModalTitle: document.querySelector("#productImageModalTitle"),
+  productImageModalStage: document.querySelector("#productImageModalStage"),
   productImageModalImage: document.querySelector("#productImageModalImage"),
   productImageModalCounter: document.querySelector("#productImageModalCounter"),
   productImageModalThumbnails: document.querySelector("#productImageModalThumbnails"),
-  previousProductImageModalButton: document.querySelector("#previousProductImageModalButton"),
-  nextProductImageModalButton: document.querySelector("#nextProductImageModalButton"),
   closeProductImageModalButton: document.querySelector("#closeProductImageModalButton"),
   confirmModal: document.querySelector("#confirmModal"),
   confirmEyebrow: document.querySelector("#confirmEyebrow"),
@@ -555,8 +557,10 @@ function bindEvents() {
       closeProductImageModal();
     }
   });
-  elements.previousProductImageModalButton?.addEventListener("click", () => moveProductImageModal(-1));
-  elements.nextProductImageModalButton?.addEventListener("click", () => moveProductImageModal(1));
+  elements.productImageModalStage?.addEventListener("pointerdown", startProductImageSwipe);
+  elements.productImageModalStage?.addEventListener("pointermove", moveProductImageSwipe);
+  elements.productImageModalStage?.addEventListener("pointerup", endProductImageSwipe);
+  elements.productImageModalStage?.addEventListener("pointercancel", cancelProductImageSwipe);
   elements.productImageModalThumbnails?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-product-image-modal-index]");
     if (!button) {
@@ -1843,8 +1847,6 @@ function renderProductImageModal() {
   elements.productImageModalImage.src = urls[index];
   elements.productImageModalImage.alt = `${state.activeProductImageName} 제품 이미지 ${index + 1}`;
   elements.productImageModalCounter.textContent = `${index + 1} / ${urls.length}`;
-  elements.previousProductImageModalButton.hidden = urls.length < 2;
-  elements.nextProductImageModalButton.hidden = urls.length < 2;
   elements.productImageModalThumbnails.innerHTML = urls.map((url, thumbnailIndex) => `
     <button
       class="product-image-lightbox-thumbnail${thumbnailIndex === index ? " active" : ""}"
@@ -1901,6 +1903,66 @@ function moveProductImageModal(direction) {
   renderProductImageModal();
 }
 
+const PRODUCT_IMAGE_SWIPE_MIN_DISTANCE = 44;
+
+function startProductImageSwipe(event) {
+  if (state.activeProductImageUrls.length < 2 || (event.button != null && event.button !== 0)) {
+    return;
+  }
+  state.productImageSwipePointerId = event.pointerId;
+  state.productImageSwipeStartX = event.clientX;
+  state.productImageSwipeStartY = event.clientY;
+  elements.productImageModalStage?.classList.add("is-swiping");
+  elements.productImageModalStage?.setPointerCapture?.(event.pointerId);
+}
+
+function moveProductImageSwipe(event) {
+  if (event.pointerId !== state.productImageSwipePointerId) {
+    return;
+  }
+  const deltaX = event.clientX - state.productImageSwipeStartX;
+  const deltaY = event.clientY - state.productImageSwipeStartY;
+  if (Math.abs(deltaX) <= Math.abs(deltaY)) {
+    return;
+  }
+  if (event.cancelable) {
+    event.preventDefault();
+  }
+  const previewOffset = Math.max(-56, Math.min(deltaX, 56));
+  elements.productImageModalImage.style.transform = `translate3d(${previewOffset}px, 0, 0)`;
+}
+
+function endProductImageSwipe(event) {
+  if (event.pointerId !== state.productImageSwipePointerId) {
+    return;
+  }
+  const deltaX = event.clientX - state.productImageSwipeStartX;
+  const deltaY = event.clientY - state.productImageSwipeStartY;
+  resetProductImageSwipe(event.pointerId);
+  if (Math.abs(deltaX) >= PRODUCT_IMAGE_SWIPE_MIN_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY)) {
+    moveProductImageModal(deltaX < 0 ? 1 : -1);
+  }
+}
+
+function cancelProductImageSwipe(event) {
+  if (event.pointerId === state.productImageSwipePointerId) {
+    resetProductImageSwipe(event.pointerId);
+  }
+}
+
+function resetProductImageSwipe(pointerId = state.productImageSwipePointerId) {
+  if (pointerId != null && elements.productImageModalStage?.hasPointerCapture?.(pointerId)) {
+    elements.productImageModalStage.releasePointerCapture(pointerId);
+  }
+  elements.productImageModalStage?.classList.remove("is-swiping");
+  if (elements.productImageModalImage) {
+    elements.productImageModalImage.style.transform = "";
+  }
+  state.productImageSwipePointerId = null;
+  state.productImageSwipeStartX = 0;
+  state.productImageSwipeStartY = 0;
+}
+
 function closeProductImageModal() {
   if (!elements.productImageModal || elements.productImageModal.hidden) {
     return;
@@ -1914,6 +1976,7 @@ function closeProductImageModal() {
   state.activeProductImageUrls = [];
   state.activeProductImageIndex = 0;
   state.activeProductImageName = "";
+  resetProductImageSwipe();
   document.body.classList.remove("modal-open");
 }
 
