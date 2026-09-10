@@ -8604,6 +8604,679 @@ input {
   font-size: 0.875rem;
 }
 
+.production-plan-heading {
+  align-items: flex-end;
+  gap: 1.25rem;
+}
+
+.production-plan-description {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.production-plan-heading-actions,
+.production-plan-context,
+.production-plan-date-control,
+.production-plan-tabs,
+.production-plan-section-heading,
+.schedule-board-legend {
+  display: flex;
+  align-items: center;
+}
+
+.production-plan-heading-actions,
+.production-plan-context {
+  gap: 0.65rem;
+}
+
+.production-plan-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.production-plan-button i {
+  font-size: 1.1rem;
+}
+
+.production-plan-button.primary {
+  border: 1px solid var(--navy);
+  color: #fff;
+  background: var(--navy);
+}
+
+.production-plan-button.secondary {
+  border: 1px solid #d7e0eb;
+  color: var(--navy-dark);
+  background: #fff;
+}
+
+.production-plan-button:hover,
+.production-plan-button:focus-visible,
+.production-plan-tabs button:hover,
+.production-plan-tabs button:focus-visible {
+  border-color: var(--gold);
+}
+
+.production-plan-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.production-plan-shell {
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: #fff;
+  box-shadow: 0 0.75rem 2rem rgba(8, 42, 98, 0.05);
+  overflow: hidden;
+}
+
+.production-plan-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid #e4eaf2;
+  background: #fbfcfe;
+}
+
+.production-plan-date-control {
+  gap: 0.35rem;
+}
+
+.production-plan-date-control > button,
+.production-plan-date-control label,
+.production-plan-context label,
+.production-plan-filter {
+  border: 1px solid #d7e0eb;
+  background: #fff;
+}
+
+.production-plan-date-control > button {
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 0.45rem;
+  color: var(--navy);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.production-plan-date-control label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2.65rem;
+  padding: 0 0.75rem;
+  border-radius: 0.45rem;
+  color: var(--navy);
+}
+
+.production-plan-date-control label i,
+.production-plan-filter i {
+  color: var(--gold);
+}
+
+.production-plan-date-control input,
+.production-plan-context select,
+.production-plan-filter select {
+  border: 0;
+  outline: 0;
+  color: var(--navy-dark);
+  background: transparent;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.production-plan-date-control input {
+  min-width: 8.2rem;
+}
+
+.production-plan-date-control .production-plan-today {
+  width: auto;
+  padding: 0 0.78rem;
+  color: #8a651c;
+  border-color: #e4c67f;
+  background: #fffaf0;
+}
+
+.production-plan-context label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.8rem;
+  border-radius: 0.5rem;
+}
+
+.production-plan-context label span {
+  color: var(--muted);
+  font-size: 0.77rem;
+  font-weight: 800;
+}
+
+.production-plan-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid #e4eaf2;
+}
+
+.production-plan-summary article {
+  position: relative;
+  min-width: 0;
+  padding: 1rem 1.2rem;
+}
+
+.production-plan-summary article + article::before {
+  position: absolute;
+  top: 1rem;
+  bottom: 1rem;
+  left: 0;
+  width: 1px;
+  content: "";
+  background: #e4eaf2;
+}
+
+.production-plan-summary span,
+.production-plan-summary strong {
+  display: block;
+}
+
+.production-plan-summary span {
+  color: var(--muted);
+  font-size: 0.77rem;
+  font-weight: 800;
+}
+
+.production-plan-summary strong {
+  margin-top: 0.25rem;
+  color: var(--navy-dark);
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.production-plan-summary em {
+  color: #718096;
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
+.production-plan-tabs {
+  gap: 0.25rem;
+  padding: 0.75rem 1.15rem 0;
+  border-bottom: 1px solid #e4eaf2;
+}
+
+.production-plan-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 0.5rem 0.5rem 0 0;
+  color: #78869a;
+  background: transparent;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.production-plan-tabs button.active {
+  color: #fff;
+  border-color: var(--navy);
+  background: var(--navy);
+}
+
+.production-plan-panel {
+  padding: 1.1rem 1.15rem 1.25rem;
+}
+
+.production-plan-panel[hidden] {
+  display: none;
+}
+
+.production-plan-section-heading {
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.production-plan-section-heading h2,
+.production-plan-section-heading p {
+  margin: 0;
+}
+
+.production-plan-section-heading h2 {
+  color: var(--navy-dark);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.production-plan-section-heading p {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.production-plan-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.35rem;
+  padding: 0 0.65rem;
+  border-radius: 0.45rem;
+}
+
+.production-plan-table-wrap {
+  border: 1px solid #dfe6ef;
+  border-radius: 0.55rem;
+  overflow: auto;
+}
+
+.production-plan-table {
+  width: 100%;
+  min-width: 80rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.production-plan-table th,
+.production-plan-table td {
+  padding: 0.65rem 0.55rem;
+  border-right: 1px solid #e5eaf1;
+  border-bottom: 1px solid #e5eaf1;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.production-plan-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.production-plan-table th:last-child,
+.production-plan-table td:last-child {
+  border-right: 0;
+}
+
+.production-plan-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  color: #4f5f75;
+  background: #f6f8fb;
+  font-size: 0.73rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.production-plan-table th:nth-child(1) { width: 7%; }
+.production-plan-table th:nth-child(2) { width: 7%; }
+.production-plan-table th:nth-child(3) { width: 10%; }
+.production-plan-table th:nth-child(4) { width: 21%; }
+.production-plan-table th:nth-child(5) { width: 9%; }
+.production-plan-table th:nth-child(6) { width: 8%; }
+.production-plan-table th:nth-child(7) { width: 9%; }
+.production-plan-table th:nth-child(8) { width: 10%; }
+.production-plan-table th:nth-child(9) { width: 8%; }
+.production-plan-table th:nth-child(10) { width: 11%; }
+
+.production-plan-table td {
+  color: #2f4057;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.production-plan-table tr[data-due="urgent"] td {
+  background: #fffdf7;
+}
+
+.production-plan-table .production-plan-process {
+  color: var(--navy-dark);
+  background: #f8fafc;
+  font-weight: 900;
+}
+
+.production-plan-process span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  color: var(--navy);
+  background: #edf3fb;
+  white-space: nowrap;
+}
+
+.production-plan-product strong,
+.production-plan-product small {
+  display: block;
+}
+
+.production-plan-product strong {
+  color: var(--navy-dark);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.production-plan-product small {
+  margin-top: 0.18rem;
+  color: #8794a7;
+  font-size: 0.68rem;
+}
+
+.production-plan-balance {
+  color: #9b6d15;
+  font-weight: 900;
+}
+
+.production-plan-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  white-space: nowrap;
+}
+
+.production-plan-due.urgent {
+  color: #b06f05;
+}
+
+.production-plan-due i {
+  font-size: 0.95rem;
+}
+
+.production-plan-table select,
+.production-plan-table input {
+  width: 100%;
+  min-height: 2.2rem;
+  padding: 0 0.55rem;
+  border: 1px solid #d8e1ec;
+  border-radius: 0.38rem;
+  outline: 0;
+  color: #24354d;
+  background: #fff;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.production-plan-table input[type="number"] {
+  text-align: right;
+}
+
+.production-plan-table select:focus,
+.production-plan-table input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(208, 161, 75, 0.14);
+}
+
+.production-plan-status {
+  min-height: 1.15rem;
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.production-plan-status[data-type="success"] {
+  color: #137333;
+}
+
+.schedule-board-legend {
+  gap: 0.8rem;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.schedule-board-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.schedule-board-legend i {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 0.15rem;
+  background: #dfe9f7;
+}
+
+.schedule-board-legend i.urgent { background: #f4d58c; }
+.schedule-board-legend i.unassigned { background: #e8edf3; }
+
+.machine-schedule-board {
+  border: 1px solid #dfe6ef;
+  border-radius: 0.55rem;
+  overflow: auto;
+}
+
+.machine-schedule-grid {
+  min-width: 72rem;
+}
+
+.machine-schedule-header,
+.machine-schedule-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(60rem, 1fr);
+}
+
+.machine-schedule-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-height: 2.75rem;
+  color: #596a80;
+  background: #f6f8fb;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.machine-schedule-label,
+.machine-schedule-track {
+  position: relative;
+  border-bottom: 1px solid #e4eaf2;
+}
+
+.machine-schedule-label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-right: 1px solid #dfe6ef;
+  background: #fbfcfe;
+}
+
+.machine-schedule-label i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.42rem;
+  color: var(--navy);
+  background: #edf3fb;
+  font-size: 1rem;
+}
+
+.machine-schedule-label strong,
+.machine-schedule-label small {
+  display: block;
+}
+
+.machine-schedule-label strong {
+  color: var(--navy-dark);
+  font-size: 0.78rem;
+}
+
+.machine-schedule-label small {
+  margin-top: 0.1rem;
+  color: #8794a7;
+  font-size: 0.66rem;
+}
+
+.machine-schedule-track {
+  min-height: 4.25rem;
+  background: #fff;
+}
+
+.machine-schedule-times {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  align-items: center;
+  height: 100%;
+  padding: 0 0.3rem;
+}
+
+.machine-schedule-times span {
+  text-align: left;
+}
+
+.machine-schedule-task {
+  position: absolute;
+  top: 0.55rem;
+  bottom: 0.55rem;
+  min-width: 6.5rem;
+  padding: 0.42rem 0.55rem;
+  border: 1px solid #b9cbe3;
+  border-left: 0.24rem solid var(--navy);
+  border-radius: 0.42rem;
+  color: var(--navy-dark);
+  background: #eff5fc;
+  overflow: hidden;
+}
+
+.machine-schedule-task.urgent {
+  border-color: #e1bc67;
+  border-left-color: #bd8219;
+  background: #fff7e7;
+}
+
+.machine-schedule-task strong,
+.machine-schedule-task span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-schedule-task strong {
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.machine-schedule-task span {
+  margin-top: 0.12rem;
+  color: #63748a;
+  font-size: 0.63rem;
+  font-weight: 700;
+}
+
+.machine-schedule-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+  padding: 2rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.machine-schedule-unassigned {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.45rem;
+  color: #5f6f84;
+  background: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+@media (max-width: 1100px) {
+  .production-plan-heading,
+  .production-plan-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .production-plan-heading-actions,
+  .production-plan-context {
+    justify-content: flex-start;
+  }
+
+  .production-plan-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .production-plan-summary article:nth-child(3)::before {
+    display: none;
+  }
+
+  .production-plan-summary article:nth-child(n + 3) {
+    border-top: 1px solid #e4eaf2;
+  }
+}
+
+@media (max-width: 760px) {
+  .production-plan-heading-actions,
+  .production-plan-context,
+  .production-plan-date-control,
+  .production-plan-section-heading {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .production-plan-heading-actions .production-plan-button,
+  .production-plan-context .production-plan-button {
+    flex: 1 1 auto;
+  }
+
+  .production-plan-date-control label {
+    flex: 1 1 9rem;
+  }
+
+  .production-plan-summary strong {
+    font-size: 1.12rem;
+  }
+
+  .production-plan-tabs button {
+    flex: 1;
+    justify-content: center;
+    padding: 0 0.5rem;
+  }
+
+  .production-plan-panel,
+  .production-plan-toolbar {
+    padding-right: 0.8rem;
+    padding-left: 0.8rem;
+  }
+
+  .schedule-board-legend {
+    width: 100%;
+  }
+}
+
 .inbound-purchase-order-field {
   grid-column: span 2;
 }
@@ -13522,4 +14195,67 @@ input {
 .side-work-submenu a:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: -2px;
+}
+
+.production-plan-heading .production-plan-description {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 8mm;
+    size: A4 landscape;
+  }
+
+  body.printing-production-plan {
+    width: auto;
+    min-height: 0;
+  }
+
+  body.printing-production-plan > .admin-shell {
+    display: block !important;
+  }
+
+  body.printing-production-plan .admin-shell,
+  body.printing-production-plan #productionPlanView,
+  body.printing-production-plan #productionPlanView * {
+    visibility: visible;
+  }
+
+  body.printing-production-plan .admin-topbar,
+  body.printing-production-plan .admin-sidebar,
+  body.printing-production-plan .page-view:not(#productionPlanView),
+  body.printing-production-plan .production-plan-heading-actions,
+  body.printing-production-plan .production-plan-tabs,
+  body.printing-production-plan .production-plan-filter,
+  body.printing-production-plan .production-plan-status,
+  body.printing-production-plan .production-plan-date-control > button,
+  body.printing-production-plan .production-plan-context .production-plan-button {
+    display: none !important;
+  }
+
+  body.printing-production-plan .admin-main {
+    display: block;
+    overflow: visible;
+    padding: 0;
+  }
+
+  body.printing-production-plan .production-plan-heading {
+    margin-bottom: 4mm;
+  }
+
+  body.printing-production-plan .production-plan-shell {
+    border-color: #aab4c2;
+    box-shadow: none;
+  }
+
+  body.printing-production-plan .production-plan-table-wrap,
+  body.printing-production-plan .machine-schedule-board {
+    overflow: visible;
+  }
+
+  body.printing-production-plan .production-plan-table,
+  body.printing-production-plan .machine-schedule-grid {
+    min-width: 0;
+  }
 }

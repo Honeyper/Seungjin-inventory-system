@@ -52,6 +52,14 @@ let adminLargeCacheDatabasePromise = null;
 const BACKUP_NOTIFICATION_POLL_MS = 60 * 1000;
 const SERVER_USAGE_POLL_MS = 30 * 1000;
 const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
+const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const PRODUCTION_PROCESS_ORDER = ["박 인쇄", "실크 인쇄", "자동화", "라벨"];
+const PRODUCTION_MACHINE_OPTIONS = {
+  "박 인쇄": ["1호기", "2호기", "5호기", "7호기", "11호기", "12호기"],
+  "실크 인쇄": ["2호기", "3호기", "4호기", "5호기", "6호기", "7호기", "8호기", "9호기", "10호기", "11호기", "12호기"],
+  "자동화": ["1호기", "3호기"],
+  "라벨": ["라벨 1호기", "라벨 2호기"]
+};
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-10",
@@ -62,7 +70,8 @@ const SYSTEM_UPDATE_HISTORY = [
       "재고 상세보기에서 제품 이미지와 입고 거래명세서·불량사진을 함께 확인할 수 있게 했습니다.",
       "모바일 제품 이미지는 화살표 대신 손가락으로 자연스럽게 넘길 수 있도록 개선했습니다.",
       "출고 결산의 조회기간별 출고대기·출고완료 집계가 목록과 일치하도록 수정했습니다.",
-      "알림과 업데이트 내역의 카드 내용이 잘리지 않도록 내부 세로 스크롤을 적용했습니다."
+      "알림과 업데이트 내역의 카드 내용이 잘리지 않도록 내부 세로 스크롤을 적용했습니다.",
+      "생산계획에 일일 계획표와 기계별 스케줄 보드를 추가하고 발주 잔량·납기 기준 자동 계획 생성을 연결했습니다."
     ]
   },
   {
@@ -404,7 +413,12 @@ const state = {
   isLoadingBackupNotifications: false,
   serverUsage: null,
   isLoadingServerUsage: false,
-  backupNotificationActiveTab: "notifications"
+  backupNotificationActiveTab: "notifications",
+  productionPlanDate: "",
+  productionPlanFactory: "1공장",
+  productionPlanActiveTab: "table",
+  productionPlanProcessFilter: "",
+  productionPlanJobs: []
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -586,6 +600,28 @@ const viewLinks = document.querySelectorAll("[data-view-link]");
 const workMenuButton = document.querySelector("#workMenuButton");
 const workSubmenu = document.querySelector("#workSubmenu");
 const pageViews = document.querySelectorAll("[data-view]");
+const productionPlanDate = document.querySelector("#productionPlanDate");
+const productionPlanFactory = document.querySelector("#productionPlanFactory");
+const productionPlanTableTab = document.querySelector("#productionPlanTableTab");
+const productionPlanBoardTab = document.querySelector("#productionPlanBoardTab");
+const productionPlanTablePanel = document.querySelector("#productionPlanTablePanel");
+const productionPlanBoardPanel = document.querySelector("#productionPlanBoardPanel");
+const productionPlanTableBody = document.querySelector("#productionPlanTableBody");
+const productionPlanProcessFilter = document.querySelector("#productionPlanProcessFilter");
+const productionPlanStatus = document.querySelector("#productionPlanStatus");
+const machineScheduleBoard = document.querySelector("#machineScheduleBoard");
+const machineScheduleStatus = document.querySelector("#machineScheduleStatus");
+const productionPlanJobCount = document.querySelector("#productionPlanJobCount");
+const productionPlanTargetQuantity = document.querySelector("#productionPlanTargetQuantity");
+const productionPlanDueSoonCount = document.querySelector("#productionPlanDueSoonCount");
+const productionPlanUnassignedCount = document.querySelector("#productionPlanUnassignedCount");
+const previousProductionPlanDate = document.querySelector("#previousProductionPlanDate");
+const nextProductionPlanDate = document.querySelector("#nextProductionPlanDate");
+const todayProductionPlanDate = document.querySelector("#todayProductionPlanDate");
+const syncProductionPlanButton = document.querySelector("#syncProductionPlanButton");
+const generateProductionPlanButton = document.querySelector("#generateProductionPlanButton");
+const saveProductionPlanButton = document.querySelector("#saveProductionPlanButton");
+const printProductionPlanButton = document.querySelector("#printProductionPlanButton");
 const newPurchaseOrderButton = document.querySelector("#newPurchaseOrderButton");
 const purchaseOrderTotal = document.querySelector("#purchaseOrderTotal");
 const purchaseOrderActive = document.querySelector("#purchaseOrderActive");
@@ -1257,6 +1293,31 @@ inboundPurchaseOrder?.addEventListener("change", () => {
 workMenuButton?.addEventListener("click", () => {
   setWorkMenuExpanded(workMenuButton.getAttribute("aria-expanded") !== "true");
 });
+
+productionPlanTableTab?.addEventListener("click", () => setProductionPlanTab("table"));
+productionPlanBoardTab?.addEventListener("click", () => setProductionPlanTab("board"));
+productionPlanDate?.addEventListener("change", () => {
+  state.productionPlanDate = productionPlanDate.value || getLocalDateInputValue();
+  loadProductionPlanDraft();
+});
+productionPlanFactory?.addEventListener("change", () => {
+  state.productionPlanFactory = productionPlanFactory.value || "1공장";
+  loadProductionPlanDraft();
+});
+productionPlanProcessFilter?.addEventListener("change", () => {
+  state.productionPlanProcessFilter = productionPlanProcessFilter.value;
+  renderProductionPlan();
+});
+previousProductionPlanDate?.addEventListener("click", () => changeProductionPlanDate(-1));
+nextProductionPlanDate?.addEventListener("click", () => changeProductionPlanDate(1));
+todayProductionPlanDate?.addEventListener("click", () => setProductionPlanDate(getLocalDateInputValue()));
+syncProductionPlanButton?.addEventListener("click", syncProductionPlanOrders);
+generateProductionPlanButton?.addEventListener("click", generateProductionPlanDraft);
+saveProductionPlanButton?.addEventListener("click", saveProductionPlanDraft);
+printProductionPlanButton?.addEventListener("click", printProductionPlan);
+window.addEventListener("afterprint", () => document.body.classList.remove("printing-production-plan"));
+productionPlanTableBody?.addEventListener("input", handleProductionPlanFieldChange);
+productionPlanTableBody?.addEventListener("change", handleProductionPlanFieldChange);
 
 viewLinks.forEach((link) => {
   link.addEventListener("click", (event) => {
@@ -2108,6 +2169,7 @@ window.addEventListener("scroll", () => {
 setCurrentInboundDate();
 setCurrentInboundListDateRange();
 setCurrentShippingSettlementDate();
+initializeProductionPlan();
 state.productsLoadPromise = loadProducts().finally(() => {
   state.productsLoadPromise = null;
 });
@@ -2135,6 +2197,353 @@ if (window.SeungjinDataGateway?.canRead("getServerUsage")) {
   window.setInterval(() => {
     if (!document.hidden && !backupNotificationPanel?.hidden) loadServerUsage();
   }, SERVER_USAGE_POLL_MS);
+}
+
+function initializeProductionPlan() {
+  state.productionPlanDate = getLocalDateInputValue();
+  state.productionPlanFactory = productionPlanFactory?.value || "1공장";
+  if (productionPlanDate) productionPlanDate.value = state.productionPlanDate;
+  loadProductionPlanDraft();
+}
+
+function getProductionPlanStorageKey() {
+  return `${PRODUCTION_PLAN_STORAGE_PREFIX}:${state.productionPlanFactory}:${state.productionPlanDate}`;
+}
+
+function readProductionPlanDraft() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(getProductionPlanStorageKey()) || "null");
+    return Array.isArray(saved?.jobs) ? saved.jobs : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getProductionPlanProduct(order) {
+  return state.products.find((product) => String(product.productCode || "").trim() === String(order?.productId || "").trim()) || null;
+}
+
+function getProductionPlanProcess(order) {
+  const product = getProductionPlanProduct(order);
+  const explicit = String(product?.productionProcess || product?.processGroup || "").trim();
+  if (PRODUCTION_PROCESS_ORDER.includes(explicit)) return explicit;
+  const route = [
+    product?.processRoute,
+    product?.finalProcess,
+    product?.processStage1,
+    product?.processStage2,
+    product?.processStage3
+  ].filter(Boolean).join(" ");
+  const productName = String(order?.productName || product?.productName || "");
+  if (/라벨/.test(productName) || /라벨/.test(route)) return "라벨";
+  if (/자동|코팅/.test(route)) return "자동화";
+  if (/박/.test(route) && !/실크/.test(route)) return "박 인쇄";
+  return "실크 인쇄";
+}
+
+function getProductionPlanBalance(order) {
+  const explicitRemaining = Number(order?.remainingShippingQuantity);
+  if (Number.isFinite(explicitRemaining)) return Math.max(0, Math.round(explicitRemaining));
+  const total = Number(order?.totalOrderQuantity || 0);
+  const shipped = Number(order?.accumulatedShippingQuantity || 0);
+  return Math.max(0, Math.round(total - shipped));
+}
+
+function getProductionPlanOpenOrders() {
+  return state.purchaseOrders
+    .filter((order) => order.status !== "취소" && getProductionPlanBalance(order) > 0)
+    .sort((a, b) => {
+      const dueCompare = String(a.endDate || "9999-12-31").localeCompare(String(b.endDate || "9999-12-31"));
+      if (dueCompare) return dueCompare;
+      return String(a.productName || "").localeCompare(String(b.productName || ""), "ko");
+    });
+}
+
+function buildProductionPlanJobs({ autoAssign = false, preserve = [] } = {}) {
+  const preservedById = new Map(preserve.map((job) => [job.purchaseOrderId, job]));
+  const machineUse = new Map();
+  return getProductionPlanOpenOrders().map((order) => {
+    const previous = preservedById.get(order.purchaseOrderId);
+    const process = previous?.process || getProductionPlanProcess(order);
+    const machines = PRODUCTION_MACHINE_OPTIONS[process] || [];
+    let machine = previous?.machine || "";
+    if (autoAssign && !machine && machines.length) {
+      machine = machines.reduce((best, candidate) => (
+        (machineUse.get(candidate) || 0) < (machineUse.get(best) || 0) ? candidate : best
+      ), machines[0]);
+    }
+    if (machine) machineUse.set(machine, (machineUse.get(machine) || 0) + 1);
+    const balance = getProductionPlanBalance(order);
+    return {
+      purchaseOrderId: order.purchaseOrderId,
+      productId: order.productId || "",
+      orderRound: order.orderRound || "",
+      clientName: order.clientName || "",
+      productName: order.productName || "",
+      process,
+      machine,
+      targetQuantity: Number(previous?.targetQuantity) > 0 ? Number(previous.targetQuantity) : balance,
+      balance,
+      dueDate: order.endDate || "",
+      worker: previous?.worker || "",
+      hours: Number(previous?.hours) > 0 ? Number(previous.hours) : Math.min(10, Math.max(1, Math.ceil((balance / 1000) * 2) / 2)),
+      note: previous?.note || order.note || ""
+    };
+  });
+}
+
+function loadProductionPlanDraft() {
+  const savedJobs = readProductionPlanDraft();
+  state.productionPlanJobs = savedJobs || buildProductionPlanJobs();
+  renderProductionPlan();
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = savedJobs
+      ? "저장된 계획을 불러왔습니다."
+      : state.purchaseOrdersLoaded
+        ? "현재 발주 잔량을 계획표에 불러왔습니다."
+        : "발주 정보를 불러오는 중입니다.";
+    productionPlanStatus.dataset.type = "";
+  }
+}
+
+function setProductionPlanDate(value) {
+  state.productionPlanDate = value || getLocalDateInputValue();
+  if (productionPlanDate) productionPlanDate.value = state.productionPlanDate;
+  loadProductionPlanDraft();
+}
+
+function changeProductionPlanDate(days) {
+  const date = new Date(`${state.productionPlanDate || getLocalDateInputValue()}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  setProductionPlanDate(`${year}-${month}-${day}`);
+}
+
+function setProductionPlanTab(tab) {
+  state.productionPlanActiveTab = tab === "board" ? "board" : "table";
+  const isTable = state.productionPlanActiveTab === "table";
+  productionPlanTableTab?.classList.toggle("active", isTable);
+  productionPlanBoardTab?.classList.toggle("active", !isTable);
+  productionPlanTableTab?.setAttribute("aria-selected", String(isTable));
+  productionPlanBoardTab?.setAttribute("aria-selected", String(!isTable));
+  if (productionPlanTablePanel) productionPlanTablePanel.hidden = !isTable;
+  if (productionPlanBoardPanel) productionPlanBoardPanel.hidden = isTable;
+  if (!isTable) renderMachineScheduleBoard();
+}
+
+function getProductionPlanDueDays(job) {
+  if (!job?.dueDate || !state.productionPlanDate) return Infinity;
+  const dueDate = new Date(`${job.dueDate}T00:00:00`);
+  const planDate = new Date(`${state.productionPlanDate}T00:00:00`);
+  return Math.round((dueDate - planDate) / 86400000);
+}
+
+function isProductionPlanUrgent(job) {
+  return getProductionPlanDueDays(job) <= 3;
+}
+
+function getProductionPlanFilteredJobs() {
+  const jobs = state.productionPlanProcessFilter
+    ? state.productionPlanJobs.filter((job) => job.process === state.productionPlanProcessFilter)
+    : state.productionPlanJobs;
+  return [...jobs].sort((a, b) => {
+    const processCompare = PRODUCTION_PROCESS_ORDER.indexOf(a.process) - PRODUCTION_PROCESS_ORDER.indexOf(b.process);
+    if (processCompare) return processCompare;
+    const machineCompare = String(a.machine || "zz").localeCompare(String(b.machine || "zz"), "ko", { numeric: true });
+    if (machineCompare) return machineCompare;
+    return String(a.dueDate || "9999-12-31").localeCompare(String(b.dueDate || "9999-12-31"));
+  });
+}
+
+function getProductionPlanMachineOptions(job) {
+  const machines = PRODUCTION_MACHINE_OPTIONS[job.process] || [];
+  return [
+    '<option value="">미배정</option>',
+    ...machines.map((machine) => `<option value="${escapeAttribute(machine)}" ${machine === job.machine ? "selected" : ""}>${escapeHtml(machine)}</option>`)
+  ].join("");
+}
+
+function renderProductionPlanTable() {
+  if (!productionPlanTableBody) return;
+  const jobs = getProductionPlanFilteredJobs();
+  if (!jobs.length) {
+    productionPlanTableBody.innerHTML = '<tr><td class="empty-cell" colspan="10">계획할 발주 잔량이 없습니다.</td></tr>';
+    return;
+  }
+  const processCounts = jobs.reduce((counts, job) => {
+    counts[job.process] = (counts[job.process] || 0) + 1;
+    return counts;
+  }, {});
+  const renderedProcesses = new Set();
+  productionPlanTableBody.innerHTML = jobs.map((job) => {
+    const processCell = renderedProcesses.has(job.process) ? "" : `
+      <td class="production-plan-process" rowspan="${processCounts[job.process]}"><span>${escapeHtml(job.process)}</span></td>`;
+    renderedProcesses.add(job.process);
+    const urgent = isProductionPlanUrgent(job);
+    const hours = Array.from({ length: 20 }, (_, index) => (index + 1) / 2)
+      .map((value) => `<option value="${value}" ${Number(job.hours) === value ? "selected" : ""}>${value}시간</option>`)
+      .join("");
+    return `
+      <tr data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" data-due="${urgent ? "urgent" : "normal"}">
+        ${processCell}
+        <td><select data-plan-field="machine" aria-label="${escapeAttribute(job.productName)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
+        <td>${escapeHtml(job.clientName || "-")}</td>
+        <td class="production-plan-product"><strong>${escapeHtml(job.productName || "-")}</strong><small>${escapeHtml(job.orderRound || job.productId || "-")}</small></td>
+        <td><input data-plan-field="targetQuantity" type="number" min="0" step="1" value="${Number(job.targetQuantity || 0)}" aria-label="${escapeAttribute(job.productName)} 목표 생산량" /></td>
+        <td class="production-plan-balance">${formatNumber(job.balance)} ea</td>
+        <td><span class="production-plan-due ${urgent ? "urgent" : ""}">${urgent ? '<i class="ti ti-clock-exclamation" aria-hidden="true"></i>' : ""}${escapeHtml(job.dueDate || "미정")}</span></td>
+        <td><input data-plan-field="worker" type="text" value="${escapeAttribute(job.worker)}" placeholder="작업자" aria-label="${escapeAttribute(job.productName)} 작업자" /></td>
+        <td><select data-plan-field="hours" aria-label="${escapeAttribute(job.productName)} 작업 시간">${hours}</select></td>
+        <td><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(job.productName)} 특이사항" /></td>
+      </tr>`;
+  }).join("");
+}
+
+function renderProductionPlanSummary() {
+  const jobs = state.productionPlanJobs;
+  const totalTarget = jobs.reduce((sum, job) => sum + Number(job.targetQuantity || 0), 0);
+  const dueSoon = jobs.filter(isProductionPlanUrgent).length;
+  const unassigned = jobs.filter((job) => !job.machine || !job.worker).length;
+  if (productionPlanJobCount) productionPlanJobCount.innerHTML = `${formatNumber(jobs.length)} <em>건</em>`;
+  if (productionPlanTargetQuantity) productionPlanTargetQuantity.innerHTML = `${formatNumber(totalTarget)} <em>ea</em>`;
+  if (productionPlanDueSoonCount) productionPlanDueSoonCount.innerHTML = `${formatNumber(dueSoon)} <em>건</em>`;
+  if (productionPlanUnassignedCount) productionPlanUnassignedCount.innerHTML = `${formatNumber(unassigned)} <em>건</em>`;
+}
+
+function renderMachineScheduleBoard() {
+  if (!machineScheduleBoard) return;
+  const jobs = state.productionPlanJobs;
+  const assignedJobs = jobs.filter((job) => job.machine);
+  if (!assignedJobs.length) {
+    machineScheduleBoard.innerHTML = '<div class="machine-schedule-empty">기계가 배정된 작업이 없습니다.<br>생산계획표에서 기계를 선택하거나 AI 계획 생성을 눌러주세요.</div>';
+    if (machineScheduleStatus) machineScheduleStatus.textContent = `미배정 ${formatNumber(jobs.length)}건`;
+    return;
+  }
+  const groups = new Map();
+  assignedJobs.forEach((job) => {
+    const key = `${job.process}|${job.machine}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(job);
+  });
+  const sortedGroups = [...groups.entries()].sort(([left], [right]) => {
+    const [leftProcess, leftMachine] = left.split("|");
+    const [rightProcess, rightMachine] = right.split("|");
+    const processCompare = PRODUCTION_PROCESS_ORDER.indexOf(leftProcess) - PRODUCTION_PROCESS_ORDER.indexOf(rightProcess);
+    return processCompare || leftMachine.localeCompare(rightMachine, "ko", { numeric: true });
+  });
+  const timeLabels = Array.from({ length: 11 }, (_, index) => `<span>${String(index + 8).padStart(2, "0")}:00</span>`).join("");
+  const rows = sortedGroups.map(([key, groupJobs]) => {
+    const [process, machine] = key.split("|");
+    let cursor = 0;
+    const taskMarkup = groupJobs
+      .sort((a, b) => String(a.dueDate || "9999-12-31").localeCompare(String(b.dueDate || "9999-12-31")))
+      .map((job) => {
+        const duration = Math.max(0.5, Math.min(Number(job.hours || 1), 10));
+        const left = Math.min(100, (cursor / 10) * 100);
+        const width = Math.min(100 - left, Math.max(7, (duration / 10) * 100));
+        cursor += duration;
+        return `<article class="machine-schedule-task ${isProductionPlanUrgent(job) ? "urgent" : ""}" style="left:${left}%;width:${width}%" title="${escapeAttribute(job.productName)} · ${escapeAttribute(job.worker || "작업자 미배정")}">
+          <strong>${escapeHtml(job.productName)}</strong>
+          <span>${escapeHtml(job.worker || "작업자 미배정")} · ${formatNumber(job.targetQuantity)}ea · ${duration}시간</span>
+        </article>`;
+      }).join("");
+    return `<div class="machine-schedule-row">
+      <div class="machine-schedule-label"><i class="ti ti-settings-automation" aria-hidden="true"></i><span><strong>${escapeHtml(machine)}</strong><small>${escapeHtml(process)}</small></span></div>
+      <div class="machine-schedule-track">${taskMarkup}</div>
+    </div>`;
+  }).join("");
+  const unassigned = jobs.filter((job) => !job.machine);
+  machineScheduleBoard.innerHTML = `<div class="machine-schedule-grid">
+    <div class="machine-schedule-header">
+      <div class="machine-schedule-label">기계 / 공정</div>
+      <div class="machine-schedule-times">${timeLabels}</div>
+    </div>
+    ${rows}
+  </div>`;
+  if (machineScheduleStatus) {
+    machineScheduleStatus.innerHTML = unassigned.length
+      ? `<span class="machine-schedule-unassigned"><i class="ti ti-alert-circle" aria-hidden="true"></i>미배정 작업 ${formatNumber(unassigned.length)}건 · 생산계획표에서 기계를 지정해주세요.</span>`
+      : "모든 작업이 기계에 배정되었습니다.";
+  }
+}
+
+function renderProductionPlan() {
+  renderProductionPlanSummary();
+  renderProductionPlanTable();
+  if (state.productionPlanActiveTab === "board") renderMachineScheduleBoard();
+  const caption = document.querySelector("#productionPlanTableCaption");
+  if (caption) caption.textContent = `${state.productionPlanDate || "오늘"} · ${state.productionPlanFactory} · 발주 잔량과 납기일이 빠른 순서로 정리됩니다.`;
+}
+
+function handleProductionPlanFieldChange(event) {
+  const field = event.target.closest("[data-plan-field]");
+  const row = event.target.closest("[data-plan-order-id]");
+  if (!field || !row) return;
+  const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === row.dataset.planOrderId);
+  if (!job) return;
+  const key = field.dataset.planField;
+  job[key] = ["targetQuantity", "hours"].includes(key) ? Number(field.value || 0) : field.value;
+  renderProductionPlanSummary();
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = "수정된 내용이 있습니다. 계획 저장을 눌러 반영해주세요.";
+    productionPlanStatus.dataset.type = "";
+  }
+}
+
+async function syncProductionPlanOrders() {
+  if (syncProductionPlanButton) syncProductionPlanButton.disabled = true;
+  const currentJobs = state.productionPlanJobs.map((job) => ({ ...job }));
+  try {
+    await Promise.all([loadPurchaseOrders(), ensureProductsLoaded()]);
+    state.productionPlanJobs = buildProductionPlanJobs({ preserve: currentJobs });
+    renderProductionPlan();
+    if (productionPlanStatus) productionPlanStatus.textContent = `발주 잔량 ${formatNumber(state.productionPlanJobs.length)}건을 동기화했습니다.`;
+    showToast("생산계획에 최신 발주를 동기화했습니다.");
+  } finally {
+    if (syncProductionPlanButton) syncProductionPlanButton.disabled = false;
+  }
+}
+
+async function generateProductionPlanDraft() {
+  if (generateProductionPlanButton) generateProductionPlanButton.disabled = true;
+  try {
+    if (!state.purchaseOrdersLoaded) await loadPurchaseOrders();
+    await ensureProductsLoaded();
+    state.productionPlanJobs = buildProductionPlanJobs({ autoAssign: true });
+    renderProductionPlan();
+    if (productionPlanStatus) {
+      productionPlanStatus.textContent = "납기일과 잔량 기준으로 비용 없는 자동 계획 초안을 생성했습니다. 작업자와 시간을 확인한 뒤 저장해주세요.";
+      productionPlanStatus.dataset.type = "success";
+    }
+    showToast("생산계획 초안을 생성했습니다.");
+  } finally {
+    if (generateProductionPlanButton) generateProductionPlanButton.disabled = false;
+  }
+}
+
+function saveProductionPlanDraft() {
+  try {
+    localStorage.setItem(getProductionPlanStorageKey(), JSON.stringify({
+      savedAt: new Date().toISOString(),
+      date: state.productionPlanDate,
+      factory: state.productionPlanFactory,
+      jobs: state.productionPlanJobs
+    }));
+    if (productionPlanStatus) {
+      productionPlanStatus.textContent = `${state.productionPlanDate} ${state.productionPlanFactory} 생산계획을 저장했습니다.`;
+      productionPlanStatus.dataset.type = "success";
+    }
+    showToast("생산계획을 저장했습니다.");
+  } catch (error) {
+    if (productionPlanStatus) productionPlanStatus.textContent = "생산계획을 저장하지 못했습니다. 브라우저 저장 공간을 확인해주세요.";
+  }
+}
+
+function printProductionPlan() {
+  document.body.classList.add("printing-production-plan");
+  window.print();
 }
 
 function getCurrentView() {
@@ -2195,6 +2604,10 @@ function setActiveView(view) {
 
   if (view === "purchase-orders" && !state.purchaseOrdersLoaded) {
     loadPurchaseOrders();
+  }
+
+  if (view === "production-plan" && typeof loadProductionPlanDraft === "function") {
+    loadProductionPlanDraft();
   }
 
   if (view === "shipping") {
@@ -7292,6 +7705,7 @@ function applyProductsResult(result) {
   renderInboundProductPicker();
   applyFilters();
   syncRegisteredFinalProcessesFromProducts();
+  if (getCurrentView() === "production-plan") loadProductionPlanDraft();
 }
 
 function findMasterProductForRegisteredRow(row) {
@@ -7395,6 +7809,7 @@ async function loadPurchaseOrdersRequest() {
     state.purchaseOrdersLoaded = true;
     applyPurchaseOrderFilters();
     populateInboundPurchaseOrders(inboundProductId?.value.trim());
+    if (getCurrentView() === "production-plan") loadProductionPlanDraft();
     return true;
   } catch (error) {
     state.purchaseOrders = [];
