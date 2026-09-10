@@ -60,6 +60,20 @@ const PRODUCTION_MACHINE_OPTIONS = {
   "자동화": ["1호기", "3호기"],
   "라벨": ["라벨 1호기", "라벨 2호기"]
 };
+const PRODUCTION_STANDARD_WORK_HOURS = 8;
+const PRODUCTION_DISCOURAGED_WORK_HOURS = 9;
+const PRODUCTION_MAX_WORK_HOURS = 10;
+const PRODUCTION_NON_WORKING_DATES = new Set([
+  "2026-01-01",
+  "2026-02-16", "2026-02-17", "2026-02-18",
+  "2026-03-01", "2026-03-02",
+  "2026-05-01", "2026-05-05", "2026-05-24", "2026-05-25",
+  "2026-06-03", "2026-06-06",
+  "2026-08-15", "2026-08-17",
+  "2026-09-24", "2026-09-25", "2026-09-26",
+  "2026-10-03", "2026-10-05", "2026-10-09",
+  "2026-12-25"
+]);
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-10",
@@ -72,7 +86,8 @@ const SYSTEM_UPDATE_HISTORY = [
       "출고 결산의 조회기간별 출고대기·출고완료 집계가 목록과 일치하도록 수정했습니다.",
       "알림과 업데이트 내역의 카드 내용이 잘리지 않도록 내부 세로 스크롤을 적용했습니다.",
       "생산계획에 일일 계획표와 기계별 스케줄 보드를 추가하고 발주 잔량·납기 기준 자동 계획 생성을 연결했습니다.",
-      "생산계획표의 제품을 기존 검색형 제품 선택창에서 변경하고 거래처·공정·잔량·납기일이 함께 갱신되도록 개선했습니다."
+      "생산계획표의 제품을 기존 검색형 제품 선택창에서 변경하고 거래처·공정·잔량·납기일이 함께 갱신되도록 개선했습니다.",
+      "생산계획 우측에 접이식 상세 계산 패널을 추가하고 8시간 근무·주말 및 공휴일 제외 원칙을 자동 계획에 반영했습니다."
     ]
   },
   {
@@ -420,7 +435,9 @@ const state = {
   productionPlanActiveTab: "table",
   productionPlanProcessFilter: "",
   productionPlanJobs: [],
-  productionPlanPickerJobId: ""
+  productionPlanPickerJobId: "",
+  productionPlanSelectedJobId: "",
+  productionPlanDetailOpen: false
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -624,6 +641,11 @@ const syncProductionPlanButton = document.querySelector("#syncProductionPlanButt
 const generateProductionPlanButton = document.querySelector("#generateProductionPlanButton");
 const saveProductionPlanButton = document.querySelector("#saveProductionPlanButton");
 const printProductionPlanButton = document.querySelector("#printProductionPlanButton");
+const productionPlanWorkspace = document.querySelector("#productionPlanWorkspace");
+const productionPlanDetailToggle = document.querySelector("#productionPlanDetailToggle");
+const productionPlanDetailPanel = document.querySelector("#productionPlanDetailPanel");
+const productionPlanDetailClose = document.querySelector("#productionPlanDetailClose");
+const productionPlanDetailBody = document.querySelector("#productionPlanDetailBody");
 const newPurchaseOrderButton = document.querySelector("#newPurchaseOrderButton");
 const purchaseOrderTotal = document.querySelector("#purchaseOrderTotal");
 const purchaseOrderActive = document.querySelector("#purchaseOrderActive");
@@ -1320,7 +1342,10 @@ printProductionPlanButton?.addEventListener("click", printProductionPlan);
 window.addEventListener("afterprint", () => document.body.classList.remove("printing-production-plan"));
 productionPlanTableBody?.addEventListener("input", handleProductionPlanFieldChange);
 productionPlanTableBody?.addEventListener("change", handleProductionPlanFieldChange);
-productionPlanTableBody?.addEventListener("click", handleProductionPlanProductPickerOpen);
+productionPlanTableBody?.addEventListener("click", handleProductionPlanTableClick);
+productionPlanDetailToggle?.addEventListener("click", () => setProductionPlanDetailOpen(true));
+productionPlanDetailClose?.addEventListener("click", () => setProductionPlanDetailOpen(false));
+productionPlanDetailBody?.addEventListener("change", handleProductionPlanDetailChange);
 
 viewLinks.forEach((link) => {
   link.addEventListener("click", (event) => {
@@ -2213,6 +2238,84 @@ function getProductionPlanStorageKey() {
   return `${PRODUCTION_PLAN_STORAGE_PREFIX}:${state.productionPlanFactory}:${state.productionPlanDate}`;
 }
 
+function isProductionPlanNonWorkingDate(dateValue) {
+  if (!dateValue) return false;
+  const date = new Date(`${dateValue}T00:00:00`);
+  const day = date.getDay();
+  return day === 0 || day === 6 || PRODUCTION_NON_WORKING_DATES.has(dateValue);
+}
+
+function getProductionPlanWorkingDays(startValue, endValue) {
+  if (!startValue || !endValue) return 1;
+  const start = new Date(`${startValue}T00:00:00`);
+  const end = new Date(`${endValue}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 1;
+  let count = 0;
+  const cursor = new Date(start);
+  while (cursor <= end && count < 366) {
+    const value = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+    if (!isProductionPlanNonWorkingDate(value)) count += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return Math.max(1, count);
+}
+
+function ceilProductionPlanHours(value) {
+  const numeric = Number(value || 0);
+  return numeric > 0 ? Math.ceil(numeric * 2) / 2 : 0;
+}
+
+function getProductionPlanCalculations(job) {
+  const order = state.purchaseOrders.find((item) => item.purchaseOrderId === job?.purchaseOrderId);
+  const linkedOrderQuantity = Math.max(0, Number(order?.totalOrderQuantity || 0));
+  const linkedProduction = Math.max(
+    0,
+    Number(order?.accumulatedInboundQuantity || 0),
+    Number(order?.accumulatedShippingQuantity || 0)
+  );
+  const orderQuantity = Math.max(0, Number(job?.orderQuantity ?? linkedOrderQuantity));
+  const workDays = Math.max(1, Number(job?.workDays || getProductionPlanWorkingDays(state.productionPlanDate, job?.dueDate)));
+  const loss = Math.max(0, Number(job?.loss ?? Math.max(0, Number(order?.accumulatedInboundQuantity || 0) - orderQuantity)));
+  const cumulativeProduction = Math.max(0, Number(job?.cumulativeProduction ?? linkedProduction));
+  const cumulativeHours = Math.max(0, Number(job?.cumulativeHours || 0));
+  const actualProduction = Math.max(0, Number(job?.actualProduction || 0));
+  const remaining = Math.max(0, orderQuantity - cumulativeProduction + loss);
+  const hourlyRate = cumulativeHours > 0 ? cumulativeProduction / cumulativeHours : 0;
+  const dailyRequired = workDays > 0 ? orderQuantity / workDays : 0;
+  const formulaTarget = hourlyRate > 0
+    ? Math.max(0, Math.min(remaining, (dailyRequired * 2) - (hourlyRate * PRODUCTION_STANDARD_WORK_HOURS)))
+    : 0;
+  const dailyTargetHours = hourlyRate > 0 ? ceilProductionPlanHours(formulaTarget / hourlyRate) : 0;
+  const totalExpectedHours = hourlyRate > 0 ? ceilProductionPlanHours(remaining / hourlyRate) : 0;
+  const achievementRate = dailyRequired > 0 ? (actualProduction / dailyRequired) * 100 : 0;
+  return {
+    orderQuantity,
+    workDays,
+    loss,
+    cumulativeProduction,
+    cumulativeHours,
+    actualProduction,
+    remaining,
+    hourlyRate,
+    dailyRequired,
+    formulaTarget,
+    dailyTargetHours,
+    totalExpectedHours,
+    achievementRate
+  };
+}
+
+function getProductionPlanRecommendedHours(job, calculations) {
+  const required = calculations.dailyTargetHours;
+  if (calculations.hourlyRate > 0 && calculations.formulaTarget <= 0) return 0;
+  if (!required) return Math.min(PRODUCTION_STANDARD_WORK_HOURS, Math.max(0.5, Number(job.hours || PRODUCTION_STANDARD_WORK_HOURS)));
+  if (required <= PRODUCTION_STANDARD_WORK_HOURS) return required;
+  const unavoidable = calculations.workDays <= 1 || getProductionPlanDueDays(job) <= 1;
+  if (!unavoidable) return PRODUCTION_STANDARD_WORK_HOURS;
+  if (required <= PRODUCTION_DISCOURAGED_WORK_HOURS) return PRODUCTION_DISCOURAGED_WORK_HOURS;
+  return PRODUCTION_MAX_WORK_HOURS;
+}
+
 function readProductionPlanDraft() {
   try {
     const saved = JSON.parse(localStorage.getItem(getProductionPlanStorageKey()) || "null");
@@ -2264,19 +2367,18 @@ function getProductionPlanOpenOrders() {
 
 function buildProductionPlanJobs({ autoAssign = false, preserve = [] } = {}) {
   const preservedById = new Map(preserve.map((job) => [job.purchaseOrderId, job]));
-  const machineUse = new Map();
-  return getProductionPlanOpenOrders().map((order) => {
+  const jobs = getProductionPlanOpenOrders().map((order) => {
     const previous = preservedById.get(order.purchaseOrderId);
     const process = previous?.process || getProductionPlanProcess(order);
     const machines = PRODUCTION_MACHINE_OPTIONS[process] || [];
-    let machine = previous?.machine || "";
-    if (autoAssign && !machine && machines.length) {
-      machine = machines.reduce((best, candidate) => (
-        (machineUse.get(candidate) || 0) < (machineUse.get(best) || 0) ? candidate : best
-      ), machines[0]);
-    }
-    if (machine) machineUse.set(machine, (machineUse.get(machine) || 0) + 1);
+    const machine = machines.includes(previous?.machine) ? previous.machine : "";
     const balance = getProductionPlanBalance(order);
+    const orderQuantity = Math.max(0, Number(order?.totalOrderQuantity || previous?.orderQuantity || 0));
+    const cumulativeProduction = Math.max(
+      0,
+      Number(order?.accumulatedInboundQuantity || 0),
+      Number(order?.accumulatedShippingQuantity || 0)
+    );
     return {
       purchaseOrderId: order.purchaseOrderId,
       productId: order.productId || "",
@@ -2285,19 +2387,58 @@ function buildProductionPlanJobs({ autoAssign = false, preserve = [] } = {}) {
       productName: order.productName || "",
       process,
       machine,
-      targetQuantity: Number(previous?.targetQuantity) > 0 ? Number(previous.targetQuantity) : balance,
+      targetQuantity: Number(previous?.targetQuantity) >= 0 ? Number(previous.targetQuantity) : balance,
       balance,
       dueDate: order.endDate || "",
       worker: previous?.worker || "",
-      hours: Number(previous?.hours) > 0 ? Number(previous.hours) : Math.min(10, Math.max(1, Math.ceil((balance / 1000) * 2) / 2)),
-      note: previous?.note || order.note || ""
+      hours: Number(previous?.hours) > 0 ? Math.min(PRODUCTION_MAX_WORK_HOURS, Number(previous.hours)) : PRODUCTION_STANDARD_WORK_HOURS,
+      note: previous?.note || order.note || "",
+      orderQuantity,
+      workDays: Number(previous?.workDays) > 0
+        ? Number(previous.workDays)
+        : getProductionPlanWorkingDays(state.productionPlanDate, order.endDate),
+      loss: Math.max(0, Number(order?.accumulatedInboundQuantity || 0) - orderQuantity),
+      cumulativeProduction,
+      cumulativeHours: Math.max(0, Number(previous?.cumulativeHours || 0)),
+      actualProduction: Math.max(0, Number(previous?.actualProduction || 0))
     };
+  });
+  return autoAssign ? applyProductionPlanRules(jobs) : jobs;
+}
+
+function applyProductionPlanRules(jobs) {
+  const machineLoads = new Map();
+  return jobs.map((job) => {
+    const calculations = getProductionPlanCalculations(job);
+    const hours = getProductionPlanRecommendedHours(job, calculations);
+    const capacityTarget = calculations.hourlyRate > 0 ? Math.floor(calculations.hourlyRate * hours) : Number(job.targetQuantity || job.balance || 0);
+    job.hours = Math.min(PRODUCTION_MAX_WORK_HOURS, hours || PRODUCTION_STANDARD_WORK_HOURS);
+    job.targetQuantity = calculations.hourlyRate > 0
+      ? Math.round(Math.min(calculations.remaining, calculations.formulaTarget, capacityTarget))
+      : Math.min(Number(job.targetQuantity || 0), Number(job.balance || 0));
+
+    const machines = PRODUCTION_MACHINE_OPTIONS[job.process] || [];
+    const rankedMachines = [...machines].sort((left, right) => (machineLoads.get(left) || 0) - (machineLoads.get(right) || 0));
+    if (job.hours <= 0 || job.targetQuantity <= 0) {
+      job.machine = "";
+      return job;
+    }
+    const preferred = rankedMachines.find((machine) => (machineLoads.get(machine) || 0) + job.hours <= PRODUCTION_STANDARD_WORK_HOURS);
+    const overtime = !preferred && calculations.workDays <= 1
+      ? rankedMachines.find((machine) => (machineLoads.get(machine) || 0) + job.hours <= PRODUCTION_MAX_WORK_HOURS)
+      : "";
+    job.machine = preferred || overtime || "";
+    if (job.machine) machineLoads.set(job.machine, (machineLoads.get(job.machine) || 0) + job.hours);
+    return job;
   });
 }
 
 function loadProductionPlanDraft() {
   const savedJobs = readProductionPlanDraft();
   state.productionPlanJobs = savedJobs || buildProductionPlanJobs();
+  if (!state.productionPlanJobs.some((job) => job.purchaseOrderId === state.productionPlanSelectedJobId)) {
+    state.productionPlanSelectedJobId = state.productionPlanJobs[0]?.purchaseOrderId || "";
+  }
   renderProductionPlan();
   if (productionPlanStatus) {
     productionPlanStatus.textContent = savedJobs
@@ -2384,6 +2525,16 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
   job.targetQuantity = balance;
   job.balance = balance;
   job.dueDate = order.endDate || "";
+  job.orderQuantity = Math.max(0, Number(order.totalOrderQuantity || 0));
+  job.workDays = getProductionPlanWorkingDays(state.productionPlanDate, job.dueDate);
+  job.cumulativeProduction = Math.max(
+    0,
+    Number(order.accumulatedInboundQuantity || 0),
+    Number(order.accumulatedShippingQuantity || 0)
+  );
+  job.loss = Math.max(0, Number(order.accumulatedInboundQuantity || 0) - job.orderQuantity);
+  job.cumulativeHours = 0;
+  job.actualProduction = 0;
   return true;
 }
 
@@ -2412,11 +2563,11 @@ function renderProductionPlanTable() {
       <td class="production-plan-process" rowspan="${processCounts[job.process]}"><span>${escapeHtml(job.process)}</span></td>`;
     renderedProcesses.add(job.process);
     const urgent = isProductionPlanUrgent(job);
-    const hours = Array.from({ length: 20 }, (_, index) => (index + 1) / 2)
+    const hours = Array.from({ length: 21 }, (_, index) => index / 2)
       .map((value) => `<option value="${value}" ${Number(job.hours) === value ? "selected" : ""}>${value}시간</option>`)
       .join("");
     return `
-      <tr data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" data-due="${urgent ? "urgent" : "normal"}">
+      <tr class="${job.purchaseOrderId === state.productionPlanSelectedJobId ? "is-selected" : ""}" data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" data-due="${urgent ? "urgent" : "normal"}" tabindex="0" aria-label="${escapeAttribute(job.productName)} 생산 상세 열기">
         ${processCell}
         <td><select data-plan-field="machine" aria-label="${escapeAttribute(job.productName)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
         <td>${escapeHtml(job.clientName || "-")}</td>
@@ -2434,6 +2585,127 @@ function renderProductionPlanTable() {
         <td><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(job.productName)} 특이사항" /></td>
       </tr>`;
   }).join("");
+}
+
+function setProductionPlanDetailOpen(open) {
+  state.productionPlanDetailOpen = Boolean(open);
+  if (state.productionPlanDetailOpen && !state.productionPlanSelectedJobId) {
+    state.productionPlanSelectedJobId = getProductionPlanFilteredJobs()[0]?.purchaseOrderId || "";
+  }
+  productionPlanWorkspace?.classList.toggle("detail-open", state.productionPlanDetailOpen);
+  if (productionPlanDetailPanel) productionPlanDetailPanel.hidden = !state.productionPlanDetailOpen;
+  if (productionPlanDetailToggle) {
+    productionPlanDetailToggle.hidden = state.productionPlanDetailOpen;
+    productionPlanDetailToggle.setAttribute("aria-expanded", String(state.productionPlanDetailOpen));
+  }
+  renderProductionPlanTable();
+  renderProductionPlanDetail();
+}
+
+function selectProductionPlanJob(purchaseOrderId, { open = true } = {}) {
+  if (!state.productionPlanJobs.some((job) => job.purchaseOrderId === purchaseOrderId)) return;
+  state.productionPlanSelectedJobId = purchaseOrderId;
+  if (open) state.productionPlanDetailOpen = true;
+  productionPlanWorkspace?.classList.toggle("detail-open", state.productionPlanDetailOpen);
+  if (productionPlanDetailPanel) productionPlanDetailPanel.hidden = !state.productionPlanDetailOpen;
+  if (productionPlanDetailToggle) {
+    productionPlanDetailToggle.hidden = state.productionPlanDetailOpen;
+    productionPlanDetailToggle.setAttribute("aria-expanded", String(state.productionPlanDetailOpen));
+  }
+  productionPlanTableBody?.querySelectorAll("[data-plan-order-id]").forEach((row) => {
+    row.classList.toggle("is-selected", row.dataset.planOrderId === purchaseOrderId);
+  });
+  renderProductionPlanDetail();
+}
+
+function formatProductionPlanHours(value) {
+  const numeric = Number(value || 0);
+  if (!numeric) return "입력 필요";
+  const hours = Math.floor(numeric);
+  const minutes = Math.round((numeric - hours) * 60);
+  return `${hours ? `${hours}시간` : ""}${minutes ? ` ${minutes}분` : ""}`.trim();
+}
+
+function renderProductionPlanDetail() {
+  if (!productionPlanDetailBody) return;
+  const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === state.productionPlanSelectedJobId);
+  if (!job) {
+    productionPlanDetailBody.innerHTML = `<div class="production-plan-detail-empty">
+      <i class="ti ti-list-details" aria-hidden="true"></i>
+      <strong>작업을 선택해주세요.</strong>
+      <span>생산계획표의 행을 누르면 발주 연결값과 계산 결과를 확인할 수 있습니다.</span>
+    </div>`;
+    return;
+  }
+  const values = getProductionPlanCalculations(job);
+  const rateReady = values.hourlyRate > 0;
+  const achievementTone = values.achievementRate >= 100 ? "success" : values.achievementRate >= 80 ? "warning" : "";
+  productionPlanDetailBody.innerHTML = `
+    <section class="production-plan-detail-product">
+      <span>${escapeHtml(job.clientName || "거래처 미정")} · ${escapeHtml(job.process || "공정 미정")}</span>
+      <strong>${escapeHtml(job.productName || "제품 미정")}</strong>
+      <small>${escapeHtml(job.orderRound || job.purchaseOrderId || "발주 미정")} · ${escapeHtml(job.machine || "기계 미배정")}</small>
+    </section>
+    <section class="production-plan-policy">
+      <i class="ti ti-shield-check" aria-hidden="true"></i>
+      <div><strong>근무 원칙</strong><span>평일 8시간 우선 · 9시간 지양 · 최대 10시간 · 주말/공휴일 자동 배정 제외</span></div>
+    </section>
+    <section class="production-plan-detail-section">
+      <header><h3>발주 연결 정보</h3><span class="production-plan-source-badge">자동 불러오기</span></header>
+      <div class="production-plan-detail-grid system-values">
+        <article><span>발주량</span><strong>${formatNumber(values.orderQuantity)} <em>ea</em></strong></article>
+        <article><span>납기일</span><strong>${escapeHtml(job.dueDate || "미정")}</strong></article>
+        <article><span>누적 생산량</span><strong>${formatNumber(values.cumulativeProduction)} <em>ea</em></strong><small>누적 입고/출고 기준</small></article>
+        <article><span>LOSS</span><strong>${formatNumber(values.loss)} <em>ea</em></strong><small>발주 초과 입고분</small></article>
+      </div>
+    </section>
+    <section class="production-plan-detail-section manual-section">
+      <header><h3>현장 입력</h3><span class="production-plan-manual-badge">직접 입력</span></header>
+      <div class="production-plan-detail-grid manual-values">
+        <label><span>작업일</span><div><input data-plan-detail-field="workDays" data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" type="number" min="1" step="1" value="${values.workDays}" /><em>일</em></div><small>평일 기준 자동값, 필요 시 보정</small></label>
+        <label><span>누적 시간</span><div><input data-plan-detail-field="cumulativeHours" data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" type="number" min="0" step="0.5" value="${values.cumulativeHours || ""}" placeholder="0" /><em>시간</em></div><small>시간당 생산량 계산에 사용</small></label>
+        <label><span>실 생산량</span><div><input data-plan-detail-field="actualProduction" data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" type="number" min="0" step="1" value="${values.actualProduction || ""}" placeholder="0" /><em>ea</em></div><small>오늘 작업 완료 수량</small></label>
+      </div>
+    </section>
+    <section class="production-plan-detail-section formula-section">
+      <header><h3>자동 계산</h3><span class="production-plan-formula-badge">수식 적용</span></header>
+      <div class="production-plan-detail-grid formula-values">
+        <article><span>잔량</span><strong>${formatNumber(values.remaining)} <em>ea</em></strong></article>
+        <article><span>시간당 생산량</span><strong>${rateReady ? `${formatNumber(Math.round(values.hourlyRate))} <em>ea</em>` : "입력 필요"}</strong></article>
+        <article><span>일일 필수 생산량</span><strong>${formatNumber(Math.round(values.dailyRequired))} <em>ea</em></strong></article>
+        <article><span>오늘 권장 목표</span><strong>${rateReady ? `${formatNumber(Math.round(values.formulaTarget))} <em>ea</em>` : "입력 필요"}</strong></article>
+        <article><span>일일 목표 시간</span><strong>${formatProductionPlanHours(values.dailyTargetHours)}</strong></article>
+        <article><span>총 소요 시간(예상)</span><strong>${formatProductionPlanHours(values.totalExpectedHours)}</strong></article>
+        <article class="achievement ${achievementTone}"><span>달성률</span><strong>${Math.round(values.achievementRate).toLocaleString("ko-KR")} <em>%</em></strong></article>
+      </div>
+      <details class="production-plan-formula-guide">
+        <summary>적용 수식 보기</summary>
+        <p>잔량 = 발주량 - 누적 생산량 + LOSS</p>
+        <p>시간당 생산량 = 누적 생산량 ÷ 누적 시간</p>
+        <p>일일 필수 생산량 = 발주량 ÷ 작업일</p>
+        <p>목표 생산량 = 일일 필수 생산량 × 2 - 시간당 생산량 × 8</p>
+      </details>
+    </section>`;
+}
+
+function handleProductionPlanDetailChange(event) {
+  const field = event.target.closest("[data-plan-detail-field]");
+  if (!field) return;
+  const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === field.dataset.planOrderId);
+  if (!job) return;
+  job[field.dataset.planDetailField] = Math.max(0, Number(field.value || 0));
+  renderProductionPlanDetail();
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = "상세 입력값이 변경되었습니다. 계획 저장을 눌러 반영해주세요.";
+    productionPlanStatus.dataset.type = "";
+  }
+}
+
+function handleProductionPlanTableClick(event) {
+  const row = event.target.closest("[data-plan-order-id]");
+  if (!row) return;
+  selectProductionPlanJob(row.dataset.planOrderId, { open: true });
+  handleProductionPlanProductPickerOpen(event);
 }
 
 function renderProductionPlanSummary() {
@@ -2507,6 +2779,13 @@ function renderMachineScheduleBoard() {
 function renderProductionPlan() {
   renderProductionPlanSummary();
   renderProductionPlanTable();
+  productionPlanWorkspace?.classList.toggle("detail-open", state.productionPlanDetailOpen);
+  if (productionPlanDetailPanel) productionPlanDetailPanel.hidden = !state.productionPlanDetailOpen;
+  if (productionPlanDetailToggle) {
+    productionPlanDetailToggle.hidden = state.productionPlanDetailOpen;
+    productionPlanDetailToggle.setAttribute("aria-expanded", String(state.productionPlanDetailOpen));
+  }
+  renderProductionPlanDetail();
   if (state.productionPlanActiveTab === "board") renderMachineScheduleBoard();
   const caption = document.querySelector("#productionPlanTableCaption");
   if (caption) caption.textContent = `${state.productionPlanDate || "오늘"} · ${state.productionPlanFactory} · 발주 잔량과 납기일이 빠른 순서로 정리됩니다.`;
@@ -2555,6 +2834,7 @@ function selectProductionPlanProduct(product) {
   const selectedOrder = currentOrder || unusedOrder || matchingOrders[0];
   const swapped = replaceProductionPlanJobOrder(job, selectedOrder.purchaseOrderId);
   state.productionPlanPickerJobId = job.purchaseOrderId;
+  state.productionPlanSelectedJobId = job.purchaseOrderId;
   renderProductionPlan();
   if (productionPlanStatus) {
     productionPlanStatus.textContent = swapped
@@ -2582,12 +2862,24 @@ async function syncProductionPlanOrders() {
 async function generateProductionPlanDraft() {
   if (generateProductionPlanButton) generateProductionPlanButton.disabled = true;
   try {
+    if (isProductionPlanNonWorkingDate(state.productionPlanDate)) {
+      if (productionPlanStatus) {
+        productionPlanStatus.textContent = "선택한 날짜는 주말 또는 공휴일입니다. 자동 계획을 배정하지 않았으며 수동 입력은 가능합니다.";
+        productionPlanStatus.dataset.type = "";
+      }
+      showToast("비근무일에는 자동 생산계획을 만들지 않습니다.");
+      return;
+    }
     if (!state.purchaseOrdersLoaded) await loadPurchaseOrders();
     await ensureProductsLoaded();
-    state.productionPlanJobs = buildProductionPlanJobs({ autoAssign: true });
+    const currentJobs = state.productionPlanJobs.map((job) => ({ ...job }));
+    state.productionPlanJobs = buildProductionPlanJobs({ autoAssign: true, preserve: currentJobs });
     renderProductionPlan();
     if (productionPlanStatus) {
-      productionPlanStatus.textContent = "납기일과 잔량 기준으로 비용 없는 자동 계획 초안을 생성했습니다. 작업자와 시간을 확인한 뒤 저장해주세요.";
+      const overtimeCount = state.productionPlanJobs.filter((job) => Number(job.hours || 0) > PRODUCTION_STANDARD_WORK_HOURS).length;
+      productionPlanStatus.textContent = overtimeCount
+        ? `8시간 우선으로 자동 계획을 생성했습니다. 납기상 불가피한 ${formatNumber(overtimeCount)}건만 9~10시간으로 배정했습니다.`
+        : "평일 8시간 이내 원칙으로 자동 계획을 생성했습니다. 작업자와 상세 입력값을 확인한 뒤 저장해주세요.";
       productionPlanStatus.dataset.type = "success";
     }
     showToast("생산계획 초안을 생성했습니다.");

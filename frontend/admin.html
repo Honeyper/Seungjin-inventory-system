@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260910-production-plan-product-v3-prd" />
+    <link rel="stylesheet" href="./styles.css?v=20260910-production-plan-detail-v1-prd" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260909-qr-worker-hint-prd" />
   </head>
   <body class="admin-body">
@@ -325,6 +325,8 @@
               </article>
             </div>
 
+            <div class="production-plan-workspace" id="productionPlanWorkspace">
+              <div class="production-plan-main">
             <div class="production-plan-tabs" role="tablist" aria-label="생산계획 보기 방식">
               <button class="active" type="button" id="productionPlanTableTab" role="tab" aria-selected="true" aria-controls="productionPlanTablePanel">
                 <i class="ti ti-table" aria-hidden="true"></i>
@@ -389,6 +391,25 @@
               </div>
               <div class="machine-schedule-board" id="machineScheduleBoard"></div>
               <p class="production-plan-status" id="machineScheduleStatus" role="status"></p>
+            </div>
+              </div>
+
+              <button class="production-plan-detail-toggle" type="button" id="productionPlanDetailToggle" aria-expanded="false" aria-controls="productionPlanDetailPanel">
+                <i class="ti ti-layout-sidebar-right-expand" aria-hidden="true"></i>
+                <span>생산 상세</span>
+              </button>
+              <aside class="production-plan-detail-panel" id="productionPlanDetailPanel" aria-label="생산 상세 계산" hidden>
+                <header class="production-plan-detail-header">
+                  <div>
+                    <span>선택 작업</span>
+                    <h2>생산 상세</h2>
+                  </div>
+                  <button type="button" id="productionPlanDetailClose" aria-label="생산 상세 접기">
+                    <i class="ti ti-layout-sidebar-right-collapse" aria-hidden="true"></i>
+                  </button>
+                </header>
+                <div class="production-plan-detail-body" id="productionPlanDetailBody"></div>
+              </aside>
             </div>
           </section>
         </div>
@@ -3181,6 +3202,6 @@
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-prd"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-prd"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-prd"></script>
-    <script src="./admin.js?v=20260910-production-plan-product-v3-prd"></script>
+    <script src="./admin.js?v=20260910-production-plan-detail-v1-prd"></script>
   </body>
 </html>

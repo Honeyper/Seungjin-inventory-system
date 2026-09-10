@@ -8813,6 +8813,382 @@ input {
   font-style: normal;
 }
 
+.production-plan-workspace {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.production-plan-workspace.detail-open {
+  grid-template-columns: minmax(0, 1fr) 23rem;
+}
+
+.production-plan-main {
+  min-width: 0;
+}
+
+.production-plan-detail-toggle {
+  position: absolute;
+  z-index: 5;
+  top: 0.72rem;
+  right: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.35rem;
+  padding: 0 0.7rem;
+  border: 1px solid #d7e0eb;
+  border-radius: 0.45rem;
+  color: var(--navy);
+  background: #fff;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.production-plan-detail-toggle:hover,
+.production-plan-detail-toggle:focus-visible,
+.production-plan-detail-header button:hover,
+.production-plan-detail-header button:focus-visible {
+  border-color: var(--gold);
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(208, 161, 75, 0.14);
+}
+
+.production-plan-detail-toggle i {
+  color: var(--gold);
+  font-size: 1rem;
+}
+
+.production-plan-detail-panel {
+  min-width: 0;
+  max-height: calc(100vh - 13rem);
+  border-left: 1px solid #dfe6ef;
+  background: #f8fafc;
+  overflow-y: auto;
+}
+
+.production-plan-detail-panel[hidden] {
+  display: none;
+}
+
+.production-plan-detail-header {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #dfe6ef;
+  background: rgba(248, 250, 252, 0.96);
+  backdrop-filter: blur(8px);
+}
+
+.production-plan-detail-header span,
+.production-plan-detail-header h2 {
+  display: block;
+  margin: 0;
+}
+
+.production-plan-detail-header span {
+  color: #8592a5;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.production-plan-detail-header h2 {
+  margin-top: 0.08rem;
+  color: var(--navy-dark);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.production-plan-detail-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid #d7e0eb;
+  border-radius: 0.42rem;
+  color: var(--navy);
+  background: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.production-plan-detail-body {
+  padding: 0.8rem;
+}
+
+.production-plan-detail-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 22rem;
+  padding: 2rem 1rem;
+  color: #78869a;
+  text-align: center;
+}
+
+.production-plan-detail-empty i {
+  margin-bottom: 0.7rem;
+  color: var(--gold);
+  font-size: 2rem;
+}
+
+.production-plan-detail-empty strong {
+  color: var(--navy-dark);
+  font-size: 0.9rem;
+}
+
+.production-plan-detail-empty span {
+  max-width: 16rem;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.production-plan-detail-product,
+.production-plan-policy,
+.production-plan-detail-section {
+  border: 1px solid #dfe6ef;
+  border-radius: 0.55rem;
+  background: #fff;
+}
+
+.production-plan-detail-product {
+  padding: 0.85rem;
+}
+
+.production-plan-detail-product span,
+.production-plan-detail-product strong,
+.production-plan-detail-product small {
+  display: block;
+}
+
+.production-plan-detail-product span {
+  color: #9a6b17;
+  font-size: 0.66rem;
+  font-weight: 850;
+}
+
+.production-plan-detail-product strong {
+  margin-top: 0.25rem;
+  color: var(--navy-dark);
+  font-size: 0.88rem;
+  line-height: 1.38;
+}
+
+.production-plan-detail-product small {
+  margin-top: 0.35rem;
+  color: #7b899c;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.production-plan-policy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+  padding: 0.7rem 0.75rem;
+  border-color: #d8c18c;
+  background: #fffaf0;
+}
+
+.production-plan-policy i {
+  color: #ae7610;
+  font-size: 1rem;
+}
+
+.production-plan-policy strong,
+.production-plan-policy span {
+  display: block;
+}
+
+.production-plan-policy strong {
+  color: #7f5a14;
+  font-size: 0.72rem;
+}
+
+.production-plan-policy span {
+  margin-top: 0.18rem;
+  color: #8b7449;
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.production-plan-detail-section {
+  margin-top: 0.65rem;
+  padding: 0.75rem;
+}
+
+.production-plan-detail-section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-bottom: 0.6rem;
+}
+
+.production-plan-detail-section h3 {
+  margin: 0;
+  color: var(--navy-dark);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.production-plan-source-badge,
+.production-plan-manual-badge,
+.production-plan-formula-badge {
+  padding: 0.2rem 0.42rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 850;
+}
+
+.production-plan-source-badge {
+  color: #315f97;
+  background: #edf4fc;
+}
+
+.production-plan-manual-badge {
+  color: #8b6217;
+  background: #fff3cf;
+}
+
+.production-plan-formula-badge {
+  color: #52647b;
+  background: #eef1f5;
+}
+
+.production-plan-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.production-plan-detail-grid article,
+.production-plan-detail-grid label {
+  min-width: 0;
+  padding: 0.58rem 0.62rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.42rem;
+}
+
+.system-values article {
+  background: #f5f8fc;
+}
+
+.manual-values label {
+  background: #fff9e9;
+}
+
+.formula-values article {
+  background: #fff;
+}
+
+.production-plan-detail-grid span,
+.production-plan-detail-grid strong,
+.production-plan-detail-grid small {
+  display: block;
+}
+
+.production-plan-detail-grid span {
+  color: #758398;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.production-plan-detail-grid strong {
+  margin-top: 0.25rem;
+  color: var(--navy-dark);
+  font-size: 0.78rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.production-plan-detail-grid em {
+  color: #7f8da0;
+  font-size: 0.6rem;
+  font-style: normal;
+}
+
+.production-plan-detail-grid small {
+  margin-top: 0.2rem;
+  color: #929daf;
+  font-size: 0.57rem;
+  line-height: 1.35;
+}
+
+.manual-values label > div {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+}
+
+.manual-values input {
+  width: 100%;
+  min-width: 0;
+  height: 2rem;
+  padding: 0 0.45rem;
+  border: 1px solid #dec27e;
+  border-radius: 0.35rem;
+  outline: 0;
+  color: var(--navy-dark);
+  background: #fffdf6;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-align: right;
+}
+
+.manual-values input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(208, 161, 75, 0.14);
+}
+
+.formula-values .achievement {
+  grid-column: 1 / -1;
+}
+
+.formula-values .achievement.warning strong {
+  color: #a76800;
+}
+
+.formula-values .achievement.success strong {
+  color: #13845b;
+}
+
+.production-plan-formula-guide {
+  margin-top: 0.55rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 0.4rem;
+  color: #64748b;
+  background: #f7f9fc;
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+.production-plan-formula-guide summary {
+  color: #53647a;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.production-plan-formula-guide p {
+  margin: 0.35rem 0 0;
+  line-height: 1.4;
+}
+
 .production-plan-tabs {
   gap: 0.25rem;
   padding: 0.75rem 1.15rem 0;
@@ -8946,6 +9322,15 @@ input {
 
 .production-plan-table tr[data-due="urgent"] td {
   background: #fffdf7;
+}
+
+.production-plan-table tr.is-selected td {
+  background: #f2f6fc;
+  box-shadow: inset 0 1px 0 #b7cbe5, inset 0 -1px 0 #b7cbe5;
+}
+
+.production-plan-table tr.is-selected td:first-child {
+  box-shadow: inset 0.22rem 0 0 var(--gold), inset 0 1px 0 #b7cbe5, inset 0 -1px 0 #b7cbe5;
 }
 
 .production-plan-table .production-plan-process {
@@ -9276,6 +9661,22 @@ input {
 
   .production-plan-summary article:nth-child(n + 3) {
     border-top: 1px solid #e4eaf2;
+  }
+
+  .production-plan-workspace.detail-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .production-plan-detail-panel {
+    position: fixed;
+    z-index: 90;
+    top: 4.5rem;
+    right: 0;
+    bottom: 0;
+    width: min(23rem, calc(100vw - 1rem));
+    max-height: none;
+    border-top: 1px solid #dfe6ef;
+    box-shadow: -1rem 0 2.5rem rgba(8, 42, 98, 0.18);
   }
 }
 
