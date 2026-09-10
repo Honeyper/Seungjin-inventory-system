@@ -2973,7 +2973,10 @@ function updatePurchaseOrder(payload) {
     ))) {
       throw new Error(`${data.productName}의 ${data.orderRound} 발주가 이미 등록되어 있습니다.`);
     }
-    if (data.totalOrderQuantity < current.accumulatedInboundQuantity) {
+    if (
+      data.totalOrderQuantity < current.totalOrderQuantity
+      && data.totalOrderQuantity < current.accumulatedInboundQuantity
+    ) {
       throw new Error('총 발주량은 현재 누적 입고량보다 작게 변경할 수 없습니다.');
     }
 

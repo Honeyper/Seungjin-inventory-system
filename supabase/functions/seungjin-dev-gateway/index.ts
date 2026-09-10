@@ -26,6 +26,10 @@ const CLIENT_SAFE_ERROR_MESSAGES = new Map([
   [
     INBOUND_BOX_CONFIGURATION_CONFLICT,
     INBOUND_BOX_CONFIGURATION_CONFLICT
+  ],
+  [
+    "총 발주량은 현재 누적 입고량보다 작게 변경할 수 없습니다.",
+    "총 발주량을 줄이려면 누적 입고량 이상으로 입력해주세요. 발주명과 다른 정보는 그대로 수정할 수 있습니다."
   ]
 ]);
 

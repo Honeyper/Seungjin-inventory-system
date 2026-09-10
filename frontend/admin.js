@@ -6749,11 +6749,14 @@ function closePurchaseOrderModal() {
 
 function getPurchaseOrderPayload() {
   const product = getProductByCode(purchaseOrderProduct.value);
+  const currentOrder = state.purchaseOrderFormMode === "edit"
+    ? getPurchaseOrderById(state.editingPurchaseOrderId)
+    : null;
   return {
     purchaseOrderId: purchaseOrderId.value.trim(),
-    productId: product?.productCode || purchaseOrderProductId.value.trim(),
-    clientName: product?.clientName || purchaseOrderClient.value.trim(),
-    productName: product?.productName || "",
+    productId: product?.productCode || purchaseOrderProductId.value.trim() || currentOrder?.productId || "",
+    clientName: product?.clientName || purchaseOrderClient.value.trim() || currentOrder?.clientName || "",
+    productName: product?.productName || purchaseOrderProductName.value.trim() || currentOrder?.productName || "",
     orderRound: purchaseOrderRound.value.trim(),
     startDate: purchaseOrderStartDate.value,
     endDate: purchaseOrderEndDate.value,

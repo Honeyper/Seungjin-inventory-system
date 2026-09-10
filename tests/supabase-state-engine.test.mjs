@@ -237,6 +237,55 @@ test("같은 제품과 발주 차수는 중복 등록하지 않는다", () => {
   );
 });
 
+test("초과 입고된 발주는 발주량을 줄이지 않으면 발주명 등 다른 정보를 수정할 수 있다", () => {
+  const holder = {
+    state: {
+      products: [],
+      orders: [{
+        purchaseOrderId: "PO-260901-KHE-0013-001",
+        productId: "KHE-0013",
+        clientName: "(주)금호ENG",
+        productName: "리켓레디 라스트 픽싱파우더 용기",
+        orderRound: "09/01 발주",
+        startDate: "2026-09-01",
+        endDate: "",
+        totalOrderQuantity: 10300,
+        accumulatedInboundQuantity: 11000
+      }],
+      inbounds: [],
+      records: [],
+      boxes: []
+    }
+  };
+
+  mutate(holder, "updatePurchaseOrder", {
+    purchaseOrderId: "PO-260901-KHE-0013-001",
+    productId: "KHE-0013",
+    clientName: "(주)금호ENG",
+    productName: "리켓레디 라스트 픽싱파우더 용기",
+    orderRound: "09/01 추가발주",
+    startDate: "2026-09-01",
+    endDate: "",
+    totalOrderQuantity: 10300
+  });
+
+  assert.equal(holder.state.orders[0].orderRound, "09/01 추가발주");
+  assert.equal(holder.state.orders[0].accumulatedInboundQuantity, 11000);
+  assert.throws(
+    () => mutate(holder, "updatePurchaseOrder", {
+      purchaseOrderId: "PO-260901-KHE-0013-001",
+      productId: "KHE-0013",
+      clientName: "(주)금호ENG",
+      productName: "리켓레디 라스트 픽싱파우더 용기",
+      orderRound: "09/01 추가발주",
+      startDate: "2026-09-01",
+      endDate: "",
+      totalOrderQuantity: 10299
+    }),
+    /총 발주량은 현재 누적 입고량보다 작게 변경할 수 없습니다/
+  );
+});
+
 test("발주량을 달성하거나 초과한 발주에도 추가 입고를 연결할 수 있다", () => {
   const purchaseOrderId = "PO-260908-ION-0001-001";
   const holder = {

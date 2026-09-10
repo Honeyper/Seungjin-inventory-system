@@ -35,5 +35,5 @@ test("재고 상세는 박스별 확인 상태를 나누고 미확인 박스를 
 
 test("새 박스 상태 필드를 받도록 이전 재고 캐시를 무효화한다", () => {
   assert.match(adminSource, /seungjinAdminCache:v3/);
-  assert.match(adminHtml, /admin\.js\?v=20260909-(?:work-complete-status|inbound-invoice-order-name|qr-work-columns|inventory-detail-images|qr-work-date-subcolumns)-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=20260910-inbound-upload-order-edit-(?:dev|prd)/);
 });

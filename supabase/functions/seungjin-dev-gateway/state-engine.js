@@ -447,7 +447,9 @@ function createOrUpdatePurchaseOrder(action, payload, state, changes, now) {
   const endDate = text(payload.endDate ?? current?.endDate);
   if (!productId || !text(payload.clientName || current?.clientName) || !text(payload.productName || current?.productName) || !startDate || total <= 0) throw new Error("발주 필수값을 확인해주세요.");
   if (endDate && startDate > endDate) throw new Error("납기일은 발주 시작일보다 빠를 수 없습니다.");
-  if (current && total < number(current.accumulatedInboundQuantity)) throw new Error("총 발주량은 현재 누적 입고량보다 작게 변경할 수 없습니다.");
+  const currentTotal = integer(current?.totalOrderQuantity);
+  const accumulatedInbound = number(current?.accumulatedInboundQuantity);
+  if (current && total < currentTotal && total < accumulatedInbound) throw new Error("총 발주량은 현재 누적 입고량보다 작게 변경할 수 없습니다.");
   const orderRound = text(payload.orderRound ?? current?.orderRound);
   if (orderRound && state.orders.some((item) => item !== current && text(item.productId) === productId && text(item.orderRound) === orderRound)) throw new Error("동일 제품과 발주 차수가 이미 등록되어 있습니다.");
   const parts = dateParts(now);
@@ -462,9 +464,9 @@ function createOrUpdatePurchaseOrder(action, payload, state, changes, now) {
     startDate,
     endDate,
     totalOrderQuantity: total,
-    accumulatedInboundQuantity: number(current?.accumulatedInboundQuantity),
-    remainingQuantity: Math.max(total - number(current?.accumulatedInboundQuantity), 0),
-    inboundRate: total > 0 ? number(current?.accumulatedInboundQuantity) / total : 0,
+    accumulatedInboundQuantity: accumulatedInbound,
+    remainingQuantity: Math.max(total - accumulatedInbound, 0),
+    inboundRate: total > 0 ? accumulatedInbound / total : 0,
     status: text(payload.status) === "취소" ? "취소" : "진행 중",
     storedStatus: text(payload.status) === "취소" ? "취소" : "진행 중",
     note: text(payload.note ?? current?.note),
