@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260909-shipping-totals-align-prd" />
+    <link rel="stylesheet" href="./mobile.css?v=20260910-product-image-swipe-prd" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
@@ -520,14 +520,8 @@
               <i class="ti ti-x" aria-hidden="true"></i>
             </button>
           </header>
-          <div class="product-image-lightbox-stage">
-            <button class="product-image-lightbox-nav previous" id="previousProductImageModalButton" type="button" aria-label="이전 제품 이미지">
-              <i class="ti ti-chevron-left" aria-hidden="true"></i>
-            </button>
+          <div class="product-image-lightbox-stage" id="productImageModalStage">
             <img id="productImageModalImage" alt="" />
-            <button class="product-image-lightbox-nav next" id="nextProductImageModalButton" type="button" aria-label="다음 제품 이미지">
-              <i class="ti ti-chevron-right" aria-hidden="true"></i>
-            </button>
           </div>
           <footer class="product-image-lightbox-footer">
             <strong id="productImageModalCounter">1 / 1</strong>
@@ -662,6 +656,6 @@
     <script src="../config.js"></script>
     <script src="../supabase-gateway.js?v=20260906-inventory-performance"></script>
     <script src="../qr-payload.js?v=20260904-box-checksum-prd"></script>
-    <script src="./mobile.js?v=20260909-shipping-refresh-race-prd"></script>
+    <script src="./mobile.js?v=20260910-product-image-swipe-prd"></script>
   </body>
 </html>
