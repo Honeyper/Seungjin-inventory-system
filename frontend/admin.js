@@ -2670,13 +2670,13 @@ function renderProductionPlanDetail() {
     <section class="production-plan-detail-section formula-section">
       <header><h3>자동 계산</h3><span class="production-plan-formula-badge">수식 적용</span></header>
       <div class="production-plan-detail-grid formula-values">
-        <article><span>잔량</span><strong>${formatNumber(values.remaining)} <em>ea</em></strong></article>
-        <article><span>시간당 생산량</span><strong>${rateReady ? `${formatNumber(Math.round(values.hourlyRate))} <em>ea</em>` : "입력 필요"}</strong></article>
-        <article><span>일일 필수 생산량</span><strong>${formatNumber(Math.round(values.dailyRequired))} <em>ea</em></strong></article>
-        <article><span>오늘 권장 목표</span><strong>${rateReady ? `${formatNumber(Math.round(values.formulaTarget))} <em>ea</em>` : "입력 필요"}</strong></article>
-        <article><span>일일 목표 시간</span><strong>${formatProductionPlanHours(values.dailyTargetHours)}</strong></article>
-        <article><span>총 소요 시간(예상)</span><strong>${formatProductionPlanHours(values.totalExpectedHours)}</strong></article>
-        <article class="achievement ${achievementTone}"><span>달성률</span><strong>${Math.round(values.achievementRate).toLocaleString("ko-KR")} <em>%</em></strong></article>
+        <article><span>잔량</span><strong data-plan-calculation="remaining">${formatNumber(values.remaining)} <em>ea</em></strong></article>
+        <article><span>시간당 생산량</span><strong data-plan-calculation="hourlyRate">${rateReady ? `${formatNumber(Math.round(values.hourlyRate))} <em>ea</em>` : "입력 필요"}</strong></article>
+        <article><span>일일 필수 생산량</span><strong data-plan-calculation="dailyRequired">${formatNumber(Math.round(values.dailyRequired))} <em>ea</em></strong></article>
+        <article><span>오늘 권장 목표</span><strong data-plan-calculation="formulaTarget">${rateReady ? `${formatNumber(Math.round(values.formulaTarget))} <em>ea</em>` : "입력 필요"}</strong></article>
+        <article><span>일일 목표 시간</span><strong data-plan-calculation="dailyTargetHours">${formatProductionPlanHours(values.dailyTargetHours)}</strong></article>
+        <article><span>총 소요 시간(예상)</span><strong data-plan-calculation="totalExpectedHours">${formatProductionPlanHours(values.totalExpectedHours)}</strong></article>
+        <article class="achievement ${achievementTone}" data-plan-achievement><span>달성률</span><strong data-plan-calculation="achievementRate">${Math.round(values.achievementRate).toLocaleString("ko-KR")} <em>%</em></strong></article>
       </div>
       <details class="production-plan-formula-guide">
         <summary>적용 수식 보기</summary>
@@ -2688,13 +2688,35 @@ function renderProductionPlanDetail() {
     </section>`;
 }
 
+function updateProductionPlanDetailCalculations(job) {
+  if (!productionPlanDetailBody || !job) return;
+  const values = getProductionPlanCalculations(job);
+  const rateReady = values.hourlyRate > 0;
+  const markup = {
+    remaining: `${formatNumber(values.remaining)} <em>ea</em>`,
+    hourlyRate: rateReady ? `${formatNumber(Math.round(values.hourlyRate))} <em>ea</em>` : "입력 필요",
+    dailyRequired: `${formatNumber(Math.round(values.dailyRequired))} <em>ea</em>`,
+    formulaTarget: rateReady ? `${formatNumber(Math.round(values.formulaTarget))} <em>ea</em>` : "입력 필요",
+    dailyTargetHours: formatProductionPlanHours(values.dailyTargetHours),
+    totalExpectedHours: formatProductionPlanHours(values.totalExpectedHours),
+    achievementRate: `${Math.round(values.achievementRate).toLocaleString("ko-KR")} <em>%</em>`
+  };
+  Object.entries(markup).forEach(([key, value]) => {
+    const target = productionPlanDetailBody.querySelector(`[data-plan-calculation="${key}"]`);
+    if (target) target.innerHTML = value;
+  });
+  const achievement = productionPlanDetailBody.querySelector("[data-plan-achievement]");
+  achievement?.classList.toggle("success", values.achievementRate >= 100);
+  achievement?.classList.toggle("warning", values.achievementRate >= 80 && values.achievementRate < 100);
+}
+
 function handleProductionPlanDetailChange(event) {
   const field = event.target.closest("[data-plan-detail-field]");
   if (!field) return;
   const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === field.dataset.planOrderId);
   if (!job) return;
   job[field.dataset.planDetailField] = Math.max(0, Number(field.value || 0));
-  renderProductionPlanDetail();
+  updateProductionPlanDetailCalculations(job);
   if (productionPlanStatus) {
     productionPlanStatus.textContent = "상세 입력값이 변경되었습니다. 계획 저장을 눌러 반영해주세요.";
     productionPlanStatus.dataset.type = "";
