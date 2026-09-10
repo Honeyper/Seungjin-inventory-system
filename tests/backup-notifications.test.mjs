@@ -84,12 +84,24 @@ test("관리자 알림 버튼은 백업 결과 API, 읽음 표시, 실패 상세
   assert.match(adminHtml, /id="backupNotificationButton"/);
   assert.match(adminHtml, /id="backupNotificationBadge"/);
   assert.match(adminHtml, /id="backupNotificationPanel"/);
-  assert.match(adminHtml, /styles\.css\?v=20260910-invoice-preview-clear-(?:dev|prd)/);
+  assert.match(adminHtml, /styles\.css\?v=20260910-(?:invoice-preview-clear|update-history)-(?:dev|prd)/);
   assert.match(gatewaySource, /"getSheetBackupNotifications"/);
   assert.match(adminSource, /requestApi\("getSheetBackupNotifications"\)/);
   assert.match(adminSource, /BACKUP_NOTIFICATION_READ_KEY/);
   assert.match(adminSource, /실패·미반영 항목/);
   assert.match(adminSource, /BACKUP_NOTIFICATION_POLL_MS = 60 \* 1000/);
+});
+
+test("관리자 알림 패널은 백업 알림과 날짜별 업데이트 내역을 탭으로 제공한다", () => {
+  assert.match(adminHtml, /id="backupNotificationsTab"/);
+  assert.match(adminHtml, /id="updateHistoryTab"/);
+  assert.match(adminHtml, /id="backupNotificationsTabPanel"/);
+  assert.match(adminHtml, /id="updateHistoryTabPanel"/);
+  assert.match(adminSource, /const SYSTEM_UPDATE_HISTORY = \[/);
+  assert.match(adminSource, /date: "2026-09-10"/);
+  assert.match(adminSource, /date: "2026-09-02"/);
+  assert.match(adminSource, /function setBackupNotificationTab\(tabName\)/);
+  assert.match(adminSource, /renderSystemUpdateHistory\(\)/);
 });
 
 test("백업 알림 기본 조회는 대용량 첨부 payload를 읽지 않고 미반영 항목만 상세 조회한다", () => {
