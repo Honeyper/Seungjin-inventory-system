@@ -96,5 +96,5 @@ test("발주 시작일과 납기일은 분리 입력과 기존 달력 선택을 
 test("날짜의 연월일 입력칸은 두 자리 숫자가 잘리지 않도록 고정 열로 배치한다", () => {
   assert.match(stylesSource, /\.purchase-order-form \.segmented-date-fields\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*4\.25rem 0\.45rem 2\.6rem 0\.45rem 2\.6rem 0\.45rem;/);
   assert.match(stylesSource, /\.purchase-order-form \.form-field \.segmented-date-part\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;/);
-  assert.match(adminHtml, /styles\.css\?v=20260910-(?:invoice-preview-clear|update-history|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234])-(?:dev|prd)/);
+  assert.match(adminHtml, /styles\.css\?v=(?:20260911-production-plan-width-v1|20260910-(?:invoice-preview-clear|update-history|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
 });

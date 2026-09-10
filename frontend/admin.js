@@ -73,6 +73,14 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 ]);
 const SYSTEM_UPDATE_HISTORY = [
   {
+    date: "2026-09-11",
+    title: "생산계획 표 크기 고정",
+    items: [
+      "작업 선택과 생산 상세 열기·닫기 시 표의 열 너비와 행 높이가 변하지 않도록 수정했습니다.",
+      "상세 패널을 열었을 때 오른쪽 열은 표 안에서 가로 스크롤로 확인할 수 있습니다."
+    ]
+  },
+  {
     date: "2026-09-10",
     title: "입고 첨부와 조회 안정화",
     items: [
