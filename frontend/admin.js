@@ -68,7 +68,8 @@ const SYSTEM_UPDATE_HISTORY = [
       "모바일 제품 이미지는 화살표 대신 손가락으로 자연스럽게 넘길 수 있도록 개선했습니다.",
       "출고 결산의 조회기간별 출고대기·출고완료 집계가 목록과 일치하도록 수정했습니다.",
       "알림과 업데이트 내역의 카드 내용이 잘리지 않도록 내부 세로 스크롤을 적용했습니다.",
-      "생산계획에 일일 계획표와 기계별 스케줄 보드를 추가하고 발주 잔량·납기 기준 자동 계획 생성을 연결했습니다."
+      "생산계획에 일일 계획표와 기계별 스케줄 보드를 추가하고 발주 잔량·납기 기준 자동 계획 생성을 연결했습니다.",
+      "생산계획표에서 발주 제품을 변경하면 거래처·공정·잔량·납기일이 함께 갱신되도록 개선했습니다."
     ]
   },
   {
@@ -2209,6 +2210,39 @@ function getProductionPlanMachineOptions(job) {
   ].join("");
 }
 
+function getProductionPlanOrderOptions(job) {
+  const openOrders = getProductionPlanOpenOrders();
+  const currentOrder = state.purchaseOrders.find((order) => order.purchaseOrderId === job.purchaseOrderId);
+  const orders = currentOrder && !openOrders.some((order) => order.purchaseOrderId === currentOrder.purchaseOrderId)
+    ? [currentOrder, ...openOrders]
+    : openOrders;
+  return orders.map((order) => {
+    const label = [order.productName || "제품명 미등록", order.clientName || "거래처 미등록", order.orderRound || order.productId]
+      .filter(Boolean)
+      .join(" · ");
+    return `<option value="${escapeAttribute(order.purchaseOrderId)}" ${order.purchaseOrderId === job.purchaseOrderId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+}
+
+function changeProductionPlanOrder(job, purchaseOrderId) {
+  const order = state.purchaseOrders.find((item) => item.purchaseOrderId === purchaseOrderId);
+  if (!order) return false;
+  const process = getProductionPlanProcess(order);
+  const balance = getProductionPlanBalance(order);
+  const machineOptions = PRODUCTION_MACHINE_OPTIONS[process] || [];
+  job.purchaseOrderId = order.purchaseOrderId;
+  job.productId = order.productId || "";
+  job.orderRound = order.orderRound || "";
+  job.clientName = order.clientName || "";
+  job.productName = order.productName || "";
+  job.process = process;
+  job.machine = machineOptions.includes(job.machine) ? job.machine : "";
+  job.targetQuantity = balance;
+  job.balance = balance;
+  job.dueDate = order.endDate || "";
+  return true;
+}
+
 function renderProductionPlanTable() {
   if (!productionPlanTableBody) return;
   const jobs = getProductionPlanFilteredJobs();
@@ -2234,7 +2268,10 @@ function renderProductionPlanTable() {
         ${processCell}
         <td><select data-plan-field="machine" aria-label="${escapeAttribute(job.productName)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
         <td>${escapeHtml(job.clientName || "-")}</td>
-        <td class="production-plan-product"><strong>${escapeHtml(job.productName || "-")}</strong><small>${escapeHtml(job.orderRound || job.productId || "-")}</small></td>
+        <td class="production-plan-product">
+          <select class="production-plan-product-select" data-plan-field="purchaseOrderId" aria-label="생산 제품 변경">${getProductionPlanOrderOptions(job)}</select>
+          <small>${escapeHtml(job.orderRound || job.productId || "-")}</small>
+        </td>
         <td><input data-plan-field="targetQuantity" type="number" min="0" step="1" value="${Number(job.targetQuantity || 0)}" aria-label="${escapeAttribute(job.productName)} 목표 생산량" /></td>
         <td class="production-plan-balance">${formatNumber(job.balance)} ea</td>
         <td><span class="production-plan-due ${urgent ? "urgent" : ""}">${urgent ? '<i class="ti ti-clock-exclamation" aria-hidden="true"></i>' : ""}${escapeHtml(job.dueDate || "미정")}</span></td>
@@ -2328,6 +2365,20 @@ function handleProductionPlanFieldChange(event) {
   const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === row.dataset.planOrderId);
   if (!job) return;
   const key = field.dataset.planField;
+  if (key === "purchaseOrderId") {
+    const previousPurchaseOrderId = job.purchaseOrderId;
+    const swappedJob = state.productionPlanJobs.find((item) => item !== job && item.purchaseOrderId === field.value);
+    if (!changeProductionPlanOrder(job, field.value)) return;
+    if (swappedJob) changeProductionPlanOrder(swappedJob, previousPurchaseOrderId);
+    renderProductionPlan();
+    if (productionPlanStatus) {
+      productionPlanStatus.textContent = swappedJob
+        ? "두 작업의 제품 순서를 바꾸고 연결된 발주 정보를 함께 갱신했습니다. 계획 저장을 눌러 반영해주세요."
+        : "제품과 연결된 거래처·잔량·납기일·공정을 변경했습니다. 계획 저장을 눌러 반영해주세요.";
+      productionPlanStatus.dataset.type = "";
+    }
+    return;
+  }
   job[key] = ["targetQuantity", "hours"].includes(key) ? Number(field.value || 0) : field.value;
   renderProductionPlanSummary();
   if (productionPlanStatus) {

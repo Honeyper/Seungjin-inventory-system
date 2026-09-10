@@ -8731,6 +8731,12 @@ input {
   display: block;
 }
 
+.production-plan-product-select {
+  min-height: 2.3rem;
+  color: var(--navy-dark);
+  font-weight: 800;
+}
+
 .production-plan-product strong {
   color: var(--navy-dark);
   line-height: 1.35;
