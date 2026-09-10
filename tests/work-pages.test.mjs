@@ -103,3 +103,14 @@ test("생산계획의 핵심 동작은 실제 발주 동기화, 자동 초안, �
   assert.match(source, /localStorage\.setItem\(getProductionPlanStorageKey\(\)/);
   assert.match(source, /function renderMachineScheduleBoard\(\)/);
 });
+
+test("생산계획 제품 변경 시 연결된 발주 정보도 함께 갱신한다", () => {
+  assert.match(source, /data-plan-field="purchaseOrderId"/);
+  assert.match(source, /function getProductionPlanOrderOptions\(job\)/);
+  assert.match(source, /function changeProductionPlanOrder\(job, purchaseOrderId\)/);
+  assert.match(source, /job\.clientName = order\.clientName/);
+  assert.match(source, /job\.balance = balance/);
+  assert.match(source, /job\.dueDate = order\.endDate/);
+  assert.match(source, /const swappedJob = state\.productionPlanJobs\.find/);
+  assert.match(source, /changeProductionPlanOrder\(swappedJob, previousPurchaseOrderId\)/);
+});
