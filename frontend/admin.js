@@ -1285,13 +1285,13 @@ transferReturnSelectAll?.addEventListener("change", () => {
 transferReturnBoxList?.addEventListener("change", syncTransferReturnBoxState);
 shippingSettlementStartDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("start");
-  updateShippingSummaryCards(getShippingSettlementItems());
+  updateShippingSummaryCards(getShippingSettlementBoxItems());
   updateShippingSettlementSummary();
   refreshShippingListForSettlementPeriod();
 });
 shippingSettlementEndDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("end");
-  updateShippingSummaryCards(getShippingSettlementItems());
+  updateShippingSummaryCards(getShippingSettlementBoxItems());
   updateShippingSettlementSummary();
   refreshShippingListForSettlementPeriod();
 });
@@ -1303,7 +1303,7 @@ shippingSettlementTodayButton?.addEventListener("click", () => {
   if (shippingSettlementEndDate) {
     shippingSettlementEndDate.value = today;
   }
-  updateShippingSummaryCards(getShippingSettlementItems());
+  updateShippingSummaryCards(getShippingSettlementBoxItems());
   updateShippingSettlementSummary();
   refreshShippingListForSettlementPeriod();
 });
@@ -4366,7 +4366,7 @@ function renderShippingTable(message = "") {
         <td colspan="16" class="empty-cell">${escapeHtml(message || "출고 목록이 없습니다.")}</td>
       </tr>
     `;
-    updateShippingSummaryCards(getShippingSettlementItems());
+    updateShippingSummaryCards(getShippingSettlementBoxItems());
     updateShippingSettlementSummary();
     if (shippingCountLabel) {
       shippingCountLabel.textContent = "전체 0건";
@@ -4439,7 +4439,7 @@ function renderShippingTable(message = "") {
     `;
   }).join("");
 
-  updateShippingSummaryCards(getShippingSettlementItems());
+  updateShippingSummaryCards(getShippingSettlementBoxItems());
   updateShippingSettlementSummary();
 
   if (shippingCountLabel) {
@@ -5072,17 +5072,38 @@ function buildShippingDetailItemFromRow(row, item = {}) {
   };
 }
 
-function updateShippingSummaryCards(rows) {
+function getShippingSettlementStatusCounts(boxItems) {
+  const statusKeys = {
+    "출고대기": new Set(),
+    "보류": new Set(),
+    "출고완료": new Set()
+  };
+
+  boxItems.forEach((item, index) => {
+    const status = normalizeInventoryStockStatus(item.status);
+    const keys = statusKeys[status];
+    if (!keys) {
+      return;
+    }
+    const itemKey = String(item.managementId || "").trim()
+      || `${status}|${item.date || ""}|${index}`;
+    keys.add(itemKey);
+  });
+
+  return [
+    statusKeys["출고대기"].size,
+    statusKeys["보류"].size,
+    statusKeys["출고완료"].size
+  ];
+}
+
+function updateShippingSummaryCards(boxItems) {
   if (!shippingSummaryCards.length) {
     return;
   }
 
-  const settlementRows = Array.isArray(rows) ? rows : getShippingSettlementItems();
-  const counts = [
-    settlementRows.filter(hasPendingShippingBoxes).length,
-    settlementRows.filter((item) => getEffectiveShippingStatus(item) === "보류").length,
-    settlementRows.filter((item) => getEffectiveShippingStatus(item) === "출고완료").length
-  ];
+  const settlementBoxItems = Array.isArray(boxItems) ? boxItems : getShippingSettlementBoxItems();
+  const counts = getShippingSettlementStatusCounts(settlementBoxItems);
 
   shippingSummaryCards.forEach((card, index) => {
     const strong = card.querySelector("strong");

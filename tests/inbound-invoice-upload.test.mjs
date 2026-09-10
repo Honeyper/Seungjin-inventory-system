@@ -14,7 +14,7 @@ test("거래명세서는 입고 저장 전에 Google Drive에 즉시 업로드�
   assert.match(gasSource, /function uploadInboundInvoice\(payload\)/);
   assert.match(gasSource, /return \{ invoiceFileUrl \}/);
   assert.match(gasSource, /uploadInboundInvoice_\(payload,[\s\S]*?\) \|\| String\(payload\.invoiceFileUrl \|\| ''\)\.trim\(\)/);
-  assert.match(adminHtml, /admin\.js\?v=20260910-inbound-invoice-speed-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=20260910-shipping-period-status-(?:dev|prd)/);
 });
 
 test("거래명세서 원본은 문서 가독성을 유지하는 크기로 줄여 전송한다", () => {
