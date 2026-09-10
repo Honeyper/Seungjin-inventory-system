@@ -81,3 +81,25 @@ test("부모 메뉴를 펼치거나 접어도 현재 페이지는 변경하지 �
   assert.equal(context.workSubmenu.hidden, false);
   assert.equal(context.workMenuButton["aria-expanded"], "true");
 });
+
+test("생산계획 페이지는 계획표와 기계별 스케줄을 별도 탭으로 제공한다", () => {
+  assert.match(html, /id="productionPlanTableTab"[^>]*role="tab"[^>]*aria-controls="productionPlanTablePanel"/);
+  assert.match(html, /id="productionPlanBoardTab"[^>]*role="tab"[^>]*aria-controls="productionPlanBoardPanel"/);
+  assert.match(html, /id="productionPlanTablePanel"[^>]*role="tabpanel"/);
+  assert.match(html, /id="productionPlanBoardPanel"[^>]*role="tabpanel"[^>]*hidden/);
+  assert.match(html, /<th>인쇄 유형<\/th>[\s\S]*<th>기계 번호<\/th>[\s\S]*<th>업체<\/th>[\s\S]*<th>제품명<\/th>/);
+  assert.match(html, /<th>목표 생산량<\/th>[\s\S]*<th>잔량<\/th>[\s\S]*<th>납기일<\/th>[\s\S]*<th>작업자<\/th>/);
+  assert.match(html, /id="machineScheduleBoard"/);
+  assert.doesNotMatch(html.slice(html.indexOf('id="productionPlanView"'), html.indexOf('id="workStatusView"')), /생산계획을 준비하고 있습니다/);
+});
+
+test("생산계획의 핵심 동작은 실제 발주 동기화, 자동 초안, 저장과 인쇄에 연결된다", () => {
+  assert.match(html, /id="syncProductionPlanButton"/);
+  assert.match(html, /id="generateProductionPlanButton"/);
+  assert.match(html, /id="saveProductionPlanButton"/);
+  assert.match(html, /id="printProductionPlanButton"/);
+  assert.match(source, /function buildProductionPlanJobs\(\{ autoAssign = false, preserve = \[\] \} = \{\}\)/);
+  assert.match(source, /getProductionPlanOpenOrders\(\)/);
+  assert.match(source, /localStorage\.setItem\(getProductionPlanStorageKey\(\)/);
+  assert.match(source, /function renderMachineScheduleBoard\(\)/);
+});

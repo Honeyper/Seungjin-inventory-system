@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260910-notification-scroll-v3-dev" />
+    <link rel="stylesheet" href="./styles.css?v=20260910-production-plan-tabs-v1-dev" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260909-qr-worker-hint-dev" />
   </head>
   <body class="admin-body">
@@ -255,17 +255,142 @@
 
       <main class="admin-main">
         <div class="page-view work-view" id="productionPlanView" data-view="production-plan" hidden>
-          <section class="page-heading management-page-heading">
+          <section class="production-plan-heading page-heading management-page-heading">
             <div class="management-heading-trail">
               <p class="eyebrow">작업관리</p>
               <h1>생산계획</h1>
+              <p class="production-plan-description">발주 잔량과 납기일을 기준으로 작업 순서와 기계 일정을 관리합니다.</p>
+            </div>
+            <div class="production-plan-heading-actions">
+              <button class="production-plan-button secondary" type="button" id="syncProductionPlanButton">
+                <i class="ti ti-refresh" aria-hidden="true"></i>
+                발주 동기화
+              </button>
+              <button class="production-plan-button primary" type="button" id="generateProductionPlanButton">
+                <i class="ti ti-sparkles" aria-hidden="true"></i>
+                AI 계획 생성
+              </button>
             </div>
           </section>
-          <section class="work-page-placeholder" aria-labelledby="productionPlanEmptyTitle">
-            <i class="ti ti-calendar" aria-hidden="true"></i>
-            <h2 id="productionPlanEmptyTitle">생산계획을 준비하고 있습니다</h2>
-            <p>일별 생산계획을 작성하고 확인할 페이지입니다.</p>
-            <span>계획 작성 및 AI 생성 기능은 아직 연결되지 않았습니다.</span>
+
+          <section class="production-plan-shell" aria-labelledby="productionPlanTitle">
+            <header class="production-plan-toolbar">
+              <div class="production-plan-date-control" aria-label="생산계획 날짜 선택">
+                <button type="button" id="previousProductionPlanDate" aria-label="이전 날짜">
+                  <i class="ti ti-chevron-left" aria-hidden="true"></i>
+                </button>
+                <label>
+                  <i class="ti ti-calendar" aria-hidden="true"></i>
+                  <input id="productionPlanDate" type="date" />
+                </label>
+                <button type="button" id="nextProductionPlanDate" aria-label="다음 날짜">
+                  <i class="ti ti-chevron-right" aria-hidden="true"></i>
+                </button>
+                <button class="production-plan-today" type="button" id="todayProductionPlanDate">오늘</button>
+              </div>
+              <div class="production-plan-context">
+                <label>
+                  <span>공장</span>
+                  <select id="productionPlanFactory">
+                    <option value="1공장">1공장</option>
+                    <option value="2공장">2공장</option>
+                  </select>
+                </label>
+                <button class="production-plan-button secondary" type="button" id="printProductionPlanButton">
+                  <i class="ti ti-printer" aria-hidden="true"></i>
+                  인쇄
+                </button>
+                <button class="production-plan-button primary" type="button" id="saveProductionPlanButton">
+                  <i class="ti ti-device-floppy" aria-hidden="true"></i>
+                  계획 저장
+                </button>
+              </div>
+            </header>
+
+            <div class="production-plan-summary" aria-label="생산계획 요약">
+              <article>
+                <span>계획 작업</span>
+                <strong id="productionPlanJobCount">0 <em>건</em></strong>
+              </article>
+              <article>
+                <span>목표 생산량</span>
+                <strong id="productionPlanTargetQuantity">0 <em>ea</em></strong>
+              </article>
+              <article>
+                <span>납기 임박</span>
+                <strong id="productionPlanDueSoonCount">0 <em>건</em></strong>
+              </article>
+              <article>
+                <span>미배정 작업</span>
+                <strong id="productionPlanUnassignedCount">0 <em>건</em></strong>
+              </article>
+            </div>
+
+            <div class="production-plan-tabs" role="tablist" aria-label="생산계획 보기 방식">
+              <button class="active" type="button" id="productionPlanTableTab" role="tab" aria-selected="true" aria-controls="productionPlanTablePanel">
+                <i class="ti ti-table" aria-hidden="true"></i>
+                생산계획표
+              </button>
+              <button type="button" id="productionPlanBoardTab" role="tab" aria-selected="false" aria-controls="productionPlanBoardPanel">
+                <i class="ti ti-calendar-time" aria-hidden="true"></i>
+                기계별 스케줄
+              </button>
+            </div>
+
+            <div class="production-plan-panel" id="productionPlanTablePanel" role="tabpanel" aria-labelledby="productionPlanTableTab">
+              <div class="production-plan-section-heading">
+                <div>
+                  <h2 id="productionPlanTitle">일일 생산계획표</h2>
+                  <p id="productionPlanTableCaption">발주 잔량과 납기일이 빠른 순서로 정리됩니다.</p>
+                </div>
+                <label class="production-plan-filter">
+                  <i class="ti ti-filter" aria-hidden="true"></i>
+                  <select id="productionPlanProcessFilter" aria-label="인쇄 유형 필터">
+                    <option value="">전체 공정</option>
+                    <option value="박 인쇄">박 인쇄</option>
+                    <option value="실크 인쇄">실크 인쇄</option>
+                    <option value="자동화">자동화</option>
+                    <option value="라벨">라벨</option>
+                  </select>
+                </label>
+              </div>
+              <div class="production-plan-table-wrap">
+                <table class="production-plan-table">
+                  <thead>
+                    <tr>
+                      <th>인쇄 유형</th>
+                      <th>기계 번호</th>
+                      <th>업체</th>
+                      <th>제품명</th>
+                      <th>목표 생산량</th>
+                      <th>잔량</th>
+                      <th>납기일</th>
+                      <th>작업자</th>
+                      <th>작업 시간</th>
+                      <th>특이사항</th>
+                    </tr>
+                  </thead>
+                  <tbody id="productionPlanTableBody"></tbody>
+                </table>
+              </div>
+              <p class="production-plan-status" id="productionPlanStatus" role="status"></p>
+            </div>
+
+            <div class="production-plan-panel" id="productionPlanBoardPanel" role="tabpanel" aria-labelledby="productionPlanBoardTab" hidden>
+              <div class="production-plan-section-heading">
+                <div>
+                  <h2>기계별 스케줄 보드</h2>
+                  <p>기계별 작업 순서와 예상 작업 시간을 한눈에 확인합니다.</p>
+                </div>
+                <div class="schedule-board-legend" aria-label="스케줄 상태 범례">
+                  <span><i class="ready"></i>계획</span>
+                  <span><i class="urgent"></i>납기 임박</span>
+                  <span><i class="unassigned"></i>미배정</span>
+                </div>
+              </div>
+              <div class="machine-schedule-board" id="machineScheduleBoard"></div>
+              <p class="production-plan-status" id="machineScheduleStatus" role="status"></p>
+            </div>
           </section>
         </div>
         <div class="page-view work-view" id="workStatusView" data-view="work-status" hidden>
@@ -2960,6 +3085,6 @@
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-v2"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-dev"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-dev"></script>
-    <script src="./admin.js?v=20260910-notification-scroll-v3-dev"></script>
+    <script src="./admin.js?v=20260910-production-plan-tabs-v1-dev"></script>
   </body>
 </html>
