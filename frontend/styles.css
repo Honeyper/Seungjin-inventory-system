@@ -9085,17 +9085,27 @@ input {
   font-weight: 700;
 }
 
-.production-plan-table tr[data-due="urgent"] td {
+.production-plan-table tr[data-due="urgent"] > td:not(.production-plan-process) {
   background: #fffdf7;
 }
 
-.production-plan-table tr.is-selected td {
+.production-plan-table tr[data-plan-order-id]:focus {
+  outline: none;
+}
+
+.production-plan-table tr.is-selected > td:not(.production-plan-process) {
   background: #f2f6fc;
   box-shadow: inset 0 1px 0 #b7cbe5, inset 0 -1px 0 #b7cbe5;
 }
 
-.production-plan-table tr.is-selected td:first-child {
+.production-plan-table tr.is-selected > td:not(.production-plan-process):first-child,
+.production-plan-table tr.is-selected > .production-plan-process + td {
   box-shadow: inset 0.22rem 0 0 var(--gold), inset 0 1px 0 #b7cbe5, inset 0 -1px 0 #b7cbe5;
+}
+
+.production-plan-table tr[data-plan-order-id]:focus-visible > td:not(.production-plan-process) {
+  outline: 2px solid var(--navy);
+  outline-offset: -2px;
 }
 
 .production-plan-table .production-plan-process {
