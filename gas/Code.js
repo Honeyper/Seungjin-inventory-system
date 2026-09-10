@@ -1340,11 +1340,19 @@ function getInventoryDashboard() {
 
   const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
   const productSheet = getProductSheet_();
-  const stockInfo = readDisplayRowsByHeaders_(stockSheet, ['관리 ID', '입고일', '제품명']);
+  const stockInfo = readDisplayRowsByHeaders_(stockSheet, ['관리 ID', '입고일', '제품명'], {
+    includeSheetRowNumber: true
+  });
   const productInfo = readDisplayRowsByHeaders_(productSheet, ['제품 ID', '업체명', '제품명']);
   const productMap = buildInventoryProductMap_(productInfo.rows);
   const boxSummaryMap = getInventoryBoxSummaryMap_();
   const todayKey = normalizeDateKey_(Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'));
+  const stockIndexes = indexHeaders_(stockInfo.headers);
+  const invoiceColumnIndex = findHeaderIndex_(stockIndexes, ['거래명세표', '거래명세서']);
+  const defectPhotoColumnIndex = findHeaderIndex_(stockIndexes, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']);
+  const stockSheetRowNumbers = stockInfo.rows.map((row) => row.__sheetRowNumber);
+  const invoiceLinksByRow = readRichColumnLinksBySheetRows_(stockSheet, stockSheetRowNumbers, invoiceColumnIndex);
+  const defectPhotoLinksByRow = readRichColumnLinksBySheetRows_(stockSheet, stockSheetRowNumbers, defectPhotoColumnIndex);
 
   const rows = stockInfo.rows.map((stockRow) => {
     const managementId = getObjectCell_(stockRow, ['관리 ID', '관리ID']);
@@ -1422,6 +1430,10 @@ function getInventoryDashboard() {
       defectQuantity: getObjectCell_(stockRow, ['불량 수량', '불량수량']),
       defectRate: getObjectCell_(stockRow, ['불량률']),
       defectReason: getObjectCell_(stockRow, ['불량 사유', '불량사유']),
+      invoiceFileUrl: invoiceLinksByRow[stockRow.__sheetRowNumber]
+        || getObjectCell_(stockRow, ['거래명세표', '거래명세서']),
+      defectPhotoUrls: defectPhotoLinksByRow[stockRow.__sheetRowNumber]
+        || getObjectCell_(stockRow, ['불량 사진', '불량사진', '불량 사진 URL', '불량사진 URL']),
       shippingInspectionCount: boxSummary.shippingInspectionCount || 0,
       shippingInspectionQuantity: boxSummary.shippingInspectionQuantity ? formatEa_(boxSummary.shippingInspectionQuantity) : '',
       shippingDefectQuantity: boxSummary.shippingDefectQuantity ? formatEa_(boxSummary.shippingDefectQuantity) : '',
@@ -6158,7 +6170,7 @@ function makeClientCode_(clientName) {
   return (numericCode || 'PRD').padEnd(3, 'X').slice(0, 3);
 }
 
-function readDisplayRowsByHeaders_(sheet, requiredHeaders) {
+function readDisplayRowsByHeaders_(sheet, requiredHeaders, options) {
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, requiredHeaders);
 
@@ -6169,24 +6181,77 @@ function readDisplayRowsByHeaders_(sheet, requiredHeaders) {
     };
   }
 
+  const includeSheetRowNumber = Boolean(options && options.includeSheetRowNumber);
   const rows = values.slice(headerInfo.rowIndex + 1)
-    .filter((row) => row.some((cell) => String(cell || '').trim()))
-    .map((row) => {
-      return headerInfo.headers.reduce((item, header, index) => {
+    .map((row, offset) => ({ row, sheetRowNumber: headerInfo.rowIndex + offset + 2 }))
+    .filter(({ row }) => row.some((cell) => String(cell || '').trim()))
+    .map(({ row, sheetRowNumber }) => {
+      const item = headerInfo.headers.reduce((record, header, index) => {
         const normalizedHeader = String(header || '').trim();
 
         if (normalizedHeader) {
-          item[normalizedHeader] = String(row[index] || '').trim();
+          record[normalizedHeader] = String(row[index] || '').trim();
         }
 
-        return item;
+        return record;
       }, {});
+
+      if (includeSheetRowNumber) {
+        item.__sheetRowNumber = sheetRowNumber;
+      }
+
+      return item;
     });
 
   return {
     headers: headerInfo.headers,
     rows
   };
+}
+
+function readRichColumnLinksBySheetRows_(sheet, sheetRowNumbers, columnIndex) {
+  if (columnIndex < 0) {
+    return {};
+  }
+
+  const rowNumbers = Array.from(new Set(
+    (sheetRowNumbers || [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0)
+  )).sort((left, right) => left - right);
+  const result = {};
+
+  if (!rowNumbers.length) {
+    return result;
+  }
+
+  const groups = [];
+  let groupStart = rowNumbers[0];
+  let previousRow = rowNumbers[0];
+
+  for (let index = 1; index < rowNumbers.length; index += 1) {
+    const currentRow = rowNumbers[index];
+
+    if (currentRow !== previousRow + 1) {
+      groups.push({ start: groupStart, end: previousRow });
+      groupStart = currentRow;
+    }
+
+    previousRow = currentRow;
+  }
+
+  groups.push({ start: groupStart, end: previousRow });
+  groups.forEach(({ start, end }) => {
+    const richValues = sheet.getRange(start, columnIndex + 1, end - start + 1, 1).getRichTextValues();
+    richValues.forEach((richRow, offset) => {
+      const linkUrl = getRichTextLinkUrl_(richRow[0]);
+      if (linkUrl) {
+        result[start + offset] = linkUrl;
+      }
+    });
+  });
+
+  return result;
 }
 
 function readRichRowsBySheetRows_(sheet, sheetRowNumbers, columnCount) {

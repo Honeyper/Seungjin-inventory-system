@@ -44,6 +44,7 @@ const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v3:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const INVENTORY_DASHBOARD_CACHE_KEY = "inventory-dashboard:v2";
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const BACKUP_NOTIFICATION_POLL_MS = 60 * 1000;
 const SERVER_USAGE_POLL_MS = 30 * 1000;
@@ -7059,7 +7060,7 @@ async function loadInventoryDashboard(showLoadingToast = true) {
 
 async function loadInventoryDashboardRequest(showLoadingToast = true) {
   const hadLoadedData = state.inventoryLoaded;
-  const cachedResult = state.inventoryLoaded ? null : readAdminCache("inventory-dashboard");
+  const cachedResult = state.inventoryLoaded ? null : readAdminCache(INVENTORY_DASHBOARD_CACHE_KEY);
 
   if (cachedResult) {
     applyInventoryDashboardResult(cachedResult);
@@ -7080,7 +7081,7 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
 
     const result = await requestApi("getInventoryDashboard");
     applyInventoryDashboardResult(result);
-    writeAdminCache("inventory-dashboard", result);
+    writeAdminCache(INVENTORY_DASHBOARD_CACHE_KEY, result);
 
     if (showLoadingToast) {
       showToast("재고 정보를 불러왔습니다.");
@@ -8132,7 +8133,14 @@ function renderInventoryDueBadge(item) {
 
 function openInventoryInboundDetail(inbound, { returnAttentionType = "", returnScrollTop = 0 } = {}) {
   const inventoryRecord = getInventoryRecordByManagementId(inbound?.managementId, inbound?.productId);
-  const detailInbound = normalizeInboundDetailRecord(inventoryRecord || inbound);
+  const relatedInboundRecords = (Array.isArray(state.todayInbounds) ? state.todayInbounds : []).filter((item) => (
+    String(item.managementId || "").trim() === String(inbound?.managementId || "").trim()
+      && (!inbound?.productId || String(item.productId || "").trim() === String(inbound.productId).trim())
+  ));
+  const detailInbound = normalizeInboundDetailRecord(mergeInboundAttachmentDetails(
+    inventoryRecord || inbound,
+    [inbound, ...relatedInboundRecords]
+  ));
   state.activeDetailInboundId = detailInbound.managementId;
   state.activeDetailInboundProductId = detailInbound.productId || "";
   state.activeDetailInboundRecord = detailInbound;
@@ -9156,11 +9164,12 @@ function getInboundByManagementId(managementId, productId = "") {
     ...(Array.isArray(state.inventoryRows) ? state.inventoryRows : [])
   ].filter((item) => String(item.managementId || "").trim() === targetManagementId);
 
-  const matched = targetProductId
-    ? candidates.find((item) => String(item.productId || "").trim() === targetProductId)
-    : candidates[0];
+  const matchingCandidates = targetProductId
+    ? candidates.filter((item) => String(item.productId || "").trim() === targetProductId)
+    : candidates;
+  const matched = matchingCandidates[0];
 
-  return normalizeInboundDetailRecord(matched || (!targetProductId ? candidates[0] : null));
+  return normalizeInboundDetailRecord(mergeInboundAttachmentDetails(matched, matchingCandidates));
 }
 
 function getInventoryRecordByManagementId(managementId, productId = "") {
@@ -9189,6 +9198,21 @@ function normalizeInboundDetailRecord(inbound) {
     boxTotalCount: inbound.boxTotalCount || inbound.currentBoxCount || inbound.inboundBoxCount || "",
     inboundTotalQuantity: inbound.inboundTotalQuantity || inbound.currentTotalQuantity || "",
     stockStatus: inbound.stockStatus || inbound.status || "보관"
+  };
+}
+
+function mergeInboundAttachmentDetails(preferred, candidates = []) {
+  if (!preferred) {
+    return null;
+  }
+
+  const records = [preferred, ...candidates.filter((item) => item !== preferred)];
+  const attachmentValue = (key) => records.find((item) => parseAttachmentUrls(item?.[key]).length)?.[key] || "";
+
+  return {
+    ...preferred,
+    invoiceFileUrl: attachmentValue("invoiceFileUrl") || preferred.invoiceFileUrl || "",
+    defectPhotoUrls: attachmentValue("defectPhotoUrls") || preferred.defectPhotoUrls || ""
   };
 }
 

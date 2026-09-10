@@ -14,7 +14,16 @@ test("거래명세서는 입고 저장 전에 Google Drive에 즉시 업로드�
   assert.match(gasSource, /function uploadInboundInvoice\(payload\)/);
   assert.match(gasSource, /return \{ invoiceFileUrl \}/);
   assert.match(gasSource, /uploadInboundInvoice_\(payload,[\s\S]*?\) \|\| String\(payload\.invoiceFileUrl \|\| ''\)\.trim\(\)/);
-  assert.match(adminHtml, /admin\.js\?v=20260910-shipping-period-status-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=20260910-inventory-attachments-(?:dev|prd)/);
+});
+
+test("재고 상세 조회에도 거래명세서와 불량사진 링크를 포함한다", () => {
+  assert.match(gasSource, /includeSheetRowNumber: true/);
+  assert.match(gasSource, /invoiceFileUrl: invoiceLinksByRow\[stockRow\.__sheetRowNumber\]/);
+  assert.match(gasSource, /defectPhotoUrls: defectPhotoLinksByRow\[stockRow\.__sheetRowNumber\]/);
+  assert.match(adminSource, /const INVENTORY_DASHBOARD_CACHE_KEY = "inventory-dashboard:v2"/);
+  assert.match(adminSource, /function mergeInboundAttachmentDetails\(preferred, candidates = \[\]\)/);
+  assert.match(adminSource, /const detailInbound = normalizeInboundDetailRecord\(mergeInboundAttachmentDetails\(/);
 });
 
 test("거래명세서 원본은 문서 가독성을 유지하는 크기로 줄여 전송한다", () => {
