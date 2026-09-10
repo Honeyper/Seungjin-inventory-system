@@ -115,3 +115,27 @@ test("생산계획 제품 변경 시 연결된 발주 정보도 함께 갱신한
   assert.match(source, /function replaceProductionPlanJobOrder\(job, purchaseOrderId\)/);
   assert.match(source, /selectProductionPlanProduct\(product\)/);
 });
+
+test("생산계획은 우측 상세를 접고 펼치며 발주 연결값과 현장 입력값을 구분한다", () => {
+  assert.match(html, /id="productionPlanDetailToggle"[^>]*aria-controls="productionPlanDetailPanel"/);
+  assert.match(html, /id="productionPlanDetailPanel"[^>]*hidden/);
+  assert.match(source, /function setProductionPlanDetailOpen\(open\)/);
+  assert.match(source, /발주 연결 정보/);
+  assert.match(source, /자동 불러오기/);
+  assert.match(source, /현장 입력/);
+  assert.match(source, /data-plan-detail-field="workDays"/);
+  assert.match(source, /data-plan-detail-field="cumulativeHours"/);
+  assert.match(source, /data-plan-detail-field="actualProduction"/);
+});
+
+test("스프레드시트 계산식과 8시간 우선 근무 제약을 자동 계획에 적용한다", () => {
+  assert.match(source, /remaining = Math\.max\(0, orderQuantity - cumulativeProduction \+ loss\)/);
+  assert.match(source, /hourlyRate = cumulativeHours > 0 \? cumulativeProduction \/ cumulativeHours : 0/);
+  assert.match(source, /dailyRequired = workDays > 0 \? orderQuantity \/ workDays : 0/);
+  assert.match(source, /\(dailyRequired \* 2\) - \(hourlyRate \* PRODUCTION_STANDARD_WORK_HOURS\)/);
+  assert.match(source, /const PRODUCTION_STANDARD_WORK_HOURS = 8/);
+  assert.match(source, /const PRODUCTION_DISCOURAGED_WORK_HOURS = 9/);
+  assert.match(source, /const PRODUCTION_MAX_WORK_HOURS = 10/);
+  assert.match(source, /isProductionPlanNonWorkingDate\(state\.productionPlanDate\)/);
+  assert.match(source, /day === 0 \|\| day === 6/);
+});
