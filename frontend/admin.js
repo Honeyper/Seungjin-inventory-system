@@ -52,6 +52,96 @@ let adminLargeCacheDatabasePromise = null;
 const BACKUP_NOTIFICATION_POLL_MS = 60 * 1000;
 const SERVER_USAGE_POLL_MS = 30 * 1000;
 const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
+const SYSTEM_UPDATE_HISTORY = [
+  {
+    date: "2026-09-10",
+    title: "입고 첨부와 조회 안정화",
+    items: [
+      "거래명세서 업로드 속도를 개선하고 등록 후 상세보기에서 즉시 확인되도록 수정했습니다.",
+      "업로드 취소 시 선택한 거래명세서가 남지 않도록 하고 미리보기 닫기 버튼을 추가했습니다.",
+      "재고 상세보기에서 제품 이미지와 입고 거래명세서·불량사진을 함께 확인할 수 있게 했습니다.",
+      "모바일 제품 이미지는 화살표 대신 손가락으로 자연스럽게 넘길 수 있도록 개선했습니다.",
+      "출고 결산의 조회기간별 출고대기·출고완료 집계가 목록과 일치하도록 수정했습니다."
+    ]
+  },
+  {
+    date: "2026-09-09",
+    title: "발주·출고·QR 관리 개선",
+    items: [
+      "발주관리에서 누적 출고량·출고율·출고 잔여량을 확인하고 진행 상태가 자동 계산되도록 했습니다.",
+      "입고량이 발주량 이상이거나 작업량이 발주량 이상이면 완료 상태로 표시되도록 기준을 정리했습니다.",
+      "모바일 출고 화면에 총 등록 박스 수와 총 출고 수량을 추가하고 수동 출고 버튼을 한 줄에 배치했습니다.",
+      "출고 후 처리된 품목이 목록에 다시 나타나는 현상과 수량 텍스트 정렬 문제를 수정했습니다.",
+      "QR 작업일은 월·일 입력칸으로 나누고 작업자 인원 표시는 옅은 회색으로 정리했습니다.",
+      "발주 차수 표기를 발주명으로 변경하고 긴 제품명이 읽히도록 제품명 영역을 보완했습니다."
+    ]
+  },
+  {
+    date: "2026-09-08",
+    title: "작업관리와 초과 입고 표시 추가",
+    items: [
+      "좌측 작업관리를 생산계획과 작업현황 하위 메뉴로 구성했습니다.",
+      "발주량을 초과한 입고분을 LOSS 수량과 발주량 대비 비율로 표시하도록 추가했습니다.",
+      "입고율 100% 이상 발주에도 추가 입고를 연결할 수 있도록 제한을 해제했습니다.",
+      "제품 선택 목록에 실제 제품 이미지를 표시하고 미리보기 크기를 확대했습니다.",
+      "거래처 목록에 월드코스매틱을 추가했습니다.",
+      "QR 스캔 직후 출고할 때 발생하던 중복 처리 오류를 수정했습니다."
+    ]
+  },
+  {
+    date: "2026-09-07",
+    title: "날짜 입력과 제품 이미지 기능 개선",
+    items: [
+      "발주 날짜 입력 시 연도 4자리와 월 2자리 입력 후 다음 칸으로 자동 이동하도록 했습니다.",
+      "제품별 여러 장의 이미지를 등록하고 상세 갤러리와 입고 요약에서 확인할 수 있게 했습니다.",
+      "모바일에서 긴 제품명이 잘리지 않도록 제목 크기와 표시 영역을 자동 조정했습니다.",
+      "제품 선택 정렬 방향과 중복 발주 오류 안내를 개선했습니다.",
+      "재고 실사에서는 실제 스캔한 박스만 확인 처리되도록 수정했습니다.",
+      "모바일 QR 스캐너의 플래시와 빈 화면 안내를 안정화했습니다."
+    ]
+  },
+  {
+    date: "2026-09-06",
+    title: "QR 스캔 속도와 연속 입력 안정화",
+    items: [
+      "하드웨어 스캐너의 연속 입력을 안정적으로 모아 처리하도록 보완했습니다.",
+      "모바일 QR 스캐너 플래시 제어를 연결하고 기기별 호환성을 높였습니다.",
+      "재고 새로고침 요청과 QR 조회량을 줄여 스캔 반응 속도를 개선했습니다."
+    ]
+  },
+  {
+    date: "2026-09-04",
+    title: "제품 이미지와 서버 사용량 기능 추가",
+    items: [
+      "제품 이미지를 Google Drive에 저장하고 끌어놓기로 등록할 수 있도록 추가했습니다.",
+      "알림에서 Supabase 데이터베이스 사용량을 실시간으로 확인할 수 있게 했습니다.",
+      "백업 데이터의 불필요한 대용량 첨부 내용을 정리해 데이터베이스 용량을 줄였습니다.",
+      "축약형 박스 QR도 안전하게 검증하도록 QR 형식 검사를 강화했습니다."
+    ]
+  },
+  {
+    date: "2026-09-03",
+    title: "조회 성능과 백업 안정성 개선",
+    items: [
+      "하드웨어 QR 스캔을 박스 ID부터 조회하고 정확히 일치하는 박스만 처리하도록 개선했습니다.",
+      "입고·재고 조회 병목과 저장 후 반복 새로고침을 줄여 전체 응답 속도를 높였습니다.",
+      "대용량 거래명세서 백업을 분할 처리하고 백업 작업을 안전한 단위로 순차 처리하도록 수정했습니다.",
+      "이전 출고 작업 때문에 스프레드시트 백업이 중단되지 않도록 동기화 로직을 보완했습니다."
+    ]
+  },
+  {
+    date: "2026-09-02",
+    title: "백업 알림과 재고 관리 기능 추가",
+    items: [
+      "관리자 알림에 스프레드시트 백업 성공·실패 내역과 미반영 항목 상세를 추가했습니다.",
+      "처리 이력이 있는 입고도 발주에 연결하고 잔량을 안전하게 수정할 수 있도록 했습니다.",
+      "모바일 재고에서 박스 폐기와 목록 새로고침 기능을 추가하고 오래된 캐시 문제를 수정했습니다.",
+      "QR 미리보기 속도와 제품명·차수·수량 표시를 개선했습니다.",
+      "모바일 출고에서 트레이 수량이 누락되지 않도록 복구했습니다."
+    ]
+  }
+];
+const adminEnvironmentBadge = document.querySelector("#adminEnvironmentBadge");
 
 if (
   !session
@@ -301,7 +391,8 @@ const state = {
   backupNotifications: [],
   isLoadingBackupNotifications: false,
   serverUsage: null,
-  isLoadingServerUsage: false
+  isLoadingServerUsage: false,
+  backupNotificationActiveTab: "notifications"
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -316,6 +407,11 @@ const backupNotificationPanel = document.querySelector("#backupNotificationPanel
 const backupNotificationBadge = document.querySelector("#backupNotificationBadge");
 const backupNotificationList = document.querySelector("#backupNotificationList");
 const refreshBackupNotificationsButton = document.querySelector("#refreshBackupNotifications");
+const backupNotificationsTab = document.querySelector("#backupNotificationsTab");
+const updateHistoryTab = document.querySelector("#updateHistoryTab");
+const backupNotificationsTabPanel = document.querySelector("#backupNotificationsTabPanel");
+const updateHistoryTabPanel = document.querySelector("#updateHistoryTabPanel");
+const updateHistoryList = document.querySelector("#updateHistoryList");
 const serverUsageCard = document.querySelector("#serverUsageCard");
 const serverUsageValue = document.querySelector("#serverUsageValue");
 const serverUsagePercent = document.querySelector("#serverUsagePercent");
@@ -846,6 +942,48 @@ function renderBackupNotificationIssues(notification) {
   `;
 }
 
+function formatSystemUpdateDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return value || "날짜 미확인";
+  return `${match[1]}년 ${Number(match[2])}월 ${Number(match[3])}일`;
+}
+
+function renderSystemUpdateHistory() {
+  if (!updateHistoryList) return;
+  updateHistoryList.innerHTML = SYSTEM_UPDATE_HISTORY.map((release, index) => `
+    <article class="update-history-card">
+      <header class="update-history-card-header">
+        <div class="update-history-card-heading">
+          <time datetime="${escapeHtml(release.date)}">${escapeHtml(formatSystemUpdateDate(release.date))}</time>
+          <h3>${escapeHtml(release.title)}</h3>
+        </div>
+        ${index === 0 ? '<span class="update-history-latest">최신</span>' : ""}
+      </header>
+      <ul class="update-history-items">
+        ${release.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ul>
+    </article>
+  `).join("");
+}
+
+function setBackupNotificationTab(tabName) {
+  const normalizedTab = tabName === "updates" ? "updates" : "notifications";
+  const isNotifications = normalizedTab === "notifications";
+  state.backupNotificationActiveTab = normalizedTab;
+
+  backupNotificationsTab?.classList.toggle("is-active", isNotifications);
+  backupNotificationsTab?.setAttribute("aria-selected", String(isNotifications));
+  backupNotificationsTab?.setAttribute("tabindex", isNotifications ? "0" : "-1");
+  updateHistoryTab?.classList.toggle("is-active", !isNotifications);
+  updateHistoryTab?.setAttribute("aria-selected", String(!isNotifications));
+  updateHistoryTab?.setAttribute("tabindex", isNotifications ? "-1" : "0");
+  if (backupNotificationsTabPanel) backupNotificationsTabPanel.hidden = !isNotifications;
+  if (updateHistoryTabPanel) updateHistoryTabPanel.hidden = isNotifications;
+  if (refreshBackupNotificationsButton) refreshBackupNotificationsButton.hidden = !isNotifications;
+
+  if (!isNotifications) renderSystemUpdateHistory();
+}
+
 function renderBackupNotifications() {
   if (!backupNotificationList) return;
   if (!state.backupNotifications.length) {
@@ -1004,6 +1142,7 @@ function setBackupNotificationPanelOpen(shouldOpen) {
   if (shouldOpen) {
     adminUserMenu.hidden = true;
     adminUserMenuButton?.setAttribute("aria-expanded", "false");
+    setBackupNotificationTab(state.backupNotificationActiveTab);
     markBackupNotificationsRead();
     loadBackupNotifications({ showLoading: true });
     loadServerUsage({ showLoading: true });
@@ -1017,6 +1156,24 @@ backupNotificationButton?.addEventListener("click", () => {
 refreshBackupNotificationsButton?.addEventListener("click", () => {
   loadBackupNotifications({ showLoading: true });
   loadServerUsage({ showLoading: true });
+});
+
+backupNotificationsTab?.addEventListener("click", () => {
+  setBackupNotificationTab("notifications");
+});
+
+updateHistoryTab?.addEventListener("click", () => {
+  setBackupNotificationTab("updates");
+});
+
+[backupNotificationsTab, updateHistoryTab].forEach((tab) => {
+  tab?.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const nextTab = state.backupNotificationActiveTab === "notifications" ? updateHistoryTab : backupNotificationsTab;
+    nextTab?.click();
+    nextTab?.focus();
+  });
 });
 
 document.addEventListener("click", (event) => {
