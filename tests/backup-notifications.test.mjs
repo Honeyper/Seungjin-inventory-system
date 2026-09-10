@@ -9,6 +9,7 @@ import {
 
 const adminSource = fs.readFileSync(new URL("../frontend/admin.js", import.meta.url), "utf8");
 const adminHtml = fs.readFileSync(new URL("../frontend/admin.html", import.meta.url), "utf8");
+const adminStyles = fs.readFileSync(new URL("../frontend/styles.css", import.meta.url), "utf8");
 const gatewaySource = fs.readFileSync(new URL("../frontend/supabase-gateway.js", import.meta.url), "utf8");
 const edgeSource = fs.readFileSync(new URL("../supabase/functions/seungjin-dev-gateway/index.ts", import.meta.url), "utf8");
 const boundedSyncMigration = fs.readFileSync(
@@ -84,7 +85,7 @@ test("관리자 알림 버튼은 백업 결과 API, 읽음 표시, 실패 상세
   assert.match(adminHtml, /id="backupNotificationButton"/);
   assert.match(adminHtml, /id="backupNotificationBadge"/);
   assert.match(adminHtml, /id="backupNotificationPanel"/);
-  assert.match(adminHtml, /styles\.css\?v=20260910-(?:invoice-preview-clear|update-history)-(?:dev|prd)/);
+  assert.match(adminHtml, /styles\.css\?v=20260910-(?:invoice-preview-clear|update-history|notification-scroll-v3)-(?:dev|prd)/);
   assert.match(gatewaySource, /"getSheetBackupNotifications"/);
   assert.match(adminSource, /requestApi\("getSheetBackupNotifications"\)/);
   assert.match(adminSource, /BACKUP_NOTIFICATION_READ_KEY/);
@@ -103,6 +104,8 @@ test("관리자 알림 패널은 백업 알림과 날짜별 업데이트 내역�
   assert.match(adminSource, /date: "2026-09-02"/);
   assert.match(adminSource, /function setBackupNotificationTab\(tabName\)/);
   assert.match(adminSource, /renderSystemUpdateHistory\(\)/);
+  assert.match(adminStyles, /\.backup-notification-list\s*\{[\s\S]*?grid-auto-rows: max-content;/);
+  assert.match(adminStyles, /\.backup-notification-list\s*\{[\s\S]*?overflow-y: auto;/);
 });
 
 test("백업 알림 기본 조회는 대용량 첨부 payload를 읽지 않고 미반영 항목만 상세 조회한다", () => {
