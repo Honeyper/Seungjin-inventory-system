@@ -366,6 +366,7 @@ const createProductFromPickerButton = document.querySelector("#createProductFrom
 const inboundInvoiceFile = document.querySelector("#inboundInvoiceFile");
 const inboundInvoiceUploadButton = document.querySelector("#inboundInvoiceUploadButton");
 const inboundInvoicePreview = document.querySelector("#inboundInvoicePreview");
+const inboundInvoiceClearButton = document.querySelector("#inboundInvoiceClearButton");
 const inboundDefectFiles = document.querySelector("#inboundDefectFiles");
 const inboundDefectUploadButton = document.querySelector("#inboundDefectUploadButton");
 const inboundDefectPreview = document.querySelector("#inboundDefectPreview");
@@ -1327,14 +1328,16 @@ inventoryPageSizeSelect?.addEventListener("change", (event) => {
   renderInventoryTable();
 });
 
-inboundInvoiceUploadButton?.addEventListener("click", () => inboundInvoiceFile?.click());
+inboundInvoiceUploadButton?.addEventListener("click", openInboundInvoicePicker);
+inboundInvoiceClearButton?.addEventListener("click", clearInboundInvoiceSelection);
 inboundDefectUploadButton?.addEventListener("click", () => inboundDefectFiles?.click());
 inboundInvoiceFile?.addEventListener("change", () => {
   renderInboundFilePreview({
     input: inboundInvoiceFile,
     preview: inboundInvoicePreview,
     tile: inboundInvoiceUploadButton,
-    key: "invoice"
+    key: "invoice",
+    clearButton: inboundInvoiceClearButton
   });
 });
 inboundDefectFiles?.addEventListener("change", () => {
@@ -6034,7 +6037,7 @@ function updateInboundSortButtons(activeButton, direction) {
   });
 }
 
-function renderInboundFilePreview({ input, preview, tile, key, badge = null }) {
+function renderInboundFilePreview({ input, preview, tile, key, badge = null, clearButton = null }) {
   const files = Array.from(input?.files || []);
   const file = files[0];
 
@@ -6047,6 +6050,9 @@ function renderInboundFilePreview({ input, preview, tile, key, badge = null }) {
     preview.hidden = true;
     preview.removeAttribute("src");
     tile.classList.remove("has-preview");
+    if (clearButton) {
+      clearButton.hidden = true;
+    }
     if (badge) {
       badge.hidden = true;
       badge.textContent = "대표";
@@ -6059,6 +6065,9 @@ function renderInboundFilePreview({ input, preview, tile, key, badge = null }) {
     preview.hidden = true;
     preview.removeAttribute("src");
     tile.classList.remove("has-preview");
+    if (clearButton) {
+      clearButton.hidden = true;
+    }
     showToast("이미지 파일만 미리보기할 수 있습니다.");
     return;
   }
@@ -6068,11 +6077,38 @@ function renderInboundFilePreview({ input, preview, tile, key, badge = null }) {
   preview.src = previewUrl;
   preview.hidden = false;
   tile.classList.add("has-preview");
+  if (clearButton) {
+    clearButton.hidden = false;
+  }
 
   if (badge) {
     badge.hidden = false;
     badge.textContent = files.length > 1 ? `대표 1/${files.length}` : "대표";
   }
+}
+
+function openInboundInvoicePicker() {
+  if (!inboundInvoiceFile) {
+    return;
+  }
+
+  clearInboundInvoiceSelection();
+  inboundInvoiceFile.click();
+}
+
+function clearInboundInvoiceSelection() {
+  if (!inboundInvoiceFile) {
+    return;
+  }
+
+  inboundInvoiceFile.value = "";
+  renderInboundFilePreview({
+    input: inboundInvoiceFile,
+    preview: inboundInvoicePreview,
+    tile: inboundInvoiceUploadButton,
+    key: "invoice",
+    clearButton: inboundInvoiceClearButton
+  });
 }
 
 function setInboundClientEditable(isEditable) {

@@ -14,7 +14,7 @@ test("거래명세서는 입고 저장 전에 Google Drive에 즉시 업로드�
   assert.match(gasSource, /function uploadInboundInvoice\(payload\)/);
   assert.match(gasSource, /return \{ invoiceFileUrl \}/);
   assert.match(gasSource, /uploadInboundInvoice_\(payload,[\s\S]*?\) \|\| String\(payload\.invoiceFileUrl \|\| ''\)\.trim\(\)/);
-  assert.match(adminHtml, /admin\.js\?v=20260910-inbound-upload-order-edit-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=20260910-invoice-picker-cancel-(?:dev|prd)/);
 });
 
 test("즉시 업로드된 거래명세서 URL은 Supabase 입고와 재고 레코드에 보존된다", () => {
