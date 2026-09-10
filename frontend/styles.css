@@ -8818,6 +8818,7 @@ input {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
+  container-type: inline-size;
 }
 
 .production-plan-workspace.detail-open {
@@ -9271,6 +9272,8 @@ input {
 
 .production-plan-table {
   width: 100%;
+  /* Keep columns tied to the full workspace, not the shrinking detail-panel track. */
+  width: max(80rem, calc(100cqi - 2.3rem - 2px));
   min-width: 80rem;
   border-collapse: separate;
   border-spacing: 0;
@@ -14712,6 +14715,7 @@ input {
 
   body.printing-production-plan .production-plan-table,
   body.printing-production-plan .machine-schedule-grid {
+    width: 100%;
     min-width: 0;
   }
 }
