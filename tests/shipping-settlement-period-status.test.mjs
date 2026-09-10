@@ -21,5 +21,5 @@ test("같은 관리 ID의 여러 박스는 상태별 한 건으로 중복 없이
 });
 
 test("출고 기간 상태 집계 변경본을 캐시 없이 불러온다", () => {
-  assert.match(adminHtml, /admin\.js\?v=20260910-(?:inventory-attachments|update-history(?:-v2)?|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[12])-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=20260910-(?:inventory-attachments|update-history(?:-v2)?|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[123])-(?:dev|prd)/);
 });
