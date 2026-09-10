@@ -21,7 +21,7 @@ test("재고 상세 조회에도 거래명세서와 불량사진 링크를 포�
   assert.match(gasSource, /includeSheetRowNumber: true/);
   assert.match(gasSource, /invoiceFileUrl: invoiceLinksByRow\[stockRow\.__sheetRowNumber\]/);
   assert.match(gasSource, /defectPhotoUrls: defectPhotoLinksByRow\[stockRow\.__sheetRowNumber\]/);
-  assert.match(adminSource, /const INVENTORY_DASHBOARD_CACHE_KEY = "inventory-dashboard:v2"/);
+  assert.match(adminSource, /readAdminLargeCache\("inventory-dashboard:v2"\)/);
   assert.match(adminSource, /function mergeInboundAttachmentDetails\(preferred, candidates = \[\]\)/);
   assert.match(adminSource, /const detailInbound = normalizeInboundDetailRecord\(mergeInboundAttachmentDetails\(/);
 });

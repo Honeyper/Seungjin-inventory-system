@@ -45,7 +45,6 @@ const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v3:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
-const INVENTORY_DASHBOARD_CACHE_KEY = "inventory-dashboard:v2";
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const ADMIN_LARGE_CACHE_DB_NAME = `${ADMIN_CACHE_PREFIX}:large`;
 const ADMIN_LARGE_CACHE_STORE = "responses";
@@ -7643,7 +7642,7 @@ async function refreshInventoryDashboardAfterMutation() {
 
 async function loadInventoryDashboardRequest(showLoadingToast = true) {
   const hadLoadedData = state.inventoryLoaded;
-  const cachedResult = state.inventoryLoaded ? null : await readAdminLargeCache(INVENTORY_DASHBOARD_CACHE_KEY);
+  const cachedResult = state.inventoryLoaded ? null : await readAdminLargeCache("inventory-dashboard:v2");
 
   if (cachedResult) {
     if (cachedResult.versionCheckedBeforeRead !== true) cachedResult.stateVersion = null;
@@ -7676,7 +7675,7 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
     result.stateVersion = checkedVersion;
     result.versionCheckedBeforeRead = checkedVersion !== null;
     applyInventoryDashboardResult(result);
-    writeAdminLargeCache(INVENTORY_DASHBOARD_CACHE_KEY, result);
+    writeAdminLargeCache("inventory-dashboard:v2", result);
 
     if (showLoadingToast) {
       showToast("재고 정보를 불러왔습니다.");

@@ -11,8 +11,8 @@ const gatewayFunctionSource = fs.readFileSync(
 
 test("5MB를 넘는 재고 화면 캐시는 IndexedDB에 저장한다", () => {
   assert.match(adminSource, /window\.indexedDB\.open\(ADMIN_LARGE_CACHE_DB_NAME, 1\)/);
-  assert.match(adminSource, /await readAdminLargeCache\("inventory-dashboard"\)/);
-  assert.match(adminSource, /writeAdminLargeCache\("inventory-dashboard", result\)/);
+  assert.match(adminSource, /await readAdminLargeCache\("inventory-dashboard:v2"\)/);
+  assert.match(adminSource, /writeAdminLargeCache\("inventory-dashboard:v2", result\)/);
 });
 
 test("캐시가 있으면 버전만 확인하고 같은 데이터의 전체 재전송을 생략한다", () => {
