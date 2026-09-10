@@ -101,7 +101,7 @@ test("PC and mobile product images open as navigable multi-image galleries", () 
   assert.match(mobileSource, /function openProductImageModal/);
   assert.match(mobileSource, /function moveProductImageModal/);
   assert.match(mobileHtml, /id="productImageModal"/);
-  assert.match(mobileHtml, /id="productImageModalImage"/);
+  assert.match(mobileHtml, /id="productImageModalTrack"/);
   assert.match(mobileHtml, /id="productImageModalThumbnails"/);
 });
 
@@ -112,14 +112,17 @@ test("모바일 제품 이미지는 화살표 없이 좌우 스와이프로 전�
   assert.match(mobileSource, /productImageModalStage\?\.addEventListener\("pointerdown", startProductImageSwipe\)/);
   assert.match(mobileSource, /Math\.abs\(deltaX\) >= PRODUCT_IMAGE_SWIPE_MIN_DISTANCE/);
   assert.match(mobileSource, /moveProductImageModal\(deltaX < 0 \? 1 : -1\)/);
+  assert.match(mobileSource, /positionProductImageTrack\(state\.productImageSwipeDeltaX\)/);
+  assert.match(mobileCss, /\.product-image-lightbox-track\s*\{[\s\S]*?display:\s*flex;[\s\S]*?transition:\s*transform 280ms/);
+  assert.match(mobileCss, /\.product-image-lightbox-slide\s*\{[\s\S]*?flex:\s*0 0 100%;/);
   assert.match(mobileCss, /\.product-image-lightbox-stage\s*\{[\s\S]*?touch-action:\s*pan-y;[\s\S]*?user-select:\s*none;/);
 });
 
 test("모바일 제품 이미지는 하단 썸네일 영역을 침범하지 않는다", () => {
   assert.match(mobileCss, /\.product-image-lightbox-stage\s*\{[\s\S]*?min-height:\s*260px;[\s\S]*?overflow:\s*hidden;/);
-  assert.match(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?max-height:\s*100%;/);
-  assert.doesNotMatch(mobileCss, /\.product-image-lightbox-stage img\s*\{[\s\S]*?max-height:\s*calc\(88dvh - 118px\);/);
-  assert.match(mobileHtml, /mobile\.css\?v=20260910-product-image-swipe-(?:dev|prd)/);
+  assert.match(mobileCss, /\.product-image-lightbox-slide img\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?max-height:\s*100%;/);
+  assert.doesNotMatch(mobileCss, /\.product-image-lightbox-slide img\s*\{[\s\S]*?max-height:\s*calc\(88dvh - 118px\);/);
+  assert.match(mobileHtml, /mobile\.css\?v=20260910-product-image-track-(?:dev|prd)/);
 });
 
 test("긴 모바일 제품명은 글꼴 로딩 뒤에도 실제 폭에 맞춰 축소하고 필요하면 줄바꿈한다", () => {
@@ -131,7 +134,7 @@ test("긴 모바일 제품명은 글꼴 로딩 뒤에도 실제 폭에 맞춰 �
   assert.match(mobileSource, /title\.classList\.add\("is-multiline"\)/);
   assert.match(mobileSource, /document\.fonts\?\.ready\.then/);
   assert.match(mobileSource, /elements\.productImageModalTitle\.textContent = state\.activeProductImageName;\s*fitProductImageModalTitle\(\);/);
-  assert.match(mobileHtml, /mobile\.js\?v=20260910-product-image-swipe-(?:dev|prd)/);
+  assert.match(mobileHtml, /mobile\.js\?v=20260910-product-image-track-(?:dev|prd)/);
 });
 
 test("제품 이미지 삭제 버튼은 고정 SVG X 아이콘으로 가운데 정렬한다", () => {

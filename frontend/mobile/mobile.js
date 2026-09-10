@@ -208,7 +208,8 @@ const state = {
   activeProductImageName: "",
   productImageSwipePointerId: null,
   productImageSwipeStartX: 0,
-  productImageSwipeStartY: 0
+  productImageSwipeStartY: 0,
+  productImageSwipeDeltaX: 0
 };
 
 let activeShippingCardMenu = null;
@@ -290,7 +291,7 @@ const elements = {
   productImageModal: document.querySelector("#productImageModal"),
   productImageModalTitle: document.querySelector("#productImageModalTitle"),
   productImageModalStage: document.querySelector("#productImageModalStage"),
-  productImageModalImage: document.querySelector("#productImageModalImage"),
+  productImageModalTrack: document.querySelector("#productImageModalTrack"),
   productImageModalCounter: document.querySelector("#productImageModalCounter"),
   productImageModalThumbnails: document.querySelector("#productImageModalThumbnails"),
   closeProductImageModalButton: document.querySelector("#closeProductImageModalButton"),
@@ -1857,7 +1858,7 @@ function handleProductImageClick(event) {
 
 function openProductImageModal(imageUrls, productName, initialIndex = 0) {
   const urls = normalizeProductImageUrls(imageUrls);
-  if (!urls.length || !elements.productImageModal || !elements.productImageModalImage) {
+  if (!urls.length || !elements.productImageModal || !elements.productImageModalTrack) {
     return;
   }
 
@@ -1866,21 +1867,28 @@ function openProductImageModal(imageUrls, productName, initialIndex = 0) {
   state.activeProductImageName = normalizeDisplay(productName || "제품");
   elements.productImageModal.hidden = false;
   document.body.classList.add("modal-open");
-  renderProductImageModal();
+  elements.productImageModalTrack.innerHTML = urls.map((url, imageIndex) => `
+    <div class="product-image-lightbox-slide" data-product-image-slide="${imageIndex}">
+      <img src="${escapeHtml(url)}" alt="${escapeHtml(state.activeProductImageName)} 제품 이미지 ${imageIndex + 1}" />
+    </div>
+  `).join("");
+  renderProductImageModal({ instant: true });
   elements.closeProductImageModalButton?.focus();
 }
 
-function renderProductImageModal() {
+function renderProductImageModal({ instant = false } = {}) {
   const urls = state.activeProductImageUrls;
-  if (!urls.length || !elements.productImageModalImage) {
+  if (!urls.length || !elements.productImageModalTrack) {
     return;
   }
   const index = Math.max(0, Math.min(state.activeProductImageIndex, urls.length - 1));
   state.activeProductImageIndex = index;
   elements.productImageModalTitle.textContent = state.activeProductImageName;
   fitProductImageModalTitle();
-  elements.productImageModalImage.src = urls[index];
-  elements.productImageModalImage.alt = `${state.activeProductImageName} 제품 이미지 ${index + 1}`;
+  positionProductImageTrack(0, instant);
+  elements.productImageModalTrack.querySelectorAll("[data-product-image-slide]").forEach((slide, slideIndex) => {
+    slide.setAttribute("aria-hidden", String(slideIndex !== index));
+  });
   elements.productImageModalCounter.textContent = `${index + 1} / ${urls.length}`;
   elements.productImageModalThumbnails.innerHTML = urls.map((url, thumbnailIndex) => `
     <button
@@ -1934,8 +1942,20 @@ function moveProductImageModal(direction) {
   if (count < 2) {
     return;
   }
-  state.activeProductImageIndex = (state.activeProductImageIndex + direction + count) % count;
+  state.activeProductImageIndex = Math.max(0, Math.min(state.activeProductImageIndex + direction, count - 1));
   renderProductImageModal();
+}
+
+function positionProductImageTrack(offset = 0, instant = false) {
+  if (!elements.productImageModalTrack) {
+    return;
+  }
+
+  elements.productImageModalTrack.classList.toggle("is-instant", instant);
+  elements.productImageModalTrack.style.transform = `translate3d(calc(${-state.activeProductImageIndex * 100}% + ${offset}px), 0, 0)`;
+  if (instant) {
+    window.requestAnimationFrame(() => elements.productImageModalTrack?.classList.remove("is-instant"));
+  }
 }
 
 const PRODUCT_IMAGE_SWIPE_MIN_DISTANCE = 44;
@@ -1947,6 +1967,7 @@ function startProductImageSwipe(event) {
   state.productImageSwipePointerId = event.pointerId;
   state.productImageSwipeStartX = event.clientX;
   state.productImageSwipeStartY = event.clientY;
+  state.productImageSwipeDeltaX = 0;
   elements.productImageModalStage?.classList.add("is-swiping");
   elements.productImageModalStage?.setPointerCapture?.(event.pointerId);
 }
@@ -1963,8 +1984,11 @@ function moveProductImageSwipe(event) {
   if (event.cancelable) {
     event.preventDefault();
   }
-  const previewOffset = Math.max(-56, Math.min(deltaX, 56));
-  elements.productImageModalImage.style.transform = `translate3d(${previewOffset}px, 0, 0)`;
+  const lastIndex = state.activeProductImageUrls.length - 1;
+  const edgeResistance = (state.activeProductImageIndex === 0 && deltaX > 0)
+    || (state.activeProductImageIndex === lastIndex && deltaX < 0);
+  state.productImageSwipeDeltaX = edgeResistance ? deltaX * 0.22 : deltaX;
+  positionProductImageTrack(state.productImageSwipeDeltaX);
 }
 
 function endProductImageSwipe(event) {
@@ -1973,29 +1997,30 @@ function endProductImageSwipe(event) {
   }
   const deltaX = event.clientX - state.productImageSwipeStartX;
   const deltaY = event.clientY - state.productImageSwipeStartY;
-  resetProductImageSwipe(event.pointerId);
+  finishProductImageSwipe(event.pointerId);
   if (Math.abs(deltaX) >= PRODUCT_IMAGE_SWIPE_MIN_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY)) {
     moveProductImageModal(deltaX < 0 ? 1 : -1);
+  } else {
+    renderProductImageModal();
   }
 }
 
 function cancelProductImageSwipe(event) {
   if (event.pointerId === state.productImageSwipePointerId) {
-    resetProductImageSwipe(event.pointerId);
+    finishProductImageSwipe(event.pointerId);
+    renderProductImageModal();
   }
 }
 
-function resetProductImageSwipe(pointerId = state.productImageSwipePointerId) {
+function finishProductImageSwipe(pointerId = state.productImageSwipePointerId) {
   if (pointerId != null && elements.productImageModalStage?.hasPointerCapture?.(pointerId)) {
     elements.productImageModalStage.releasePointerCapture(pointerId);
   }
   elements.productImageModalStage?.classList.remove("is-swiping");
-  if (elements.productImageModalImage) {
-    elements.productImageModalImage.style.transform = "";
-  }
   state.productImageSwipePointerId = null;
   state.productImageSwipeStartX = 0;
   state.productImageSwipeStartY = 0;
+  state.productImageSwipeDeltaX = 0;
 }
 
 function closeProductImageModal() {
@@ -2004,14 +2029,14 @@ function closeProductImageModal() {
   }
 
   elements.productImageModal.hidden = true;
-  if (elements.productImageModalImage) {
-    elements.productImageModalImage.removeAttribute("src");
-    elements.productImageModalImage.alt = "";
+  if (elements.productImageModalTrack) {
+    elements.productImageModalTrack.innerHTML = "";
+    elements.productImageModalTrack.style.transform = "";
   }
   state.activeProductImageUrls = [];
   state.activeProductImageIndex = 0;
   state.activeProductImageName = "";
-  resetProductImageSwipe();
+  finishProductImageSwipe();
   document.body.classList.remove("modal-open");
 }
 
