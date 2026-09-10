@@ -9303,9 +9303,42 @@ input {
 }
 
 .upload-field {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
+}
+
+.upload-preview-clear {
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  z-index: 3;
+  display: grid;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(8, 42, 98, 0.18);
+  border-radius: 50%;
+  color: var(--navy-dark);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0.2rem 0.6rem rgba(5, 28, 67, 0.16);
+  cursor: pointer;
+}
+
+.upload-preview-clear[hidden] {
+  display: none;
+}
+
+.upload-preview-clear:hover {
+  color: #fff;
+  border-color: #b72d2d;
+  background: #b72d2d;
+}
+
+.upload-preview-clear i {
+  font-size: 1.05rem;
 }
 
 .inbound-file-actions .secondary-action {
