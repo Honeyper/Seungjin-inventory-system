@@ -99,6 +99,7 @@ test("관리자 알림 패널은 백업 알림과 날짜별 업데이트 내역�
   assert.match(adminHtml, /id="updateHistoryTabPanel"/);
   assert.match(adminSource, /const SYSTEM_UPDATE_HISTORY = \[/);
   assert.match(adminSource, /date: "2026-09-10"/);
+  assert.match(adminSource, /date: "2026-09-01"/);
   assert.match(adminSource, /date: "2026-09-02"/);
   assert.match(adminSource, /function setBackupNotificationTab\(tabName\)/);
   assert.match(adminSource, /renderSystemUpdateHistory\(\)/);
