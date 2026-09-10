@@ -15,5 +15,5 @@ test("재고 상세보기는 재고와 제품DB의 여러 제품 이미지를 �
 test("재고 상세 이미지 선택 시 기존 다중 이미지 확대보기를 연다", () => {
   assert.match(adminSource, /querySelectorAll\("\[data-inventory-detail-product-image\]"\)/);
   assert.match(adminSource, /openProductImageGallery\(\s*productImageUrls,\s*inbound\.productName,/);
-  assert.match(adminHtml, /admin\.js\?v=20260909-(?:inventory-detail-images|qr-work-date-subcolumns)-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=20260910-inbound-upload-order-edit-(?:dev|prd)/);
 });
