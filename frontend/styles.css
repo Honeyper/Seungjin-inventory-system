@@ -8848,6 +8848,10 @@ input {
   cursor: pointer;
 }
 
+.production-plan-detail-toggle[hidden] {
+  display: none;
+}
+
 .production-plan-detail-toggle:hover,
 .production-plan-detail-toggle:focus-visible,
 .production-plan-detail-header button:hover,
