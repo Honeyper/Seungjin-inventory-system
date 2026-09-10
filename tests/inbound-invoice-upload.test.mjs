@@ -14,7 +14,22 @@ test("거래명세서는 입고 저장 전에 Google Drive에 즉시 업로드�
   assert.match(gasSource, /function uploadInboundInvoice\(payload\)/);
   assert.match(gasSource, /return \{ invoiceFileUrl \}/);
   assert.match(gasSource, /uploadInboundInvoice_\(payload,[\s\S]*?\) \|\| String\(payload\.invoiceFileUrl \|\| ''\)\.trim\(\)/);
-  assert.match(adminHtml, /admin\.js\?v=20260910-invoice-picker-cancel-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=20260910-inbound-invoice-speed-(?:dev|prd)/);
+});
+
+test("거래명세서 원본은 문서 가독성을 유지하는 크기로 줄여 전송한다", () => {
+  assert.match(adminSource, /const INVOICE_IMAGE_MAX_EDGE = 2000/);
+  assert.match(adminSource, /const INVOICE_IMAGE_JPEG_QUALITY = 0\.88/);
+  assert.match(adminSource, /async function optimizeInboundInvoiceImage\(file\)/);
+  assert.match(adminSource, /await createImageBitmap\(file\)/);
+  assert.match(adminSource, /canvas\.toBlob\(resolve, "image\/jpeg", INVOICE_IMAGE_JPEG_QUALITY\)/);
+  assert.match(adminSource, /optimizedBlob\.size >= file\.size/);
+  assert.match(adminSource, /const uploadFile = await optimizeInboundInvoiceImage\(file\)/);
+});
+
+test("거래명세서 최적화와 불량사진 읽기를 병렬로 준비한다", () => {
+  assert.match(adminSource, /const \[invoiceFile, defectFiles\] = await Promise\.all\(\[[\s\S]*?getInboundInvoicePayload\(\),[\s\S]*?getInboundDefectFilePayloads\(\)[\s\S]*?\]\)/);
+  assert.match(adminSource, /payload\.defectFiles = defectFiles/);
 });
 
 test("즉시 업로드된 거래명세서 URL은 Supabase 입고와 재고 레코드에 보존된다", () => {

@@ -3,6 +3,9 @@ const MAX_INVOICE_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_DEFECT_PHOTO_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PRODUCT_IMAGE_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PRODUCT_IMAGE_COUNT = 10;
+const INVOICE_IMAGE_COMPRESSION_MIN_SIZE = 512 * 1024;
+const INVOICE_IMAGE_MAX_EDGE = 2000;
+const INVOICE_IMAGE_JPEG_QUALITY = 0.88;
 
 const DEFAULT_CLIENTS = [
   "아이원(아이텍)",
@@ -5359,11 +5362,14 @@ async function saveInbound() {
   setInboundSaving(true);
 
   try {
-    const invoiceFile = await getInboundInvoicePayload();
+    const [invoiceFile, defectFiles] = await Promise.all([
+      getInboundInvoicePayload(),
+      getInboundDefectFilePayloads()
+    ]);
     if (invoiceFile) {
       payload.invoiceFileUrl = await uploadInboundInvoiceFile(payload, invoiceFile);
     }
-    payload.defectFiles = await getInboundDefectFilePayloads();
+    payload.defectFiles = defectFiles;
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
     void refreshInboundMutationData({ includeProducts: true });
@@ -5417,10 +5423,69 @@ function getInboundPayload() {
 }
 
 async function getInboundInvoicePayload() {
-  return getFilePayloadFromInput(inboundInvoiceFile, {
+  const file = inboundInvoiceFile?.files?.[0];
+  if (!file) {
+    return null;
+  }
+  if (!file.type.startsWith("image/")) {
+    throw new Error("거래명세서는 이미지 파일만 업로드할 수 있습니다.");
+  }
+  if (file.size > MAX_INVOICE_FILE_SIZE) {
+    throw new Error("거래명세서 파일은 개별 10MB 이하로 등록해주세요.");
+  }
+
+  const uploadFile = await optimizeInboundInvoiceImage(file);
+  return getFilePayload(uploadFile, {
     label: "거래명세서",
     maxSize: MAX_INVOICE_FILE_SIZE
   });
+}
+
+async function optimizeInboundInvoiceImage(file) {
+  const compressibleTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  if (
+    file.size < INVOICE_IMAGE_COMPRESSION_MIN_SIZE
+    || !compressibleTypes.has(file.type)
+    || typeof createImageBitmap !== "function"
+  ) {
+    return file;
+  }
+
+  let bitmap = null;
+  try {
+    bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, INVOICE_IMAGE_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) {
+      return file;
+    }
+
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(bitmap, 0, 0, width, height);
+    const optimizedBlob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", INVOICE_IMAGE_JPEG_QUALITY);
+    });
+    if (!optimizedBlob || optimizedBlob.size >= file.size) {
+      return file;
+    }
+
+    const optimizedName = file.name.replace(/\.[^.]+$/, "") || "거래명세서";
+    return new File([optimizedBlob], `${optimizedName}.jpg`, {
+      type: "image/jpeg",
+      lastModified: file.lastModified
+    });
+  } catch (error) {
+    console.warn("거래명세서 이미지 최적화를 건너뜁니다.", error);
+    return file;
+  } finally {
+    bitmap?.close?.();
+  }
 }
 
 async function uploadInboundInvoiceFile(payload, invoiceFile) {
