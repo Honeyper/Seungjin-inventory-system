@@ -7503,6 +7503,31 @@ input {
   padding: 1.25rem 2.1rem 1.65rem;
 }
 
+.inventory-attention-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.inventory-attention-search[hidden] {
+  display: none;
+}
+
+.inventory-attention-search .search-field {
+  flex: 1 1 20rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.inventory-attention-search > span {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .inventory-attention-modal-list {
   display: grid;
   gap: 0.65rem;

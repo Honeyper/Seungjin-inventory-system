@@ -78,6 +78,14 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-11",
+    title: "실물 확인 현황 검색 추가",
+    items: [
+      "실물 확인 현황에서 제품명·거래처명·관리 ID로 검색할 수 있게 했습니다.",
+      "검색 결과의 미확인·확인 완료 박스 수를 함께 표시하며, 상세보기에서 돌아오면 검색 조건을 유지합니다."
+    ]
+  },
+  {
+    date: "2026-09-11",
     title: "출고 결산 필터 집계 수정",
     items: [
       "출고 결산의 상태 건수와 수량·검사·불량 합계에 제품 검색, 거래처, 보관 위치, 검수 여부, 출고 상태 필터를 함께 반영했습니다.",
@@ -733,6 +741,9 @@ const inventoryAttentionTitle = document.querySelector("#inventoryAttentionTitle
 const inventoryAttentionDescription = document.querySelector("#inventoryAttentionDescription");
 const inventoryAttentionList = document.querySelector("#inventoryAttentionList");
 const inventoryAttentionEmpty = document.querySelector("#inventoryAttentionEmpty");
+const inventoryAttentionSearch = document.querySelector("#inventoryAttentionSearch");
+const inventoryAttentionSearchInput = document.querySelector("#inventoryAttentionSearchInput");
+const inventoryAttentionSearchCount = document.querySelector("#inventoryAttentionSearchCount");
 const closeInventoryAttentionModalButton = document.querySelector("#closeInventoryAttentionModal");
 const shippingTable = document.querySelector(".shipping-table");
 const shippingTableBody = shippingTable?.querySelector("tbody");
@@ -1477,6 +1488,12 @@ inventoryLocationViewButtons.forEach((button) => {
   button.addEventListener("click", () => openInventoryLocationModal(button.dataset.inventoryLocationView));
 });
 closeInventoryAttentionModalButton?.addEventListener("click", closeInventoryAttentionModal);
+inventoryAttentionSearchInput?.addEventListener("input", () => {
+  renderInventoryAttentionList("audit");
+  if (inventoryAttentionList) {
+    inventoryAttentionList.scrollTop = 0;
+  }
+});
 document.querySelector("#closeShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
 document.querySelector("#cancelShippingInspectionModal")?.addEventListener("click", closeShippingInspectionModal);
 document.querySelector("#closeShippingCompletionModal")?.addEventListener("click", closeShippingCompletionModal);
@@ -9123,7 +9140,7 @@ function uniqueValuesFromRows(rows, key) {
   return Array.from(new Set(rows.map((row) => row[key]).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "ko"));
 }
 
-function openInventoryAttentionModal(type) {
+function openInventoryAttentionModal(type, { preserveSearch = false } = {}) {
   if (!inventoryAttentionModal || !inventoryAttentionList || !inventoryAttentionEmpty) {
     return;
   }
@@ -9133,13 +9150,35 @@ function openInventoryAttentionModal(type) {
     return;
   }
 
+  if (inventoryAttentionSearch) {
+    inventoryAttentionSearch.hidden = type !== "audit";
+  }
+  if (inventoryAttentionSearchInput && !preserveSearch) {
+    inventoryAttentionSearchInput.value = "";
+  }
+  renderInventoryAttentionList(type);
+
+  inventoryAttentionModal.hidden = false;
+  resetModalScrollPosition(inventoryAttentionModal);
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => closeInventoryAttentionModalButton?.focus(), 0);
+}
+
+function renderInventoryAttentionList(type) {
   const config = getInventoryAttentionConfig(type);
-  const rows = getInventoryAttentionRows(type, config);
+  const query = type === "audit" ? inventoryAttentionSearchInput?.value || "" : "";
+  const rows = getInventoryAttentionRows(type, config, query);
 
   inventoryAttentionTitle.textContent = config.title;
   inventoryAttentionDescription.textContent = getInventoryAttentionDescription(type, rows, config);
   inventoryAttentionList.innerHTML = rows.map((item) => renderInventoryAttentionRow(item, config)).join("");
   inventoryAttentionEmpty.hidden = Boolean(rows.length);
+  inventoryAttentionEmpty.textContent = normalizeSearchText(query)
+    ? "검색 결과가 없습니다. 제품명·거래처명·관리 ID를 확인해주세요."
+    : "해당하는 재고가 없습니다.";
+  if (inventoryAttentionSearchCount) {
+    inventoryAttentionSearchCount.textContent = `${normalizeSearchText(query) ? "검색 결과" : "전체"} ${formatNumber(rows.length)}건`;
+  }
 
   inventoryAttentionList.querySelectorAll("[data-inventory-attention-detail]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -9158,11 +9197,6 @@ function openInventoryAttentionModal(type) {
       openInventoryInboundDetail(inbound, { returnAttentionType: type, returnScrollTop });
     });
   });
-
-  inventoryAttentionModal.hidden = false;
-  resetModalScrollPosition(inventoryAttentionModal);
-  document.body.classList.add("modal-open");
-  window.setTimeout(() => closeInventoryAttentionModalButton?.focus(), 0);
 }
 
 function closeInventoryAttentionModal() {
@@ -9188,6 +9222,10 @@ function openInventoryLocationModal(type) {
   }
 
   const isQuantityMode = type === "quantity";
+  if (inventoryAttentionSearch) {
+    inventoryAttentionSearch.hidden = true;
+  }
+  inventoryAttentionEmpty.textContent = "해당하는 재고가 없습니다.";
   const stats = isQuantityMode ? state.inventoryLocationQuantityStats : state.inventoryLocationBoxStats;
   const unit = isQuantityMode ? "ea" : "box";
   const titleUnit = isQuantityMode ? "총 수량" : "박스 수";
@@ -9290,12 +9328,16 @@ function getInventoryAttentionConfig(type) {
   return configs[type] || configs.audit;
 }
 
-function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(type)) {
+function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(type), query = "") {
   if (!Array.isArray(state.inventoryRows)) {
     return [];
   }
 
-  const rows = state.inventoryRows.filter(config.filter);
+  const searchQuery = type === "audit" ? normalizeSearchText(query) : "";
+  const rows = state.inventoryRows.filter((item) => config.filter(item) && (
+    !searchQuery || [item.productName, item.clientName, item.managementId]
+      .some((value) => normalizeSearchText(value).includes(searchQuery))
+  ));
   return type === "audit"
     ? rows.slice().sort((left, right) => (
       Number(right.inventoryUnconfirmedBoxCount || 0) - Number(left.inventoryUnconfirmedBoxCount || 0)
@@ -10511,7 +10553,7 @@ function closeInboundDetailModal() {
   setInboundDetailMode("view");
 
   if (returnAttentionType) {
-    openInventoryAttentionModal(returnAttentionType);
+    openInventoryAttentionModal(returnAttentionType, { preserveSearch: true });
     if (inventoryAttentionList) {
       inventoryAttentionList.scrollTop = returnScrollTop;
     }

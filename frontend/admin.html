@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260911-print-page-isolation-v1-prd" />
+    <link rel="stylesheet" href="./styles.css?v=20260911-inventory-audit-search-v1-prd" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260909-qr-worker-hint-prd" />
   </head>
   <body class="admin-body">
@@ -3132,6 +3132,13 @@
         </header>
 
         <div class="inventory-attention-modal-body">
+          <div class="inventory-attention-search" id="inventoryAttentionSearch" hidden>
+            <label class="search-field">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16 16 4 4" /></svg>
+              <input id="inventoryAttentionSearchInput" type="search" placeholder="제품명 · 거래처명 · 관리 ID 검색" aria-label="실물 확인 현황 검색" autocomplete="off" />
+            </label>
+            <span id="inventoryAttentionSearchCount" role="status" aria-live="polite"></span>
+          </div>
           <div class="inventory-attention-modal-list" id="inventoryAttentionList"></div>
           <p class="picker-empty" id="inventoryAttentionEmpty" hidden>해당하는 재고가 없습니다.</p>
         </div>
@@ -3202,6 +3209,6 @@
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-prd"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-prd"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-prd"></script>
-    <script src="./admin.js?v=20260911-shipping-settlement-filters-v1-prd"></script>
+    <script src="./admin.js?v=20260911-inventory-audit-search-v1-prd"></script>
   </body>
 </html>
