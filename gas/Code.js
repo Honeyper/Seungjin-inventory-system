@@ -183,6 +183,7 @@ function getApiRoutes_() {
       normalizeStockAttachmentLinks,
       login,
       setupSheets,
+      getProductionPlanReference,
       getProducts,
       getPurchaseOrders,
       getTodayInbounds,

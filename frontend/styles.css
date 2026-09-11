@@ -14566,3 +14566,22 @@ input {
     min-width: 0;
   }
 }
+
+/* Production plan: manual inputs are yellow, linked and calculated values white. */
+.production-plan-table [data-plan-field],
+.production-plan-table .production-plan-product-trigger,
+.production-plan-detail-grid.manual-values input,
+.production-plan-detail-section [data-plan-reference] {
+  background: #fff4ad;
+  color: #132e52;
+}
+.production-plan-auto,
+.production-plan-detail-grid.system-values article,
+.production-plan-detail-grid.formula-values article {
+  background: #fff;
+}
+.production-plan-auto strong { display: block; font-size: 0.85rem; }
+.production-plan-auto small { display: block; color: #8d5321; font-size: 0.7rem; line-height: 1.5; margin-top: 0.25rem; }
+.production-plan-input-legend { font-size: 0.75rem; color: #65758d; }
+.production-plan-detail-section [data-plan-reference] { width: 100%; min-height: 2.5rem; border: 1px solid #d9c77a; border-radius: 0.4rem; }
+.production-plan-detail-section > p { font-size: 0.75rem; color: #65758d; line-height: 1.6; overflow-wrap: anywhere; }

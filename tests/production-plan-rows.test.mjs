@@ -35,8 +35,9 @@ function setup() {
     escapeHtml: (value) => String(value ?? ""), escapeAttribute: (value) => String(value ?? ""),
     getLocalDateInputValue: () => "2026-09-11",
     showToast: () => {}, closeInboundProductPicker: () => {}, openInboundProductPicker: () => {},
-    ensureProductsLoaded: async () => {}, loadPurchaseOrders: async () => {}
+    ensureProductsLoaded: async () => {}, loadPurchaseOrders: async () => {}, requestApi: async () => ({ rows: [] })
   });
+  vm.runInContext(fs.readFileSync(new URL("../frontend/production-planner.js", import.meta.url), "utf8"), context);
   vm.runInContext(source.slice(source.indexOf("const PRODUCTION_PROCESS_ORDER"), source.indexOf("const SYSTEM_UPDATE_HISTORY")), context);
   vm.runInContext(source.slice(source.indexOf("function getProductionPlanStorageKey()"), source.indexOf("function getCurrentView()")), context);
   return context;
@@ -65,7 +66,10 @@ test("이미 5행을 넘는 공정의 계획과 구버전 저장 데이터는 �
   assert.equal(rows.length, 17);
   assert.equal(rows.filter((row) => row.process === "실크 인쇄").length, 7);
   assert.deepEqual(jobs, original);
-  jobs.forEach((job, i) => assert.deepEqual({ ...plain(rows[i]), planRowId: undefined }, { ...job, planRowId: undefined }));
+  jobs.forEach((job, i) => {
+    for (const key of Object.keys(job)) assert.deepEqual(rows[i][key], job[key]);
+    assert.equal(rows[i].cumulativeProduction, null);
+  });
 });
 
 test("공정별 + 버튼은 해당 공정에만 한 행을 추가하고 병합 셀 범위를 늘린다", () => {
@@ -118,6 +122,7 @@ test("늘린 행과 입력값은 저장·재조회 및 날짜·공장 전환 후
 test("빈 행에서 같은 발주를 선택해도 기존 계획을 덮어쓰지 않고 행별 입력을 구분한다", async () => {
   const c = setup();
   c.state.productionPlanJobs = c.buildProductionPlanJobs();
+  c.updateProductionPlanTargets(c.state.productionPlanJobs);
   const original = plain(c.getProductionPlanActiveJobs()[0]);
   const added = c.state.productionPlanJobs.find((job) => !job.purchaseOrderId && job.process === "박 인쇄");
   const id = added.planRowId;
@@ -132,9 +137,9 @@ test("빈 행에서 같은 발주를 선택해도 기존 계획을 덮어쓰지 
   c.handleProductionPlanFieldChange({ target: { closest: (selector) => selector === "[data-plan-field]" ? { dataset: { planField: "worker" }, value: "추가 작업자" } : row } });
   assert.equal(selected.worker, "추가 작업자");
   assert.equal(c.state.productionPlanJobs.find((job) => job.planRowId === original.planRowId).worker, "");
-  c.handleProductionPlanDetailChange({ target: { closest: () => ({ dataset: { planRowId: id, planDetailField: "cumulativeHours" }, value: "8" }) } });
+  c.handleProductionPlanDetailChange({ target: { closest: selector => selector === "[data-plan-detail-field]" ? ({ dataset: { planRowId: id, planDetailField: "cumulativeHours" }, value: "8" }) : null } });
   assert.equal(selected.cumulativeHours, 8);
-  assert.equal(c.state.productionPlanJobs.find((job) => job.planRowId === original.planRowId).cumulativeHours, 0);
+  assert.equal(c.state.productionPlanJobs.find((job) => job.planRowId === original.planRowId).cumulativeHours, null);
 });
 
 test("발주 동기화와 자동 생성은 추가 행과 같은 발주의 개별 계획을 유지한다", async () => {
@@ -158,8 +163,9 @@ test("발주 동기화와 자동 생성은 추가 행과 같은 발주의 개별
 test("같은 공정의 중복 발주 자동 목표는 잔량을 초과하지 않으며 빈 행은 계산하지 않는다", () => {
   const c = setup();
   const job = c.buildProductionPlanJobs().find((row) => row.purchaseOrderId);
+  Object.assign(job, { productionMetricsVersion: 2, cumulativeProduction: 1000, cumulativeHours: 1, loss: 0 });
   const rows = c.applyProductionPlanRules([{ ...job, targetQuantity: 6000 }, { ...job, planRowId: "second", targetQuantity: 6000 }, c.createProductionPlanEmptyJob("박 인쇄")]);
-  assert.equal(rows[0].targetQuantity + rows[1].targetQuantity, 10000);
+  assert.equal(rows[0].targetQuantity + rows[1].targetQuantity, 9000);
   assert.equal(rows[2].targetQuantity, 0);
   assert.equal(rows[2].machine, "");
 });
@@ -168,6 +174,7 @@ test("삭제는 같은 발주의 다른 계획을 보존하고 합계·스케줄
   const c = setup();
   c.state.productionPlanJobs = c.buildProductionPlanJobs();
   const first = c.getProductionPlanActiveJobs()[0];
+  Object.assign(first, { productionMetricsVersion: 2, cumulativeProduction: 9700, cumulativeHours: 9.7, loss: 0 });
   first.machine = "1호기";
   first.worker = "삭제 대상 작업자";
   c.state.productionPlanJobs.push({ ...first, planRowId: "keep-row", machine: "2호기", targetQuantity: 300, worker: "유지 작업자" });
@@ -180,7 +187,8 @@ test("삭제는 같은 발주의 다른 계획을 보존하고 합계·스케줄
   c.machineScheduleBoard = {};
   c.handleProductionPlanTableClick({ target: { closest: selector => selector === "[data-plan-delete-row]" ? { dataset: { planDeleteRow: first.planRowId } } : null } });
   assert.equal(c.getProductionPlanActiveJobs().length, 1);
-  assert.deepEqual(plain(c.getProductionPlanActiveJobs()[0]), preserved);
+  assert.equal(c.getProductionPlanActiveJobs()[0].worker, preserved.worker);
+  assert.equal(c.getProductionPlanActiveJobs()[0].targetQuantity, 300);
   assert.deepEqual(plain(c.state.purchaseOrders), orders);
   assert.equal(c.state.productionPlanSelectedJobId, "");
   assert.equal(c.state.productionPlanPickerJobId, "");
@@ -191,7 +199,8 @@ test("삭제는 같은 발주의 다른 계획을 보존하고 합계·스케줄
   c.saveProductionPlanDraft();
   c.loadProductionPlanDraft();
   assert.equal(c.state.productionPlanJobs.some((job) => job.planRowId === first.planRowId), false);
-  assert.deepEqual(plain(c.getProductionPlanActiveJobs()[0]), preserved);
+  assert.equal(c.getProductionPlanActiveJobs()[0].worker, preserved.worker);
+  assert.equal(c.getProductionPlanActiveJobs()[0].targetQuantity, 300);
 });
 
 test("삭제 취소와 존재하지 않는 행 삭제는 계획과 저장본을 변경하지 않는다", () => {

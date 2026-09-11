@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260911-production-plan-delete-v1-dev" />
+    <link rel="stylesheet" href="./styles.css?v=20260911-production-capacity-v1-dev" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260909-qr-worker-hint-dev" />
   </head>
   <body class="admin-body">
@@ -343,6 +343,7 @@
               <div class="production-plan-section-heading">
                 <div>
                   <h2 id="productionPlanTitle">일일 생산계획표</h2>
+                  <p class="production-plan-input-legend">노란색: 직접 입력 · 흰색: 자동 불러오기 / 계산</p>
                   <p id="productionPlanTableCaption">발주 잔량과 납기일이 빠른 순서로 정리됩니다.</p>
                 </div>
                 <label class="production-plan-filter">
@@ -3106,12 +3107,13 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <script src="./config.js"></script>
-    <script src="./supabase-gateway.js?v=20260904-notification-usage-dev"></script>
+    <script src="./supabase-gateway.js?v=20260911-production-capacity-v1-dev"></script>
     <script src="./product-sort.js?v=20260907-product-picker-direction-dev"></script>
     <script src="./inbound-sort.js?v=20260901-recent-first"></script>
     <script src="./qr-label.js?v=20260902-qr-remainder-quantity-v2"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-dev"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-dev"></script>
-    <script src="./admin.js?v=20260911-production-plan-detail-toggle-v1-dev"></script>
+    <script src="./production-planner.js?v=20260911-production-capacity-v1"></script>
+    <script src="./admin.js?v=20260911-production-capacity-v1-dev"></script>
   </body>
 </html>
