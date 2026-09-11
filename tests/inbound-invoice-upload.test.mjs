@@ -14,7 +14,7 @@ test("거래명세서는 입고 저장 전에 Google Drive에 즉시 업로드�
   assert.match(gasSource, /function uploadInboundInvoice\(payload\)/);
   assert.match(gasSource, /return \{ invoiceFileUrl \}/);
   assert.match(gasSource, /uploadInboundInvoice_\(payload,[\s\S]*?\) \|\| String\(payload\.invoiceFileUrl \|\| ''\)\.trim\(\)/);
-  assert.match(adminHtml, /admin\.js\?v=(?:20260911-(?:production-plan-(?:width|rows)|print-page-isolation|shipping-settlement-filters|inventory-audit-search|inventory-audit-client-colors|inventory-move-persistence|production-plan-delete|shipping-settlement-quantity)-v1|20260910-(?:inventory-attachments|update-history(?:-v2)?|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=(?:20260911-(?:production-plan-(?:width|rows)|print-page-isolation|shipping-settlement-filters|inventory-audit-search|inventory-audit-client-colors|inventory-move-persistence|production-plan-delete|shipping-settlement-quantity|production-plan-no-label)-v1|20260910-(?:inventory-attachments|update-history(?:-v2)?|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
 });
 
 test("재고 상세 조회에도 거래명세서와 불량사진 링크를 포함한다", () => {
