@@ -51,6 +51,7 @@ const SERVER_USAGE_POLL_MS = 30 * 1000;
 const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
 const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const PRODUCTION_PROCESS_ORDER = ["박 인쇄", "실크 인쇄", "자동화", "라벨"];
+const PRODUCTION_MIN_PROCESS_ROWS = 5;
 const PRODUCTION_MACHINE_OPTIONS = {
   "박 인쇄": ["1호기", "2호기", "5호기", "7호기", "11호기", "12호기"],
   "실크 인쇄": ["2호기", "3호기", "4호기", "5호기", "6호기", "7호기", "8호기", "9호기", "10호기", "11호기", "12호기"],
@@ -74,10 +75,12 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-11",
-    title: "생산계획 표 크기 고정",
+    title: "생산계획 표와 행 추가 개선",
     items: [
       "작업 선택과 생산 상세 열기·닫기 시 표의 열 너비와 행 높이가 변하지 않도록 수정했습니다.",
-      "상세 패널을 열었을 때 오른쪽 열은 표 안에서 가로 스크롤로 확인할 수 있습니다."
+      "상세 패널을 열었을 때 오른쪽 열은 표 안에서 가로 스크롤로 확인할 수 있습니다.",
+      "각 인쇄 공정에 최소 5개의 계획 행을 표시하고 공정별 + 계획 추가 버튼으로 행을 늘릴 수 있게 했습니다.",
+      "빈 행에서 기존 제품 선택창으로 계획을 추가하며, 빈 행은 생산량 합계와 기계별 스케줄에서 제외합니다."
     ]
   },
   {
@@ -2091,6 +2094,51 @@ function getProductionPlanStorageKey() {
   return `${PRODUCTION_PLAN_STORAGE_PREFIX}:${state.productionPlanFactory}:${state.productionPlanDate}`;
 }
 
+function createProductionPlanEmptyJob(process) {
+  return {
+    planRowId: `plan-${crypto.randomUUID()}`,
+    purchaseOrderId: "", productId: "", productName: "", clientName: "", orderRound: "",
+    process, machine: "", worker: "", note: "", targetQuantity: 0, balance: 0,
+    dueDate: "", hours: PRODUCTION_STANDARD_WORK_HOURS, manualProcess: true
+  };
+}
+
+function ensureProductionPlanRows(jobs) {
+  const seen = new Set();
+  const rows = jobs.map((job) => {
+    let planRowId = job.planRowId || job.purchaseOrderId;
+    if (!planRowId || seen.has(planRowId)) planRowId = `plan-${crypto.randomUUID()}`;
+    seen.add(planRowId);
+    return { ...job, planRowId };
+  });
+  PRODUCTION_PROCESS_ORDER.forEach((process) => {
+    const count = rows.filter((job) => job.process === process).length;
+    for (let index = count; index < PRODUCTION_MIN_PROCESS_ROWS; index += 1) {
+      rows.push(createProductionPlanEmptyJob(process));
+    }
+  });
+  return rows;
+}
+
+function getProductionPlanActiveJobs() {
+  return state.productionPlanJobs.filter((job) => Boolean(job.purchaseOrderId));
+}
+
+function addProductionPlanRow(process) {
+  if (!PRODUCTION_PROCESS_ORDER.includes(process)) return;
+  const job = createProductionPlanEmptyJob(process);
+  state.productionPlanJobs.push(job);
+  renderProductionPlanTable();
+  const row = Array.from(productionPlanTableBody?.querySelectorAll("[data-plan-row-id]") || [])
+    .find((element) => element.dataset.planRowId === job.planRowId);
+  row?.querySelector("[data-plan-product-picker]")?.focus({ preventScroll: true });
+  row?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = `${process} 계획 행을 추가했습니다. 제품 선택 후 계획을 저장해주세요.`;
+    productionPlanStatus.dataset.type = "";
+  }
+}
+
 function isProductionPlanNonWorkingDate(dateValue) {
   if (!dateValue) return false;
   const date = new Date(`${dateValue}T00:00:00`);
@@ -2219,49 +2267,55 @@ function getProductionPlanOpenOrders() {
 }
 
 function buildProductionPlanJobs({ autoAssign = false, preserve = [] } = {}) {
-  const preservedById = new Map(preserve.map((job) => [job.purchaseOrderId, job]));
-  const jobs = getProductionPlanOpenOrders().map((order) => {
-    const previous = preservedById.get(order.purchaseOrderId);
-    const process = previous?.process || getProductionPlanProcess(order);
-    const machines = PRODUCTION_MACHINE_OPTIONS[process] || [];
-    const machine = machines.includes(previous?.machine) ? previous.machine : "";
-    const balance = getProductionPlanBalance(order);
-    const orderQuantity = Math.max(0, Number(order?.totalOrderQuantity || previous?.orderQuantity || 0));
-    const cumulativeProduction = Math.max(
-      0,
-      Number(order?.accumulatedInboundQuantity || 0),
-      Number(order?.accumulatedShippingQuantity || 0)
-    );
-    return {
-      purchaseOrderId: order.purchaseOrderId,
-      productId: order.productId || "",
-      orderRound: order.orderRound || "",
-      clientName: order.clientName || "",
-      productName: order.productName || "",
-      process,
-      machine,
-      targetQuantity: Number(previous?.targetQuantity) >= 0 ? Number(previous.targetQuantity) : balance,
-      balance,
-      dueDate: order.endDate || "",
-      worker: previous?.worker || "",
-      hours: Number(previous?.hours) > 0 ? Math.min(PRODUCTION_MAX_WORK_HOURS, Number(previous.hours)) : PRODUCTION_STANDARD_WORK_HOURS,
-      note: previous?.note || order.note || "",
-      orderQuantity,
-      workDays: Number(previous?.workDays) > 0
-        ? Number(previous.workDays)
-        : getProductionPlanWorkingDays(state.productionPlanDate, order.endDate),
-      loss: Math.max(0, Number(order?.accumulatedInboundQuantity || 0) - orderQuantity),
-      cumulativeProduction,
-      cumulativeHours: Math.max(0, Number(previous?.cumulativeHours || 0)),
-      actualProduction: Math.max(0, Number(previous?.actualProduction || 0))
-    };
+  const jobs = getProductionPlanOpenOrders().flatMap((order) => {
+    const previousRows = preserve.filter((job) => job.purchaseOrderId === order.purchaseOrderId);
+    return (previousRows.length ? previousRows : [null]).map((previous) => {
+      const process = previous?.process || getProductionPlanProcess(order);
+      const machines = PRODUCTION_MACHINE_OPTIONS[process] || [];
+      const machine = machines.includes(previous?.machine) ? previous.machine : "";
+      const balance = getProductionPlanBalance(order);
+      const orderQuantity = Math.max(0, Number(order?.totalOrderQuantity || previous?.orderQuantity || 0));
+      const cumulativeProduction = Math.max(
+        0,
+        Number(order?.accumulatedInboundQuantity || 0),
+        Number(order?.accumulatedShippingQuantity || 0)
+      );
+      return {
+        planRowId: previous?.planRowId || order.purchaseOrderId,
+        manualProcess: Boolean(previous?.manualProcess),
+        purchaseOrderId: order.purchaseOrderId,
+        productId: order.productId || "",
+        orderRound: order.orderRound || "",
+        clientName: order.clientName || "",
+        productName: order.productName || "",
+        process,
+        machine,
+        targetQuantity: Number(previous?.targetQuantity) >= 0 ? Number(previous.targetQuantity) : balance,
+        balance,
+        dueDate: order.endDate || "",
+        worker: previous?.worker || "",
+        hours: Number(previous?.hours) > 0 ? Math.min(PRODUCTION_MAX_WORK_HOURS, Number(previous.hours)) : PRODUCTION_STANDARD_WORK_HOURS,
+        note: previous?.note || order.note || "",
+        orderQuantity,
+        workDays: Number(previous?.workDays) > 0
+          ? Number(previous.workDays)
+          : getProductionPlanWorkingDays(state.productionPlanDate, order.endDate),
+        loss: Math.max(0, Number(order?.accumulatedInboundQuantity || 0) - orderQuantity),
+        cumulativeProduction,
+        cumulativeHours: Math.max(0, Number(previous?.cumulativeHours || 0)),
+        actualProduction: Math.max(0, Number(previous?.actualProduction || 0))
+      };
+    });
   });
-  return autoAssign ? applyProductionPlanRules(jobs) : jobs;
+  const planned = autoAssign ? applyProductionPlanRules(jobs) : jobs;
+  return ensureProductionPlanRows([...planned, ...preserve.filter((job) => !job.purchaseOrderId)]);
 }
 
 function applyProductionPlanRules(jobs) {
   const machineLoads = new Map();
+  const orderTargets = new Map();
   return jobs.map((job) => {
+    if (!job.purchaseOrderId) return job;
     const calculations = getProductionPlanCalculations(job);
     const hours = getProductionPlanRecommendedHours(job, calculations);
     const capacityTarget = calculations.hourlyRate > 0 ? Math.floor(calculations.hourlyRate * hours) : Number(job.targetQuantity || job.balance || 0);
@@ -2269,6 +2323,10 @@ function applyProductionPlanRules(jobs) {
     job.targetQuantity = calculations.hourlyRate > 0
       ? Math.round(Math.min(calculations.remaining, calculations.formulaTarget, capacityTarget))
       : Math.min(Number(job.targetQuantity || 0), Number(job.balance || 0));
+    const orderProcessKey = `${job.purchaseOrderId}:${job.process}`;
+    const available = Math.max(0, Number(job.balance || 0) - (orderTargets.get(orderProcessKey) || 0));
+    job.targetQuantity = Math.min(job.targetQuantity, available);
+    orderTargets.set(orderProcessKey, (orderTargets.get(orderProcessKey) || 0) + job.targetQuantity);
 
     const machines = PRODUCTION_MACHINE_OPTIONS[job.process] || [];
     const rankedMachines = [...machines].sort((left, right) => (machineLoads.get(left) || 0) - (machineLoads.get(right) || 0));
@@ -2288,9 +2346,9 @@ function applyProductionPlanRules(jobs) {
 
 function loadProductionPlanDraft() {
   const savedJobs = readProductionPlanDraft();
-  state.productionPlanJobs = savedJobs || buildProductionPlanJobs();
-  if (!state.productionPlanJobs.some((job) => job.purchaseOrderId === state.productionPlanSelectedJobId)) {
-    state.productionPlanSelectedJobId = state.productionPlanJobs[0]?.purchaseOrderId || "";
+  state.productionPlanJobs = ensureProductionPlanRows(savedJobs || buildProductionPlanJobs());
+  if (!state.productionPlanJobs.some((job) => job.planRowId === state.productionPlanSelectedJobId)) {
+    state.productionPlanSelectedJobId = getProductionPlanActiveJobs()[0]?.planRowId || "";
   }
   renderProductionPlan();
   if (productionPlanStatus) {
@@ -2348,6 +2406,8 @@ function getProductionPlanFilteredJobs() {
   return [...jobs].sort((a, b) => {
     const processCompare = PRODUCTION_PROCESS_ORDER.indexOf(a.process) - PRODUCTION_PROCESS_ORDER.indexOf(b.process);
     if (processCompare) return processCompare;
+    if (Boolean(a.purchaseOrderId) !== Boolean(b.purchaseOrderId)) return a.purchaseOrderId ? -1 : 1;
+    if (!a.purchaseOrderId && !b.purchaseOrderId) return 0;
     const machineCompare = String(a.machine || "zz").localeCompare(String(b.machine || "zz"), "ko", { numeric: true });
     if (machineCompare) return machineCompare;
     return String(a.dueDate || "9999-12-31").localeCompare(String(b.dueDate || "9999-12-31"));
@@ -2365,7 +2425,7 @@ function getProductionPlanMachineOptions(job) {
 function changeProductionPlanOrder(job, purchaseOrderId) {
   const order = state.purchaseOrders.find((item) => item.purchaseOrderId === purchaseOrderId);
   if (!order) return false;
-  const process = getProductionPlanProcess(order);
+  const process = job.manualProcess ? job.process : getProductionPlanProcess(order);
   const balance = getProductionPlanBalance(order);
   const machineOptions = PRODUCTION_MACHINE_OPTIONS[process] || [];
   job.purchaseOrderId = order.purchaseOrderId;
@@ -2375,7 +2435,10 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
   job.productName = order.productName || "";
   job.process = process;
   job.machine = machineOptions.includes(job.machine) ? job.machine : "";
-  job.targetQuantity = balance;
+  const otherTarget = state.productionPlanJobs
+    .filter((item) => item !== job && item.purchaseOrderId === purchaseOrderId && item.process === process)
+    .reduce((sum, item) => sum + Number(item.targetQuantity || 0), 0);
+  job.targetQuantity = Math.max(0, balance - otherTarget);
   job.balance = balance;
   job.dueDate = order.endDate || "";
   job.orderQuantity = Math.max(0, Number(order.totalOrderQuantity || 0));
@@ -2392,11 +2455,7 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
 }
 
 function replaceProductionPlanJobOrder(job, purchaseOrderId) {
-  const previousPurchaseOrderId = job.purchaseOrderId;
-  const swappedJob = state.productionPlanJobs.find((item) => item !== job && item.purchaseOrderId === purchaseOrderId);
-  if (!changeProductionPlanOrder(job, purchaseOrderId)) return false;
-  if (swappedJob) changeProductionPlanOrder(swappedJob, previousPurchaseOrderId);
-  return Boolean(swappedJob);
+  return changeProductionPlanOrder(job, purchaseOrderId);
 }
 
 function renderProductionPlanTable() {
@@ -2411,39 +2470,49 @@ function renderProductionPlanTable() {
     return counts;
   }, {});
   const renderedProcesses = new Set();
-  productionPlanTableBody.innerHTML = jobs.map((job) => {
+  const processRowIndexes = {};
+  productionPlanTableBody.innerHTML = jobs.map((job, index) => {
+    processRowIndexes[job.process] = (processRowIndexes[job.process] || 0) + 1;
+    const rowLabel = job.productName || `${job.process} ${processRowIndexes[job.process]}번째 계획`;
+    const empty = !job.purchaseOrderId;
     const processCell = renderedProcesses.has(job.process) ? "" : `
-      <td class="production-plan-process" rowspan="${processCounts[job.process]}"><span>${escapeHtml(job.process)}</span></td>`;
+      <td class="production-plan-process" rowspan="${processCounts[job.process] + 1}"><span>${escapeHtml(job.process)}</span></td>`;
     renderedProcesses.add(job.process);
     const urgent = isProductionPlanUrgent(job);
     const hours = Array.from({ length: 21 }, (_, index) => index / 2)
       .map((value) => `<option value="${value}" ${Number(job.hours) === value ? "selected" : ""}>${value}시간</option>`)
       .join("");
+    const addRow = jobs[index + 1]?.process !== job.process ? `
+      <tr class="production-plan-add-row"><td colspan="9">
+        <button type="button" class="production-plan-add-button" data-plan-add-process="${escapeAttribute(job.process)}" aria-label="${escapeAttribute(job.process)} 계획 추가">
+          <i class="ti ti-plus" aria-hidden="true"></i> 계획 추가
+        </button>
+      </td></tr>` : "";
     return `
-      <tr class="${job.purchaseOrderId === state.productionPlanSelectedJobId ? "is-selected" : ""}" data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" data-due="${urgent ? "urgent" : "normal"}" tabindex="0" aria-label="${escapeAttribute(job.productName)} 생산 상세 열기">
+      <tr class="${job.planRowId === state.productionPlanSelectedJobId ? "is-selected" : ""}${empty ? " production-plan-empty-row" : ""}" data-plan-row-id="${escapeAttribute(job.planRowId)}" data-due="${urgent ? "urgent" : "normal"}" tabindex="0" aria-label="${escapeAttribute(rowLabel)} 생산 상세 열기">
         ${processCell}
-        <td><select data-plan-field="machine" aria-label="${escapeAttribute(job.productName)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
+        <td><select data-plan-field="machine" aria-label="${escapeAttribute(rowLabel)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
         <td>${escapeHtml(job.clientName || "-")}</td>
         <td class="production-plan-product">
-          <button class="production-plan-product-trigger" type="button" data-plan-product-picker aria-label="${escapeAttribute(job.productName || "제품")} 변경">
-            <span><strong>${escapeHtml(job.productName || "제품 선택")}</strong><small>${escapeHtml(job.orderRound || job.productId || "-")}</small></span>
+          <button class="production-plan-product-trigger" type="button" data-plan-product-picker aria-label="${escapeAttribute(rowLabel)} ${empty ? "제품 선택" : "변경"}">
+            <span><strong>${escapeHtml(job.productName || "제품 선택")}</strong><small>${escapeHtml(job.orderRound || job.productId || (empty ? "제품을 선택해 계획을 입력하세요" : "-"))}</small></span>
             <i class="ti ti-search" aria-hidden="true"></i>
           </button>
         </td>
-        <td><input data-plan-field="targetQuantity" type="number" min="0" step="1" value="${Number(job.targetQuantity || 0)}" aria-label="${escapeAttribute(job.productName)} 목표 생산량" /></td>
-        <td class="production-plan-balance">${formatNumber(job.balance)} ea</td>
-        <td><span class="production-plan-due ${urgent ? "urgent" : ""}">${urgent ? '<i class="ti ti-clock-exclamation" aria-hidden="true"></i>' : ""}${escapeHtml(job.dueDate || "미정")}</span></td>
-        <td><input data-plan-field="worker" type="text" value="${escapeAttribute(job.worker)}" placeholder="작업자" aria-label="${escapeAttribute(job.productName)} 작업자" /></td>
-        <td><select data-plan-field="hours" aria-label="${escapeAttribute(job.productName)} 작업 시간">${hours}</select></td>
-        <td><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(job.productName)} 특이사항" /></td>
-      </tr>`;
+        <td><input data-plan-field="targetQuantity" type="number" min="0" step="1" value="${empty ? "" : Number(job.targetQuantity || 0)}" ${empty ? "disabled" : ""} aria-label="${escapeAttribute(rowLabel)} 목표 생산량" /></td>
+        <td class="production-plan-balance">${empty ? "-" : `${formatNumber(job.balance)} ea`}</td>
+        <td><span class="production-plan-due ${urgent ? "urgent" : ""}">${urgent ? '<i class="ti ti-clock-exclamation" aria-hidden="true"></i>' : ""}${escapeHtml(job.dueDate || (empty ? "-" : "미정"))}</span></td>
+        <td><input data-plan-field="worker" type="text" value="${escapeAttribute(job.worker)}" placeholder="작업자" aria-label="${escapeAttribute(rowLabel)} 작업자" /></td>
+        <td><select data-plan-field="hours" aria-label="${escapeAttribute(rowLabel)} 작업 시간">${hours}</select></td>
+        <td><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(rowLabel)} 특이사항" /></td>
+      </tr>${addRow}`;
   }).join("");
 }
 
 function setProductionPlanDetailOpen(open) {
   state.productionPlanDetailOpen = Boolean(open);
   if (state.productionPlanDetailOpen && !state.productionPlanSelectedJobId) {
-    state.productionPlanSelectedJobId = getProductionPlanFilteredJobs()[0]?.purchaseOrderId || "";
+    state.productionPlanSelectedJobId = getProductionPlanFilteredJobs()[0]?.planRowId || "";
   }
   productionPlanWorkspace?.classList.toggle("detail-open", state.productionPlanDetailOpen);
   if (productionPlanDetailPanel) productionPlanDetailPanel.hidden = !state.productionPlanDetailOpen;
@@ -2455,9 +2524,9 @@ function setProductionPlanDetailOpen(open) {
   renderProductionPlanDetail();
 }
 
-function selectProductionPlanJob(purchaseOrderId, { open = true } = {}) {
-  if (!state.productionPlanJobs.some((job) => job.purchaseOrderId === purchaseOrderId)) return;
-  state.productionPlanSelectedJobId = purchaseOrderId;
+function selectProductionPlanJob(planRowId, { open = true } = {}) {
+  if (!state.productionPlanJobs.some((job) => job.planRowId === planRowId)) return;
+  state.productionPlanSelectedJobId = planRowId;
   if (open) state.productionPlanDetailOpen = true;
   productionPlanWorkspace?.classList.toggle("detail-open", state.productionPlanDetailOpen);
   if (productionPlanDetailPanel) productionPlanDetailPanel.hidden = !state.productionPlanDetailOpen;
@@ -2465,8 +2534,8 @@ function selectProductionPlanJob(purchaseOrderId, { open = true } = {}) {
     productionPlanDetailToggle.hidden = state.productionPlanDetailOpen;
     productionPlanDetailToggle.setAttribute("aria-expanded", String(state.productionPlanDetailOpen));
   }
-  productionPlanTableBody?.querySelectorAll("[data-plan-order-id]").forEach((row) => {
-    row.classList.toggle("is-selected", row.dataset.planOrderId === purchaseOrderId);
+  productionPlanTableBody?.querySelectorAll("[data-plan-row-id]").forEach((row) => {
+    row.classList.toggle("is-selected", row.dataset.planRowId === planRowId);
   });
   renderProductionPlanDetail();
 }
@@ -2481,12 +2550,12 @@ function formatProductionPlanHours(value) {
 
 function renderProductionPlanDetail() {
   if (!productionPlanDetailBody) return;
-  const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === state.productionPlanSelectedJobId);
-  if (!job) {
+  const job = state.productionPlanJobs.find((item) => item.planRowId === state.productionPlanSelectedJobId);
+  if (!job?.purchaseOrderId) {
     productionPlanDetailBody.innerHTML = `<div class="production-plan-detail-empty">
       <i class="ti ti-list-details" aria-hidden="true"></i>
-      <strong>작업을 선택해주세요.</strong>
-      <span>생산계획표의 행을 누르면 발주 연결값과 계산 결과를 확인할 수 있습니다.</span>
+      <strong>${job ? "제품을 선택해주세요." : "작업을 선택해주세요."}</strong>
+      <span>${job ? "빈 계획 행의 제품 선택 버튼을 눌러 발주 정보를 연결할 수 있습니다." : "생산계획표의 행을 누르면 발주 연결값과 계산 결과를 확인할 수 있습니다."}</span>
     </div>`;
     return;
   }
@@ -2515,9 +2584,9 @@ function renderProductionPlanDetail() {
     <section class="production-plan-detail-section manual-section">
       <header><h3>현장 입력</h3><span class="production-plan-manual-badge">직접 입력</span></header>
       <div class="production-plan-detail-grid manual-values">
-        <label><span>작업일</span><div><input data-plan-detail-field="workDays" data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" type="number" min="1" step="1" value="${values.workDays}" /><em>일</em></div><small>평일 기준 자동값, 필요 시 보정</small></label>
-        <label><span>누적 시간</span><div><input data-plan-detail-field="cumulativeHours" data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" type="number" min="0" step="0.5" value="${values.cumulativeHours || ""}" placeholder="0" /><em>시간</em></div><small>시간당 생산량 계산에 사용</small></label>
-        <label><span>실 생산량</span><div><input data-plan-detail-field="actualProduction" data-plan-order-id="${escapeAttribute(job.purchaseOrderId)}" type="number" min="0" step="1" value="${values.actualProduction || ""}" placeholder="0" /><em>ea</em></div><small>오늘 작업 완료 수량</small></label>
+        <label><span>작업일</span><div><input data-plan-detail-field="workDays" data-plan-row-id="${escapeAttribute(job.planRowId)}" type="number" min="1" step="1" value="${values.workDays}" /><em>일</em></div><small>평일 기준 자동값, 필요 시 보정</small></label>
+        <label><span>누적 시간</span><div><input data-plan-detail-field="cumulativeHours" data-plan-row-id="${escapeAttribute(job.planRowId)}" type="number" min="0" step="0.5" value="${values.cumulativeHours || ""}" placeholder="0" /><em>시간</em></div><small>시간당 생산량 계산에 사용</small></label>
+        <label><span>실 생산량</span><div><input data-plan-detail-field="actualProduction" data-plan-row-id="${escapeAttribute(job.planRowId)}" type="number" min="0" step="1" value="${values.actualProduction || ""}" placeholder="0" /><em>ea</em></div><small>오늘 작업 완료 수량</small></label>
       </div>
     </section>
     <section class="production-plan-detail-section formula-section">
@@ -2566,7 +2635,7 @@ function updateProductionPlanDetailCalculations(job) {
 function handleProductionPlanDetailChange(event) {
   const field = event.target.closest("[data-plan-detail-field]");
   if (!field) return;
-  const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === field.dataset.planOrderId);
+  const job = state.productionPlanJobs.find((item) => item.planRowId === field.dataset.planRowId);
   if (!job) return;
   job[field.dataset.planDetailField] = Math.max(0, Number(field.value || 0));
   updateProductionPlanDetailCalculations(job);
@@ -2577,14 +2646,19 @@ function handleProductionPlanDetailChange(event) {
 }
 
 function handleProductionPlanTableClick(event) {
-  const row = event.target.closest("[data-plan-order-id]");
+  const addButton = event.target.closest("[data-plan-add-process]");
+  if (addButton) {
+    addProductionPlanRow(addButton.dataset.planAddProcess);
+    return;
+  }
+  const row = event.target.closest("[data-plan-row-id]");
   if (!row) return;
-  selectProductionPlanJob(row.dataset.planOrderId, { open: true });
+  selectProductionPlanJob(row.dataset.planRowId, { open: true });
   handleProductionPlanProductPickerOpen(event);
 }
 
 function renderProductionPlanSummary() {
-  const jobs = state.productionPlanJobs;
+  const jobs = getProductionPlanActiveJobs();
   const totalTarget = jobs.reduce((sum, job) => sum + Number(job.targetQuantity || 0), 0);
   const dueSoon = jobs.filter(isProductionPlanUrgent).length;
   const unassigned = jobs.filter((job) => !job.machine || !job.worker).length;
@@ -2596,7 +2670,7 @@ function renderProductionPlanSummary() {
 
 function renderMachineScheduleBoard() {
   if (!machineScheduleBoard) return;
-  const jobs = state.productionPlanJobs;
+  const jobs = getProductionPlanActiveJobs();
   const assignedJobs = jobs.filter((job) => job.machine);
   if (!assignedJobs.length) {
     machineScheduleBoard.innerHTML = '<div class="machine-schedule-empty">기계가 배정된 작업이 없습니다.<br>생산계획표에서 기계를 선택하거나 AI 계획 생성을 눌러주세요.</div>';
@@ -2668,9 +2742,9 @@ function renderProductionPlan() {
 
 function handleProductionPlanFieldChange(event) {
   const field = event.target.closest("[data-plan-field]");
-  const row = event.target.closest("[data-plan-order-id]");
+  const row = event.target.closest("[data-plan-row-id]");
   if (!field || !row) return;
-  const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === row.dataset.planOrderId);
+  const job = state.productionPlanJobs.find((item) => item.planRowId === row.dataset.planRowId);
   if (!job) return;
   const key = field.dataset.planField;
   job[key] = ["targetQuantity", "hours"].includes(key) ? Number(field.value || 0) : field.value;
@@ -2683,15 +2757,15 @@ function handleProductionPlanFieldChange(event) {
 
 async function handleProductionPlanProductPickerOpen(event) {
   const button = event.target.closest("[data-plan-product-picker]");
-  const row = button?.closest("[data-plan-order-id]");
+  const row = button?.closest("[data-plan-row-id]");
   if (!button || !row) return;
-  state.productionPlanPickerJobId = row.dataset.planOrderId;
+  state.productionPlanPickerJobId = row.dataset.planRowId;
   await ensureProductsLoaded();
   openInboundProductPicker("productionPlan");
 }
 
 function selectProductionPlanProduct(product) {
-  const job = state.productionPlanJobs.find((item) => item.purchaseOrderId === state.productionPlanPickerJobId);
+  const job = state.productionPlanJobs.find((item) => item.planRowId === state.productionPlanPickerJobId);
   if (!job) {
     showToast("변경할 생산계획 작업을 찾을 수 없습니다.");
     closeInboundProductPicker();
@@ -2707,14 +2781,15 @@ function selectProductionPlanProduct(product) {
   const currentOrder = matchingOrders.find((order) => order.purchaseOrderId === job.purchaseOrderId);
   const unusedOrder = matchingOrders.find((order) => !state.productionPlanJobs.some((item) => item !== job && item.purchaseOrderId === order.purchaseOrderId));
   const selectedOrder = currentOrder || unusedOrder || matchingOrders[0];
-  const swapped = replaceProductionPlanJobOrder(job, selectedOrder.purchaseOrderId);
-  state.productionPlanPickerJobId = job.purchaseOrderId;
-  state.productionPlanSelectedJobId = job.purchaseOrderId;
+  replaceProductionPlanJobOrder(job, selectedOrder.purchaseOrderId);
+  state.productionPlanJobs = ensureProductionPlanRows(state.productionPlanJobs);
+  state.productionPlanPickerJobId = job.planRowId;
+  state.productionPlanSelectedJobId = job.planRowId;
   renderProductionPlan();
   if (productionPlanStatus) {
-    productionPlanStatus.textContent = swapped
-      ? "두 작업의 제품 순서를 바꾸고 연결된 발주 정보를 함께 갱신했습니다. 계획 저장을 눌러 반영해주세요."
-      : "제품과 연결된 거래처·잔량·납기일·공정을 변경했습니다. 계획 저장을 눌러 반영해주세요.";
+    productionPlanStatus.textContent = job.targetQuantity === 0 && job.balance > 0
+      ? "다른 행에 이미 목표가 배정된 발주입니다. 행별 목표 생산량을 조정한 뒤 계획을 저장해주세요."
+      : "제품과 연결된 발주 정보를 불러왔습니다. 계획 저장을 눌러 반영해주세요.";
     productionPlanStatus.dataset.type = "";
   }
   closeInboundProductPicker();
@@ -2727,7 +2802,7 @@ async function syncProductionPlanOrders() {
     await Promise.all([loadPurchaseOrders(), ensureProductsLoaded()]);
     state.productionPlanJobs = buildProductionPlanJobs({ preserve: currentJobs });
     renderProductionPlan();
-    if (productionPlanStatus) productionPlanStatus.textContent = `발주 잔량 ${formatNumber(state.productionPlanJobs.length)}건을 동기화했습니다.`;
+    if (productionPlanStatus) productionPlanStatus.textContent = `발주 연결 계획 ${formatNumber(getProductionPlanActiveJobs().length)}건을 동기화했습니다.`;
     showToast("생산계획에 최신 발주를 동기화했습니다.");
   } finally {
     if (syncProductionPlanButton) syncProductionPlanButton.disabled = false;
@@ -7221,7 +7296,7 @@ function openInboundProductPicker(target = "inbound") {
       : "제품관리에 등록된 제품 목록에서 입고할 제품을 선택하세요.";
   if (inboundProductPickerHint) {
     inboundProductPickerHint.textContent = isProductionPlanTarget
-      ? "선택하면 거래처·공정·잔량·납기일이 함께 변경됩니다."
+      ? "선택하면 거래처·발주 잔량·납기일을 함께 불러옵니다."
       : isPurchaseOrderTarget
       ? "선택하면 발주 정보에 자동으로 반영됩니다."
       : isExistingStockTarget
