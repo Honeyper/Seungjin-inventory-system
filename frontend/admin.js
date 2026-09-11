@@ -41,6 +41,29 @@ const DEFECT_REASON_TONES = {
 const INVENTORY_STOCK_STATUSES = ["보관", "작업중", "검수완료", "보류", "폐기", "출고대기", "일부 출고", "출고완료"];
 const INVENTORY_CATEGORY_FILTERS = ["자사재고", "사출 보관재고"];
 const SHIPPING_READY_STATUS_LABEL = "출고대기(검수완료)";
+// Keep inventory card accents consistent with the existing mobile client palette.
+const INVENTORY_CLIENT_ACCENT_BY_KEY = {
+  미지정: "#3d3d3d",
+  아이원아이텍: "#e6e6e6",
+  리치코스: "#f8d1cb",
+  장업시스템: "#f7caaf",
+  anp: "#fbe6a9",
+  정훈: "#d9ecc1",
+  케이알: "#c6e0f4",
+  코스엔텍: "#cadbe0",
+  금호eng: "#e2d0f0",
+  뉴파트너스: "#553482",
+  필립텍: "#a22116",
+  이루팩: "#35714e",
+  디엠: "#2452a3",
+  보경: "#453925",
+  cpi: "#e9e8e8",
+  더승진2공장: "#a22116",
+  sj패키지: "#d9ecc1",
+  에스제이패키지: "#d9ecc1",
+  명신코스텍: "#e2d0f0"
+};
+const INVENTORY_CLIENT_FALLBACK_ACCENTS = ["#2583c5", "#7c63c6", "#2f9a78", "#d36f60", "#d39735", "#238b8f", "#c55f86"];
 
 const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
@@ -80,6 +103,7 @@ const SYSTEM_UPDATE_HISTORY = [
     date: "2026-09-11",
     title: "실물 확인 현황 검색 추가",
     items: [
+      "실물 확인 현황 카드의 포인트 색상을 모바일과 동일한 업체별 지정 색상으로 표시합니다.",
       "실물 확인 현황에서 제품명·거래처명·관리 ID로 검색할 수 있게 했습니다.",
       "검색 결과의 미확인·확인 완료 박스 수를 함께 표시하며, 상세보기에서 돌아오면 검색 조건을 유지합니다."
     ]
@@ -9405,7 +9429,29 @@ function parseInventoryDateValue(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function getInventoryClientAccent(clientName) {
+  const key = String(clientName || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\(주\)|㈜|주식회사/g, "")
+    .replace(/[^0-9a-z가-힣]/g, "");
+  if (!key) {
+    return INVENTORY_CLIENT_ACCENT_BY_KEY.미지정;
+  }
+  if (INVENTORY_CLIENT_ACCENT_BY_KEY[key]) {
+    return INVENTORY_CLIENT_ACCENT_BY_KEY[key];
+  }
+  let hash = 0;
+  for (const character of key) {
+    hash = ((hash * 31) + character.codePointAt(0)) >>> 0;
+  }
+  return INVENTORY_CLIENT_FALLBACK_ACCENTS[hash % INVENTORY_CLIENT_FALLBACK_ACCENTS.length];
+}
+
 function renderInventoryAttentionRow(item, config) {
+  const accentStyle = config.isAudit
+    ? ` style="border-left-color:${getInventoryClientAccent(item.clientName)}"`
+    : "";
   const metricHtml = config.isAudit
     ? `
         <span class="inventory-audit-status unconfirmed">미확인 <b>${formatNumber(item.inventoryUnconfirmedBoxCount)} box</b></span>
@@ -9414,7 +9460,7 @@ function renderInventoryAttentionRow(item, config) {
     : `<span>${escapeHtml(config.metricLabel)} <b>${escapeHtml(config.metric(item))}</b></span>`;
 
   return `
-    <article class="inventory-attention-row ${config.tone}">
+    <article class="inventory-attention-row ${config.tone}"${accentStyle}>
       <div class="inventory-attention-row-main">
         <strong>${escapeHtml(normalizeDisplayValue(item.productName))}</strong>
         <span>${escapeHtml(normalizeDisplayValue(item.managementId))}</span>
