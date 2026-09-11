@@ -78,6 +78,14 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-11",
+    title: "출고 결산 필터 집계 수정",
+    items: [
+      "출고 결산의 상태 건수와 수량·검사·불량 합계에 제품 검색, 거래처, 보관 위치, 검수 여부, 출고 상태 필터를 함께 반영했습니다.",
+      "선택한 조회기간 내에서 필터에 맞는 전체 항목을 집계하며, 검색 결과가 없으면 0으로 표시합니다."
+    ]
+  },
+  {
+    date: "2026-09-11",
     title: "생산계획 표와 행 추가 개선",
     items: [
       "생산계획의 가로 인쇄 설정이 QR 라벨에 적용되던 문제를 수정하고 라벨을 기존 A4 세로·5mm 여백으로 복구했습니다.",
@@ -6308,10 +6316,8 @@ function getShippingSettlementBoxDate(box, item = null) {
 }
 
 function getShippingSettlementSourceRows() {
-  return (state.inventoryRows || []).filter((item) => {
-    const status = normalizeInventoryStockStatus(item?.stockStatus);
-    return status !== "폐기";
-  });
+  // Share the list's filters before pagination; settlement dates are applied per box.
+  return getShippingRows();
 }
 
 function getShippingSettlementBoxItems() {
