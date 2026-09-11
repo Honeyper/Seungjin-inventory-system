@@ -17,6 +17,7 @@ function setup() {
   const storage = new Map();
   const context = vm.createContext({
     crypto: { randomUUID },
+    window: { confirm: () => true },
     state: { productionPlanDate: "2026-09-11", productionPlanFactory: "1공장", productionPlanJobs: [],
       productionPlanSelectedJobId: "", productionPlanProcessFilter: "", productionPlanActiveTab: "table",
       purchaseOrders: [order], products: [{ productCode: order.productId, productionProcess: "박 인쇄" }], purchaseOrdersLoaded: true },
@@ -155,4 +156,63 @@ test("같은 공정의 중복 발주 자동 목표는 잔량을 초과하지 않
   assert.equal(rows[0].targetQuantity + rows[1].targetQuantity, 10000);
   assert.equal(rows[2].targetQuantity, 0);
   assert.equal(rows[2].machine, "");
+});
+
+test("삭제는 같은 발주의 다른 계획을 보존하고 합계·스케줄·선택 상태를 갱신한다", () => {
+  const c = setup();
+  c.state.productionPlanJobs = c.buildProductionPlanJobs();
+  const first = c.getProductionPlanActiveJobs()[0];
+  first.machine = "1호기";
+  first.worker = "삭제 대상 작업자";
+  c.state.productionPlanJobs.push({ ...first, planRowId: "keep-row", machine: "2호기", targetQuantity: 300, worker: "유지 작업자" });
+  const preserved = plain(c.state.productionPlanJobs.find((job) => job.planRowId === "keep-row"));
+  const orders = plain(c.state.purchaseOrders);
+  c.state.productionPlanSelectedJobId = first.planRowId;
+  c.state.productionPlanPickerJobId = first.planRowId;
+  c.state.productionPlanDetailOpen = true;
+  c.state.productionPlanActiveTab = "board";
+  c.machineScheduleBoard = {};
+  c.handleProductionPlanTableClick({ target: { closest: selector => selector === "[data-plan-delete-row]" ? { dataset: { planDeleteRow: first.planRowId } } : null } });
+  assert.equal(c.getProductionPlanActiveJobs().length, 1);
+  assert.deepEqual(plain(c.getProductionPlanActiveJobs()[0]), preserved);
+  assert.deepEqual(plain(c.state.purchaseOrders), orders);
+  assert.equal(c.state.productionPlanSelectedJobId, "");
+  assert.equal(c.state.productionPlanPickerJobId, "");
+  assert.equal(c.state.productionPlanDetailOpen, false);
+  assert.equal(c.productionPlanTargetQuantity.innerHTML, "300 <em>ea</em>");
+  assert.doesNotMatch(c.machineScheduleBoard.innerHTML, /삭제 대상 작업자/);
+  assert.match(c.machineScheduleBoard.innerHTML, /유지 작업자/);
+  c.saveProductionPlanDraft();
+  c.loadProductionPlanDraft();
+  assert.equal(c.state.productionPlanJobs.some((job) => job.planRowId === first.planRowId), false);
+  assert.deepEqual(plain(c.getProductionPlanActiveJobs()[0]), preserved);
+});
+
+test("삭제 취소와 존재하지 않는 행 삭제는 계획과 저장본을 변경하지 않는다", () => {
+  const c = setup();
+  c.state.productionPlanJobs = c.buildProductionPlanJobs();
+  c.saveProductionPlanDraft();
+  const previous = plain(c.state.productionPlanJobs);
+  c.window.confirm = () => false;
+  c.deleteProductionPlanRow(c.getProductionPlanActiveJobs()[0].planRowId);
+  c.deleteProductionPlanRow("missing");
+  assert.deepEqual(plain(c.state.productionPlanJobs), previous);
+  assert.deepEqual(plain(c.readProductionPlanDraft()), previous);
+});
+
+test("추가한 빈 행은 삭제하고 기본 5행 이하로는 줄이지 않는다", () => {
+  const c = setup();
+  c.state.productionPlanJobs = c.ensureProductionPlanRows([]);
+  c.addProductionPlanRow("라벨");
+  c.deleteProductionPlanRow(c.state.productionPlanJobs.at(-1).planRowId);
+  assert.equal(c.state.productionPlanJobs.length, 20);
+  const id = c.state.productionPlanJobs.find((job) => job.process === "라벨").planRowId;
+  c.deleteProductionPlanRow(id);
+  assert.equal(c.state.productionPlanJobs.length, 20);
+  assert.equal(c.state.productionPlanJobs.some((job) => job.planRowId === id), false);
+  for (const process of processes) assert.equal(c.state.productionPlanJobs.filter((job) => job.process === process).length, 5);
+  c.state.productionPlanProcessFilter = "라벨";
+  c.renderProductionPlanTable();
+  assert.equal((c.productionPlanTableBody.innerHTML.match(/data-plan-delete-row=/g) || []).length, 5);
+  assert.match(c.productionPlanTableBody.innerHTML, /rowspan="6"><span>라벨/);
 });
