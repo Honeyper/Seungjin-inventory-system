@@ -76,13 +76,12 @@ const BACKUP_NOTIFICATION_POLL_MS = 60 * 1000;
 const SERVER_USAGE_POLL_MS = 30 * 1000;
 const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
 const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
-const PRODUCTION_PROCESS_ORDER = ["박 인쇄", "실크 인쇄", "자동화", "라벨"];
+const PRODUCTION_PROCESS_ORDER = ["박 인쇄", "실크 인쇄", "자동화"];
 const PRODUCTION_MIN_PROCESS_ROWS = 5;
 const PRODUCTION_MACHINE_OPTIONS = {
   "박 인쇄": ["1호기", "2호기", "5호기", "7호기", "11호기", "12호기"],
   "실크 인쇄": ["2호기", "3호기", "4호기", "5호기", "6호기", "7호기", "8호기", "9호기", "10호기", "11호기", "12호기"],
-  "자동화": ["1호기", "3호기"],
-  "라벨": ["라벨 1호기", "라벨 2호기"]
+  "자동화": ["1호기", "3호기"]
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const PRODUCTION_DISCOURAGED_WORK_HOURS = 9;
@@ -99,6 +98,14 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  {
+    date: "2026-09-11",
+    title: "생산계획 라벨 공정 제거",
+    items: [
+      "생산계획에서 라벨 공정과 필터를 제거하고 박 인쇄·실크 인쇄·자동화만 표시합니다.",
+      "저장된 계획을 불러오거나 발주 동기화·자동 생성을 해도 라벨 공정은 계획표·합계·기계 스케줄에 포함하지 않습니다."
+    ]
+  },
   {
     date: "2026-09-11",
     title: "출고 결산에서 재고조정 제외",
@@ -2336,7 +2343,7 @@ function createProductionPlanEmptyJob(process) {
 
 function ensureProductionPlanRows(jobs) {
   const seen = new Set();
-  const rows = jobs.map((job) => {
+  const rows = jobs.filter((job) => PRODUCTION_PROCESS_ORDER.includes(job.process)).map((job) => {
     let planRowId = job.planRowId || job.purchaseOrderId;
     if (!planRowId || seen.has(planRowId)) planRowId = `plan-${crypto.randomUUID()}`;
     seen.add(planRowId);
@@ -2487,6 +2494,7 @@ function getProductionPlanProduct(order) {
 function getProductionPlanProcess(order) {
   const product = getProductionPlanProduct(order);
   const explicit = String(product?.productionProcess || product?.processGroup || "").trim();
+  if (explicit === "라벨") return "";
   if (PRODUCTION_PROCESS_ORDER.includes(explicit)) return explicit;
   const route = [
     product?.processRoute,
@@ -2496,7 +2504,7 @@ function getProductionPlanProcess(order) {
     product?.processStage3
   ].filter(Boolean).join(" ");
   const productName = String(order?.productName || product?.productName || "");
-  if (/라벨/.test(productName) || /라벨/.test(route)) return "라벨";
+  if (/라벨/.test(productName) || /라벨/.test(route)) return "";
   if (/자동|코팅/.test(route)) return "자동화";
   if (/박/.test(route) && !/실크/.test(route)) return "박 인쇄";
   return "실크 인쇄";

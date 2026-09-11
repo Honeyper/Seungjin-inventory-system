@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 
 const source = fs.readFileSync(new URL("../frontend/admin.js", import.meta.url), "utf8");
-const processes = ["박 인쇄", "실크 인쇄", "자동화", "라벨"];
+const processes = ["박 인쇄", "실크 인쇄", "자동화"];
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const order = {
   purchaseOrderId: "PO-ROW-CHECK", productId: "RCS-0014", productName: "LL006 아이브로우펜슬 용기",
@@ -45,10 +45,16 @@ function setup() {
 test("빈 계획은 공정별 최소 5행이며 반복 보정에도 행 ID와 개수가 유지된다", () => {
   const c = setup();
   const rows = c.ensureProductionPlanRows([]);
-  assert.equal(rows.length, 20);
+  assert.equal(rows.length, 15);
   for (const process of processes) assert.equal(rows.filter((row) => row.process === process).length, 5);
-  assert.equal(new Set(rows.map((row) => row.planRowId)).size, 20);
+  assert.equal(new Set(rows.map((row) => row.planRowId)).size, 15);
   assert.deepEqual(plain(c.ensureProductionPlanRows(rows)), plain(rows));
+  const legacy = { planRowId: "old-label", purchaseOrderId: "LABEL-ORDER", process: "라벨", machine: "라벨 1호기", targetQuantity: 500 };
+  assert.deepEqual(plain(c.ensureProductionPlanRows([...rows, legacy])), plain(rows));
+  c.state.products = [{ productCode: order.productId, productionProcess: "라벨" }];
+  assert.equal(c.buildProductionPlanJobs().some((job) => job.purchaseOrderId), false);
+  c.state.products = [{ productCode: order.productId, processRoute: "라벨" }];
+  assert.equal(c.buildProductionPlanJobs().some((job) => job.purchaseOrderId), false);
 });
 
 test("이미 5행을 넘는 공정의 계획과 구버전 저장 데이터는 손실 없이 유지한다", () => {
@@ -56,7 +62,7 @@ test("이미 5행을 넘는 공정의 계획과 구버전 저장 데이터는 �
   const jobs = Array.from({ length: 7 }, (_, i) => ({ purchaseOrderId: `PO-${i}`, process: "실크 인쇄", targetQuantity: i + 1, worker: `작업자${i}` }));
   const original = plain(jobs);
   const rows = c.ensureProductionPlanRows(jobs);
-  assert.equal(rows.length, 22);
+  assert.equal(rows.length, 17);
   assert.equal(rows.filter((row) => row.process === "실크 인쇄").length, 7);
   assert.deepEqual(jobs, original);
   jobs.forEach((job, i) => assert.deepEqual({ ...plain(rows[i]), planRowId: undefined }, { ...job, planRowId: undefined }));
@@ -69,9 +75,9 @@ test("공정별 + 버튼은 해당 공정에만 한 행을 추가하고 병합 �
   assert.equal(c.state.productionPlanJobs.filter((job) => job.process === "자동화").length, 6);
   assert.equal(c.state.productionPlanJobs.filter((job) => job.process === "박 인쇄").length, 5);
   assert.match(c.productionPlanTableBody.innerHTML, /rowspan="7"><span>자동화/);
-  assert.equal((c.productionPlanTableBody.innerHTML.match(/data-plan-add-process=/g) || []).length, 4);
+  assert.equal((c.productionPlanTableBody.innerHTML.match(/data-plan-add-process=/g) || []).length, 3);
   c.addProductionPlanRow("없는 공정");
-  assert.equal(c.state.productionPlanJobs.length, 21);
+  assert.equal(c.state.productionPlanJobs.length, 16);
 });
 
 test("공정 필터에도 빈 행과 해당 + 버튼이 표시되고 합계와 보드에서는 빈 행을 제외한다", () => {
@@ -79,7 +85,7 @@ test("공정 필터에도 빈 행과 해당 + 버튼이 표시되고 합계와 �
   c.state.productionPlanJobs = c.ensureProductionPlanRows([]);
   c.state.productionPlanJobs[0].machine = "1호기";
   c.state.productionPlanJobs[0].targetQuantity = 500;
-  c.state.productionPlanProcessFilter = "라벨";
+  c.state.productionPlanProcessFilter = "실크 인쇄";
   c.renderProductionPlanTable();
   assert.equal((c.productionPlanTableBody.innerHTML.match(/data-plan-row-id=/g) || []).length, 5);
   assert.equal((c.productionPlanTableBody.innerHTML.match(/data-plan-add-process=/g) || []).length, 1);
@@ -95,7 +101,7 @@ test("공정 필터에도 빈 행과 해당 + 버튼이 표시되고 합계와 �
 test("늘린 행과 입력값은 저장·재조회 및 날짜·공장 전환 후에도 구분되어 유지된다", () => {
   const c = setup();
   c.state.productionPlanJobs = c.ensureProductionPlanRows([]);
-  c.addProductionPlanRow("라벨");
+  c.addProductionPlanRow("실크 인쇄");
   c.state.productionPlanJobs.at(-1).worker = "입력 유지";
   const saved = plain(c.state.productionPlanJobs);
   c.saveProductionPlanDraft();
@@ -138,14 +144,14 @@ test("발주 동기화와 자동 생성은 추가 행과 같은 발주의 개별
   const id = c.state.productionPlanJobs.at(-1).planRowId;
   c.state.productionPlanPickerJobId = id;
   c.selectProductionPlanProduct({ productCode: order.productId });
-  c.addProductionPlanRow("라벨");
+  c.addProductionPlanRow("실크 인쇄");
   await c.syncProductionPlanOrders();
   assert.equal(c.getProductionPlanActiveJobs().length, 2);
   assert.equal(c.state.productionPlanJobs.find((job) => job.planRowId === id).process, "자동화");
-  assert.equal(c.state.productionPlanJobs.filter((job) => job.process === "라벨").length, 6);
+  assert.equal(c.state.productionPlanJobs.filter((job) => job.process === "실크 인쇄").length, 6);
   await c.generateProductionPlanDraft();
   assert.equal(c.getProductionPlanActiveJobs().length, 2);
-  assert.equal(c.state.productionPlanJobs.filter((job) => job.process === "라벨").length, 6);
+  assert.equal(c.state.productionPlanJobs.filter((job) => job.process === "실크 인쇄").length, 6);
   assert.ok(c.state.productionPlanJobs.filter((job) => !job.purchaseOrderId).every((job) => !job.machine));
 });
 
@@ -203,16 +209,16 @@ test("삭제 취소와 존재하지 않는 행 삭제는 계획과 저장본을 
 test("추가한 빈 행은 삭제하고 기본 5행 이하로는 줄이지 않는다", () => {
   const c = setup();
   c.state.productionPlanJobs = c.ensureProductionPlanRows([]);
-  c.addProductionPlanRow("라벨");
+  c.addProductionPlanRow("실크 인쇄");
   c.deleteProductionPlanRow(c.state.productionPlanJobs.at(-1).planRowId);
-  assert.equal(c.state.productionPlanJobs.length, 20);
-  const id = c.state.productionPlanJobs.find((job) => job.process === "라벨").planRowId;
+  assert.equal(c.state.productionPlanJobs.length, 15);
+  const id = c.state.productionPlanJobs.find((job) => job.process === "실크 인쇄").planRowId;
   c.deleteProductionPlanRow(id);
-  assert.equal(c.state.productionPlanJobs.length, 20);
+  assert.equal(c.state.productionPlanJobs.length, 15);
   assert.equal(c.state.productionPlanJobs.some((job) => job.planRowId === id), false);
   for (const process of processes) assert.equal(c.state.productionPlanJobs.filter((job) => job.process === process).length, 5);
-  c.state.productionPlanProcessFilter = "라벨";
+  c.state.productionPlanProcessFilter = "실크 인쇄";
   c.renderProductionPlanTable();
   assert.equal((c.productionPlanTableBody.innerHTML.match(/data-plan-delete-row=/g) || []).length, 5);
-  assert.match(c.productionPlanTableBody.innerHTML, /rowspan="6"><span>라벨/);
+  assert.match(c.productionPlanTableBody.innerHTML, /rowspan="6"><span>실크 인쇄/);
 });
