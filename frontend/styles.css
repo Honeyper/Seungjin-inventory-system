@@ -9434,6 +9434,38 @@ input {
   outline-offset: 1px;
 }
 
+.production-plan-note-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.production-plan-note-controls input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.production-plan-delete-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid #ead6d6;
+  border-radius: 0.35rem;
+  background: #fff;
+  color: #a33b3b;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.production-plan-delete-button:hover,
+.production-plan-delete-button:focus-visible {
+  background: #fff1f1;
+  border-color: #a33b3b;
+}
+
 .production-plan-product-trigger {
   display: flex;
   align-items: center;
@@ -14749,6 +14781,7 @@ input {
   body.printing-production-plan .page-view:not(#productionPlanView),
   body.printing-production-plan .production-plan-heading-actions,
   body.printing-production-plan .production-plan-add-button,
+  body.printing-production-plan .production-plan-delete-button,
   body.printing-production-plan .production-plan-tabs,
   body.printing-production-plan .production-plan-filter,
   body.printing-production-plan .production-plan-status,

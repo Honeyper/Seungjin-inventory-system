@@ -101,6 +101,14 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-11",
+    title: "생산계획 삭제 기능 추가",
+    items: [
+      "생산계획 각 행에 삭제 버튼을 추가하고 선택한 계획만 삭제할 수 있게 했습니다.",
+      "삭제 시 합계와 기계별 스케줄을 갱신하고 공정별 최소 5행을 유지하며, 계획 저장 후 삭제 내용을 유지합니다."
+    ]
+  },
+  {
+    date: "2026-09-11",
     title: "모바일 재고수정 스캔 목록 복원",
     items: [
       "재고수정에서 스캔한 박스와 선택한 이동 보관장소가 뒤로가기·앱 재실행 후에도 복원되도록 수정했습니다.",
@@ -2354,6 +2362,29 @@ function addProductionPlanRow(process) {
   }
 }
 
+function deleteProductionPlanRow(planRowId) {
+  const job = state.productionPlanJobs.find((item) => item.planRowId === planRowId);
+  if (!job) return;
+  if ((job.purchaseOrderId || job.machine || job.worker || job.note)
+    && !window.confirm(`${job.productName || job.process} 계획을 삭제할까요?\n발주·재고 원본은 유지되며, 변경 내용은 계획 저장을 눌러 반영합니다.`)) {
+    return;
+  }
+
+  state.productionPlanJobs = ensureProductionPlanRows(
+    state.productionPlanJobs.filter((item) => item.planRowId !== planRowId)
+  );
+  if (state.productionPlanSelectedJobId === planRowId) {
+    state.productionPlanSelectedJobId = "";
+    state.productionPlanDetailOpen = false;
+  }
+  if (state.productionPlanPickerJobId === planRowId) state.productionPlanPickerJobId = "";
+  renderProductionPlan();
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = "계획을 삭제했습니다. 변경 내용을 유지하려면 계획 저장을 눌러주세요.";
+    productionPlanStatus.dataset.type = "";
+  }
+}
+
 function isProductionPlanNonWorkingDate(dateValue) {
   if (!dateValue) return false;
   const date = new Date(`${dateValue}T00:00:00`);
@@ -2719,7 +2750,10 @@ function renderProductionPlanTable() {
         <td><span class="production-plan-due ${urgent ? "urgent" : ""}">${urgent ? '<i class="ti ti-clock-exclamation" aria-hidden="true"></i>' : ""}${escapeHtml(job.dueDate || (empty ? "-" : "미정"))}</span></td>
         <td><input data-plan-field="worker" type="text" value="${escapeAttribute(job.worker)}" placeholder="작업자" aria-label="${escapeAttribute(rowLabel)} 작업자" /></td>
         <td><select data-plan-field="hours" aria-label="${escapeAttribute(rowLabel)} 작업 시간">${hours}</select></td>
-        <td><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(rowLabel)} 특이사항" /></td>
+        <td><div class="production-plan-note-controls">
+          <input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(rowLabel)} 특이사항" />
+          <button type="button" class="production-plan-delete-button" data-plan-delete-row="${escapeAttribute(job.planRowId)}" aria-label="${escapeAttribute(rowLabel)} 계획 삭제" title="계획 삭제"><i class="ti ti-trash" aria-hidden="true"></i><span>삭제</span></button>
+        </div></td>
       </tr>${addRow}`;
   }).join("");
 }
@@ -2861,6 +2895,11 @@ function handleProductionPlanDetailChange(event) {
 }
 
 function handleProductionPlanTableClick(event) {
+  const deleteButton = event.target.closest("[data-plan-delete-row]");
+  if (deleteButton) {
+    deleteProductionPlanRow(deleteButton.dataset.planDeleteRow);
+    return;
+  }
   const addButton = event.target.closest("[data-plan-add-process]");
   if (addButton) {
     addProductionPlanRow(addButton.dataset.planAddProcess);
