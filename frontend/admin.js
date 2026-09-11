@@ -77,6 +77,7 @@ const SYSTEM_UPDATE_HISTORY = [
     date: "2026-09-11",
     title: "생산계획 표와 행 추가 개선",
     items: [
+      "생산계획의 가로 인쇄 설정이 QR 라벨에 적용되던 문제를 수정하고 라벨을 기존 A4 세로·5mm 여백으로 복구했습니다.",
       "작업 선택과 생산 상세 열기·닫기 시 표의 열 너비와 행 높이가 변하지 않도록 수정했습니다.",
       "상세 패널을 열었을 때 오른쪽 열은 표 안에서 가로 스크롤로 확인할 수 있습니다.",
       "각 인쇄 공정에 최소 5개의 계획 행을 표시하고 공정별 + 계획 추가 버튼으로 행을 늘릴 수 있게 했습니다.",
@@ -1781,6 +1782,7 @@ closeInboundQrModalButton?.addEventListener("click", closeInboundQrModal);
 closeInboundQrButton?.addEventListener("click", closeInboundQrModal);
 printInboundQrButton?.addEventListener("click", () => {
   if (!printInboundQrButton.disabled) {
+    document.body.classList.remove("printing-production-plan");
     window.print();
   }
 });
