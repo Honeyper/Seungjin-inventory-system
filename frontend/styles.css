@@ -8879,7 +8879,7 @@ input {
 }
 
 .manual-values label {
-  background: #fff9e9;
+  background: #fff;
 }
 
 .formula-values article {
@@ -8931,11 +8931,11 @@ input {
   min-width: 0;
   height: 2rem;
   padding: 0 0.45rem;
-  border: 1px solid #dec27e;
+  border: 1px solid #dce5f3;
   border-radius: 0.35rem;
   outline: 0;
   color: var(--navy-dark);
-  background: #fffdf6;
+  background: #fff;
   font: inherit;
   font-size: 0.76rem;
   font-weight: 850;
@@ -8943,8 +8943,8 @@ input {
 }
 
 .manual-values input:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 2px rgba(208, 161, 75, 0.14);
+  border-color: var(--navy);
+  box-shadow: 0 0 0 2px rgba(19, 46, 82, 0.14);
 }
 
 .formula-values .achievement {
@@ -14567,14 +14567,7 @@ input {
   }
 }
 
-/* Production plan: manual inputs are yellow, linked and calculated values white. */
-.production-plan-table [data-plan-field],
-.production-plan-table .production-plan-product-trigger,
-.production-plan-detail-grid.manual-values input,
-.production-plan-detail-section [data-plan-reference] {
-  background: #fff4ad;
-  color: #132e52;
-}
+/* Production plan: linked and calculated values. */
 .production-plan-auto,
 .production-plan-detail-grid.system-values article,
 .production-plan-detail-grid.formula-values article {
@@ -14582,6 +14575,5 @@ input {
 }
 .production-plan-auto strong { display: block; font-size: 0.85rem; }
 .production-plan-auto small { display: block; color: #8d5321; font-size: 0.7rem; line-height: 1.5; margin-top: 0.25rem; }
-.production-plan-input-legend { font-size: 0.75rem; color: #65758d; }
-.production-plan-detail-section [data-plan-reference] { width: 100%; min-height: 2.5rem; border: 1px solid #d9c77a; border-radius: 0.4rem; }
+.production-plan-detail-section [data-plan-reference] { width: 100%; min-height: 2.5rem; border: 1px solid #dce5f3; border-radius: 0.4rem; background: #fff; color: #132e52; }
 .production-plan-detail-section > p { font-size: 0.75rem; color: #65758d; line-height: 1.6; overflow-wrap: anywhere; }

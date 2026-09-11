@@ -97,6 +97,13 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-11",
+    title: "생산계획 입력칸 표시 정리",
+    items: [
+      "생산계획과 생산 상세의 직접 입력칸을 일반 입력박스로 정리하고 색상 구분 안내를 제거했습니다."
+    ]
+  },
+  {
+    date: "2026-09-11",
     title: "생산계획 자동 목표 및 근무시간 계산 수정",
     items: [
       "목표 생산량과 근무시간을 자동 계산하고 직접 입력은 노란색, 자동 데이터는 흰색으로 구분했습니다.",
@@ -2707,8 +2714,8 @@ function renderProductionPlanDetail() {
       ${v.sameOrder ? metric("누적 생산량", v.cumulativeProduction) + metric("누적 작업시간", v.cumulativeHours, "시간") + metric("LOSS", v.loss) : ""}
       ${metric("평일 작업일", getProductionPlanWorkingDays(state.productionPlanDate, job.dueDate), "일")}
     </div></section>
-    <section class="production-plan-detail-section manual-section"><header><h3>직접 입력</h3><span>노란색</span></header><div class="production-plan-detail-grid manual-values">${manual.join("")}</div><p>시스템에 없는 실적만 입력합니다. 입고·출고 수량을 생산량으로 대체하지 않습니다.</p></section>
-    <section class="production-plan-detail-section formula-section"><header><h3>자동 계산</h3><span>흰색</span></header><div class="production-plan-detail-grid formula-values">
+    <section class="production-plan-detail-section manual-section"><header><h3>직접 입력</h3></header><div class="production-plan-detail-grid manual-values">${manual.join("")}</div><p>시스템에 없는 실적만 입력합니다. 입고·출고 수량을 생산량으로 대체하지 않습니다.</p></section>
+    <section class="production-plan-detail-section formula-section"><header><h3>자동 계산</h3></header><div class="production-plan-detail-grid formula-values">
       ${metric("생산 잔량", v.remaining)}${metric("시간당 생산량", v.hourlyRate)}${metric("일일 필수 생산량", v.dailyRequired)}
       ${metric("시트 기준 목표", v.formulaTarget)}${metric("근무시간 반영 목표", job.planMissing ? null : job.targetQuantity)}
       ${metric("시트 일일 목표 시간", v.dailyTargetHours, "시간")}${metric("총 소요 시간", v.totalExpectedHours, "시간")}${metric("달성률", v.achievementRate, "%")}
