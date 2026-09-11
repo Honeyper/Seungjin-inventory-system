@@ -14698,12 +14698,13 @@ input {
 }
 
 @media print {
-  @page {
+  @page production-plan {
     margin: 8mm;
     size: A4 landscape;
   }
 
   body.printing-production-plan {
+    page: production-plan;
     width: auto;
     min-height: 0;
   }
