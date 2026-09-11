@@ -71,6 +71,10 @@ function inventoryBox(managementId, productId, number, quantity, options = {}) {
 
 function mutate(holder, action, payload) {
   const mutation = applyMutation(action, payload, holder.state, fixedNow);
+  for (const [dataset, key] of Object.entries({ products: "product_id", purchaseOrders: "purchase_order_id", inbounds: "record_key", inventoryRecords: "record_key", inventoryBoxes: "box_id" })) {
+    const keys = mutation.changes[dataset].upserts.map((row) => row[key]);
+    assert.equal(new Set(keys).size, keys.length, `${action}: ${dataset} must not update the same key twice in one database statement`);
+  }
   holder.state = mutation.state;
   return mutation;
 }
@@ -960,3 +964,32 @@ test("mobile inventory audit confirmation only updates scanned boxes", () => {
 });
 
 console.log("supabase-state-engine-test=passed");
+
+test("출고 이력이 있는 입고에 520·580 잔량 박스를 추가해도 재고 행을 한 번만 저장한다", () => {
+  const managementId = "IN-MULTIPLE-REMAINDERS";
+  const productId = "REMAINDER-PRODUCT";
+  const inbound = {
+    ...inventoryRecord(managementId, productId, 2980, "H-1"),
+    inboundDate: "2026-09-11", inboundTime: "09:00", inboundType: "정상입고",
+    boxQuantity: "1,440 ea", inboundBoxCount: "2 box", remainQuantity: "100 ea",
+    remainderQuantities: [100], boxTotalCount: "3 box"
+  };
+  const shipped = inventoryBox(managementId, productId, 1, 1440, {
+    storage: "H-1", status: "출고완료", shippingType: "정상출고", shippingDate: "2026-09-10", shipper: "테스터", inspectionQuantity: 200
+  });
+  const holder = { state: {
+    products: [product(productId)], orders: [], inbounds: [{ ...inbound }], records: [{ ...inbound }],
+    boxes: [shipped, inventoryBox(managementId, productId, 2, 1440, { storage: "H-1" }), inventoryBox(managementId, productId, 3, 100, { storage: "H-1" })]
+  } };
+  const payload = { ...inbound, boxQuantity: 1440, inboundBoxCount: 2, remainderQuantities: [520, 580], remainQuantity: 1100, storage: "H-1" };
+  const updated = mutate(holder, "updateInbound", payload);
+  assert.deepEqual(holder.state.boxes[0], shipped);
+  assert.deepEqual(holder.state.boxes.map(box => box.quantity), [1440, 1440, 520, 580]);
+  assert.deepEqual(updated.changes.inventoryBoxes.upserts.map(row => row.box_number), [3, 4]);
+  assert.deepEqual(updated.changes.inventoryBoxes.deletes, []);
+  assert.equal(updated.changes.inventoryRecords.upserts.length, 1);
+  assert.equal(updated.changes.inventoryRecords.upserts[0].data.currentTotalQuantity, "2,540 ea");
+  assert.equal(holder.state.inbounds[0].inboundTotalQuantity, "3,980 ea");
+  assert.deepEqual(holder.state.inbounds[0].remainderQuantities, [520, 580]);
+  assert.equal(mutate(holder, "updateInbound", payload).changes.inventoryRecords.upserts.length, 1);
+});
