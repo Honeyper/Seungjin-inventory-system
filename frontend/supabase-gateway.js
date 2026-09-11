@@ -4,6 +4,7 @@
     && Boolean(config.SUPABASE_GATEWAY_URL)
     && Boolean(config.SUPABASE_PUBLISHABLE_KEY);
   const readActions = new Set([
+    "getProductionPlanReference",
     "getProducts",
     "getPurchaseOrders",
     "getTodayInbounds",

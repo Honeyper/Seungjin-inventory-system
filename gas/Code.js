@@ -161,6 +161,7 @@ function getApiRoutes_() {
     normalizeStockAttachmentLinks,
     login,
     setupSheets,
+    getProductionPlanReference,
     getProducts: getProductsCached_,
     getPurchaseOrders: getPurchaseOrdersCached_,
     getTodayInbounds: getTodayInboundsCached_,

@@ -912,6 +912,11 @@ async function handleRequest(request: Request) {
     });
   }
 
+  if (action === "getProductionPlanReference") {
+    const token = await createSheetSyncToken("apps_script", 60 * 1000);
+    return jsonResponse(request, { ok: true, data: await fetchAppsScript("getProductionPlanReference", { token }) });
+  }
+
   if (action === "getSheetBackupNotifications") {
     return jsonResponse(request, {
       ok: true,
