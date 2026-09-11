@@ -634,7 +634,6 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   record.recordKey = recordKey;
   record.originalStorage = inbound.storage;
   if (currentRecord) Object.assign(currentRecord, record); else state.records.push(record);
-  changes.inventoryRecords.upserts.push({ record_key: recordKey, management_id: managementId, product_id: productId, storage: inbound.storage, data: record });
 
   if (action === "updateInbound" && hasProcessedBoxes) {
     if (!preservesProcessedBoxIdentity) {
@@ -727,6 +726,8 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
       updatedBoxRows: updatedRemainderBoxes.length
     };
   }
+  // Processed boxes save the final inventory summary through touchInventoryRecords above.
+  changes.inventoryRecords.upserts.push({ record_key: recordKey, management_id: managementId, product_id: productId, storage: inbound.storage, data: record });
   state.boxes = state.boxes.filter((box) => !previousBoxes.includes(box));
   const boxes = nextQuantities.map((quantity, index) => ({
     boxId: `${managementId}-B${String(index + 1).padStart(3, "0")}`,
