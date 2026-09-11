@@ -57,7 +57,7 @@ function runtime(rows = [
     "getShippingSettlementItemDate", "getShippingSettlementInspectionDate", "getShippingSettlementFallbackDate",
     "getShippingSettlementBoxDate", "getShippingSettlementItemDates", "getShippingSettlementDateRange",
     "isShippingSettlementDateMatch", "isShippingSettlementDateInRange", "getShippingSettlementInspectionKey",
-    "getShippingSettlementBoxQuantity", "getShippingSettlementQuantity", "getShippingSettlementBoxCount",
+    "isShippingSettlementInventoryAdjustment", "getShippingSettlementBoxQuantity", "getShippingSettlementQuantity", "getShippingSettlementBoxCount",
     "getShippingInspectionTrayQuantityFromItem", "findShippingInspectionTrayQuantity", "getQuantityNumberFromText", "extractQuantityNumber",
     "parseShippingSettlementNumber", "formatShippingSettlementNumber", "formatShippingSettlementPercent",
     "getShippingSettlementStatusCounts", "updateShippingSummaryCards", "updateShippingSettlementSummary", "setShippingSettlementText",
@@ -146,4 +146,45 @@ test("페이지·정렬을 바꿔도 필터에 맞는 전체 항목의 합계는
     assert.equal(summary(app).totalBoxes, "35");
     assert.equal(app.getShippingSettlementSourceRows().length, 35);
   }
+});
+
+
+test("재고조정 11박스·1,089개를 출고 실적과 검사 수량으로 집계하지 않는다", () => {
+  const app = runtime([4, 4, 2, 1].map((count, index) => row(`ADJUST-${index}`,
+    Array.from({ length: count }, () => box("출고완료", index === 3 ? 1089 : 0, today, {
+      shippingType: "재고조정", rawStatus: index === 3 ? "출고완료" : "출고완료(재고조정)",
+      inspectionDate: "", inspectionQuantity: 0, defectQuantity: 0, defectRate: 0
+    })), { trayQuantity: "99 ea", inboundTotalQuantity: 9999 })));
+  app.shippingSearchInput.value = "닥터 멜락신";
+  assert.equal(app.getShippingSettlementSourceRows().length, 4);
+  assert.deepEqual(summary(app), { totalQuantity: "0", totalBoxes: "0", inspectedQuantity: "0", defectQuantity: "0", defectRate: "0" });
+  assert.equal(app.shippingSummaryCards[2].strong.innerHTML, "0 <em>건</em>");
+});
+
+test("같은 입고 건에 정상출고와 과거 형식의 재고조정이 섞여도 정상출고만 집계한다", () => {
+  const app = runtime([row("MIXED", [
+    box("출고완료", 1089, today, { shippingType: "정상출고" }),
+    box("출고완료", 1089, today, { rawStatus: "출고완료(재고조정)" }),
+    box("출고완료", 1089, today, { shippingDate: `(조정일)${today}` }),
+    box("출고완료", 1089, today, { shippingType: "재고 조정" }),
+    box("출고완료", 1089, yesterday, { shippingType: "정상출고" })
+  ])]);
+  assert.deepEqual(summary(app), { totalQuantity: "1,089", totalBoxes: "1", inspectedQuantity: "50", defectQuantity: "2", defectRate: "4" });
+  assert.equal(app.shippingSummaryCards[2].strong.innerHTML, "1 <em>건</em>");
+});
+
+test("박스 상세가 없는 재고조정 요약도 출고 결산에서 제외한다", () => {
+  const app = runtime([row("ADJUST-SUMMARY", [], {
+    stockStatus: "출고완료", shippingType: "재고조정", shippingDate: today,
+    currentTotalQuantity: 1089, currentBoxCount: 1, shippingInspectionQuantity: 99
+  })]);
+  assert.equal(summary(app).totalQuantity, "0");
+  assert.equal(summary(app).totalBoxes, "0");
+});
+
+test("박스 수량이 0이거나 누락되어도 검사 수량을 출고 수량으로 대체하지 않는다", () => {
+  const app = runtime([row("ZERO", [box("출고완료", 0), box("출고완료", ""),
+    box("출고완료", "1,089 ea")])]);
+  assert.equal(summary(app).totalQuantity, "1,089");
+  assert.equal(summary(app).inspectedQuantity, "50");
 });

@@ -101,6 +101,14 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-11",
+    title: "출고 결산에서 재고조정 제외",
+    items: [
+      "재고조정 기록이 출고 건수·수량·박스 및 검사·불량 합계에 포함되던 문제를 수정했습니다.",
+      "총출고량은 박스의 실제 수량만 합산하며 검사 수량을 출고 수량으로 대체하지 않습니다."
+    ]
+  },
+  {
+    date: "2026-09-11",
     title: "생산계획 삭제 기능 추가",
     items: [
       "생산계획 각 행에 삭제 버튼을 추가하고 선택한 계획만 삭제할 수 있게 했습니다.",
@@ -6416,6 +6424,9 @@ function getShippingSettlementBoxItems() {
     ];
 
     if (!boxes.length) {
+      if (isShippingSettlementInventoryAdjustment(item)) {
+        return [];
+      }
       const status = getEffectiveShippingStatus(item);
       const date = getShippingSettlementItemDate(item);
       const trayQuantity = parseShippingSettlementNumber(getShippingInspectionTrayQuantityFromItem(item));
@@ -6440,7 +6451,7 @@ function getShippingSettlementBoxItems() {
       }];
     }
 
-    return boxes.map((box) => {
+    return boxes.filter((box) => !isShippingSettlementInventoryAdjustment(box)).map((box) => {
       const rawStatus = normalizeInventoryStockStatus(box.status);
       const status = rawStatus === "검수완료" ? "출고대기" : rawStatus;
       const date = getShippingSettlementBoxDate(box, item);
@@ -6476,9 +6487,15 @@ function getShippingSettlementInspectionKey(item, box, status, date) {
   ].join("|");
 }
 
+function isShippingSettlementInventoryAdjustment(item) {
+  // Legacy adjustments may retain only the raw status or the adjustment date prefix.
+  return [item?.shippingType, item?.completedShippingType, item?.rawStatus, item?.status, item?.stockStatus]
+    .some((value) => String(value || "").replace(/\s/g, "").includes("재고조정"))
+    || /^\(조정일\)/.test(String(item?.shippingDate || "").trim());
+}
+
 function getShippingSettlementBoxQuantity(box) {
-  return parseShippingSettlementNumber(box?.quantity || "")
-    || parseShippingSettlementNumber(box?.inspectionQuantity || "");
+  return parseShippingSettlementNumber(box?.quantity);
 }
 
 function parseShippingSettlementNumber(value) {
