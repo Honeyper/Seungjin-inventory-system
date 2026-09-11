@@ -100,6 +100,14 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 const SYSTEM_UPDATE_HISTORY = [
   {
     date: "2026-09-11",
+    title: "생산 상세 자동 열림 해제",
+    items: [
+      "생산계획의 행이나 입력 칸을 눌러도 생산 상세가 자동으로 열리지 않도록 수정했습니다.",
+      "작업을 선택한 뒤 생산 상세 버튼을 눌러 상세를 열 수 있습니다."
+    ]
+  },
+  {
+    date: "2026-09-11",
     title: "생산계획 라벨 공정 제거",
     items: [
       "생산계획에서 라벨 공정과 필터를 제거하고 박 인쇄·실크 인쇄·자동화만 표시합니다.",
@@ -2751,7 +2759,7 @@ function renderProductionPlanTable() {
         </button>
       </td></tr>` : "";
     return `
-      <tr class="${job.planRowId === state.productionPlanSelectedJobId ? "is-selected" : ""}${empty ? " production-plan-empty-row" : ""}" data-plan-row-id="${escapeAttribute(job.planRowId)}" data-due="${urgent ? "urgent" : "normal"}" tabindex="0" aria-label="${escapeAttribute(rowLabel)} 생산 상세 열기">
+      <tr class="${job.planRowId === state.productionPlanSelectedJobId ? "is-selected" : ""}${empty ? " production-plan-empty-row" : ""}" data-plan-row-id="${escapeAttribute(job.planRowId)}" data-due="${urgent ? "urgent" : "normal"}" tabindex="0" aria-label="${escapeAttribute(rowLabel)} 작업 선택">
         ${processCell}
         <td><select data-plan-field="machine" aria-label="${escapeAttribute(rowLabel)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
         <td>${escapeHtml(job.clientName || "-")}</td>
@@ -2789,7 +2797,7 @@ function setProductionPlanDetailOpen(open) {
   renderProductionPlanDetail();
 }
 
-function selectProductionPlanJob(planRowId, { open = true } = {}) {
+function selectProductionPlanJob(planRowId, { open = false } = {}) {
   if (!state.productionPlanJobs.some((job) => job.planRowId === planRowId)) return;
   state.productionPlanSelectedJobId = planRowId;
   if (open) state.productionPlanDetailOpen = true;
@@ -2923,7 +2931,7 @@ function handleProductionPlanTableClick(event) {
   }
   const row = event.target.closest("[data-plan-row-id]");
   if (!row) return;
-  selectProductionPlanJob(row.dataset.planRowId, { open: true });
+  selectProductionPlanJob(row.dataset.planRowId, { open: false });
   handleProductionPlanProductPickerOpen(event);
 }
 
