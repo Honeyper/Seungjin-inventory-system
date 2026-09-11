@@ -85,7 +85,7 @@ test("관리자 알림 버튼은 백업 결과 API, 읽음 표시, 실패 상세
   assert.match(adminHtml, /id="backupNotificationButton"/);
   assert.match(adminHtml, /id="backupNotificationBadge"/);
   assert.match(adminHtml, /id="backupNotificationPanel"/);
-  assert.match(adminHtml, /styles\.css\?v=(?:20260911-(?:production-plan-(?:width|rows)|print-page-isolation|inventory-audit-search|production-plan-delete|production-capacity)-v1|20260910-(?:invoice-preview-clear|update-history|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
+  assert.match(adminHtml, /styles\.css\?v=(?:20260911-(?:production-plan-(?:width|rows)|print-page-isolation|inventory-audit-search|production-plan-delete|production-capacity|production-inputs)-v1|20260910-(?:invoice-preview-clear|update-history|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
   assert.match(gatewaySource, /"getSheetBackupNotifications"/);
   assert.match(adminSource, /requestApi\("getSheetBackupNotifications"\)/);
   assert.match(adminSource, /BACKUP_NOTIFICATION_READ_KEY/);
