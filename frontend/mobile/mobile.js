@@ -6,6 +6,7 @@ const ROUTE_KEY = "seungjinMobileRoute";
 const SCANNED_ROWS_KEY = "seungjinMobileScannedRows";
 const PERSISTENT_SCANNED_ROWS_KEY = "seungjinMobilePersistentScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
+const PERSISTENT_MOVE_ROWS_KEY = `seungjinMobilePersistentMoveRows:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const SCANNER_MODE_KEY = "seungjinMobileScannerMode";
 const DASHBOARD_CACHE_KEY = `seungjinMobileDashboardCache:v2:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const DASHBOARD_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -448,7 +449,7 @@ function bindEvents() {
   document.addEventListener("keydown", handleConfirmDialogKeydown);
   document.addEventListener("keydown", handleProductImageKeydown);
   document.addEventListener("error", handleProductImageError, true);
-  window.addEventListener("pagehide", releaseScannerStream);
+  window.addEventListener("pagehide", handleMobilePageHide);
   window.addEventListener("resize", syncManualShippingViewport);
   window.addEventListener("resize", fitProductImageModalTitle);
   window.visualViewport?.addEventListener("resize", syncManualShippingViewport);
@@ -1245,6 +1246,9 @@ function showScreen(name) {
 
 function handlePageVisibilityChange() {
   if (document.hidden) {
+    if (state.user) {
+      saveScannedMoveRows();
+    }
     stopShippingClock();
     if (!state.scannerCameraRequestPending) {
       releaseScannerStream();
@@ -1261,6 +1265,13 @@ function handlePageVisibilityChange() {
     && !getReusableScannerStream()) {
     void startScannerCamera();
   }
+}
+
+function handleMobilePageHide() {
+  if (state.user) {
+    saveScannedMoveRows();
+  }
+  releaseScannerStream();
 }
 
 function resumeShippingClock() {
@@ -7279,6 +7290,11 @@ function saveDashboardCache() {
 
 function clearPersistentMobileData() {
   try {
+    localStorage.removeItem(PERSISTENT_MOVE_ROWS_KEY);
+  } catch (error) {
+    // Private browsing or device policy can block persistent storage.
+  }
+  try {
     localStorage.removeItem(DASHBOARD_CACHE_KEY);
     localStorage.removeItem(PERSISTENT_SCANNED_ROWS_KEY);
   } catch (error) {
@@ -7331,31 +7347,57 @@ function saveScannedShippingRows() {
 }
 
 function readSavedMoveRows() {
+  let rows = null;
   try {
-    const rows = JSON.parse(sessionStorage.getItem(MOVE_ROWS_KEY) || "[]");
-    if (!Array.isArray(rows)) {
+    const savedRows = JSON.parse(sessionStorage.getItem(MOVE_ROWS_KEY) || "[]");
+    if (Array.isArray(savedRows) && savedRows.length) {
+      rows = savedRows;
+    }
+  } catch (error) {
+    // A missing or unavailable tab session must not hide the persistent draft.
+  }
+
+  if (!rows) {
+    try {
+      const persistent = JSON.parse(localStorage.getItem(PERSISTENT_MOVE_ROWS_KEY) || "null");
+      if (!Array.isArray(persistent?.rows) || persistent.userKey !== getMobileCacheUserKey()) {
+        return [];
+      }
+      rows = persistent.rows;
+    } catch (error) {
       return [];
     }
-
-    const compactRows = rows.map(compactInventoryMoveRow);
-    if (compactRows.length) {
-      sessionStorage.setItem(MOVE_ROWS_KEY, JSON.stringify(compactRows));
-    }
-    return compactRows;
-  } catch (error) {
-    return [];
   }
+
+  const compactRows = rows.filter((row) => row && typeof row === "object").map(compactInventoryMoveRow);
+  // Also migrate scans already saved by the previous session-only version.
+  saveScannedMoveRows(compactRows);
+  return compactRows;
 }
 
-function saveScannedMoveRows() {
+function saveScannedMoveRows(rows = state.scannedMoveRows) {
+  const compactRows = rows.map(compactInventoryMoveRow);
   try {
-    if (!state.scannedMoveRows.length) {
+    if (compactRows.length) {
+      sessionStorage.setItem(MOVE_ROWS_KEY, JSON.stringify(compactRows));
+    } else {
       sessionStorage.removeItem(MOVE_ROWS_KEY);
-      return;
     }
-    sessionStorage.setItem(MOVE_ROWS_KEY, JSON.stringify(state.scannedMoveRows.map(compactInventoryMoveRow)));
   } catch (error) {
-    console.warn("Failed to save inventory move rows.", error);
+    console.warn("Failed to save inventory move session rows.", error);
+  }
+
+  try {
+    if (compactRows.length) {
+      localStorage.setItem(PERSISTENT_MOVE_ROWS_KEY, JSON.stringify({
+        userKey: getMobileCacheUserKey(),
+        rows: compactRows
+      }));
+    } else {
+      localStorage.removeItem(PERSISTENT_MOVE_ROWS_KEY);
+    }
+  } catch (error) {
+    console.warn("Failed to save persistent inventory move rows.", error);
   }
 }
 
