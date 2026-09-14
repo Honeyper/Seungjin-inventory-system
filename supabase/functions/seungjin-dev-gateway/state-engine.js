@@ -1,3 +1,5 @@
+export class ShippingStateConflict extends Error {}
+
 export const INVENTORY_ADJUSTMENT_CONFLICT = "이미 처리됐거나 수량이 변경되어 재고조정 대상이 아닙니다. 최신 재고를 확인해주세요.";
 
 const CLIENT_CODES = {
@@ -937,13 +939,13 @@ function mutateInventory(action, payload, state, changes, now) {
     boxes.forEach((box) => {
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
       if (status === "출고완료" && /출고완료|폐기/.test(currentStatus)) {
-        throw new Error(`${box.number}번 박스는 이미 출고되었거나 폐기되어 출고할 수 없습니다.`);
+        throw new ShippingStateConflict(`${box.number}번 박스는 이미 출고되었거나 폐기되어 출고할 수 없습니다.`);
       }
       if (status === "출고완료" && currentStatus !== "출고대기" && payload.allowInventoryAdjustment !== true && !completesWithInspection) {
         throw new Error(`${box.number}번 박스는 출고 검수가 완료되지 않았습니다.`);
       }
       if (status === "출고대기" && /출고완료|폐기/.test(currentStatus)) {
-        throw new Error(`${box.number}번 박스는 출고대기로 변경할 수 없는 상태입니다.`);
+        throw new ShippingStateConflict(`${text(box.managementId)} · ${box.number}번 박스는 이미 ${currentStatus} 상태입니다${text(box.shippingDate) ? ` (${text(box.shippingDate)})` : ""}. 최신 목록에서 처리 상태를 확인해주세요.`);
       }
       if (status === "보류" && /출고완료|폐기/.test(currentStatus)) {
         throw new Error(`${box.number}번 박스는 출고 보류로 변경할 수 없는 상태입니다.`);

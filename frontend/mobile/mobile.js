@@ -6408,24 +6408,30 @@ function syncPendingShippingRowsFromDashboard() {
         syncedFromPending: true
       }));
   });
-  const pendingByKey = new Map(pendingRows.map((row) => [getShippingKey(row), row]));
+  // Refresh every saved scan, including boxes completed from another device.
+  const currentByKey = new Map(state.dashboard.flatMap((record) => getKnownBoxes(record)
+    .map((box) => buildScannedBoxItem(record, box, {
+      boxId: normalizeScanValue(box?.boxId),
+      boxNumber: String(box?.number || box?.sequence || "").trim()
+    }, box?.boxId || ""))).map((row) => [getShippingCompositeBoxKey(row), row]));
+  const pendingByKey = new Map(pendingRows.map((row) => [getShippingCompositeBoxKey(row), row]));
   const mergedRows = [];
   const mergedKeys = new Set();
 
   state.scannedShippingRows.forEach((row) => {
-    const key = getShippingKey(row);
-    const pendingRow = pendingByKey.get(key);
-    if (row.syncedFromPending && !pendingRow) {
-      return;
-    }
-
-    if (pendingRow) {
-      const editedQuantity = row.scannedQuantityEdited === true
+    const key = getShippingCompositeBoxKey(row);
+    const currentRow = pendingByKey.get(key) || currentByKey.get(key);
+    // Keep scans missing from this response; a failed/partial read is not a deletion.
+    if (currentRow) {
+      const editable = !/출고완료|폐기/.test(normalizeText(getScannedBox(currentRow)?.rawStatus || getScannedBox(currentRow)?.status));
+      const editedQuantity = editable && row.scannedQuantityEdited === true
         ? getEditableBoxQuantity(row)
         : 0;
-      Object.assign(row, pendingRow);
+      Object.assign(row, currentRow, { syncedFromPending: pendingByKey.has(key) });
       if (editedQuantity > 0) {
         setScannedBoxQuantity(row, editedQuantity);
+      } else if (!editable) {
+        row.scannedQuantityEdited = false;
       }
     }
     mergedRows.push(row);
@@ -6433,7 +6439,7 @@ function syncPendingShippingRowsFromDashboard() {
   });
 
   pendingRows.forEach((row) => {
-    const key = getShippingKey(row);
+    const key = getShippingCompositeBoxKey(row);
     if (!mergedKeys.has(key)) {
       mergedRows.push(row);
       mergedKeys.add(key);
