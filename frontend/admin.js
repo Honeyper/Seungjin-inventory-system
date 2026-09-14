@@ -99,6 +99,14 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
 ]);
 const SYSTEM_UPDATE_HISTORY = [
   {
+    date: "2026-09-14",
+    title: "재고조정 재요청 오류 수정",
+    items: [
+      "이미 같은 날짜·수량으로 완료된 재고조정 요청은 중복 저장 없이 완료 상태를 반환합니다.",
+      "조정 대상의 상태나 수량이 바뀐 경우 일반 서버 오류 대신 최신 재고 확인 안내를 표시합니다."
+    ]
+  },
+  {
     date: "2026-09-11",
     title: "잔량 박스 다수 저장 오류 수정",
     items: [
@@ -4806,12 +4814,17 @@ async function saveRemainingInventory() {
     if (isAudit) {
       closeInboundDetailModal();
     }
-    await refreshInventoryDashboardAfterMutation();
-    showToast(isAudit
+    const refreshed = await refreshInventoryDashboardAfterMutation();
+    const completionMessage = result?.alreadyAdjustedBoxRows > 0 && result?.updatedBoxRows === 0
+      ? "선택한 박스는 이미 같은 수량으로 재고조정이 완료되어 있습니다."
+      : isAudit
       ? `${formatNumber(result?.updatedBoxRows || selectedBoxes.length)}개 박스를 재고 정리했습니다.`
       : isAdjustment
         ? `재고 조정으로 ${formatNumber(result?.updatedBoxRows || selectedInputs.length)}개 박스를 출고 완료 처리했습니다.`
-      : `${category}로 ${formatNumber(result?.updatedRows || selectedInputs.length)}개 박스를 등록했습니다.`);
+      : `${category}로 ${formatNumber(result?.updatedRows || selectedInputs.length)}개 박스를 등록했습니다.`;
+    showToast(refreshed === false
+      ? `${completionMessage} 목록 갱신에 실패했습니다. 새로고침으로 최신 재고를 확인해주세요.`
+      : completionMessage);
   } catch (error) {
     state.isSavingRemainingInventory = false;
     if (saveRemainingInventoryButton) {

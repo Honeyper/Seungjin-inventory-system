@@ -1,3 +1,5 @@
+export const INVENTORY_ADJUSTMENT_CONFLICT = "이미 처리됐거나 수량이 변경되어 재고조정 대상이 아닙니다. 최신 재고를 확인해주세요.";
+
 const CLIENT_CODES = {
   "아이원(아이텍)": "ION",
   "(주)리치코스": "RCS",
@@ -821,6 +823,8 @@ function mutateInventory(action, payload, state, changes, now) {
     const quantityMap = getBoxQuantityMap(payload);
     const adjuster = text(payload.userName || payload.registrant || "Admin") || "Admin";
     const note = text(payload.note || payload.memo);
+    const changedBoxes = [];
+    let alreadyAdjustedBoxRows = 0;
     boxes.forEach((box) => {
       const boxNumber = integer(box.number);
       const adjustedQuantity = quantityMap.get(boxNumber);
@@ -830,8 +834,16 @@ function mutateInventory(action, payload, state, changes, now) {
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
       const isProtectedInventory = payload.protectClassifiedInventory === true
         && /자사재고|사출|인쇄/.test(`${text(box.inventoryCategory)} ${text(box.rawStatus || box.status)}`);
+      const isSameAdjustment = /^출고완료/.test(currentStatus)
+        && text(box.shippingType) === "재고조정"
+        && number(box.quantity) === adjustedQuantity
+        && text(box.shippingDate).replace(/^\(조정일\)/, "") === adjustmentDate;
+      if (isSameAdjustment && !isProtectedInventory) {
+        alreadyAdjustedBoxRows += 1;
+        return;
+      }
       if (currentStatus !== "보관" || isProtectedInventory || number(box.quantity) <= 0) {
-        throw new Error(`${boxNumber}번 박스는 재고조정 대상이 아닙니다.`);
+        throw new Error(INVENTORY_ADJUSTMENT_CONFLICT);
       }
       box.quantity = adjustedQuantity;
       box.status = "출고완료";
@@ -844,9 +856,10 @@ function mutateInventory(action, payload, state, changes, now) {
       box.transferCompany = "";
       const adjustmentNote = `[재고조정 ${parts.timestamp}] ${boxNumber}번 박스 · ${formatEa(adjustedQuantity)} · 조정자 ${adjuster}${note ? ` · 비고 ${note}` : ""}`;
       box.note = [text(box.note) && text(box.note) !== "-" ? text(box.note) : "", adjustmentNote].filter(Boolean).join("\n");
+      changedBoxes.push(box);
     });
-    upsertBoxes(boxes, changes);
-    touchInventoryRecords(state, boxes.map((box) => box.managementId), changes);
+    upsertBoxes(changedBoxes, changes);
+    touchInventoryRecords(state, changedBoxes.map((box) => box.managementId), changes);
     const related = state.boxes.filter((box) => text(box.managementId) === text(payload.managementId));
     const remainingActiveRows = related.filter((box) => (
       number(box.quantity) > 0
@@ -860,8 +873,9 @@ function mutateInventory(action, payload, state, changes, now) {
       shippingDate: `(조정일)${adjustmentDate}`,
       shippingTime: parts.time,
       adjuster,
-      updatedBoxRows: boxes.length,
-      updatedStockRows: new Set(boxes.map((box) => box.managementId)).size,
+      updatedBoxRows: changedBoxes.length,
+      alreadyAdjustedBoxRows,
+      updatedStockRows: new Set(changedBoxes.map((box) => box.managementId)).size,
       remainingActiveRows,
       isPartialShipping: finalStatus === "일부 출고"
     };
