@@ -98,6 +98,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-15", title: "발주 관리 버튼 정리", items: [
+    "발주 완료 버튼과 더보기 메뉴를 한 줄로 배치하고, 수정·삭제는 더보기 메뉴로 옮겼습니다."
+  ] },
   { date: "2026-09-14", title: "모바일 출고대기 상태 갱신 오류 수정", items: [
     "저장한 스캔 목록도 최신 박스 상태로 갱신하여 이미 출고된 박스가 출고대기 대상으로 남지 않도록 수정했습니다.",
     "처리된 박스를 다시 등록하면 박스 번호와 처리 상태를 안내하며, 실패한 스캔 목록은 유지합니다."
@@ -641,6 +644,8 @@ const productTrayQuantity = document.querySelector("#productTrayQuantity");
 const productNote = document.querySelector("#productNote");
 const productFormMessage = document.querySelector("#productFormMessage");
 const saveProductButton = document.querySelector("#saveProductButton");
+let purchaseOrderMenuButton = null;
+const purchaseOrderActionMenu = document.querySelector("#purchaseOrderActionMenu");
 const rowActionMenu = document.querySelector("#rowActionMenu");
 const inboundRowActionMenu = document.querySelector("#inboundRowActionMenu");
 const shippingRowActionMenu = document.querySelector("#shippingRowActionMenu");
@@ -1439,13 +1444,67 @@ purchaseOrderTableBody?.addEventListener("click", async (event) => {
   if (!button) return;
   const order = getPurchaseOrderById(button.dataset.purchaseOrderId);
   if (!order) return;
-  if (button.dataset.purchaseOrderAction === "edit") {
-    await ensureProductsLoaded();
-    openPurchaseOrderModal(order);
+  if (button.dataset.purchaseOrderAction === "menu") {
+    const wasOpen = purchaseOrderMenuButton === button;
+    closePurchaseOrderActionMenu();
+    if (wasOpen) return;
+    closeRowActionMenu();
+    closeInboundRowActionMenu();
+    closeShippingRowActionMenu();
+    purchaseOrderMenuButton = button;
+    button.setAttribute("aria-expanded", "true");
+    purchaseOrderActionMenu.hidden = false;
+    positionActionMenu(purchaseOrderActionMenu, button);
+    purchaseOrderActionMenu.querySelector("button")?.focus();
+    return;
   }
-  if (button.dataset.purchaseOrderAction === "delete") deletePurchaseOrder(order);
+  closePurchaseOrderActionMenu();
   if (button.dataset.purchaseOrderAction === "complete") togglePurchaseOrderCompletion(order, button);
 });
+purchaseOrderActionMenu?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-purchase-order-menu-action]");
+  if (!button || !purchaseOrderMenuButton) return;
+  const order = getPurchaseOrderById(purchaseOrderMenuButton.dataset.purchaseOrderId);
+  closePurchaseOrderActionMenu(true);
+  if (!order) return;
+  if (button.dataset.purchaseOrderMenuAction === "edit") {
+    await ensureProductsLoaded();
+    openPurchaseOrderModal(order);
+  } else if (button.dataset.purchaseOrderMenuAction === "delete") {
+    deletePurchaseOrder(order);
+  }
+});
+document.addEventListener("click", (event) => {
+  if (purchaseOrderMenuButton && !purchaseOrderActionMenu.contains(event.target)
+    && !purchaseOrderMenuButton.contains(event.target)) closePurchaseOrderActionMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (!purchaseOrderMenuButton) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closePurchaseOrderActionMenu(true);
+  } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    event.preventDefault();
+    const buttons = Array.from(purchaseOrderActionMenu.querySelectorAll("button"));
+    const current = buttons.indexOf(document.activeElement);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1
+      : (current + (event.key === "ArrowUp" ? -1 : 1) + buttons.length) % buttons.length;
+    buttons[next]?.focus();
+  } else if (event.key === "Tab") {
+    closePurchaseOrderActionMenu(true);
+  }
+});
+window.addEventListener("resize", () => closePurchaseOrderActionMenu());
+window.addEventListener("scroll", () => closePurchaseOrderActionMenu(), true);
+
+function closePurchaseOrderActionMenu(restoreFocus = false) {
+  const button = purchaseOrderMenuButton;
+  button?.setAttribute("aria-expanded", "false");
+  if (purchaseOrderActionMenu) purchaseOrderActionMenu.hidden = true;
+  purchaseOrderMenuButton = null;
+  if (restoreFocus) button?.focus();
+}
+
 inboundPurchaseOrder?.addEventListener("change", () => {
   applySelectedInboundPurchaseOrder();
   updateInboundSummary();
@@ -8490,6 +8549,7 @@ function renderPurchaseOrderSummary() {
 }
 
 function renderPurchaseOrders(message = "") {
+  closePurchaseOrderActionMenu();
   if (!purchaseOrderTableBody) return;
   const orders = state.filteredPurchaseOrders;
   if (purchaseOrderListStatus) {
@@ -8538,8 +8598,7 @@ function renderPurchaseOrders(message = "") {
         <td>
           <span class="purchase-order-actions">
             ${order.status !== "취소" ? `<button type="button" data-purchase-order-action="complete" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "완료 취소" : "발주 완료"}</button>` : ""}
-            <button type="button" data-purchase-order-action="edit" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">수정</button>
-            <button type="button" data-purchase-order-action="delete" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">삭제</button>
+            <button class="purchase-order-more" type="button" data-purchase-order-action="menu" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}" aria-label="${escapeAttribute(order.orderRound || "발주")} 관리 메뉴" aria-haspopup="menu" aria-expanded="false" aria-controls="purchaseOrderActionMenu"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
           </span>
         </td>
       </tr>
