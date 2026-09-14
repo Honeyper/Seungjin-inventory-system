@@ -2,6 +2,7 @@ import {
   applyMutation,
   buildInventoryDashboard,
   INBOUND_BOX_CONFIGURATION_CONFLICT,
+  INVENTORY_ADJUSTMENT_CONFLICT,
   SUPABASE_MUTATION_ACTIONS
 } from "./state-engine.js";
 import { buildSheetBackupNotifications } from "./backup-notifications.js";
@@ -19,6 +20,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8000"
 ]);
 const CLIENT_SAFE_ERROR_MESSAGES = new Map([
+  [INVENTORY_ADJUSTMENT_CONFLICT, INVENTORY_ADJUSTMENT_CONFLICT],
   [
     "동일 제품과 발주 차수가 이미 등록되어 있습니다.",
     "같은 제품에 동일한 발주 차수가 이미 등록되어 있습니다. 기존 발주를 수정하거나 다른 발주 차수를 입력해주세요."
@@ -331,6 +333,12 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
       changes: JsonRecord;
       result: JsonRecord;
     };
+
+    // A retry of an already saved adjustment must not enqueue or write it again.
+    if (action === "adjustRemainingInventory" && mutation.result.updatedBoxRows === 0
+      && Number(mutation.result.alreadyAdjustedBoxRows) > 0) {
+      return { ...mutation.result, stateVersion: state.version };
+    }
 
     try {
       const commit = await databaseRequest("rpc/commit_dev_state_mutation", {
