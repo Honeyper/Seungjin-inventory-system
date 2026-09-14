@@ -212,6 +212,7 @@ function generateManagementId(inbounds, records, productId, now) {
 }
 
 function purchaseOrderStatus(order, today) {
+  if ([order.status, order.storedStatus].includes("임의 완료")) return "임의 완료";
   if (text(order.status || order.storedStatus) === "취소") return "취소";
   if (number(order.totalOrderQuantity) > 0 && number(order.accumulatedInboundQuantity) >= number(order.totalOrderQuantity)) return "입고완료";
   if (text(order.startDate) && today < text(order.startDate)) return "예정";
@@ -444,6 +445,18 @@ function createOrUpdatePurchaseOrder(action, payload, state, changes, now) {
   const id = text(payload.purchaseOrderId);
   const current = action === "updatePurchaseOrder" ? state.orders.find((item) => text(item.purchaseOrderId) === id) : null;
   if (action === "updatePurchaseOrder" && !current) throw new Error("수정할 발주를 찾을 수 없습니다.");
+  if (current && ["complete", "reopen"].includes(payload.completionAction)) {
+    const closed = payload.completionAction === "complete";
+    if (current.status === "취소") throw new Error("취소된 발주는 완료 처리할 수 없습니다.");
+    current.status = closed ? "임의 완료" : "진행 중";
+    current.storedStatus = current.status;
+    current.updatedAt = dateParts(now).timestamp;
+    current.manualCompletedAt = closed ? current.updatedAt : "";
+    current.manualCompletedBy = closed ? text(payload.userName || "Admin") : "";
+    current.status = purchaseOrderStatus(current, dateParts(now).date);
+    changes.purchaseOrders.upserts.push({ purchase_order_id: current.purchaseOrderId, product_id: current.productId, data: current });
+    return { purchaseOrderId: current.purchaseOrderId, status: current.status };
+  }
   const productId = text(payload.productId || current?.productId);
   const total = integer(payload.totalOrderQuantity ?? current?.totalOrderQuantity);
   const startDate = text(payload.startDate || current?.startDate);
@@ -470,8 +483,8 @@ function createOrUpdatePurchaseOrder(action, payload, state, changes, now) {
     accumulatedInboundQuantity: accumulatedInbound,
     remainingQuantity: Math.max(total - accumulatedInbound, 0),
     inboundRate: total > 0 ? accumulatedInbound / total : 0,
-    status: text(payload.status) === "취소" ? "취소" : "진행 중",
-    storedStatus: text(payload.status) === "취소" ? "취소" : "진행 중",
+    status: [current?.status, current?.storedStatus].includes("임의 완료") ? "임의 완료" : text(payload.status) === "취소" ? "취소" : "진행 중",
+    storedStatus: [current?.status, current?.storedStatus].includes("임의 완료") ? "임의 완료" : text(payload.status) === "취소" ? "취소" : "진행 중",
     note: text(payload.note ?? current?.note),
     registrant: text(payload.registrant || current?.registrant || "Admin"),
     registeredAt: current?.registeredAt || parts.timestamp,

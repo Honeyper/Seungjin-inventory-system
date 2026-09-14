@@ -2963,6 +2963,7 @@ function createPurchaseOrder(payload) {
 }
 
 function updatePurchaseOrder(payload) {
+  if (["complete", "reopen"].includes(payload.completionAction)) return setPurchaseOrderCompletion_(payload);
   const purchaseOrderId = String(payload.purchaseOrderId || payload['발주ID'] || '').trim();
   if (!purchaseOrderId) throw new Error('수정할 발주 ID가 필요합니다.');
   const data = normalizePurchaseOrderPayload_(payload);
@@ -2994,6 +2995,7 @@ function updatePurchaseOrder(payload) {
     }
 
     const updatedAt = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
+    if (current.status === "임의 완료") data.status = "임의 완료";
     const next = {
       ...data,
       purchaseOrderId,
@@ -3159,6 +3161,7 @@ function buildPurchaseOrderRow_(headers, order) {
 }
 
 function resolvePurchaseOrderStatus_(order, accumulatedInboundQuantity) {
+  if ([order.status, order.storedStatus].includes('임의 완료')) return '임의 완료';
   const total = Number(order.totalOrderQuantity || 0);
   if (total > 0 && accumulatedInboundQuantity >= total) return '입고완료';
   const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
@@ -6938,4 +6941,23 @@ function normalizeDateKey_(value) {
     String(matched[2]).padStart(2, '0'),
     String(matched[3]).padStart(2, '0')
   ].join('-');
+}
+
+function setPurchaseOrderCompletion_(payload) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = getSheet_(CONFIG.SHEETS.PURCHASE_ORDERS);
+    const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+    const result = readPurchaseOrders_(sheet, stockSheet, false);
+    const current = result.orders.find(order => order.purchaseOrderId === payload.purchaseOrderId);
+    if (!current) throw new Error('수정할 발주를 찾을 수 없습니다.');
+    if (current.status === '취소') throw new Error('취소된 발주는 완료 처리할 수 없습니다.');
+    const storedStatus = payload.completionAction === 'complete' ? '임의 완료' : '진행 중';
+    const next = { ...current, storedStatus, status: storedStatus,
+      updatedAt: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss') };
+    next.status = resolvePurchaseOrderStatus_(next, current.accumulatedInboundQuantity);
+    sheet.getRange(current.sheetRowNumber, 1, 1, result.headers.length).setValues([buildPurchaseOrderRow_(result.headers, next)]);
+    return { purchaseOrderId: current.purchaseOrderId, status: next.status };
+  } finally { lock.releaseLock(); }
 }

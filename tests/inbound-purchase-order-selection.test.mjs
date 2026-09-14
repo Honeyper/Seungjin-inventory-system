@@ -6,9 +6,9 @@ const adminSource = fs.readFileSync(new URL("../frontend/admin.js", import.meta.
 
 test("입고 등록과 수정에서 입고완료 발주를 제외하지 않는다", () => {
   assert.doesNotMatch(adminSource, /\["취소",\s*"입고완료"\]\.includes\(order\.status\)/);
-  assert.match(adminSource, /order\.productId === productId\s*&& order\.status !== "취소"/);
+  assert.match(adminSource, /order\.productId === productId\s*&& !\["취소", "임의 완료"\]\.includes\(getPurchaseOrderDisplayStatus\(order\)\)/);
   assert.match(
     adminSource,
-    /order\.purchaseOrderId === currentPurchaseOrderId \|\| order\.status !== "취소"/
+    /order\.purchaseOrderId === currentPurchaseOrderId \|\| !\["취소", "임의 완료"\]\.includes\(getPurchaseOrderDisplayStatus\(order\)\)/
   );
 });
