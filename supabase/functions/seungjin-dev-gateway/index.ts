@@ -1,5 +1,6 @@
 import {
   applyMutation,
+  ShippingStateConflict,
   buildInventoryDashboard,
   INBOUND_BOX_CONFIGURATION_CONFLICT,
   INVENTORY_ADJUSTMENT_CONFLICT,
@@ -980,7 +981,7 @@ Deno.serve(async (request) => {
     return await handleRequest(request);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const clientMessage = CLIENT_SAFE_ERROR_MESSAGES.get(errorMessage);
+    const clientMessage = error instanceof ShippingStateConflict ? error.message : CLIENT_SAFE_ERROR_MESSAGES.get(errorMessage);
     console.error("Seungjin DEV gateway error:", errorMessage);
     return jsonResponse(request, {
       ok: false,
