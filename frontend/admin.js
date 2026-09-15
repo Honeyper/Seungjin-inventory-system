@@ -95,6 +95,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-15", title: "생산계획 작업 용어 정리", items: [
+    "생산 상세의 항목을 생산 실적, 발주 및 작업 정보, 생산 목표 및 예상 등 업무 용어로 정리했습니다."
+  ] },
   { date: "2026-09-15", title: "발주 관리 버튼 정리", items: [
     "발주 완료 버튼과 더보기 메뉴를 한 줄로 배치하고, 수정·삭제는 더보기 메뉴로 옮겼습니다."
   ] },
@@ -2781,35 +2784,35 @@ function renderProductionPlanDetail() {
   const refs = state.productionPlanFactory === "1공장"
     ? (state.productionPlanReferenceRows || []).filter(row => row.process === job.process && row.sourceDate <= state.productionPlanDate) : [];
   const options = refs.map(row => `<option value="${escapeAttribute(row.id)}" ${v.source?.id === row.id ? "selected" : ""}>${escapeHtml(row.clientName)} · ${escapeHtml(row.productName)} · ${escapeHtml(row.machine)}</option>`).join("");
-  const manual = [input("작업일 보정", "workDays", job.productionMetricsVersion === 2 ? job.workDays : null, "일")];
-  for (const [label, field, unit] of [["누적 생산량", "cumulativeProduction", "ea"], ["누적 작업시간", "cumulativeHours", "시간"], ["LOSS", "loss", "ea"]]) {
+  const manual = [input("작업일수 조정", "workDays", job.productionMetricsVersion === 2 ? job.workDays : null, "일")];
+  for (const [label, field, unit] of [["누적 생산량", "cumulativeProduction", "ea"], ["누적 작업시간", "cumulativeHours", "시간"], ["생산 손실량", "loss", "ea"]]) {
     if (!v.sameOrder || v.source?.[field] == null) manual.push(input(label, field, v[field], unit));
   }
-  if (!(v.sameOrder && v.sourceDate === state.productionPlanDate && v.source.actualProduction != null)) manual.push(input("오늘 실 생산량", "actualProduction", v.actualProduction, "ea"));
+  if (!(v.sameOrder && v.sourceDate === state.productionPlanDate && v.source.actualProduction != null)) manual.push(input("금일 생산량", "actualProduction", v.actualProduction, "ea"));
   const days = (state.productionPlanSchedule?.entries || []).filter(entry => entry.id === job.planRowId);
   productionPlanDetailBody.innerHTML = `
     <section class="production-plan-detail-product"><strong>${escapeHtml(job.productName)}</strong><small>${escapeHtml(job.clientName)} · ${escapeHtml(job.process)}</small></section>
     <section class="production-plan-policy"><div><strong>근무 원칙</strong><span>평일 8시간 → 9시간 → 10시간. 휴일이 불가피하면 전체 8시간부터 검토합니다.</span></div></section>
-    <section class="production-plan-detail-section"><header><h3>생산 데이터 연결</h3></header>
-      <select data-plan-reference aria-label="생산 데이터 연결"><option value="">직접 입력 / 자료 선택</option>${options}</select>
-      <p>${escapeHtml(state.productionPlanReferenceError || (v.source ? `${v.sourceDate} 시트 기준 · ${v.sameOrder ? "발주량·납기 일치, 생산 실적 연결" : "다른 발주 실적: 시간당 생산량만 참고"}` : "축약 제품명은 자료를 선택해 연결해주세요."))}</p>
+    <section class="production-plan-detail-section"><header><h3>참고 생산실적</h3></header>
+      <select data-plan-reference aria-label="참고 생산실적"><option value="">참고 실적 선택 (선택사항)</option>${options}</select>
+      <p>${escapeHtml(state.productionPlanReferenceError || (v.source ? `${v.sourceDate} 실적 기준 · ${v.sameOrder ? "발주량·납기 일치, 생산 실적 연결" : "다른 발주 실적: 시간당 생산량만 참고"}` : "같은 제품·공정의 이전 실적을 선택하면 생산 속도를 참고할 수 있습니다."))}</p>
     </section>
-    <section class="production-plan-detail-section"><header><h3>자동 불러오기</h3></header><div class="production-plan-detail-grid system-values">
+    <section class="production-plan-detail-section"><header><h3>발주 및 작업 정보</h3></header><div class="production-plan-detail-grid system-values">
       ${metric("발주량", v.orderQuantity)}<article><span>납기일</span><strong>${escapeHtml(job.dueDate || "미정")}</strong></article>
-      ${v.sameOrder ? metric("누적 생산량", v.cumulativeProduction) + metric("누적 작업시간", v.cumulativeHours, "시간") + metric("LOSS", v.loss) : ""}
+      ${v.sameOrder ? metric("누적 생산량", v.cumulativeProduction) + metric("누적 작업시간", v.cumulativeHours, "시간") + metric("생산 손실량", v.loss) : ""}
       ${metric("평일 작업일", getProductionPlanWorkingDays(state.productionPlanDate, job.dueDate), "일")}
     </div></section>
-    <section class="production-plan-detail-section manual-section"><header><h3>직접 입력</h3></header><div class="production-plan-detail-grid manual-values">${manual.join("")}</div><p>시스템에 없는 실적만 입력합니다. 입고·출고 수량을 생산량으로 대체하지 않습니다.</p></section>
-    <section class="production-plan-detail-section formula-section"><header><h3>자동 계산</h3></header><div class="production-plan-detail-grid formula-values">
+    <section class="production-plan-detail-section manual-section"><header><h3>생산 실적</h3></header><div class="production-plan-detail-grid manual-values">${manual.join("")}</div><p>이번 발주의 누적 생산량과 실제 작업시간을 기록해주세요. 생산 손실이 없으면 0으로 두시면 됩니다.</p></section>
+    <section class="production-plan-detail-section formula-section"><header><h3>생산 목표 및 예상</h3></header><div class="production-plan-detail-grid formula-values">
       ${metric("생산 잔량", v.remaining)}${metric("시간당 생산량", v.hourlyRate)}${metric("일일 필수 생산량", v.dailyRequired)}
-      ${metric("시트 기준 목표", v.formulaTarget)}${metric("근무시간 반영 목표", job.planMissing ? null : job.targetQuantity)}
-      ${metric("시트 일일 목표 시간", v.dailyTargetHours, "시간")}${metric("총 소요 시간", v.totalExpectedHours, "시간")}${metric("달성률", v.achievementRate, "%")}
-    </div><details class="production-plan-formula-guide"><summary>적용 수식 보기</summary>
-      <p>잔량 = 발주량 − 누적 생산량 + LOSS</p><p>시간당 생산량 = 누적 생산량 ÷ 누적 시간</p><p>일일 필수 생산량 = 발주량 ÷ 작업일</p>
-      <p>시트 기준 목표 = MIN(잔량, 일일 필수 생산량 × 2 − 시간당 생산량 × 8)</p>
-      <p>계획표 목표 = MIN(남은 생산량, 시간당 생산량 × 배정 시간). 시트 목표와 달리 실제 근무시간·기계·작업자 여유를 반영합니다.</p>
+      ${metric("기준 목표 생산량", v.formulaTarget)}${metric("배정 목표 생산량", job.planMissing ? null : job.targetQuantity)}
+      ${metric("기준 목표 작업시간", v.dailyTargetHours, "시간")}${metric("잔량 예상 작업시간", v.totalExpectedHours, "시간")}${metric("달성률", v.achievementRate, "%")}
+    </div><details class="production-plan-formula-guide"><summary>산정 기준 보기</summary>
+      <p>잔량 = 발주량 − 누적 생산량 + 생산 손실량</p><p>시간당 생산량 = 누적 생산량 ÷ 누적 시간</p><p>일일 필수 생산량 = 발주량 ÷ 작업일</p>
+      <p>기준 목표 생산량 = MIN(잔량, 일일 필수 생산량 × 2 − 시간당 생산량 × 8)</p>
+      <p>계획표 목표 = MIN(남은 생산량, 시간당 생산량 × 배정 시간). 기준 목표와 달리 실제 근무시간·기계·작업자 여유를 반영합니다.</p>
     </details></section>
-    <section class="production-plan-detail-section"><header><h3>납기까지 배정</h3></header><p>${escapeHtml(job.planMessage || "")}</p>
+    <section class="production-plan-detail-section"><header><h3>납기별 작업 일정</h3></header><p>${escapeHtml(job.planMessage || "")}</p>
       ${days.map(day => `<p>${day.date}${day.holiday ? " (휴일)" : ""} · ${escapeHtml(day.machine)} · ${day.shiftHours}시간 근무 · ${formatNumber(day.quantity)}ea</p>`).join("")}
     </section>`;
 }
