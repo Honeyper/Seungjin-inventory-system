@@ -120,8 +120,8 @@ test("생산계획은 우측 상세를 접고 펼치며 발주 연결값과 현�
   assert.match(html, /id="productionPlanDetailToggle"[^>]*aria-controls="productionPlanDetailPanel"/);
   assert.match(html, /id="productionPlanDetailPanel"[^>]*hidden/);
   assert.match(source, /function setProductionPlanDetailOpen\(open\)/);
-  assert.match(source, /자동 불러오기/);
-  assert.match(source, /직접 입력/);
+  assert.match(source, /발주 및 작업 정보/);
+  assert.match(source, /생산 실적/);
   assert.match(source, /"cumulativeHours"/);
   assert.match(source, /"actualProduction"/);
   assert.doesNotMatch(source, /<input data-plan-field="targetQuantity"/);
