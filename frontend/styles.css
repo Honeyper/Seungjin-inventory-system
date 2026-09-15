@@ -14516,9 +14516,48 @@ input {
     min-height: 0;
   }
 
-  body.printing-production-plan > .admin-shell {
+  /* Match the ID specificity of the QR-only body-child hiding rule. */
+  body.printing-production-plan > .admin-shell:not(#inboundQrModal) {
     display: block !important;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
+
+  html:has(> body.printing-production-plan) {
+    width: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  body.printing-production-plan {
+    height: auto;
+    overflow: visible;
+  }
+
+  body.printing-production-plan > #inboundQrModal,
+  body.printing-production-plan .production-plan-detail-panel,
+  body.printing-production-plan .production-plan-detail-toggle {
+    display: none !important;
+  }
+
+  body.printing-production-plan .production-plan-workspace {
+    display: block;
+    container-type: normal;
+  }
+
+  body.printing-production-plan .production-plan-toolbar {
+    flex-direction: row;
+    align-items: center;
+    padding: 3mm;
+  }
+  body.printing-production-plan .production-plan-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 3mm;
+  }
+  body.printing-production-plan .production-plan-table thead { display: table-header-group; }
+  body.printing-production-plan .production-plan-table th { position: static; }
+  body.printing-production-plan .production-plan-table tr { break-inside: avoid; }
 
   body.printing-production-plan .admin-shell,
   body.printing-production-plan #productionPlanView,
