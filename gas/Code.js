@@ -169,6 +169,7 @@ function getApiRoutes_() {
     getInventoryByQr,
     getInboundBoxQrs,
     uploadInboundInvoice,
+    uploadInboundDefectPhotos,
     uploadProductImage,
     uploadShippingDefectPhotos,
     saveShippingInspection,
@@ -2722,7 +2723,7 @@ function createInbound(payload) {
     const defectPhotoUrls = uploadInboundDefectPhotos_(payload, {
       managementId,
       registeredDate
-    });
+    }) || String(payload.defectPhotoUrls || '').trim();
     const stockRecord = {
       status: '보관',
       managementId,
@@ -2921,7 +2922,7 @@ function updateInbound(payload) {
     const defectPhotoUrls = uploadInboundDefectPhotos_(filePayload, {
       managementId,
       registeredDate
-    });
+    }) || String(payload.defectPhotoUrls || '').trim();
     const finalInvoiceFileUrl = invoiceFileUrl || pickCellLinkOrValue_(
       row,
       rowInfo.richRowValues,
@@ -4532,6 +4533,27 @@ function uploadInboundInvoice(payload) {
   }
 
   return { invoiceFileUrl };
+}
+
+function uploadInboundDefectPhotos(payload) {
+  const files = payload && Array.isArray(payload.defectFiles) ? payload.defectFiles : [];
+  if (!files.length) throw new Error('업로드할 불량사진이 없습니다.');
+  // Validate the whole request before writing any files.
+  files.forEach((file) => {
+    const data = String(file && file.data || '').trim();
+    const mimeType = String(file && file.mimeType || '').trim().toLowerCase();
+    if (!data) throw new Error('불량사진 데이터를 읽지 못했습니다.');
+    if (!/^image\//.test(mimeType)) throw new Error('불량사진은 이미지 파일만 등록할 수 있습니다.');
+    if (Utilities.base64Decode(data).length > 10 * 1024 * 1024) {
+      throw new Error('불량사진은 개별 10MB 이하로 등록해주세요.');
+    }
+  });
+  const defectPhotoUrls = uploadInboundDefectPhotos_(payload, {
+    managementId: String(payload.managementId || '').trim() || '-',
+    registeredDate: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd')
+  });
+  if (!defectPhotoUrls) throw new Error('불량사진 링크를 생성하지 못했습니다.');
+  return { defectPhotoUrls, uploadedCount: files.length };
 }
 
 function uploadInboundDefectPhotos_(payload, context) {

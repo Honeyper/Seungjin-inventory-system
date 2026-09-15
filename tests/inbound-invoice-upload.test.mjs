@@ -14,7 +14,7 @@ test("거래명세서는 입고 저장 전에 Google Drive에 즉시 업로드�
   assert.match(gasSource, /function uploadInboundInvoice\(payload\)/);
   assert.match(gasSource, /return \{ invoiceFileUrl \}/);
   assert.match(gasSource, /uploadInboundInvoice_\(payload,[\s\S]*?\) \|\| String\(payload\.invoiceFileUrl \|\| ''\)\.trim\(\)/);
-  assert.match(adminHtml, /admin\.js\?v=(?:20260915-production-work-labels-v1|20260915-production-print-fix-v1|20260915-order-actions-menu-v1|20260914-(?:shipping-status-sync|order-manual-completion|inventory-adjustment-retry)-v1|20260911-(?:production-plan-(?:width|rows)|print-page-isolation|shipping-settlement-filters|inventory-audit-search|inventory-audit-client-colors|inventory-move-persistence|production-plan-delete|shipping-settlement-quantity|production-plan-no-label|production-plan-detail-toggle|production-capacity|production-inputs|remainder-save)-v1|20260910-(?:inventory-attachments|update-history(?:-v2)?|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
+  assert.match(adminHtml, /admin\.js\?v=(?:20260915-production-work-labels-v1|20260915-inbound-defect-upload-v1|20260915-production-print-fix-v1|20260915-order-actions-menu-v1|20260914-(?:shipping-status-sync|order-manual-completion|inventory-adjustment-retry)-v1|20260911-(?:production-plan-(?:width|rows)|print-page-isolation|shipping-settlement-filters|inventory-audit-search|inventory-audit-client-colors|inventory-move-persistence|production-plan-delete|shipping-settlement-quantity|production-plan-no-label|production-plan-detail-toggle|production-capacity|production-inputs|remainder-save)-v1|20260910-(?:inventory-attachments|update-history(?:-v2)?|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
 });
 
 test("재고 상세 조회에도 거래명세서와 불량사진 링크를 포함한다", () => {
@@ -38,7 +38,7 @@ test("거래명세서 원본은 문서 가독성을 유지하는 크기로 줄�
 
 test("거래명세서 최적화와 불량사진 읽기를 병렬로 준비한다", () => {
   assert.match(adminSource, /const \[invoiceFile, defectFiles\] = await Promise\.all\(\[[\s\S]*?getInboundInvoicePayload\(\),[\s\S]*?getInboundDefectFilePayloads\(\)[\s\S]*?\]\)/);
-  assert.match(adminSource, /payload\.defectFiles = defectFiles/);
+  assert.match(adminSource, /payload\.defectPhotoUrls = await uploadInboundDefectFiles\(payload, defectFiles\)/);
 });
 
 test("즉시 업로드된 거래명세서 URL은 Supabase 입고와 재고 레코드에 보존된다", () => {

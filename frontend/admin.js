@@ -98,6 +98,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-15", title: "입고 불량사진 첨부 저장 개선", items: [
+    "불량사진을 한 장씩 업로드한 뒤 링크와 입고 정보를 저장하며, 사진 업로드 실패 시 해당 사진 번호를 안내합니다."
+  ] },
   { date: "2026-09-15", title: "생산계획 빈 페이지 인쇄 수정", items: [
     "생산계획 인쇄에서 계획표가 숨겨지던 문제를 수정하고, 상세 패널을 제외한 계획 내용을 가로 용지로 출력합니다."
   ] },
@@ -7114,7 +7117,9 @@ async function saveInbound() {
     if (invoiceFile) {
       payload.invoiceFileUrl = await uploadInboundInvoiceFile(payload, invoiceFile);
     }
-    payload.defectFiles = defectFiles;
+    if (defectFiles.length) {
+      payload.defectPhotoUrls = await uploadInboundDefectFiles(payload, defectFiles);
+    }
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
     void refreshInboundMutationDataAfterMutation();
@@ -7246,6 +7251,27 @@ async function uploadInboundInvoiceFile(payload, invoiceFile) {
     throw new Error("거래명세서 링크를 생성하지 못했습니다.");
   }
   return invoiceFileUrl;
+}
+
+async function uploadInboundDefectFiles(payload, files) {
+  const urls = [];
+  for (const [index, file] of files.entries()) {
+    try {
+      const result = await requestApi("uploadInboundDefectPhotos", {
+        managementId: payload.managementId || "",
+        productName: payload.productName || "",
+        clientName: payload.clientName || "",
+        inboundDate: payload.inboundDate || "",
+        defectFiles: [file]
+      });
+      const url = String(result?.defectPhotoUrls || "").trim();
+      if (!url) throw new Error("사진 링크를 생성하지 못했습니다.");
+      urls.push(url);
+    } catch (error) {
+      throw new Error(`불량사진 ${index + 1}/${files.length} 업로드 실패: ${error.message || "잠시 후 다시 시도해주세요."}`);
+    }
+  }
+  return [...new Set(urls)].join(" ");
 }
 
 async function getInboundDefectFilePayloads() {
@@ -12408,7 +12434,11 @@ async function saveInboundEdit() {
     if (payload.invoiceFile) {
       payload.invoiceFileUrl = await uploadInboundInvoiceFile(payload, payload.invoiceFile);
     }
+    if (payload.defectFiles?.length) {
+      payload.defectPhotoUrls = await uploadInboundDefectFiles(payload, payload.defectFiles);
+    }
     delete payload.invoiceFile;
+    delete payload.defectFiles;
     await requestApi("updateInbound", payload);
     await refreshInboundMutationData();
     state.activeDetailInboundId = payload.managementId;
