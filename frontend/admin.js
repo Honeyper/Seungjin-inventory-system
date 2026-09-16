@@ -99,6 +99,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-16", title: "전체 실물 확인 버튼 간소화", items: [
+    "체크박스 선택 없이 전체 실물 확인 버튼으로 미확인 박스를 한 번에 확인할 수 있습니다. 박스별 실물 확인도 그대로 사용할 수 있습니다."
+  ] },
   { date: "2026-09-16", title: "발주 목록 열 클릭 정렬", items: [
     "열 제목을 클릭하면 오름차순·내림차순으로 정렬됩니다. 발주일과 납기일은 각각 정렬할 수 있으며, 열별 필터 팝업은 제거했습니다."
   ] },
@@ -2145,20 +2148,13 @@ inventoryAuditFromDetailButton?.addEventListener("click", openInventoryAuditFrom
 document.querySelector("#closeInventoryAuditBoxConfirmModal")?.addEventListener("click", closeInventoryAuditBoxConfirmModal);
 document.querySelector("#cancelInventoryAuditBoxConfirmModal")?.addEventListener("click", closeInventoryAuditBoxConfirmModal);
 confirmInventoryAuditBoxButton?.addEventListener("click", confirmInventoryAuditBoxAdjustment);
-inboundDetailContent?.addEventListener("change", (event) => {
-  if (event.target.matches("[data-inventory-audit-select-all]")) {
-    inboundDetailContent.querySelectorAll("[data-inventory-audit-select]").forEach((input) => {
-      input.checked = event.target.checked;
-    });
-  }
-  if (event.target.matches("[data-inventory-audit-select], [data-inventory-audit-select-all]")) updateInventoryAuditSelection();
-});
 inboundDetailContent?.addEventListener("click", (event) => {
-  const confirm = event.target.closest("[data-inventory-audit-confirm], [data-inventory-audit-confirm-selected]");
+  const confirm = event.target.closest("[data-inventory-audit-confirm], [data-inventory-audit-confirm-all]");
   if (confirm) {
+    if (confirm.disabled) return;
     const numbers = confirm.hasAttribute("data-inventory-audit-confirm")
       ? [Number(confirm.dataset.inventoryAuditConfirm)]
-      : Array.from(inboundDetailContent.querySelectorAll("[data-inventory-audit-select]:checked"), (input) => Number(input.value));
+      : Array.from(inboundDetailContent.querySelectorAll("[data-inventory-audit-confirm]"), (button) => Number(button.dataset.inventoryAuditConfirm));
     void confirmInventoryPhysicalBoxes(numbers);
     return;
   }
@@ -11809,26 +11805,14 @@ function renderInboundDetail(inbound) {
   });
 }
 
-function updateInventoryAuditSelection() {
+function updateInventoryAuditConfirmControls() {
   const section = inboundDetailContent?.querySelector('.inventory-audit-box-section');
   if (!section) return;
-  const checks = Array.from(section.querySelectorAll('[data-inventory-audit-select]'));
-  const count = checks.filter((input) => input.checked).length;
-  const all = section.querySelector('[data-inventory-audit-select-all]');
-  if (all) {
-    all.checked = checks.length > 0 && count === checks.length;
-    all.indeterminate = count > 0 && count < checks.length;
-  }
-  section.querySelectorAll('button, input').forEach((control) => {
-    control.disabled = Boolean(state.isSavingInventoryConfirmation);
-  });
-  const bulk = section.querySelector('[data-inventory-audit-confirm-selected]');
-  if (bulk) {
-    bulk.disabled = Boolean(state.isSavingInventoryConfirmation) || !count;
-    bulk.textContent = `선택 확인${count ? ` (${count})` : ''} →`;
-  }
-  if (all) all.disabled = Boolean(state.isSavingInventoryConfirmation) || !checks.length;
-  section.setAttribute('aria-busy', String(Boolean(state.isSavingInventoryConfirmation)));
+  const saving = Boolean(state.isSavingInventoryConfirmation);
+  section.querySelectorAll('button').forEach((button) => { button.disabled = saving; });
+  const bulk = section.querySelector('[data-inventory-audit-confirm-all]');
+  if (bulk) bulk.disabled = saving || !section.querySelector('[data-inventory-audit-confirm]');
+  section.setAttribute('aria-busy', String(saving));
 }
 
 async function confirmInventoryPhysicalBoxes(boxNumbers) {
@@ -11837,7 +11821,7 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
   const selected = new Set(boxNumbers.map(Number));
   const boxes = getInventoryAuditTargetBoxes(item).filter((box) => selected.has(box.number));
   if (!item || !boxes.length) {
-    showToast('실물 확인할 미확인 박스를 선택해주세요.');
+    showToast('실물 확인할 미확인 박스가 없습니다.');
     return;
   }
   const isCurrentDetail = () => inboundDetailModal?.hidden === false
@@ -11851,7 +11835,7 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
     state.activeDetailInboundRecord = normalizeInboundDetailRecord(record);
   };
   state.isSavingInventoryConfirmation = true;
-  updateInventoryAuditSelection();
+  updateInventoryAuditConfirmControls();
   const message = inboundDetailContent.querySelector('[data-inventory-audit-message]');
   if (message) message.textContent = '실물 확인을 저장하고 있습니다.';
   let saved = false;
@@ -11883,7 +11867,7 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
       item.inventoryConfirmedBoxCount = eligible.filter((box) => String(box.lastInventoryCheckedAt || '').trim()).length;
       item.inventoryUnconfirmedBoxCount = eligible.length - item.inventoryConfirmedBoxCount;
       renderCurrent(item);
-      updateInventoryAuditSelection();
+      updateInventoryAuditConfirmControls();
     }
     // Wait out any older read so the next refresh includes this write.
     if (state.inventoryLoadPromise) await state.inventoryLoadPromise;
@@ -11900,7 +11884,7 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
     showToast(text);
   } finally {
     state.isSavingInventoryConfirmation = false;
-    updateInventoryAuditSelection();
+    updateInventoryAuditConfirmControls();
   }
 }
 
@@ -11911,7 +11895,7 @@ function renderInventoryAuditBoxStatus(inbound) {
   const renderBox = (box, isConfirmed) => `
     <article class="inventory-audit-box-card ${isConfirmed ? "confirmed" : "unconfirmed"}">
       <div>
-        <label class="inventory-audit-box-select">${isConfirmed ? "" : `<input type="checkbox" data-inventory-audit-select value="${box.number}" aria-label="${box.number}번 박스 선택" />`}<strong>${formatNumber(box.number)}번 박스</strong></label>
+        <strong>${formatNumber(box.number)}번 박스</strong>
         <span>${formatNumber(box.quantity)} ea · ${escapeHtml(normalizeDisplayValue(box.storage || inbound.storage))}</span>
         ${isConfirmed ? `<small>확인일시 ${escapeHtml(normalizeDisplayValue(box.lastInventoryCheckedAt))}</small>` : ""}
       </div>
@@ -11933,9 +11917,8 @@ function renderInventoryAuditBoxStatus(inbound) {
         <span class="confirmed">확인 완료 <b>${formatNumber(confirmedBoxes.length)} box</b></span>
       </div>
       <div class="inventory-audit-confirm-toolbar">
-        <label><input type="checkbox" data-inventory-audit-select-all ${unconfirmedBoxes.length ? "" : "disabled"} /> 전체 선택</label>
-        <button type="button" data-inventory-audit-confirm-selected disabled>선택 확인 →</button>
-        <span data-inventory-audit-message role="status" aria-live="polite">실물을 확인한 박스를 오른쪽으로 옮겨주세요.</span>
+        <button type="button" data-inventory-audit-confirm-all ${unconfirmedBoxes.length && !state.isSavingInventoryConfirmation ? "" : "disabled"}>전체 실물 확인</button>
+        <span data-inventory-audit-message role="status" aria-live="polite">전체 또는 박스별로 실물 확인할 수 있습니다.</span>
       </div>
       <div class="inventory-audit-box-groups">
         <section class="inventory-audit-box-group unconfirmed">
