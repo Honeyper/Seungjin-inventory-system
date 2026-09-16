@@ -28,7 +28,7 @@ test("입고 100% 경계와 출고 우선 상태를 필터 및 요약에도 동�
     { totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400, accumulatedShippingQuantity: 1400 },
     { status: "취소", totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400 },
   ];
-  const context = { purchaseOrderColumnFilters: null, state: { purchaseOrders: fixtures, purchaseOrderQuery: "", purchaseOrderStatusFilter: "" }, closePurchaseOrderActionMenu() {}, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, purchaseOrderTotal: {}, purchaseOrderActive: {}, purchaseOrderCompleted: {}, purchaseOrderRemaining: {}, escapeHtml: String, escapeAttribute: String };
+  const context = { purchaseOrderColumnSort: null, state: { purchaseOrders: fixtures, purchaseOrderQuery: "", purchaseOrderStatusFilter: "" }, closePurchaseOrderActionMenu() {}, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, purchaseOrderTotal: {}, purchaseOrderActive: {}, purchaseOrderCompleted: {}, purchaseOrderRemaining: {}, escapeHtml: String, escapeAttribute: String };
   vm.runInNewContext(functions + "\napplyPurchaseOrderFilters();", context);
   const statuses = fixtures.map((order) => context.getPurchaseOrderDisplayStatus(order));
   assert.deepEqual(statuses, ["입고중", "입고중", "입고완료", "입고완료", "작업중", "작업완료", "작업완료", "취소"]);
