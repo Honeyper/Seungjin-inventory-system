@@ -24,7 +24,8 @@ const DEFAULT_CLIENTS = [
   "CPI",
   "더승진(2공장)",
   "SJ패키지",
-  "월드코스매틱"
+  "월드코스매틱",
+  "명신코스텍"
 ];
 
 const DEFECT_REASON_TONES = {
@@ -98,6 +99,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-16", title: "거래처 명신코스텍 추가", items: [
+    "제품 등록과 수정의 거래처 선택 목록에 명신코스텍을 추가했습니다."
+  ] },
   { date: "2026-09-16", title: "라벨 공정 및 QR 공정 표시 추가", items: [
     "공정 유형에 라벨을 추가했습니다. 코팅·라벨 QR은 첫 공정 칸에 해당 공정명을 표시하고 2도·3도는 비활성화합니다."
   ] },
