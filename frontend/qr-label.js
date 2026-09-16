@@ -48,6 +48,7 @@
     flameTreatmentStatus = "무",
     dustRemovalStatus = "무"
   } = {}) {
+    if (["코팅", "라벨"].includes(String(finalProcess).trim())) return String(finalProcess).trim();
     const treatments = [];
 
     if (isEnabled(dustRemovalStatus)) {
@@ -67,6 +68,14 @@
     flameTreatmentStatus = "무",
     dustRemovalStatus = "무"
   } = {}) {
+    const singleProcess = String(finalProcess).trim();
+    if (["코팅", "라벨"].includes(singleProcess)) {
+      return [
+        { label: singleProcess, disabled: false, treatment: false },
+        { label: "2도", disabled: true, treatment: false },
+        { label: "3도", disabled: true, treatment: false }
+      ];
+    }
     const hasFlameTreatment = isEnabled(flameTreatmentStatus);
     const hasDustRemoval = isEnabled(dustRemovalStatus);
     const finalStep = getProcessStep(finalProcess);
