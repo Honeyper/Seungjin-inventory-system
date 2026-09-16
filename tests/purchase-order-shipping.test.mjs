@@ -28,7 +28,7 @@ test("입고 100% 경계와 출고 우선 상태를 필터 및 요약에도 동�
     { totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400, accumulatedShippingQuantity: 1400 },
     { status: "취소", totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400 },
   ];
-  const context = { state: { purchaseOrders: fixtures, purchaseOrderQuery: "", purchaseOrderStatusFilter: "" }, closePurchaseOrderActionMenu() {}, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, purchaseOrderTotal: {}, purchaseOrderActive: {}, purchaseOrderCompleted: {}, purchaseOrderRemaining: {}, escapeHtml: String, escapeAttribute: String };
+  const context = { purchaseOrderColumnFilters: null, state: { purchaseOrders: fixtures, purchaseOrderQuery: "", purchaseOrderStatusFilter: "" }, closePurchaseOrderActionMenu() {}, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, purchaseOrderTotal: {}, purchaseOrderActive: {}, purchaseOrderCompleted: {}, purchaseOrderRemaining: {}, escapeHtml: String, escapeAttribute: String };
   vm.runInNewContext(functions + "\napplyPurchaseOrderFilters();", context);
   const statuses = fixtures.map((order) => context.getPurchaseOrderDisplayStatus(order));
   assert.deepEqual(statuses, ["입고중", "입고중", "입고완료", "입고완료", "작업중", "작업완료", "작업완료", "취소"]);
@@ -108,7 +108,7 @@ test("발주 표에 입고와 출고를 분리한 14칸을 표시하고 초과�
   const source = fs.readFileSync(new URL("../frontend/admin.js", import.meta.url), "utf8");
   const html = fs.readFileSync(new URL("../frontend/admin.html", import.meta.url), "utf8");
   const renderer = source.slice(source.indexOf("function renderPurchaseOrders("), source.indexOf("function getPurchaseOrderById("));
-  const context = { state: { filteredPurchaseOrders: [{ ...orders[0], accumulatedShippingQuantity: 1400, shippingRate: 1.4, remainingShippingQuantity: 0 }] }, closePurchaseOrderActionMenu() {}, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, escapeHtml: String, escapeAttribute: String };
+  const context = { state: { purchaseOrders: orders, filteredPurchaseOrders: [{ ...orders[0], accumulatedShippingQuantity: 1400, shippingRate: 1.4, remainingShippingQuantity: 0 }] }, closePurchaseOrderActionMenu() {}, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, escapeHtml: String, escapeAttribute: String };
   vm.runInNewContext(renderer + "\nrenderPurchaseOrders();", context);
   assert.equal((context.purchaseOrderTableBody.innerHTML.match(/<td>/g) || []).length, 14);
   assert.match(context.purchaseOrderTableBody.innerHTML, /140%/);
