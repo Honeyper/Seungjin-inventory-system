@@ -99,6 +99,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-16", title: "발주 목록 열별 필터 추가", items: [
+    "발주명·거래처·제품명 검색, 발주일·납기일 및 수량·비율 범위, 상태 필터를 함께 적용할 수 있습니다. 열 제목 옆 필터 버튼에서 설정하고 필터 초기화로 한 번에 해제합니다."
+  ] },
   { date: "2026-09-16", title: "발주 완료 표시 정리", items: [
     "버튼으로 완료한 발주의 상태를 발주 완료로 표시하고, 상태 박스 색상으로 구분합니다. 실제 수량과 입고·출고율은 그대로 유지합니다."
   ] },
@@ -822,6 +825,23 @@ const purchaseOrderSearch = document.querySelector("#purchaseOrderSearch");
 const purchaseOrderStatusFilter = document.querySelector("#purchaseOrderStatusFilter");
 const refreshPurchaseOrdersButton = document.querySelector("#refreshPurchaseOrdersButton");
 const purchaseOrderTableBody = document.querySelector("#purchaseOrderTableBody");
+const resetPurchaseOrderFiltersButton = document.querySelector("#resetPurchaseOrderFiltersButton");
+const purchaseOrderColumnFilters = window.PurchaseOrderFilters?.create(document.querySelector(".purchase-order-table"), {
+  statusSelect: purchaseOrderStatusFilter,
+  resetButton: resetPurchaseOrderFiltersButton,
+  onChange: () => {
+    state.purchaseOrderStatusFilter = purchaseOrderStatusFilter.value;
+    applyPurchaseOrderFilters();
+  }
+});
+resetPurchaseOrderFiltersButton?.addEventListener("click", () => {
+  purchaseOrderSearch.value = "";
+  purchaseOrderStatusFilter.value = "";
+  state.purchaseOrderQuery = "";
+  state.purchaseOrderStatusFilter = "";
+  purchaseOrderColumnFilters?.refresh();
+  applyPurchaseOrderFilters();
+});
 const purchaseOrderCountLabel = document.querySelector("#purchaseOrderCountLabel");
 const purchaseOrderListStatus = document.querySelector("#purchaseOrderStatus");
 const purchaseOrderModal = document.querySelector("#purchaseOrderModal");
@@ -8596,6 +8616,7 @@ function applyPurchaseOrderFilters() {
   const status = state.purchaseOrderStatusFilter;
   state.filteredPurchaseOrders = state.purchaseOrders.filter((order) => {
     if (status && getPurchaseOrderDisplayStatus(order) !== status) return false;
+    if (purchaseOrderColumnFilters && !purchaseOrderColumnFilters.matches(order)) return false;
     if (!query) return true;
     return [
       order.purchaseOrderId,
@@ -8627,14 +8648,14 @@ function renderPurchaseOrders(message = "") {
   if (!purchaseOrderTableBody) return;
   const orders = state.filteredPurchaseOrders;
   if (purchaseOrderListStatus) {
-    purchaseOrderListStatus.textContent = message || (orders.length ? "발주 진행 현황입니다." : "등록된 발주가 없습니다.");
+    purchaseOrderListStatus.textContent = message || (orders.length ? "발주 진행 현황입니다." : state.purchaseOrders.length ? "조건에 맞는 발주가 없습니다." : "등록된 발주가 없습니다.");
     purchaseOrderListStatus.dataset.type = message ? "error" : "";
   }
   if (purchaseOrderCountLabel) {
-    purchaseOrderCountLabel.textContent = `전체 ${orders.length.toLocaleString("ko-KR")}건`;
+    purchaseOrderCountLabel.textContent = `조회 ${orders.length.toLocaleString("ko-KR")}건 / 전체 ${state.purchaseOrders.length.toLocaleString("ko-KR")}건`;
   }
   if (!orders.length) {
-    purchaseOrderTableBody.innerHTML = `<tr><td class="empty-cell" colspan="14">${escapeHtml(message || "등록된 발주가 없습니다.")}</td></tr>`;
+    purchaseOrderTableBody.innerHTML = `<tr><td class="empty-cell" colspan="14">${escapeHtml(message || (state.purchaseOrders.length ? "조건에 맞는 발주가 없습니다." : "등록된 발주가 없습니다."))}</td></tr>`;
     return;
   }
 
