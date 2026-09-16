@@ -99,6 +99,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-16", title: "제품 목록 열 너비 고정", items: [
+    "전체 제품 목록의 가장 긴 내용을 기준으로 열 너비를 맞춰 페이지 이동과 검색 시 칸 위치가 바뀌지 않도록 했습니다."
+  ] },
   { date: "2026-09-16", title: "라벨 공정 옵션 표시 정리", items: [
     "라벨 공정 선택 시 제품 등록·수정 화면에서 박가루 제거와 화염처리 항목을 숨깁니다."
   ] },
@@ -627,6 +630,7 @@ const recentDate = document.querySelector("#recentDate");
 const productSearch = document.querySelector("#productSearch");
 const productClientFilter = document.querySelector("#productClientFilter");
 const productTableBody = document.querySelector("#productTableBody");
+let productTableWidthCache = null;
 const productCountLabel = document.querySelector("#productCountLabel");
 const pagination = document.querySelector("#pagination");
 const pageSizeSelect = document.querySelector("#pageSizeSelect");
@@ -2425,6 +2429,7 @@ shippingRowActionMenu?.addEventListener("click", (event) => {
 });
 
 window.addEventListener("resize", () => {
+  syncProductTableColumnWidths();
   closeRowActionMenu();
   closeInboundRowActionMenu();
   closeShippingRowActionMenu();
@@ -2434,6 +2439,11 @@ window.addEventListener("scroll", () => {
   closeInboundRowActionMenu();
   closeShippingRowActionMenu();
 }, true);
+
+document.fonts?.addEventListener("loadingdone", () => {
+  productTableWidthCache = null;
+  syncProductTableColumnWidths();
+});
 
 setCurrentInboundDate();
 setCurrentInboundListDateRange();
@@ -10455,19 +10465,7 @@ function renderSummary() {
   recentDate.textContent = dates[0] || "-";
 }
 
-function renderProducts() {
-  closeRowActionMenu();
-
-  const total = state.filteredProducts.length;
-  const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
-  state.page = Math.min(state.page, pageCount);
-
-  const start = (state.page - 1) * state.pageSize;
-  const products = state.filteredProducts.slice(start, start + state.pageSize);
-
-  productTableBody.innerHTML = products.map((product, index) => {
-    const sequence = start + index + 1;
-
+function renderProductTableRow(product, sequence) {
     return `
       <tr>
         <td>${sequence}</td>
@@ -10490,7 +10488,60 @@ function renderProducts() {
         </td>
       </tr>
     `;
-  }).join("");
+}
+
+function syncProductTableColumnWidths() {
+  const table = productTableBody?.closest("table");
+  const header = table?.querySelector("thead");
+  if (!table || !header) return;
+  const tableStyle = getComputedStyle(table);
+  const headerStyle = getComputedStyle(header.querySelector("th"));
+  const fontKey = [tableStyle.font, tableStyle.letterSpacing, headerStyle.font, headerStyle.paddingLeft, headerStyle.paddingRight].join("|");
+  if (productTableWidthCache?.products === state.products && productTableWidthCache.fontKey === fontKey) return;
+
+  // Measure every product once with the same markup and styles as the visible table.
+  // The offscreen table is independent of the current page, filters and hidden views.
+  const holder = document.createElement("div");
+  holder.className = "product-view";
+  holder.setAttribute("aria-hidden", "true");
+  holder.inert = true;
+  holder.style.cssText = "position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;";
+  const probe = table.cloneNode(false);
+  probe.removeAttribute("id");
+  probe.style.cssText = "table-layout:auto;width:max-content;min-width:0;max-width:none;";
+  probe.append(header.cloneNode(true));
+  const body = document.createElement("tbody");
+  body.innerHTML = state.products.map((product, index) => renderProductTableRow(product, index + 1)).join("");
+  probe.append(body);
+  holder.append(probe);
+  document.body.append(holder);
+  try {
+    const widths = Array.from(probe.querySelectorAll("thead th"), (cell) => Math.ceil(cell.getBoundingClientRect().width) + 2);
+    let columns = table.querySelector("colgroup");
+    if (!columns) {
+      columns = document.createElement("colgroup");
+      table.prepend(columns);
+    }
+    columns.innerHTML = widths.map((width) => `<col style="width:${width}px">`).join("");
+    table.style.setProperty("--product-list-min-width", `${widths.reduce((sum, width) => sum + width, 0)}px`);
+    productTableWidthCache = { products: state.products, fontKey };
+  } finally {
+    holder.remove();
+  }
+}
+
+function renderProducts() {
+  closeRowActionMenu();
+
+  const total = state.filteredProducts.length;
+  const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
+  state.page = Math.min(state.page, pageCount);
+
+  const start = (state.page - 1) * state.pageSize;
+  const products = state.filteredProducts.slice(start, start + state.pageSize);
+
+  productTableBody.innerHTML = products.map((product, index) => renderProductTableRow(product, start + index + 1)).join("");
+  syncProductTableColumnWidths();
 
   productTableBody.querySelectorAll(".row-action").forEach((button) => {
     button.addEventListener("click", (event) => {
