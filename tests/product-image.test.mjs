@@ -134,7 +134,7 @@ test("긴 모바일 제품명은 글꼴 로딩 뒤에도 실제 폭에 맞춰 �
   assert.match(mobileSource, /title\.classList\.add\("is-multiline"\)/);
   assert.match(mobileSource, /document\.fonts\?\.ready\.then/);
   assert.match(mobileSource, /elements\.productImageModalTitle\.textContent = state\.activeProductImageName;\s*fitProductImageModalTitle\(\);/);
-  assert.match(mobileHtml, /mobile\.js\?v=(?:20260915-inbound-defect-upload-v1|20260915-production-print-fix-v1|20260915-order-actions-menu-v1|20260914-shipping-status-sync-v1|20260910-product-image-track|20260911-inventory-move-persistence-v1)-(?:dev|prd)/);
+  assert.match(mobileHtml, /mobile\.js\?v=(?:20260916-pc-inventory-confirm-v1|20260915-inbound-defect-upload-v1|20260915-production-print-fix-v1|20260915-order-actions-menu-v1|20260914-shipping-status-sync-v1|20260910-product-image-track|20260911-inventory-move-persistence-v1)-(?:dev|prd)/);
 });
 
 test("제품 이미지 삭제 버튼은 고정 SVG X 아이콘으로 가운데 정렬한다", () => {
@@ -147,5 +147,5 @@ test("제품 이미지 삭제 버튼은 고정 SVG X 아이콘으로 가운데 �
 test("PC 제품 이미지와 하단 썸네일 영역 사이에 여백을 유지한다", () => {
   assert.match(stylesSource, /\.product-image-gallery-stage\s*\{[\s\S]*?padding:\s*1\.5rem 4\.5rem 2\.5rem;[\s\S]*?overflow:\s*hidden;/);
   assert.match(stylesSource, /\.product-image-gallery-stage > img\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?max-height:\s*100%;/);
-  assert.match(adminHtml, /styles\.css\?v=(?:20260915-inbound-defect-upload-v1|20260915-production-print-fix-v1|20260915-order-actions-menu-v1|20260914-shipping-status-sync-v1|20260914-order-manual-completion-v1|20260911-(?:production-plan-(?:width|rows)|print-page-isolation|inventory-audit-search|production-plan-delete|production-capacity|production-inputs|remainder-save)-v1|20260910-(?:invoice-preview-clear|update-history|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
+  assert.match(adminHtml, /styles\.css\?v=(?:20260916-pc-inventory-confirm-v1|20260915-inbound-defect-upload-v1|20260915-production-print-fix-v1|20260915-order-actions-menu-v1|20260914-shipping-status-sync-v1|20260914-order-manual-completion-v1|20260911-(?:production-plan-(?:width|rows)|print-page-isolation|inventory-audit-search|production-plan-delete|production-capacity|production-inputs|remainder-save)-v1|20260910-(?:invoice-preview-clear|update-history|notification-scroll-v3|production-plan-tabs-v1|production-plan-product-v[23]|production-plan-detail-v[1234]))-(?:dev|prd)/);
 });

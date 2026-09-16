@@ -7808,6 +7808,34 @@ input {
   background: var(--navy-dark);
 }
 
+.inventory-audit-confirm-toolbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.65rem;
+  margin: 0.8rem 0; color: var(--navy-dark); font-size: 0.82rem;
+}
+.inventory-audit-confirm-toolbar label, .inventory-audit-box-select {
+  display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
+}
+.inventory-audit-confirm-toolbar input, .inventory-audit-box-select input {
+  width: 1rem; height: 1rem; margin: 0; accent-color: var(--navy-dark);
+}
+.inventory-audit-confirm-toolbar > span { color: #738198; font-size: 0.78rem; }
+.inventory-audit-confirm-toolbar button, .inventory-audit-box-actions button {
+  min-height: 2.1rem; padding: 0.4rem 0.75rem; border: 1px solid #dfe7f0;
+  border-radius: 0.4rem; font: inherit; font-weight: 800; cursor: pointer;
+  background: #fff; color: var(--navy-dark);
+}
+.inventory-audit-box-card > .inventory-audit-box-actions {
+  grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 0.5rem;
+}
+.inventory-audit-box-actions button { font-size: 0.76rem; }
+.inventory-audit-confirm-toolbar button, .inventory-audit-box-actions [data-inventory-audit-confirm] {
+  background: var(--navy-dark); border-color: var(--navy-dark); color: #fff;
+}
+.inventory-audit-box-actions [data-inventory-audit-confirm] span { color: inherit; margin-left: 0.3rem; }
+.inventory-audit-confirm-toolbar button:disabled, .inventory-audit-box-actions button:disabled {
+  opacity: 0.5; cursor: default;
+}
+
 .inventory-audit-box-empty {
   margin: 0;
   padding: 1.15rem 0.5rem;
