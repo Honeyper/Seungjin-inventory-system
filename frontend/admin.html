@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260916-product-column-widths-v1-prd" />
+    <link rel="stylesheet" href="./styles.css?v=20260916-order-complete-label-v1-prd" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260909-qr-worker-hint-prd" />
   </head>
   <body class="admin-body">
@@ -1014,7 +1014,7 @@
                 <option>작업중</option>
                 <option>작업완료</option>
                 <option>취소</option>
-                <option>임의 완료</option>
+                <option value="임의 완료">발주 완료</option>
               </select>
             </label>
             <button class="secondary-action" type="button" id="refreshPurchaseOrdersButton">
@@ -3103,7 +3103,7 @@
                 <select id="purchaseOrderFormStatus">
                   <option value="">자동 계산</option>
                   <option value="취소">취소</option>
-                  <option value="임의 완료">임의 완료</option>
+                  <option value="임의 완료">발주 완료</option>
                 </select>
               </label>
               <label class="form-field full-span">
@@ -3217,6 +3217,6 @@
     <script src="./qr-payload.js?v=20260904-box-checksum-prd"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-prd"></script>
     <script src="./production-planner.js?v=20260911-production-capacity-v1"></script>
-    <script src="./admin.js?v=20260916-product-column-widths-v1-prd"></script>
+    <script src="./admin.js?v=20260916-order-complete-label-v1-prd"></script>
   </body>
 </html>

@@ -14908,7 +14908,7 @@ input {
 .production-plan-detail-section [data-plan-reference] { width: 100%; min-height: 2.5rem; border: 1px solid #dce5f3; border-radius: 0.4rem; background: #fff; color: #132e52; }
 .production-plan-detail-section > p { font-size: 0.75rem; color: #65758d; line-height: 1.6; overflow-wrap: anywhere; }
 
-.purchase-order-status-badge[data-status="임의 완료"] { color: #475569; background: #e8edf3; border: 1px dashed #94a3b8; }
+.purchase-order-status-badge[data-status="임의 완료"] { color: #475569; background: #e8edf3; }
 .purchase-order-actions { flex-wrap: nowrap; align-items: center; white-space: nowrap; }
 .purchase-order-actions button[data-purchase-order-action="complete"] {
   min-width: 5.2rem;
