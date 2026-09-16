@@ -96,6 +96,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-16", title: "라벨 공정 옵션 표시 정리", items: [
+    "라벨 공정 선택 시 제품 등록·수정 화면에서 박가루 제거와 화염처리 항목을 숨깁니다."
+  ] },
   { date: "2026-09-16", title: "거래처 명신코스텍 추가", items: [
     "제품 등록과 수정의 거래처 선택 목록에 명신코스텍을 추가했습니다."
   ] },
@@ -12099,6 +12102,8 @@ function syncProductProcessFields() {
   const isSaving = Boolean(state.isSavingProduct);
   const singleProcess = { coating: "코팅", label: "라벨" }[productProcessType.value] || "";
   const isSingleProcess = Boolean(singleProcess);
+  const treatmentOptions = productForm?.querySelector(".product-treatment-grid");
+  if (treatmentOptions) treatmentOptions.hidden = productProcessType.value === "label";
   const stage1 = normalizeProductProcessMethod(productProcessStage1?.value);
   const stage2 = normalizeProductProcessMethod(productProcessStage2?.value);
 

@@ -6277,6 +6277,10 @@ input {
   margin: 0 0.4rem 0 0;
 }
 
+.product-treatment-grid[hidden] {
+  display: none;
+}
+
 .product-treatment-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
