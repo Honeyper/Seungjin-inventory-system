@@ -98,6 +98,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-16", title: "라벨 공정 및 QR 공정 표시 추가", items: [
+    "공정 유형에 라벨을 추가했습니다. 코팅·라벨 QR은 첫 공정 칸에 해당 공정명을 표시하고 2도·3도는 비활성화합니다."
+  ] },
   { date: "2026-09-16", title: "PC 실물 확인 기능 추가", items: [
     "재고 상세에서 박스별 또는 선택한 박스를 일괄 실물 확인할 수 있습니다. 확인한 박스는 오른쪽 확인 완료 목록으로 이동합니다."
   ] },
@@ -12206,7 +12209,7 @@ function renderInboundEditForm(inbound) {
         <label class="form-field">
           <span>SKU 고정 공정 <b>*</b></span>
           <select id="inboundEditProcess" disabled>
-            ${renderOptionList(["", "1도", "2도", "3도", "코팅"], normalizeEditableValue(inbound.process), "선택하세요.")}
+            ${renderOptionList(["", "1도", "2도", "3도", "코팅", "라벨"], normalizeEditableValue(inbound.process), "선택하세요.")}
           </select>
         </label>
         <label class="form-field">
@@ -12868,13 +12871,13 @@ function setProductProcessForm(product = null) {
   const stage2 = normalizeProductProcessMethod(product?.processStage2);
   const stage3 = normalizeProductProcessMethod(product?.processStage3);
   const hasStageData = Boolean(stage1 || stage2 || stage3);
-  const isCoating = finalProcess === "코팅" && !hasStageData;
+  const singleProcessType = !hasStageData ? ({ "코팅": "coating", "라벨": "label" }[finalProcess] || "") : "";
 
-  productProcessType.value = isCoating ? "coating" : "print";
+  productProcessType.value = singleProcessType || "print";
   productProcessStage1.value = stage1;
   productProcessStage2.value = stage2 || "none";
   productProcessStage3.value = stage3 || "none";
-  productFinalProcess.dataset.legacyFinalProcess = !hasStageData && !isCoating ? finalProcess : "";
+  productFinalProcess.dataset.legacyFinalProcess = !hasStageData && !singleProcessType ? finalProcess : "";
   syncProductProcessFields();
 }
 
@@ -12884,7 +12887,8 @@ function syncProductProcessFields() {
   }
 
   const isSaving = Boolean(state.isSavingProduct);
-  const isCoating = productProcessType.value === "coating";
+  const singleProcess = { coating: "코팅", label: "라벨" }[productProcessType.value] || "";
+  const isSingleProcess = Boolean(singleProcess);
   const stage1 = normalizeProductProcessMethod(productProcessStage1?.value);
   const stage2 = normalizeProductProcessMethod(productProcessStage2?.value);
 
@@ -12894,8 +12898,8 @@ function syncProductProcessFields() {
 
   const stage3 = normalizeProductProcessMethod(productProcessStage3?.value);
   const legacyFinalProcess = normalizeEditableValue(productFinalProcess.dataset.legacyFinalProcess);
-  const finalProcess = isCoating
-    ? "코팅"
+  const finalProcess = isSingleProcess
+    ? singleProcess
     : stage3
       ? "3도"
       : stage2
@@ -12905,13 +12909,13 @@ function syncProductProcessFields() {
           : legacyFinalProcess;
 
   productFinalProcess.value = finalProcess;
-  productProcessStages.hidden = isCoating;
-  productProcessStage1.disabled = isSaving || isCoating;
-  productProcessStage2.disabled = isSaving || isCoating || !stage1;
-  productProcessStage3.disabled = isSaving || isCoating || !stage2;
+  productProcessStages.hidden = isSingleProcess;
+  productProcessStage1.disabled = isSaving || isSingleProcess;
+  productProcessStage2.disabled = isSaving || isSingleProcess || !stage1;
+  productProcessStage3.disabled = isSaving || isSingleProcess || !stage2;
 
-  if (isCoating) {
-    productProcessSummary.textContent = "코팅";
+  if (isSingleProcess) {
+    productProcessSummary.textContent = singleProcess;
     return;
   }
 
