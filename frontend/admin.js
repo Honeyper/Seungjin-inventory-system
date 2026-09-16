@@ -96,6 +96,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-16", title: "발주 목록 열 클릭 정렬", items: [
+    "열 제목을 클릭하면 오름차순·내림차순으로 정렬됩니다. 발주일과 납기일은 각각 정렬할 수 있으며, 열별 필터 팝업은 제거했습니다."
+  ] },
   { date: "2026-09-16", title: "발주 목록 열별 필터 추가", items: [
     "발주명·거래처·제품명 검색, 발주일·납기일 및 수량·비율 범위, 상태 필터를 함께 적용할 수 있습니다. 열 제목 옆 필터 버튼에서 설정하고 필터 초기화로 한 번에 해제합니다."
   ] },
@@ -731,20 +734,16 @@ const purchaseOrderStatusFilter = document.querySelector("#purchaseOrderStatusFi
 const refreshPurchaseOrdersButton = document.querySelector("#refreshPurchaseOrdersButton");
 const purchaseOrderTableBody = document.querySelector("#purchaseOrderTableBody");
 const resetPurchaseOrderFiltersButton = document.querySelector("#resetPurchaseOrderFiltersButton");
-const purchaseOrderColumnFilters = window.PurchaseOrderFilters?.create(document.querySelector(".purchase-order-table"), {
-  statusSelect: purchaseOrderStatusFilter,
-  resetButton: resetPurchaseOrderFiltersButton,
-  onChange: () => {
-    state.purchaseOrderStatusFilter = purchaseOrderStatusFilter.value;
-    applyPurchaseOrderFilters();
-  }
+const purchaseOrderColumnSort = window.PurchaseOrderSort?.create(document.querySelector(".purchase-order-table"), {
+  getStatus: getPurchaseOrderDisplayStatus,
+  onChange: applyPurchaseOrderFilters
 });
 resetPurchaseOrderFiltersButton?.addEventListener("click", () => {
   purchaseOrderSearch.value = "";
   purchaseOrderStatusFilter.value = "";
   state.purchaseOrderQuery = "";
   state.purchaseOrderStatusFilter = "";
-  purchaseOrderColumnFilters?.refresh();
+  purchaseOrderColumnSort?.reset();
   applyPurchaseOrderFilters();
 });
 const purchaseOrderCountLabel = document.querySelector("#purchaseOrderCountLabel");
@@ -8054,7 +8053,6 @@ function applyPurchaseOrderFilters() {
   const status = state.purchaseOrderStatusFilter;
   state.filteredPurchaseOrders = state.purchaseOrders.filter((order) => {
     if (status && getPurchaseOrderDisplayStatus(order) !== status) return false;
-    if (purchaseOrderColumnFilters && !purchaseOrderColumnFilters.matches(order)) return false;
     if (!query) return true;
     return [
       order.purchaseOrderId,
@@ -8064,6 +8062,7 @@ function applyPurchaseOrderFilters() {
       order.orderRound
     ].some((value) => normalizeSearchText(value).includes(query));
   });
+  if (purchaseOrderColumnSort) state.filteredPurchaseOrders = purchaseOrderColumnSort.sort(state.filteredPurchaseOrders);
   renderPurchaseOrderSummary();
   renderPurchaseOrders();
 }
