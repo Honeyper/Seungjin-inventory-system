@@ -96,6 +96,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-16", title: "발주 완료 표시 정리", items: [
+    "버튼으로 완료한 발주의 상태를 발주 완료로 표시하고, 상태 박스 색상으로 구분합니다. 실제 수량과 입고·출고율은 그대로 유지합니다."
+  ] },
   { date: "2026-09-16", title: "제품 목록 열 너비 고정", items: [
     "전체 제품 목록의 가장 긴 내용을 기준으로 열 너비를 맞춰 페이지 이동과 검색 시 칸 위치가 바뀌지 않도록 했습니다."
   ] },
@@ -8103,7 +8106,7 @@ function renderPurchaseOrders(message = "") {
         <td>${hasShipping ? formatPurchaseOrderQuantity(order.accumulatedShippingQuantity) : "-"}</td>
         <td>${shippingProgress}</td>
         <td>${Number.isFinite(order.remainingShippingQuantity) ? formatPurchaseOrderQuantity(order.remainingShippingQuantity) : "-"}</td>
-        <td><span class="purchase-order-status-badge" data-status="${getPurchaseOrderDisplayStatus(order)}">${getPurchaseOrderDisplayStatus(order)}</span></td>
+        <td><span class="purchase-order-status-badge" data-status="${getPurchaseOrderDisplayStatus(order)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "발주 완료" : getPurchaseOrderDisplayStatus(order)}</span></td>
         <td>
           <span class="purchase-order-actions">
             ${order.status !== "취소" ? `<button type="button" data-purchase-order-action="complete" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "완료 취소" : "발주 완료"}</button>` : ""}
@@ -8285,14 +8288,14 @@ async function togglePurchaseOrderCompletion(order, button) {
   if (button.disabled) return;
   const closed = getPurchaseOrderDisplayStatus(order) === "임의 완료";
   const message = closed
-    ? `${order.productName} ${order.orderRound || ""}의 임의 완료를 취소하고 다시 진행하시겠습니까?`
-    : `${order.productName} ${order.orderRound || ""}를 임의 완료 처리하시겠습니까?\n실제 입고·출고 수량과 비율은 그대로 유지됩니다.`;
+    ? `${order.productName} ${order.orderRound || ""}의 발주 완료를 취소하고 다시 진행하시겠습니까?`
+    : `${order.productName} ${order.orderRound || ""}를 발주 완료 처리하시겠습니까?\n실제 입고·출고 수량과 비율은 그대로 유지됩니다.`;
   if (!window.confirm(message)) return;
   button.disabled = true;
   try {
     await requestApi("updatePurchaseOrder", { purchaseOrderId: order.purchaseOrderId, completionAction: closed ? "reopen" : "complete", userName: signedInAdminName });
     await loadPurchaseOrders();
-    showToast(closed ? "발주 완료를 취소했습니다." : "발주를 임의 완료 처리했습니다.");
+    showToast(closed ? "발주 완료를 취소했습니다." : "발주 완료 처리했습니다.");
   } catch (error) { showToast(error.message || "발주 완료 처리에 실패했습니다."); }
   finally { button.disabled = false; }
 }
