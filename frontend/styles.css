@@ -3525,6 +3525,15 @@ input {
   font-size: 0.82rem;
 }
 
+.product-view .product-list-table {
+  table-layout: fixed;
+  min-width: var(--product-list-min-width, 58rem);
+}
+
+.product-view .product-list-table .note-cell {
+  max-width: none;
+}
+
 .product-view .product-table th,
 .product-view .product-table td {
   height: 3rem;
