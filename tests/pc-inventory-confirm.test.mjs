@@ -13,7 +13,7 @@ function harness({fail=false,refresh=true}={}) {
  const context=vm.createContext({state:{activeDetailInboundId:'IN-TEST',activeDetailInboundProductId:'P1',activeDetailInboundSource:'inventory'},
   inboundDetailModal:{hidden:false},inboundDetailContent:{querySelector:selector=>selector==='.inventory-audit-box-section'?section:message},
   getInventoryRecordByManagementId:()=>item,getInventoryAuditTargetBoxes:()=>boxes.filter(b=>!b.lastInventoryCheckedAt),getInventoryAuditEligibleBoxes:()=>boxes,
-  updateInventoryAuditSelection:()=>{},renderInventoryAuditBoxStatus:record=>JSON.stringify(record),normalizeInboundDetailRecord:x=>x,
+  updateInventoryAuditConfirmControls:()=>{},renderInventoryAuditBoxStatus:record=>JSON.stringify(record),normalizeInboundDetailRecord:x=>x,
   signedInAdminName:'담당자',formatNumber:String,showToast:t=>notices.push(t),loadInventoryDashboard:async()=>refresh,
   requestApi:async(action,payload)=>{calls.push({action,payload});if(fail)throw new Error('연결 실패');return {confirmedBoxRows:payload.confirmedBoxes[0].selectedBoxes.length,inventoryCheckedAt:'2026-09-16 10:00:00'};}});
  vm.runInContext(code,context);return {context,boxes,calls,notices,section};

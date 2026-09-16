@@ -7652,12 +7652,6 @@ input {
   display: flex; align-items: center; flex-wrap: wrap; gap: 0.65rem;
   margin: 0.8rem 0; color: var(--navy-dark); font-size: 0.82rem;
 }
-.inventory-audit-confirm-toolbar label, .inventory-audit-box-select {
-  display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
-}
-.inventory-audit-confirm-toolbar input, .inventory-audit-box-select input {
-  width: 1rem; height: 1rem; margin: 0; accent-color: var(--navy-dark);
-}
 .inventory-audit-confirm-toolbar > span { color: #738198; font-size: 0.78rem; }
 .inventory-audit-confirm-toolbar button, .inventory-audit-box-actions button {
   min-height: 2.1rem; padding: 0.4rem 0.75rem; border: 1px solid #dfe7f0;
