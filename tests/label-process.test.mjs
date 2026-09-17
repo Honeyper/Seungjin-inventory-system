@@ -9,7 +9,7 @@ const admin=fs.readFileSync(new URL('../frontend/admin.js',import.meta.url),'utf
 function section(a,b){return admin.slice(admin.indexOf(a),admin.indexOf(b,admin.indexOf(a)));}
 function form(){
  const c=vm.createContext({state:{},normalizeEditableValue:v=>String(v||'').trim(),getCommonContainerProductNameValues:()=>[],session:{name:'테스트'},productForm:{querySelector:()=>null}});
- for(const name of ['productProcessType','productProcessStage1','productProcessStage2','productProcessStage3','productProcessStages','productProcessSummary','productFinalProcess','productOrderQuantity','productBoxQuantity','productTrayQuantity','productCommonContainer','productShippingProductCount','productClientName','productNameInput','productColor','productDueDate','productNote']) c[name]={value:'',dataset:{}};
+ for(const name of ['productProcessType','productProcessStage1','productProcessStage2','productProcessStage3','productProcessStages','productProcessSummary','productFinalProcess','productOrderQuantity','productBoxQuantity','productTrayQuantity','productHourlyProductionRate','productCommonContainer','productShippingProductCount','productClientName','productNameInput','productColor','productDueDate','productNote']) c[name]={value:'',dataset:{}};
  c.state.productImageUrls=[];
  vm.runInContext(section('function normalizeProductProcessMethod(', 'function openProductModal(')+section('function getProductFormPayload()', 'function validateProductPayload('),c);return c;
 }

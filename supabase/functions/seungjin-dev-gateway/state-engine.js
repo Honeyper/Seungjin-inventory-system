@@ -385,6 +385,13 @@ function touchInventoryRecords(state, managementIds, changes) {
   });
 }
 
+function parseProductHourlyProductionRate(value) {
+  if (value === null || value === undefined || String(value).trim() === "" || String(value).trim() === "-") return null;
+  const rate = typeof value === "number" ? value : Number(String(value).replaceAll(",", "").trim());
+  if (!Number.isFinite(rate) || rate <= 0 || rate > Number.MAX_SAFE_INTEGER) throw new Error("시간당 평균 생산량은 0보다 큰 숫자로 입력해주세요.");
+  return rate;
+}
+
 function createOrUpdateProduct(action, payload, state, changes, now) {
   const products = state.products;
   const requestedId = text(payload.productId || payload.productCode || payload["제품 ID"] || payload["제품ID"]);
@@ -397,6 +404,10 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
   const boxQuantity = payload["박스당 수량"] ?? payload.boxQuantity ?? current?.boxQuantity;
   const trayQuantity = payload["트레이 수량"] ?? payload.trayQuantity ?? current?.trayQuantity;
   if (!clientName || !productName || number(boxQuantity) <= 0 || number(trayQuantity) <= 0) throw new Error("제품 필수값과 수량을 확인해주세요.");
+  const hourlyProductionRate = parseProductHourlyProductionRate(
+    Object.prototype.hasOwnProperty.call(payload, "시간당 평균 생산량") ? payload["시간당 평균 생산량"]
+      : Object.prototype.hasOwnProperty.call(payload, "hourlyProductionRate") ? payload.hourlyProductionRate : current?.hourlyProductionRate
+  );
   const process = getProductProcess(payload, current || {});
   const productId = current?.productId || requestedId || generateProductId(products, clientName);
   const parts = dateParts(now);
@@ -436,6 +447,7 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     accumulatedInboundQuantity: current?.accumulatedInboundQuantity || "0 ea",
     boxQuantity: formatEa(number(boxQuantity)),
     trayQuantity: formatEa(number(trayQuantity)),
+    hourlyProductionRate,
     productImageUrl: productImageUrls[0] || "",
     productImageUrls,
     dueDate: dash(payload["납기일"] ?? current?.dueDate),
