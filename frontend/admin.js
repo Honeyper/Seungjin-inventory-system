@@ -99,6 +99,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-17", title: "제품 목록 정렬 기준 추가", items: [
+    "거래처명·제품명·제품코드 순으로 제품을 정렬합니다. 제품명순, 제품코드순, 최근 등록순을 선택할 수 있고 검색과 페이지 이동에도 같은 기준을 적용합니다."
+  ] },
   { date: "2026-09-17", title: "제품 상세보기 정보 구성 개선", items: [
     "제품 요약, 생산·포장 기준, 공정 정보, 관리 정보를 구분해 배치했습니다. 중복 표기를 줄이고 긴 제품명과 모바일 화면에서도 정보를 읽기 쉽도록 정리했습니다."
   ] },
@@ -535,6 +538,7 @@ const state = {
   inboundPageSize: 10,
   query: "",
   clientFilter: "",
+  productSort: "client",
   inboundListQuery: "",
   isSavingProduct: false,
   isSavingInbound: false,
@@ -650,6 +654,8 @@ const clientTotal = document.querySelector("#clientTotal");
 const recentDate = document.querySelector("#recentDate");
 const productSearch = document.querySelector("#productSearch");
 const productClientFilter = document.querySelector("#productClientFilter");
+const productSortSelect = document.querySelector("#productSortSelect");
+const productSortHint = document.querySelector("#productSortHint");
 const productTableBody = document.querySelector("#productTableBody");
 let productTableWidthCache = null;
 const productCountLabel = document.querySelector("#productCountLabel");
@@ -2068,6 +2074,12 @@ productSearch.addEventListener("input", (event) => {
 
 productClientFilter.addEventListener("change", (event) => {
   state.clientFilter = event.target.value;
+  state.page = 1;
+  applyFilters();
+});
+
+productSortSelect.addEventListener("change", (event) => {
+  state.productSort = event.target.value;
   state.page = 1;
   applyFilters();
 });
@@ -10466,6 +10478,40 @@ async function requestApi(action, payload = {}) {
   return result.data;
 }
 
+function sortProductList(products, mode = "client") {
+  const collator = new Intl.Collator("ko-KR", { numeric: true, sensitivity: "base" });
+  const text = value => {
+    const normalized = String(value ?? "").normalize("NFKC").trim();
+    return normalized === "-" ? "" : normalized;
+  };
+  const company = value => text(value).replace(/주식회사|\(\s*주\s*\)/g, "").trim();
+  const compareText = (a, b) => !a ? (b ? 1 : 0) : !b ? -1 : collator.compare(a, b);
+  const date = value => {
+    const match = text(value).match(/^(\d{4})[.\/-]\s*(\d{1,2})[.\/-]\s*(\d{1,2})(?:$|[.T\s])/);
+    if (!match) return null;
+    const [year, month, day] = match.slice(1).map(Number);
+    const stamp = Date.UTC(year, month - 1, day);
+    const parsed = new Date(stamp);
+    return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day ? stamp : null;
+  };
+  const keys = mode === "name" ? ["name", "client", "code"] : mode === "code" ? ["code", "client", "name"] : ["client", "name", "code"];
+  return products.map(product => ({
+    product, client: company(product.clientName), name: text(product.productName),
+    code: text(product.productCode), id: text(product.productId), registered: date(product.registeredAt)
+  })).sort((a, b) => {
+    if (mode === "recent" && a.registered !== b.registered) {
+      if (a.registered === null) return 1;
+      if (b.registered === null) return -1;
+      return b.registered - a.registered;
+    }
+    for (const key of keys) {
+      const result = compareText(a[key], b[key]);
+      if (result) return result;
+    }
+    return compareText(a.id, b.id);
+  }).map(entry => entry.product);
+}
+
 function applyFilters() {
   const query = state.query;
   const clientFilter = state.clientFilter;
@@ -10485,6 +10531,13 @@ function applyFilters() {
     ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(query)));
   });
 
+  state.filteredProducts = sortProductList(state.filteredProducts, state.productSort);
+  productSortHint.textContent = {
+    client: "거래처명 → 제품명 → 제품코드 순 · 가나다순, 숫자는 작은 순",
+    name: "제품명 → 거래처명 → 제품코드 순 · 가나다순, 숫자는 작은 순",
+    code: "제품코드 → 거래처명 → 제품명 순 · 숫자는 작은 순",
+    recent: "최근 등록일 → 거래처명 → 제품명 → 제품코드 순"
+  }[state.productSort] || "거래처명 → 제품명 → 제품코드 순";
   renderSummary();
   renderProducts();
 }

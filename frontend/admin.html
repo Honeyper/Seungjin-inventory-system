@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260917-product-detail-layout-v1-prd" />
+    <link rel="stylesheet" href="./styles.css?v=20260917-product-list-sort-v1-prd" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260909-qr-worker-hint-prd" />
   </head>
   <body class="admin-body">
@@ -1332,9 +1332,19 @@
                 <option value="">전체 업체</option>
               </select>
             </label>
+            <label class="client-filter product-sort-control">
+              <span>정렬 기준</span>
+              <select id="productSortSelect" aria-describedby="productSortHint">
+                <option value="client">거래처명순 (기본)</option>
+                <option value="name">제품명순</option>
+                <option value="code">제품코드순</option>
+                <option value="recent">최근 등록순</option>
+              </select>
+            </label>
           </section>
 
           <section class="table-panel product-list-panel" aria-label="제품 목록">
+            <p class="product-sort-hint" id="productSortHint" aria-live="polite">거래처명 → 제품명 → 제품코드 순 · 가나다순, 숫자는 작은 순</p>
             <div class="table-status" id="tableStatus">제품 정보를 불러오는 중입니다.</div>
             <div class="table-scroll">
               <table class="product-table product-list-table">
@@ -3229,6 +3239,6 @@
     <script src="./production-planner.js?v=20260911-production-capacity-v1"></script>
     <script src="./purchase-order-sort.js?v=20260916-order-column-sort-v1"></script>
     <script src="./inventory-audit-cards.js?v=20260917-audit-card-drag-v1"></script>
-    <script src="./admin.js?v=20260917-product-detail-layout-v1-prd"></script>
+    <script src="./admin.js?v=20260917-product-list-sort-v1-prd"></script>
   </body>
 </html>
