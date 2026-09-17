@@ -5257,7 +5257,9 @@ function adjustRemainingInventory(payload) {
       finalProcess: payload.finalProcess || payload['최종공정'] || payload['최종 공정'],
       status: '출고완료',
       persistedCompleteStatus: '출고완료(재고조정)',
-      allowedSourceStatuses: ['보관'],
+      allowedSourceStatuses: payload.protectClassifiedInventory === true
+        ? ['보관', '일부 출고', '작업중', '출고대기']
+        : ['보관', '일부 출고'],
       shippingType: '재고조정',
       shippingDate,
       shippingTime,
