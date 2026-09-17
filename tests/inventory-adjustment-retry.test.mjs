@@ -64,11 +64,11 @@ test('실물 정리는 화면에서 허용한 보관·부분출고·작업중·�
 test('보류·폐기·정상 출고완료·분류재고·빈 박스·미지원 상태는 계속 보호한다',()=>{
   for(const status of ['보류','출고 보류','폐기','출고완료','출고완료(정상출고)','알수없음','사출재고','인쇄재고']) {
     const state=fixture();state.boxes[0].status=status;state.boxes[0].rawStatus=status;
-    assert.throws(()=>applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true},state,firstTime),/최신 재고를 확인/,status);
+    assert.throws(()=>applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true,expectedBoxQuantities:{3:480,23:480}},state,firstTime),/최신 재고를 확인/,status);
   }
   for(const patch of [{inventoryCategory:'자사재고'},{inventoryCategory:'사출 보관재고'},{quantity:0},{quantity:479}]) {
     const state=fixture();Object.assign(state.boxes[0],patch);
-    assert.throws(()=>applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true},state,firstTime),/최신 재고를 확인/);
+    assert.throws(()=>applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true,expectedBoxQuantities:{3:480,23:480}},state,firstTime),/최신 재고를 확인/);
   }
 });
 test('일반 수량 조정은 보관·부분출고만 허용하고 작업중·출고대기는 실물 정리에서만 허용한다',()=>{
