@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260917-audit-card-drag-v1-dev" />
+    <link rel="stylesheet" href="./styles.css?v=20260917-product-hourly-rate-v1-dev" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260909-qr-worker-hint-dev" />
   </head>
   <body class="admin-body">
@@ -2634,6 +2634,15 @@
                 </span>
               </label>
 
+              <label class="form-field">
+                <span>시간당 평균 생산량</span>
+                <span class="unit-input">
+                  <input id="productHourlyProductionRate" type="number" min="0.01" step="any" placeholder="예: 1200" aria-describedby="productHourlyProductionRateHint" />
+                  <i>개/시간</i>
+                </span>
+                <small id="productHourlyProductionRateHint">작업자 1명 기준 · 선택 입력</small>
+              </label>
+
               <label class="form-field full-span">
                 <span>비고</span>
                 <textarea id="productNote" rows="2" placeholder="비고를 입력하세요. (선택)"></textarea>
@@ -3124,6 +3133,6 @@
     <script src="./production-planner.js?v=20260911-production-capacity-v1"></script>
     <script src="./purchase-order-sort.js?v=20260916-order-column-sort-v1"></script>
     <script src="./inventory-audit-cards.js?v=20260917-audit-card-drag-v1"></script>
-    <script src="./admin.js?v=20260917-audit-card-drag-v1-dev"></script>
+    <script src="./admin.js?v=20260917-product-hourly-rate-v1-dev"></script>
   </body>
 </html>

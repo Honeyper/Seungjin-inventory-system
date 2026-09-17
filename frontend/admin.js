@@ -96,6 +96,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-17", title: "제품별 시간당 평균 생산량 등록", items: [
+    "제품 등록·수정의 제품 기준 정보에서 시간당 평균 생산량을 선택 입력할 수 있습니다. 저장한 값은 제품 상세에서 확인하고 제품 DB와 시트 백업에 보관합니다."
+  ] },
   { date: "2026-09-17", title: "실물 확인 카드 드래그 이동", items: [
     "미확인 박스 카드를 마우스로 끌어 오른쪽 확인 완료 영역에 놓으면 실물 확인됩니다. 저장이 성공하면 카드가 이동하며 전체·박스별 확인 버튼도 사용할 수 있습니다."
   ] },
@@ -587,6 +590,7 @@ const productOrderQuantity = document.querySelector("#productOrderQuantity");
 const productDueDate = document.querySelector("#productDueDate");
 const productBoxQuantity = document.querySelector("#productBoxQuantity");
 const productTrayQuantity = document.querySelector("#productTrayQuantity");
+const productHourlyProductionRate = document.querySelector("#productHourlyProductionRate");
 const productNote = document.querySelector("#productNote");
 const productFormMessage = document.querySelector("#productFormMessage");
 const saveProductButton = document.querySelector("#saveProductButton");
@@ -10970,6 +10974,7 @@ function renderProductDetail(product) {
       <div class="detail-grid">
         ${detailItem("박스당 수량", product.boxQuantity)}
         ${detailItem("트레이 수량", product.trayQuantity)}
+        ${detailItem("시간당 평균 생산량", Number(product.hourlyProductionRate) > 0 ? `${Number(product.hourlyProductionRate).toLocaleString("ko-KR", { maximumFractionDigits: 2 })} 개/시간 (1인 기준)` : "미입력")}
         ${detailItem("비고", product.note, false, "full-span")}
       </div>
     </section>
@@ -12251,6 +12256,7 @@ function openProductModal(mode = "create", product = null) {
     productDueDate.value = toDateInputValue(product.dueDate);
     productBoxQuantity.value = extractQuantityNumber(product.boxQuantity);
     productTrayQuantity.value = extractQuantityNumber(product.trayQuantity);
+    productHourlyProductionRate.value = product.hourlyProductionRate ?? "";
     productNote.value = normalizeEditableValue(product.note);
   }
 
@@ -12536,6 +12542,7 @@ function getProductFormPayload() {
     "납기일": productDueDate.value.trim(),
     "박스당 수량": boxQuantity ? `${Number(boxQuantity).toLocaleString("ko-KR")} ea` : "",
     "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
+    "시간당 평균 생산량": productHourlyProductionRate.value.trim() === "" ? null : Number(productHourlyProductionRate.value),
     "제품 이미지": state.productImageUrls[0] || "",
     "제품 이미지 목록": JSON.stringify(state.productImageUrls),
     productImageUrl: state.productImageUrls[0] || "",
@@ -12569,6 +12576,11 @@ function validateProductPayload(payload) {
     Number(productTrayQuantity.value) <= 0
   ) {
     return "수량은 1 이상의 숫자로 입력해주세요.";
+  }
+
+  const hourlyRate = payload["시간당 평균 생산량"];
+  if (hourlyRate !== null && hourlyRate !== undefined && (!Number.isFinite(hourlyRate) || hourlyRate <= 0 || hourlyRate > Number.MAX_SAFE_INTEGER)) {
+    return "시간당 평균 생산량은 0보다 큰 숫자로 입력해주세요.";
   }
 
   if (payload["공용용기 제품"] === "유") {

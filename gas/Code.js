@@ -1006,6 +1006,13 @@ function setupSheets() {
   };
 }
 
+function parseProductHourlyProductionRate_(value) {
+  if (value === null || value === undefined || String(value).trim() === '' || String(value).trim() === '-') return null;
+  const rate = typeof value === 'number' ? value : Number(String(value).replace(/,/g, '').trim());
+  if (!Number.isFinite(rate) || rate <= 0 || rate > Number.MAX_SAFE_INTEGER) throw new Error('시간당 평균 생산량은 0보다 큰 숫자로 입력해주세요.');
+  return rate;
+}
+
 function ensureProductOptionHeaders_(sheet) {
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['제품 ID', '업체명', '제품명']);
@@ -1024,7 +1031,8 @@ function ensureProductOptionHeaders_(sheet) {
     '2도 공정',
     '3도 공정',
     '제품 이미지',
-    '제품 이미지 목록'
+    '제품 이미지 목록',
+    '시간당 평균 생산량'
   ];
   const existingHeaders = new Set(headerInfo.headers.map((header) => normalizeHeaderKey_(header)));
   const missingHeaders = requiredHeaders.filter((header) => !existingHeaders.has(normalizeHeaderKey_(header)));
@@ -1221,6 +1229,7 @@ function getProducts() {
         accumulatedInboundQuantity: formatEa_(accumulatedInboundQuantityMap[productCode] || 0),
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         trayQuantity: pickCell_(row, indexes, ['트레이 수량', '트레이수량']),
+        hourlyProductionRate: parseProductHourlyProductionRate_(pickCell_(row, indexes, ['시간당 평균 생산량'])),
         productImageUrl: pickCell_(row, indexes, ['제품 이미지', '제품 이미지 URL']),
         productImageUrls: normalizeProductImageUrls_(
           pickCell_(row, indexes, ['제품 이미지 목록']),
@@ -1628,6 +1637,8 @@ function syncStockStatusesFromBoxSummary_(sheet, boxSummaryMap) {
 
 function createProduct(payload) {
   const processPayload = getProductProcessPayload_(payload);
+  const hasHourlyProductionRate = Object.prototype.hasOwnProperty.call(payload, '시간당 평균 생산량') || Object.prototype.hasOwnProperty.call(payload, 'hourlyProductionRate');
+  const hourlyProductionRate = parseProductHourlyProductionRate_(Object.prototype.hasOwnProperty.call(payload, '시간당 평균 생산량') ? payload['시간당 평균 생산량'] : payload.hourlyProductionRate);
   const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
   required.forEach((field) => {
     if (!payload[field]) {
@@ -1677,6 +1688,7 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
   setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
   setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
+  if (hasHourlyProductionRate) setRowValue_(row, indexes, ['시간당 평균 생산량'], hourlyProductionRate === null ? '' : hourlyProductionRate);
   setRowValue_(row, indexes, ['제품 이미지', '제품 이미지 URL'], payload.productImageUrl || payload['제품 이미지'] || '');
   setRowValue_(row, indexes, ['제품 이미지 목록'], JSON.stringify(normalizeProductImageUrls_(
     payload.productImageUrls || payload['제품 이미지 목록'],
@@ -1915,6 +1927,8 @@ function getInboundBoxQrs(payload) {
 function updateProduct(payload) {
   const productId = String(payload.productId || payload.productCode || payload['제품 ID'] || payload['제품ID'] || '').trim();
   const processPayload = getProductProcessPayload_(payload);
+  const hasHourlyProductionRate = Object.prototype.hasOwnProperty.call(payload, '시간당 평균 생산량') || Object.prototype.hasOwnProperty.call(payload, 'hourlyProductionRate');
+  const hourlyProductionRate = parseProductHourlyProductionRate_(Object.prototype.hasOwnProperty.call(payload, '시간당 평균 생산량') ? payload['시간당 평균 생산량'] : payload.hourlyProductionRate);
   const required = ['업체명', '제품명', '박스당 수량', '트레이 수량'];
 
   if (!productId) {
@@ -1983,6 +1997,7 @@ function updateProduct(payload) {
       setRowValue_(row, indexes, ['발주량', '주문량'], payload['발주량'] || payload['주문량'] || '');
       setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
       setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
+      if (hasHourlyProductionRate) setRowValue_(row, indexes, ['시간당 평균 생산량'], hourlyProductionRate === null ? '' : hourlyProductionRate);
       setRowValue_(row, indexes, ['제품 이미지', '제품 이미지 URL'], productImageUrl);
       setRowValue_(row, indexes, ['제품 이미지 목록'], JSON.stringify(productImageUrls));
       setRowValue_(row, indexes, ['납기일'], payload['납기일'] || '');
