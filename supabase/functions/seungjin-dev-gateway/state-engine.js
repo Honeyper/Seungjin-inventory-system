@@ -872,8 +872,10 @@ function mutateInventory(action, payload, state, changes, now) {
       const allowedSourceStatuses = payload.protectClassifiedInventory === true
         ? ["보관", "일부 출고", "작업중", "출고대기"]
         : ["보관", "일부 출고"];
+      const expectedQuantity = payload.expectedBoxQuantities?.[boxNumber];
       const staleAuditQuantity = payload.protectClassifiedInventory === true
-        && adjustedQuantity !== number(box.quantity);
+        && expectedQuantity !== undefined
+        && (!Number.isFinite(Number(expectedQuantity)) || Number(expectedQuantity) !== number(box.quantity));
       if (!allowedSourceStatuses.includes(currentStatus) || isProtectedInventory || number(box.quantity) <= 0 || staleAuditQuantity) {
         throw new Error(INVENTORY_ADJUSTMENT_CONFLICT);
       }
