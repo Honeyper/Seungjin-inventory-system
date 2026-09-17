@@ -35,7 +35,7 @@ test("external scanner fallback adapts to its observed key interval and stays be
   assert.match(source, /observedGap \* HARDWARE_SCANNER_IDLE_GAP_MULTIPLIER/);
   assert.match(source, /const submitDelayMs = getHardwareScannerIdleSubmitMs\(\);/);
   assert.doesNotMatch(source, /HARDWARE_SCANNER_IDLE_SUBMIT_MS = IS_LOW_POWER_SCANNER \? 1800 : 500/);
-  assert.match(html, /mobile\.js\?v=(?:20260917-audit-zero-quantity-v1|20260917-audit-partial-stock-v1|20260917-audit-eligible-status-v1|20260915-order-actions-menu-v1|20260914-shipping-status-sync-v1|20260910-product-image-track|20260911-inventory-move-persistence-v1)-(?:dev|prd)/);
+  assert.match(html, /mobile\.js\?v=(?:20260917-login-server-recovery-v1|20260917-audit-zero-quantity-v1|20260917-audit-partial-stock-v1|20260917-audit-eligible-status-v1|20260915-order-actions-menu-v1|20260914-shipping-status-sync-v1|20260910-product-image-track|20260911-inventory-move-persistence-v1)-(?:dev|prd)/);
 });
 
 test("external scanner keeps queue safety without exposing registration counters", () => {
