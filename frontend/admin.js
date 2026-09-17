@@ -99,6 +99,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-17", title: "실물 확인 카드 드래그 이동", items: [
+    "미확인 박스 카드를 마우스로 끌어 오른쪽 확인 완료 영역에 놓으면 실물 확인됩니다. 저장이 성공하면 카드가 이동하며 전체·박스별 확인 버튼도 사용할 수 있습니다."
+  ] },
   { date: "2026-09-16", title: "전체 실물 확인 버튼 간소화", items: [
     "체크박스 선택 없이 전체 실물 확인 버튼으로 미확인 박스를 한 번에 확인할 수 있습니다. 박스별 실물 확인도 그대로 사용할 수 있습니다."
   ] },
@@ -2148,6 +2151,10 @@ inventoryAuditFromDetailButton?.addEventListener("click", openInventoryAuditFrom
 document.querySelector("#closeInventoryAuditBoxConfirmModal")?.addEventListener("click", closeInventoryAuditBoxConfirmModal);
 document.querySelector("#cancelInventoryAuditBoxConfirmModal")?.addEventListener("click", closeInventoryAuditBoxConfirmModal);
 confirmInventoryAuditBoxButton?.addEventListener("click", confirmInventoryAuditBoxAdjustment);
+window.InventoryAuditCards?.attach(inboundDetailContent, {
+  isSaving: () => Boolean(state.isSavingInventoryConfirmation),
+  confirm: numbers => { void confirmInventoryPhysicalBoxes(numbers); }
+});
 inboundDetailContent?.addEventListener("click", (event) => {
   const confirm = event.target.closest("[data-inventory-audit-confirm], [data-inventory-audit-confirm-all]");
   if (confirm) {
@@ -11810,6 +11817,7 @@ function updateInventoryAuditConfirmControls() {
   if (!section) return;
   const saving = Boolean(state.isSavingInventoryConfirmation);
   section.querySelectorAll('button').forEach((button) => { button.disabled = saving; });
+  section.querySelectorAll('[data-inventory-audit-card].unconfirmed').forEach((card) => { card.draggable = !saving; });
   const bulk = section.querySelector('[data-inventory-audit-confirm-all]');
   if (bulk) bulk.disabled = saving || !section.querySelector('[data-inventory-audit-confirm]');
   section.setAttribute('aria-busy', String(saving));
@@ -11893,7 +11901,7 @@ function renderInventoryAuditBoxStatus(inbound) {
   const unconfirmedBoxes = boxes.filter((box) => !String(box.lastInventoryCheckedAt || "").trim());
   const confirmedBoxes = boxes.filter((box) => String(box.lastInventoryCheckedAt || "").trim());
   const renderBox = (box, isConfirmed) => `
-    <article class="inventory-audit-box-card ${isConfirmed ? "confirmed" : "unconfirmed"}">
+    <article class="inventory-audit-box-card ${isConfirmed ? "confirmed" : "unconfirmed"}" data-inventory-audit-card="${box.number}" draggable="${!isConfirmed && !state.isSavingInventoryConfirmation}"${isConfirmed ? "" : ' title="오른쪽 실물 확인 완료 영역으로 끌어 놓으세요"'}>
       <div>
         <strong>${formatNumber(box.number)}번 박스</strong>
         <span>${formatNumber(box.quantity)} ea · ${escapeHtml(normalizeDisplayValue(box.storage || inbound.storage))}</span>
@@ -11918,16 +11926,16 @@ function renderInventoryAuditBoxStatus(inbound) {
       </div>
       <div class="inventory-audit-confirm-toolbar">
         <button type="button" data-inventory-audit-confirm-all ${unconfirmedBoxes.length && !state.isSavingInventoryConfirmation ? "" : "disabled"}>전체 실물 확인</button>
-        <span data-inventory-audit-message role="status" aria-live="polite">전체 또는 박스별로 실물 확인할 수 있습니다.</span>
+        <span data-inventory-audit-message role="status" aria-live="polite">카드를 오른쪽으로 끌어 놓으면 실물 확인됩니다.</span>
       </div>
       <div class="inventory-audit-box-groups">
         <section class="inventory-audit-box-group unconfirmed">
           <header><strong>실물 미확인</strong><span>${formatNumber(unconfirmedBoxes.length)} box</span></header>
           <div>${unconfirmedBoxes.length ? unconfirmedBoxes.map((box) => renderBox(box, false)).join("") : '<p class="inventory-audit-box-empty">미확인 박스가 없습니다.</p>'}</div>
         </section>
-        <section class="inventory-audit-box-group confirmed">
+        <section class="inventory-audit-box-group confirmed" data-inventory-audit-drop>
           <header><strong>실물 확인 완료</strong><span>${formatNumber(confirmedBoxes.length)} box</span></header>
-          <div>${confirmedBoxes.length ? confirmedBoxes.map((box) => renderBox(box, true)).join("") : '<p class="inventory-audit-box-empty">확인 완료된 박스가 없습니다.</p>'}</div>
+          <div>${confirmedBoxes.length ? confirmedBoxes.map((box) => renderBox(box, true)).join("") : '<p class="inventory-audit-box-empty">미확인 카드를 이곳으로 끌어 놓으세요.</p>'}</div>
         </section>
       </div>
     </section>
