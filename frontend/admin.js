@@ -99,6 +99,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-17", title: "제품 상세보기 정보 구성 개선", items: [
+    "제품 요약, 생산·포장 기준, 공정 정보, 관리 정보를 구분해 배치했습니다. 중복 표기를 줄이고 긴 제품명과 모바일 화면에서도 정보를 읽기 쉽도록 정리했습니다."
+  ] },
   { date: "2026-09-17", title: "제품별 시간당 평균 생산량 등록", items: [
     "제품 등록·수정의 제품 기준 정보에서 시간당 평균 생산량을 선택 입력할 수 있습니다. 저장한 값은 제품 상세에서 확인하고 제품 DB와 시트 백업에 보관합니다."
   ] },
@@ -11641,65 +11644,77 @@ function renderProductDetail(product) {
     : 0;
   const productImageUrls = getProductImageUrls(product).map(normalizeInboundSummaryProductImageUrl);
 
-  productDetailContent.innerHTML = `
-    ${renderDetailOverview({
-      label: "등록 제품",
-      title: product.productName,
-      meta: [product.clientName, product.productCode],
-      stats: [
-        { label: "박스당 수량", value: formatDetailMetric(product.boxQuantity, "ea") },
-        { label: "트레이 수량", value: formatDetailMetric(product.trayQuantity, "ea") },
-        { label: "사용 상태", value: renderUsageStatus(product.useStatus), isHtml: true }
-      ]
-    })}
+  const processRoute = getProductProcessRoute(product) || product.finalProcess;
+  const isLabelProcess = normalizeEditableValue(processRoute) === "라벨";
+  const hourlyRate = Number(product.hourlyProductionRate);
+  const field = (label, value, isHtml = false) => `<div class="product-fact"><dt>${escapeHtml(label)}</dt><dd>${isHtml ? value : escapeHtml(normalizeDisplayValue(value))}</dd></div>`;
 
-    ${productImageUrls.length ? `
-      <section class="detail-section" aria-labelledby="detailProductImageTitle">
-        <h3 id="detailProductImageTitle">제품 이미지 <span class="detail-image-count">${productImageUrls.length}장</span></h3>
-        <div class="detail-product-image-list">
-          ${productImageUrls.map((url, index) => `
-            <button type="button" data-detail-product-image="${index}" aria-label="${index + 1}번째 제품 이미지 크게 보기">
-              <img src="${escapeAttribute(url)}" alt="${escapeAttribute(product.productName)} 제품 이미지 ${index + 1}" loading="lazy" />
-            </button>
-          `).join("")}
+  productDetailContent.innerHTML = `
+    <section class="product-profile" aria-labelledby="detailProductName">
+      <div class="product-profile-heading">
+        <div class="product-profile-identity">
+          <p class="product-profile-client">${escapeHtml(normalizeDisplayValue(product.clientName))}</p>
+          <h3 id="detailProductName">${escapeHtml(normalizeDisplayValue(product.productName))}</h3>
         </div>
+        ${renderUsageStatus(product.useStatus)}
+      </div>
+      <dl class="product-profile-meta">
+        ${field("제품코드", product.productCode)}
+        ${field("색상", renderColor(product.color), true)}
+        ${field("공용용기", isCommonContainer ? "사용" : "해당 없음")}
+      </dl>
+      ${productImageUrls.length ? `
+        <div class="product-profile-images" role="group" aria-label="제품 이미지">
+          <span>제품 이미지 <b>${productImageUrls.length}</b></span>
+          <div class="detail-product-image-list">
+            ${productImageUrls.map((url, index) => `
+              <button type="button" data-detail-product-image="${index}" aria-label="${index + 1}번째 제품 이미지 크게 보기">
+                <img src="${escapeAttribute(url)}" alt="${escapeAttribute(product.productName)} 제품 이미지 ${index + 1}" loading="lazy" />
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+    </section>
+
+    <section class="product-detail-section product-standards" aria-labelledby="detailStandardTitle">
+      <h3 id="detailStandardTitle">생산·포장 기준</h3>
+      <dl class="product-metrics">
+        <div><dt>시간당 평균 생산량</dt><dd>${Number.isFinite(hourlyRate) && hourlyRate > 0 ? `${escapeHtml(hourlyRate.toLocaleString("ko-KR", { maximumFractionDigits: 2 }))}<small>개/시간</small>` : '<span class="product-metric-empty">미입력</span>'}</dd><span>작업자 1명 기준</span></div>
+        <div><dt>박스당 수량</dt><dd>${escapeHtml(formatDetailMetric(product.boxQuantity, "ea"))}</dd><span>1박스 기준</span></div>
+        <div><dt>트레이 수량</dt><dd>${escapeHtml(formatDetailMetric(product.trayQuantity, "ea"))}</dd><span>1트레이 기준</span></div>
+      </dl>
+    </section>
+
+    <div class="product-detail-columns">
+      <section class="product-detail-section" aria-labelledby="detailProcessTitle">
+        <h3 id="detailProcessTitle">공정 정보</h3>
+        <dl class="product-facts">
+          ${field("공정 구성", processRoute)}
+          ${!isLabelProcess ? field("박가루 제거", normalizeBinaryOption(product.dustRemovalStatus)) : ""}
+          ${!isLabelProcess ? field("화염처리", normalizeBinaryOption(product.flameTreatmentStatus)) : ""}
+        </dl>
+      </section>
+      <section class="product-detail-section" aria-labelledby="detailRegisterTitle">
+        <h3 id="detailRegisterTitle">관리 정보</h3>
+        <dl class="product-facts">
+          ${field("등록일", product.registeredAt)}
+          ${field("최근 수정일", product.updatedAt)}
+          ${field("등록자", product.createdBy)}
+        </dl>
+      </section>
+    </div>
+
+    ${isCommonContainer ? `
+      <section class="product-detail-section" aria-labelledby="detailSharedTitle">
+        <h3 id="detailSharedTitle">공용용기 출고 제품 <span class="product-section-count">${commonContainerProductCount}종</span></h3>
+        ${commonContainerProductNames.length ? `<ul class="product-shared-names">${commonContainerProductNames.map((name) => `<li>${escapeHtml(name)}</li>`).join("")}</ul>` : '<p class="product-detail-note">등록된 출고 제품명이 없습니다.</p>'}
       </section>
     ` : ""}
 
-    <section class="detail-section" aria-labelledby="detailBaseTitle">
-      <h3 id="detailBaseTitle">제품 기본 정보</h3>
-      <div class="detail-grid">
-        ${detailItem("제품코드", product.productCode)}
-        ${detailItem("거래처명", product.clientName)}
-        ${detailItem("제품명", product.productName)}
-        ${detailItem("색상", renderColor(product.color), true)}
-        ${detailItem("공정 구성", getProductProcessRoute(product) || product.finalProcess)}
-        ${detailItem("박가루 제거 유무", normalizeBinaryOption(product.dustRemovalStatus))}
-        ${detailItem("화염처리 유무", normalizeBinaryOption(product.flameTreatmentStatus))}
-        ${detailItem("공용용기 제품", isCommonContainer ? "예" : "아니오")}
-        ${isCommonContainer ? detailItem("출고 시 제품 종류", `${commonContainerProductCount}개`) : ""}
-        ${isCommonContainer ? detailItem("출고 시 제품명", commonContainerProductNames.join(" / ") || "-", false, "full-span") : ""}
-        ${detailItem("사용 여부", renderUsageStatus(product.useStatus), true, "full-span")}
-      </div>
-    </section>
-
-    <section class="detail-section" aria-labelledby="detailStandardTitle">
-      <h3 id="detailStandardTitle">제품 기준 정보</h3>
-      <div class="detail-grid">
-        ${detailItem("박스당 수량", product.boxQuantity)}
-        ${detailItem("트레이 수량", product.trayQuantity)}
-        ${detailItem("시간당 평균 생산량", Number(product.hourlyProductionRate) > 0 ? `${Number(product.hourlyProductionRate).toLocaleString("ko-KR", { maximumFractionDigits: 2 })} 개/시간 (1인 기준)` : "미입력")}
-        ${detailItem("비고", product.note, false, "full-span")}
-      </div>
-    </section>
-
-    <section class="detail-section" aria-labelledby="detailRegisterTitle">
-      <h3 id="detailRegisterTitle">등록 정보</h3>
-      <div class="detail-grid">
-        ${detailItem("등록일", product.registeredAt)}
-        ${detailItem("수정일", product.updatedAt)}
-        ${detailItem("등록자", product.createdBy, false, "full-span")}
-      </div>
+    <section class="product-detail-section" aria-labelledby="detailNoteTitle">
+      <h3 id="detailNoteTitle">비고</h3>
+      <p class="product-detail-note${normalizeDisplayValue(product.note) === "-" ? " is-empty" : ""}">${escapeHtml(normalizeDisplayValue(product.note) === "-" ? "등록된 비고가 없습니다." : product.note)}</p>
     </section>
   `;
 
