@@ -96,6 +96,10 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-17", title: "실물 확인 대상 기준 정리", items: [
+    "보류·폐기 박스를 실물 미확인 집계와 실물 확인·재고 정리 대상에서 제외했습니다.",
+    "PC와 모바일에서 같은 기준을 적용하며, 보류 재고의 수량과 상태는 유지됩니다."
+  ] },
   { date: "2026-09-17", title: "재고 목록 정렬 추가", items: [
     "재고 목록은 입고일 최신순으로 표시됩니다. 열 제목을 클릭하면 입고일, 제품명, 수량, 보관 위치, 납기일 등을 오름차순·내림차순으로 정렬할 수 있습니다."
   ] },
@@ -4420,7 +4424,7 @@ function getInventoryAuditEligibleBoxes(item) {
     .filter((box) => {
       const status = normalizeInventoryStockStatus(box?.rawStatus || box?.status || "보관");
       return parseShippingSettlementNumber(box?.quantity) > 0
-        && !/출고완료|폐기/.test(status)
+        && !/출고완료|폐기|보류/.test(status)
         && !isProtectedInventoryAuditBox(item, box);
     })
     .map((box, index) => ({
@@ -4450,7 +4454,7 @@ function openRemainingInventoryModal(source, mode = "classify", selectedBoxNumbe
     : getRemainingInventoryTargetBoxes(source);
   if (!targetBoxes.length) {
     showToast(isAudit
-      ? "재고 정리할 수 있는 일반재고 박스가 없습니다. 사출·인쇄·자사재고는 제외됩니다."
+      ? "재고 정리할 수 있는 일반재고 박스가 없습니다. 보류·폐기·사출·인쇄·자사재고는 제외됩니다."
       : "등록할 수 있는 남은 박스가 없습니다.");
     return false;
   }
@@ -4478,7 +4482,7 @@ function openRemainingInventoryModal(source, mode = "classify", selectedBoxNumbe
   }
   if (remainingInventoryBoxHelp) {
     remainingInventoryBoxHelp.textContent = isAudit
-      ? "정리가 필요한 재고를 선택해주세요. 사출·인쇄·자사재고는 제외되며, 선택한 박스는 출고완료(재고조정)로 처리됩니다."
+      ? "정리가 필요한 재고를 선택해주세요. 보류·폐기·사출·인쇄·자사재고는 제외되며, 선택한 박스는 출고완료(재고조정)로 처리됩니다."
       : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
   }
 
@@ -8623,12 +8627,19 @@ function renderInventorySummary(summary, attention) {
 function normalizeInventoryRows(rows) {
   return rows.map((item) => {
     const stockStatus = normalizeInventoryStockStatus(item.stockStatus);
-    return mergeShippingBoxDraft({
+    const row = mergeShippingBoxDraft({
       ...item,
       stockStatus,
       process: item.process || item.finalProcess || "",
       processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
     });
+    if (Array.isArray(row.activeShippingBoxes) || Array.isArray(row.allShippingBoxes)) {
+      const auditBoxes = getInventoryAuditEligibleBoxes(row);
+      row.inventoryAuditTargetBoxCount = auditBoxes.length;
+      row.inventoryConfirmedBoxCount = auditBoxes.filter((box) => String(box.lastInventoryCheckedAt || "").trim()).length;
+      row.inventoryUnconfirmedBoxCount = auditBoxes.length - row.inventoryConfirmedBoxCount;
+    }
+    return row;
   });
 }
 

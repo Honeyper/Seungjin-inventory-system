@@ -1220,7 +1220,7 @@ export function buildInventoryDashboard(records, boxes, products = []) {
       const status = normalizeStatus(box.rawStatus || box.status);
       const isProtected = inventoryCategory === "자사재고"
         || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
-      return !isProtected;
+      return !isProtected && !/보류|폐기/.test(status);
     });
     row.inventoryAuditTargetBoxCount = inventoryAuditBoxes.length;
     row.inventoryConfirmedBoxCount = inventoryAuditBoxes.filter((box) => text(box.lastInventoryCheckedAt)).length;

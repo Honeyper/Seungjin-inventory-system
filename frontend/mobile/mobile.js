@@ -4190,7 +4190,8 @@ function isProtectedInventoryAdjustmentBox(item, box) {
       || item?.["재고 구분"]
   );
   const status = normalizeScanValue(box?.rawStatus || box?.status);
-  return inventoryCategory === normalizeScanValue("자사재고")
+  return /보류|폐기|출고완료/.test(status)
+    || inventoryCategory === normalizeScanValue("자사재고")
     || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
 }
 
