@@ -96,6 +96,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "재고 정리 후 실물 확인 목록 갱신", items: [
+    "재고 정리 후 열려 있는 실물 확인 현황도 최신 데이터로 갱신해, 처리 완료된 재고가 이전 목록에 남지 않도록 수정했습니다."
+  ] },
   { date: "2026-09-17", title: "로그인 서버 오류 복구", items: [
     "서버 배포에서 누락된 파일을 복구하고, 전체 서버 파일과 로그인 경로를 검증하도록 배포 도구를 보완했습니다."
   ] },
@@ -4718,12 +4721,12 @@ async function saveRemainingInventory() {
         userName: signedInAdminName
       });
 
+    await loadInventoryDashboard(false);
     state.returnToInventoryDetailAfterAudit = false;
     closeRemainingInventoryModal();
     if (isAudit) {
       closeInboundDetailModal();
     }
-    await loadInventoryDashboard(false);
     showToast(isAudit
       ? `${formatNumber(result?.updatedBoxRows || selectedBoxes.length)}개 박스를 재고 정리했습니다.`
       : `${category}로 ${formatNumber(result?.updatedRows || selectedInputs.length)}개 박스를 등록했습니다.`);
@@ -8586,6 +8589,7 @@ function applyInventoryDashboardResult(result) {
   applyInventoryFilters();
   renderShippingTable();
   updateShippingSettlementSummary();
+  refreshOpenInventoryAttentionList();
 }
 
 function renderInventoryLoading() {
@@ -8907,12 +8911,21 @@ function openInventoryAttentionModal(type, { preserveSearch = false } = {}) {
   if (inventoryAttentionSearchInput && !preserveSearch) {
     inventoryAttentionSearchInput.value = "";
   }
+  inventoryAttentionModal.dataset.attentionType = type;
   renderInventoryAttentionList(type);
 
   inventoryAttentionModal.hidden = false;
   resetModalScrollPosition(inventoryAttentionModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => closeInventoryAttentionModalButton?.focus(), 0);
+}
+
+function refreshOpenInventoryAttentionList() {
+  const type = inventoryAttentionModal?.dataset.attentionType;
+  if (!type || inventoryAttentionModal.hidden || !inventoryAttentionList) return;
+  const scrollTop = inventoryAttentionList.scrollTop;
+  renderInventoryAttentionList(type);
+  inventoryAttentionList.scrollTop = scrollTop;
 }
 
 function renderInventoryAttentionList(type) {
@@ -8956,6 +8969,7 @@ function closeInventoryAttentionModal() {
   }
 
   inventoryAttentionModal.hidden = true;
+  delete inventoryAttentionModal.dataset.attentionType;
   if (inventoryAttentionList) {
     inventoryAttentionList.innerHTML = "";
   }
@@ -8972,6 +8986,7 @@ function openInventoryLocationModal(type) {
     return;
   }
 
+  delete inventoryAttentionModal.dataset.attentionType;
   const isQuantityMode = type === "quantity";
   if (inventoryAttentionSearch) {
     inventoryAttentionSearch.hidden = true;

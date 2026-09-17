@@ -13,7 +13,7 @@ const rows = [
 function runtime() {
   const app = vm.createContext({
     state: { inventoryRows: rows, inventoryLoaded: true },
-    inventoryAttentionModal: { hidden: true }, inventoryAttentionList: { innerHTML: "", querySelectorAll: () => [] },
+    inventoryAttentionModal: { hidden: true, dataset: {} }, inventoryAttentionList: { innerHTML: "", querySelectorAll: () => [] },
     inventoryAttentionEmpty: {}, inventoryAttentionTitle: {}, inventoryAttentionDescription: {},
     inventoryAttentionSearch: { hidden: true }, inventoryAttentionSearchInput: { value: "" }, inventoryAttentionSearchCount: {},
     closeInventoryAttentionModalButton: null, document: { body: { classList: { add() {} } } },
