@@ -99,6 +99,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-17", title: "로그인 서버 오류 복구", items: [
+    "서버 배포에서 누락된 파일을 복구하고, 전체 서버 파일과 로그인 경로를 검증하도록 배포 도구를 보완했습니다."
+  ] },
   { date: "2026-09-17", title: "재고 정리 수량 검증 수정", items: [
     "현재 수량과 정리 후 수량을 구분해, 선택 박스를 0개로 정리할 때 잘못 차단되던 오류를 수정했습니다."
   ] },

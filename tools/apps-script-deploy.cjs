@@ -90,18 +90,21 @@ async function getAccessToken() {
 }
 
 function readProjectFiles() {
-  return [
-    {
-      name: "Code",
-      type: "SERVER_JS",
-      source: fs.readFileSync(path.join(ROOT_DIR, "Code.js"), "utf8")
-    },
-    {
-      name: "appsscript",
-      type: "JSON",
-      source: fs.readFileSync(path.join(ROOT_DIR, "appsscript.json"), "utf8")
-    }
-  ];
+  const files = fs.readdirSync(ROOT_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && (/\.(?:js|gs|html)$/.test(entry.name) || entry.name === "appsscript.json"))
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((entry) => ({
+      name: path.basename(entry.name, path.extname(entry.name)),
+      type: entry.name === "appsscript.json" ? "JSON" : entry.name.endsWith(".html") ? "HTML" : "SERVER_JS",
+      source: fs.readFileSync(path.join(ROOT_DIR, entry.name), "utf8")
+    }));
+  const names = new Set();
+  for (const file of files) {
+    if (names.has(file.name)) throw new Error(`Duplicate Apps Script file: ${file.name}`);
+    names.add(file.name);
+  }
+  if (!names.has("Code") || !names.has("appsscript")) throw new Error("Apps Script code or manifest is missing.");
+  return files;
 }
 
 function getEnvConfig(env) {
