@@ -14764,3 +14764,9 @@ input {
 @media (max-width: 440px) {
   .product-view .product-list-tools { grid-template-columns: minmax(0, 1fr); }
 }
+
+.inventory-sort-hint { margin: 0; padding: .6rem 1rem; color: #65758d; font-size: .76rem; line-height: 1.5; background: #fafbfd; border-bottom: 1px solid var(--line); }
+.inventory-column-sort-button { display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .1rem; border: 0; border-radius: .25rem; background: transparent; color: inherit; font: inherit; font-weight: inherit; text-align: inherit; cursor: pointer; }
+.inventory-column-sort-button span { color: #8795a8; font-size: .85em; }
+.inventory-column-sort-button:hover, .inventory-column-sort-button:focus-visible { background: #e6effc; color: #0d326a; }
+.inventory-column-sort-button.is-sorted, .inventory-column-sort-button.is-sorted span { color: #1658a5; }

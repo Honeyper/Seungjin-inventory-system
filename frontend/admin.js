@@ -96,6 +96,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-17", title: "재고 목록 정렬 추가", items: [
+    "재고 목록은 입고일 최신순으로 표시됩니다. 열 제목을 클릭하면 입고일, 제품명, 수량, 보관 위치, 납기일 등을 오름차순·내림차순으로 정렬할 수 있습니다."
+  ] },
   { date: "2026-09-17", title: "제품 목록 정렬 기준 추가", items: [
     "거래처명·제품명·제품코드 순으로 제품을 정렬합니다. 제품명순, 제품코드순, 최근 등록순을 선택할 수 있고 검색과 페이지 이동에도 같은 기준을 적용합니다."
   ] },
@@ -808,6 +811,13 @@ const inventoryStorageFilter = document.querySelector("#inventoryStorageFilter")
 const inventoryStockFilter = document.querySelector("#inventoryStockFilter");
 const inventoryProcessFilter = document.querySelector("#inventoryProcessFilter");
 const inventoryTableBody = document.querySelector("#inventoryTableBody");
+const inventoryColumnSort = window.InventoryListSort?.create(inventoryTableBody?.closest("table"), {
+  hint: document.querySelector("#inventorySortHint"),
+  onChange: () => {
+    state.inventoryPage = 1;
+    applyInventoryFilters();
+  }
+});
 const inventoryCountLabel = document.querySelector("#inventoryCountLabel");
 const inventoryPagination = document.querySelector("#inventoryPagination");
 const inventoryPageSizeSelect = document.querySelector("#inventoryPageSizeSelect");
@@ -9429,6 +9439,7 @@ function renderInventoryTable(message = "") {
     return;
   }
 
+  state.filteredInventoryRows = inventoryColumnSort?.sort(state.filteredInventoryRows) || state.filteredInventoryRows;
   const total = state.filteredInventoryRows.length;
   const pageCount = Math.max(1, Math.ceil(total / state.inventoryPageSize));
   state.inventoryPage = Math.min(state.inventoryPage, pageCount);
