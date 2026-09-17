@@ -14752,3 +14752,15 @@ input {
   #productDetailModal .product-profile-images { align-items: flex-start; flex-direction: column; gap: .6rem; }
   #productDetailModal .detail-product-image-list { width: 100%; }
 }
+
+/* Keep search, client and sort controls aligned on one row. */
+.product-view .product-list-tools { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(9rem, 14rem) minmax(10rem, 13rem); }
+.product-view .product-list-tools > label { width: 100%; min-width: 0; }
+.product-sort-hint { margin: 0; padding: .65rem 1rem; border-bottom: 1px solid var(--line); color: #65758d; font-size: .76rem; line-height: 1.5; background: #fafbfd; }
+@media (max-width: 760px) {
+  .product-view .product-list-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .product-view .product-list-tools > .search-field { grid-column: 1 / -1; }
+}
+@media (max-width: 440px) {
+  .product-view .product-list-tools { grid-template-columns: minmax(0, 1fr); }
+}
