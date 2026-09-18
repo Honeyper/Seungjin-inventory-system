@@ -1267,7 +1267,8 @@ export function buildInventoryDashboard(records, boxes, products = []) {
     const product = productsById.get(text(row.productId));
     if (product) {
       row.trayQuantity = text(product.trayQuantity) || row.trayQuantity || "";
-      row.boxQuantity = text(product.boxQuantity) || row.boxQuantity || "";
+      // Existing inbound packing is historical data, not the current product default.
+      if (number(row.boxQuantity) <= 0) row.boxQuantity = text(product.boxQuantity) || row.boxQuantity || "";
       row.productImageUrl = text(product.productImageUrl) || row.productImageUrl || "";
       row.productImageUrls = stringList(product.productImageUrls, product.productImageUrl);
     }
