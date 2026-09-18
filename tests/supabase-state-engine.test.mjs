@@ -1119,3 +1119,42 @@ test("출고 이력이 있는 입고에 520·580 잔량 박스를 추가해도 �
   assert.deepEqual(holder.state.inbounds[0].remainderQuantities, [520, 580]);
   assert.equal(mutate(holder, "updateInbound", payload).changes.inventoryRecords.upserts.length, 1);
 });
+
+test("location-only edit preserves sparse, partial and retired boxes without quantity reconciliation", () => {
+  const managementId = "IN-LOCATION-LEGACY", productId = "MOVE-P";
+  const inbound = { ...inventoryRecord(managementId, productId, 250), inboundDate: "2026-09-01",
+    inboundTime: "10:00", inboundType: "정상입고", boxQuantity: "100 ea", inboundBoxCount: "2 box",
+    remainQuantity: "50 ea", remainderQuantities: [50], process: "1도" };
+  const boxes = [
+    inventoryBox(managementId, productId, 1, 100, { status: "출고완료", shippingDate: "2026-09-02" }),
+    inventoryBox(managementId, productId, 2, 30, { status: "일부 출고" }),
+    inventoryBox(managementId, productId, 3, 0, { status: "출고완료", shippingType: "재고조정" }),
+    inventoryBox(managementId, productId, 7, 20, { status: "출고대기" }),
+    inventoryBox(managementId, productId, 9, 10, { status: "폐기" })
+  ];
+  boxes[1].inventoryCheckedAt = "2026-09-02 12:00";
+  const holder = { state: { products: [product(productId)], orders: [], inbounds: [{ ...inbound }], records: [{ ...inbound }], boxes } };
+  const result = mutate(holder, "updateInbound", { ...inbound, storage: "B-1", boxQuantity: 100, inboundBoxCount: 2, remainQuantity: 50 });
+  assert.deepEqual(result.changes.inventoryBoxes.deletes, []);
+  assert.deepEqual(holder.state.boxes.map(b => b.quantity), [100, 30, 0, 20, 10]);
+  assert.deepEqual(holder.state.boxes.map(b => b.boxId), boxes.map(b => b.boxId));
+  assert.deepEqual(holder.state.boxes.map(b => b.storage), ["A", "B-1", "A", "B-1", "A"]);
+  assert.deepEqual(holder.state.boxes.map(b => b.status), boxes.map(b => b.status));
+  assert.equal(holder.state.boxes[1].inventoryCheckedAt, boxes[1].inventoryCheckedAt);
+  assert.equal(holder.state.records[0].currentTotalQuantity, "50 ea");
+  assert.equal(result.changes.inventoryBoxes.upserts.length, 2);
+  assert.ok(result.changes.inventoryRecords.deletes.includes(`${managementId}|${productId}|A`));
+});
+
+test("location-only edit preserves partial box quantities even without completed boxes", () => {
+  const managementId = "IN-LOCATION-PARTIAL", productId = "MOVE-P";
+  const inbound = { ...inventoryRecord(managementId, productId, 100), inboundDate: "2026-09-01",
+    inboundTime: "10:00", inboundType: "정상입고", boxQuantity: "100 ea", inboundBoxCount: "1 box",
+    remainderQuantities: [], remainQuantity: "0 ea", process: "1도" };
+  const box = inventoryBox(managementId, productId, 1, 25, { status: "일부 출고" });
+  const holder = { state: { products: [product(productId)], orders: [], inbounds: [{ ...inbound }], records: [{ ...inbound }], boxes: [box] } };
+  mutate(holder, "updateInbound", { ...inbound, storage: "B-1", boxQuantity: 100, inboundBoxCount: 1 });
+  assert.equal(holder.state.boxes[0].quantity, 25);
+  assert.equal(holder.state.boxes[0].status, "일부 출고");
+  assert.equal(holder.state.boxes[0].storage, "B-1");
+});
