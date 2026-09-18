@@ -5,6 +5,7 @@ import test from "node:test";
 
 const source = readFileSync(new URL("../frontend/admin.js", import.meta.url), "utf8");
 const rows = [
+  { managementId: "CONFIRMED", productName: "헤라 센슈얼 샤인 틴트 66호", clientName: "(주)장업시스템", inventoryAuditTargetBoxCount: 1, inventoryUnconfirmedBoxCount: 0, inventoryConfirmedBoxCount: 1 },
   { managementId: "IN-260910-KR-001", productName: "메디큐브 PDRN 용기", clientName: "(주)케이알", inventoryAuditTargetBoxCount: 10, inventoryUnconfirmedBoxCount: 7, inventoryConfirmedBoxCount: 3 },
   { managementId: "IN-260911-NP-001", productName: "비디비치 뉴 오더 토너", clientName: "뉴파트너스", inventoryAuditTargetBoxCount: 6, inventoryUnconfirmedBoxCount: 1, inventoryConfirmedBoxCount: 5 },
   { managementId: "SHIPPED", productName: "메디큐브 PDRN 용기", clientName: "(주)케이알", inventoryAuditTargetBoxCount: 0, inventoryUnconfirmedBoxCount: 0, inventoryConfirmedBoxCount: 0 }
@@ -23,7 +24,7 @@ function runtime() {
     formatNumber: value => Number(value || 0).toLocaleString("ko-KR")
   });
   for (const name of ["getInventoryAttentionRows", "getInventoryAttentionConfig", "getInventoryAttentionDescription",
-    "isInventoryAuditTarget", "normalizeSearchText", "renderInventoryAttentionList", "openInventoryAttentionModal"]) {
+    "isInventoryPhysicalMissing", "normalizeSearchText", "renderInventoryAttentionList", "openInventoryAttentionModal"]) {
     const match = source.match(new RegExp(`^function ${name}\\([^]*?\\n\\}`, "m"));
     assert.ok(match, name);
     vm.runInContext(match[0], app);
@@ -72,5 +73,27 @@ test("상세에서 돌아오면 검색을 유지하고 새로 열거나 다른 �
   app.inventoryAttentionSearchInput.value = "없는제품";
   app.openInventoryAttentionModal("storage");
   assert.equal(app.inventoryAttentionSearch.hidden, true);
-  assert.equal(app.getInventoryAttentionRows("storage", undefined, "없는제품").length, 3);
+  assert.equal(app.getInventoryAttentionRows("storage", undefined, "없는제품").length, 4);
+});
+
+
+test("확인 완료 박스만 있는 재고는 검색해도 미확인 목록에 표시하지 않는다", () => {
+  const app = runtime();
+  assert.equal(app.getInventoryAttentionRows("audit", undefined, "헤라").length, 0);
+  assert.deepEqual(Array.from(app.getInventoryAttentionRows("audit"), row => row.managementId), ["IN-260910-KR-001", "IN-260911-NP-001"]);
+});
+
+test("마지막 미확인 박스 확인 후 목록과 합계가 함께 줄어든다", () => {
+  const app = runtime();
+  app.state.inventoryRows = rows.map(row => ({ ...row }));
+  app.state.inventoryRows[1].inventoryUnconfirmedBoxCount = 0;
+  app.state.inventoryRows[1].inventoryConfirmedBoxCount = 10;
+  app.renderInventoryAttentionList("audit");
+  assert.equal(app.inventoryAttentionSearchCount.textContent, "전체 1건");
+  assert.equal(app.inventoryAttentionList.innerHTML, "IN-260911-NP-001");
+  assert.match(app.inventoryAttentionDescription.textContent, /미확인 1 box, 확인 완료 5 box/);
+  app.state.inventoryRows[2].inventoryUnconfirmedBoxCount = 0;
+  app.renderInventoryAttentionList("audit");
+  assert.equal(app.inventoryAttentionSearchCount.textContent, "전체 0건");
+  assert.equal(app.inventoryAttentionEmpty.hidden, false);
 });
