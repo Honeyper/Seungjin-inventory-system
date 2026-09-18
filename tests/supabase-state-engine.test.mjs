@@ -961,7 +961,7 @@ test("remaining inventory adjustment uses canonical writes and protects classifi
       records: [inventoryRecord("M-4", "ION-0001", 200)],
       boxes: [
         inventoryBox("M-4", "ION-0001", 1, 100),
-        inventoryBox("M-4", "ION-0001", 2, 100, { inventoryCategory: "자사재고" })
+        inventoryBox("M-4", "ION-0001", 2, 100, { inventoryCategory: "사출 보관재고" })
       ]
     }
   };
@@ -1043,7 +1043,7 @@ test("physical unconfirmed inventory counts unchecked mobile-audit boxes and dec
 
   const before = buildInventoryDashboard(holder.state.records, holder.state.boxes);
   assert.equal(before.attention.physicalMissingCount, 2);
-  assert.equal(before.rows[0].inventoryAuditTargetBoxCount, 2);
+  assert.equal(before.rows[0].inventoryAuditTargetBoxCount, 3);
   assert.equal(before.rows[0].inventoryConfirmedBoxCount, 1);
   assert.equal(before.rows[0].inventoryUnconfirmedBoxCount, 2);
 
@@ -1055,7 +1055,7 @@ test("physical unconfirmed inventory counts unchecked mobile-audit boxes and dec
 
   const after = buildInventoryDashboard(holder.state.records, holder.state.boxes);
   assert.equal(after.attention.physicalMissingCount, 1);
-  assert.equal(after.rows[0].inventoryAuditTargetBoxCount, 2);
+  assert.equal(after.rows[0].inventoryAuditTargetBoxCount, 3);
   assert.equal(after.rows[0].inventoryConfirmedBoxCount, 2);
   assert.equal(after.rows[0].inventoryUnconfirmedBoxCount, 1);
 });

@@ -4,9 +4,9 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { applyMutation, buildInventoryDashboard } from '../supabase/functions/seungjin-dev-gateway/state-engine.js';
 const source = fs.readFileSync(new URL('../frontend/admin.js', import.meta.url), 'utf8');
-function setup({ failure = '', changed = false, cancel = false, readFail = false } = {}) {
+function setup({ failure = '', changed = false, cancel = false, readFail = false, ownStock = false } = {}) {
   let db = {products:[],orders:[],inbounds:[],records:['A','B'].map(managementId=>({managementId,productId:'P'})), boxes:[]};
-  for (const record of db.records) for (let n=1;n<=5;n++) db.boxes.push({...record,boxId:record.managementId+n,number:n,quantity:100,status:['보관','출고대기','보류','폐기','보관'][n-1],lastInventoryCheckedAt:n===5?'2026-09-18':''});
+  for (const record of db.records) for (let n=1;n<=5;n++) db.boxes.push({...record,boxId:record.managementId+n,number:n,quantity:100,inventoryCategory:ownStock?'자사재고':'',status:['보관','출고대기','보류','폐기','보관'][n-1],lastInventoryCheckedAt:n===5?'2026-09-18':''});
   const dashboard = () => buildInventoryDashboard(db.records,db.boxes);
   const nodes = new Map();
   const node = id => { if(!nodes.has(id)) nodes.set(id,{}); return nodes.get(id); };
@@ -61,4 +61,18 @@ test('search prunes hidden selections and visible select-all uses eligible box s
   h.node('#inventoryAuditSelectAll').checked=false;h.node('#inventoryAuditSelectAll').onchange();assert.equal(h.app.state.inventoryAuditSelection.size,0);
   h.node('#inventoryAuditSelectAll').checked=true;h.node('#inventoryAuditSelectAll').onchange();assert.equal(h.app.state.inventoryAuditSelection.size,1);
   h.app.renderInventoryAuditBulkControls('storage',[]);assert.equal(h.node('#inventoryAuditBulkToolbar').hidden,true);assert.equal(h.app.state.inventoryAuditSelection.size,0);
+});
+
+ test('own-stock select-all cleans unconfirmed stored and waiting boxes while preserving other boxes', async()=>{
+  const h=setup({ownStock:true});
+  h.app.renderInventoryAuditBulkControls('audit',h.app.state.inventoryRows);
+  h.node('#inventoryAuditSelectAll').checked=false;h.node('#inventoryAuditSelectAll').onchange();
+  h.node('#inventoryAuditSelectAll').checked=true;h.node('#inventoryAuditSelectAll').onchange();
+  assert.equal(h.app.state.inventoryAuditSelection.size,2);
+  assert.match(h.node('#inventoryAuditBulkSummary').textContent,/2건 · 4 box · 400 ea/);
+  await h.app.saveInventoryAuditBulk();
+  assert.equal(h.mutations.length,2);
+  assert.equal(h.db().boxes.filter(b=>b.shippingType==='재고조정' && b.quantity===0).length,4);
+  assert.equal(h.db().boxes.filter(b=>b.quantity===100).length,6);
+  assert.ok(h.db().boxes.every(b=>b.inventoryCategory==='자사재고'));
 });

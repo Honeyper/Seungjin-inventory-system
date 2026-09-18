@@ -31,14 +31,14 @@ test('mixed eight-box record exposes five audit boxes while retaining all stock'
   assert.equal(result.state.boxes.filter(b=>b.status==='보류').length,3);
   assert.equal(result.state.boxes.filter(b=>b.status==='보류').reduce((s,b)=>s+b.quantity,0),1848);
 });
-test('PC and mobile exclude hold aliases, discard, shipped and protected stock; waiting remains eligible', () => {
+test('PC includes own stock while both clients exclude hold, discard, shipped and injection stock', () => {
   const h=ui();
   const boxes=['보관','출고대기','보류','출고 보류','폐기','출고완료'].map((status,i)=>({...record,number:i+1,quantity:100,status}));
   boxes.push({...record,number:7,quantity:100,status:'보관',inventoryCategory:'자사재고'});
   boxes.push({...record,number:8,quantity:100,status:'사출재고'});
   const row=buildInventoryDashboard([record],boxes).rows[0];
-  assert.deepEqual(Array.from(h.getInventoryAuditEligibleBoxes(row),b=>b.number),[1,2]);
-  assert.equal(row.inventoryAuditTargetBoxCount,2);
+  assert.deepEqual(Array.from(h.getInventoryAuditEligibleBoxes(row),b=>b.number),[1,2,7]);
+  assert.equal(row.inventoryAuditTargetBoxCount,3);
   assert.deepEqual(boxes.filter(b=>!h.isProtectedInventoryAdjustmentBox(record,b)).map(b=>b.number),[1,2]);
 });
 test('cached counters are recalculated and confirmed hold/discard boxes are excluded on both sides', () => {
@@ -56,7 +56,7 @@ test('cached counters are recalculated and confirmed hold/discard boxes are excl
   assert.equal(cached.inventoryAuditTargetBoxCount,9);
 });
 
-test('eight own-stock boxes remain physically confirmable while inventory adjustment stays blocked', () => {
+test('eight own-stock boxes are selectable for cleanup and remain physically confirmable', () => {
   const h = ui();
   const boxes = Array.from({length: 8}, (_, index) => ({ ...record, boxId: `B${index+1}`, number: index+1,
     quantity: 320, status: '보관', inventoryCategory: '자사재고' }));
@@ -65,20 +65,20 @@ test('eight own-stock boxes remain physically confirmable while inventory adjust
   const row = h.normalizeInventoryRows(buildInventoryDashboard([record], boxes).rows)[0];
   assert.equal(row.inventoryUnconfirmedBoxCount, 8);
   assert.equal(row.inventoryConfirmedBoxCount, 0);
-  assert.equal(row.inventoryAuditTargetBoxCount, 0);
-  assert.equal(h.getInventoryAuditTargetBoxes(row).length, 0);
+  assert.equal(row.inventoryAuditTargetBoxCount, 8);
+  assert.equal(h.getInventoryAuditTargetBoxes(row).length, 8);
   Object.assign(h, {state: {}, formatNumber: String, escapeHtml: String, normalizeDisplayValue: String});
   vm.runInContext(extract(admin, 'renderInventoryAuditBoxStatus'), h);
   const html = h.renderInventoryAuditBoxStatus(row);
   assert.equal((html.match(/data-inventory-audit-confirm="/g) || []).length, 8);
-  assert.doesNotMatch(html, /data-inventory-audit-box=/);
+  assert.equal((html.match(/data-inventory-audit-box=/g) || []).length, 8);
   const result = applyMutation('adjustMissingInventory', {confirmationOnly: true, confirmedBoxes: [{...record, selectedBoxes: [1,2,3,4,5,6,7,8]}]}, state);
   assert.equal(result.result.confirmedBoxRows, 8);
   assert.equal(result.result.updatedBoxRows, 0);
   const confirmed = buildInventoryDashboard(result.state.records, result.state.boxes).rows[0];
   assert.equal(confirmed.inventoryConfirmedBoxCount, 8);
   assert.equal(confirmed.inventoryUnconfirmedBoxCount, 0);
-  assert.equal(confirmed.inventoryAuditTargetBoxCount, 0);
+  assert.equal(confirmed.inventoryAuditTargetBoxCount, 8);
   assert.equal(confirmed.currentTotalQuantity, '2,560 ea');
   assert.deepEqual(result.state.boxes.map(b => [b.quantity, b.status, b.inventoryCategory]), boxes.map(b => [b.quantity, b.status, b.inventoryCategory]));
 });
