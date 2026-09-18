@@ -15058,3 +15058,68 @@ input {
 :is(#productDetailModal, .inventory-detail-layout) .inventory-detail-media .product-profile-images > span { color: #102f5d; font-size: .9rem; font-weight: 800; }
 .inventory-detail-layout .product-detail-section > .attachment-card { margin-top: 1rem; }
 @media (max-width: 720px) { .inventory-detail-media { grid-template-columns: minmax(0, 1fr); } }
+
+/* Physical verification follows the surrounding inventory detail typography. */
+#inboundDetailModal .inventory-detail-layout .inventory-audit-box-section {
+  padding: 1.1rem 1.25rem;
+  border-radius: .65rem;
+  font-family: inherit;
+}
+#inboundDetailModal .inventory-detail-layout .inventory-audit-box-section > h3 {
+  margin: 0 0 .85rem;
+  padding: 0;
+  border: 0;
+  font-size: .88rem;
+  font-weight: 800;
+  line-height: 1.5;
+  color: #102f5d;
+}
+.inventory-detail-layout .inventory-audit-box-summary { gap: .5rem; margin-bottom: .85rem; }
+.inventory-detail-layout .inventory-audit-box-summary span {
+  min-height: 1.65rem;
+  padding: .3rem .6rem;
+  border-radius: .4rem;
+  font-size: .76rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.inventory-detail-layout .inventory-audit-box-summary b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.inventory-detail-layout .inventory-audit-confirm-toolbar {
+  gap: .65rem .85rem;
+  margin: 0 0 1rem;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.inventory-detail-layout .inventory-audit-confirm-toolbar > span { font-size: .76rem; font-weight: 400; color: #65758d; }
+.inventory-detail-layout .inventory-audit-confirm-toolbar button,
+.inventory-detail-layout .inventory-audit-box-actions button {
+  min-height: 2.1rem;
+  padding: .4rem .75rem;
+  border-radius: .4rem;
+  font-family: inherit;
+  font-size: .76rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.inventory-detail-layout .inventory-audit-box-groups { gap: 1rem; }
+.inventory-detail-layout .inventory-audit-box-group { border-color: #e0e6ee; border-radius: .5rem; }
+.inventory-detail-layout .inventory-audit-box-group > header {
+  min-height: 2.5rem;
+  padding: .6rem .85rem;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.inventory-detail-layout .inventory-audit-box-group > header strong { font-weight: 700; }
+.inventory-detail-layout .inventory-audit-box-group > header span { font-weight: 600; font-variant-numeric: tabular-nums; }
+.inventory-detail-layout .inventory-audit-box-group > div { gap: .5rem; padding: .65rem; }
+.inventory-detail-layout .inventory-audit-box-card { gap: .5rem .75rem; padding: .75rem .85rem; border-color: #e0e6ee; border-radius: .4rem; }
+.inventory-detail-layout .inventory-audit-box-card strong { font-size: .84rem; font-weight: 700; line-height: 1.5; color: #23344d; }
+.inventory-detail-layout .inventory-audit-box-card span { font-size: .76rem; font-weight: 600; line-height: 1.5; color: #65758d; }
+.inventory-detail-layout .inventory-audit-box-card small { font-size: .72rem; font-weight: 400; line-height: 1.5; color: #738197; }
+.inventory-detail-layout .inventory-audit-box-card > b { font-size: .72rem; font-weight: 600; }
+.inventory-detail-layout .inventory-audit-box-actions [data-inventory-audit-confirm] span { color: inherit; }
+.inventory-detail-layout .inventory-audit-box-empty { padding: 1.25rem .75rem; font-size: .76rem; font-weight: 400; line-height: 1.6; color: #738197; }
+@media (max-width: 700px) {
+  #inboundDetailModal .inventory-detail-layout .inventory-audit-box-section { padding: 1rem; }
+  .inventory-detail-layout .inventory-audit-box-groups { gap: .8rem; }
+}
