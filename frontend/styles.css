@@ -23,6 +23,7 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+  font-weight: 400;
   background: #f6f9fc;
 }
 
@@ -43,9 +44,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input {
+/* Shared text scale: regular 400, medium 500, semibold 600. */
+h1, h2, h3, h4, h5, h6, b, strong {
+  font-weight: 600;
+}
+
+button, input, select, textarea {
   font: inherit;
+}
+
+button, label, th {
+  font-weight: 500;
 }
 
 .login-page {
@@ -157,7 +166,7 @@ input {
   margin: 0;
   color: #1d2a39;
   font-size: clamp(2.55rem, 2.7vw, 3.38rem);
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1.1;
 }
@@ -166,14 +175,14 @@ input {
   margin: 0.22rem 0 1.28rem;
   color: var(--navy-dark);
   font-size: clamp(4.7rem, 5.4vw, 6.75rem);
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1;
 }
 
 .brand-heading h1 strong {
   color: var(--gold);
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .title-rule,
@@ -221,7 +230,7 @@ input {
   display: inline;
   color: var(--navy-dark);
   font-size: clamp(1.65rem, 1.75vw, 2.08rem);
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .module-list {
@@ -241,7 +250,7 @@ input {
   padding: 0 1.32rem;
   color: #253244;
   font-size: clamp(1rem, 1vw, 1.22rem);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .module-item + .module-item {
@@ -272,7 +281,7 @@ input {
   margin-top: 3.35rem;
   color: #263449;
   font-size: clamp(1rem, 1vw, 1.2rem);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .capability-list span {
@@ -338,7 +347,7 @@ input {
   margin: 0;
   color: var(--navy-dark);
   font-size: clamp(2.25rem, 2.4vw, 3.05rem);
-  font-weight: 800;
+  font-weight: 600;
   text-align: center;
   letter-spacing: 0;
 }
@@ -369,7 +378,7 @@ input {
   margin: clamp(1.45rem, 2vh, 2rem) 0 clamp(2.15rem, 3.9vh, 3.45rem);
   color: #7a879a;
   font-size: clamp(1rem, 1.1vw, 1.25rem);
-  font-weight: 600;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -385,7 +394,7 @@ input {
   margin-bottom: 0.78rem;
   color: var(--navy-dark);
   font-size: clamp(1.08rem, 1.12vw, 1.3rem);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .field > span:first-child img {
@@ -401,7 +410,7 @@ input {
   padding: 0 1.7rem;
   color: var(--ink);
   font-size: clamp(1rem, 1.06vw, 1.22rem);
-  font-weight: 600;
+  font-weight: 400;
   border: 1px solid var(--line);
   border-radius: 0.52rem;
   outline: none;
@@ -415,7 +424,7 @@ input {
 
 .field input::placeholder {
   color: #9aa5b3;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .field input:focus {
@@ -469,7 +478,7 @@ input {
   margin: 0.15rem 0 -0.4rem;
   color: #b42318;
   font-size: 0.92rem;
-  font-weight: 700;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -487,7 +496,7 @@ input {
   margin-top: clamp(1.6rem, 3.3vh, 2.7rem);
   color: var(--white);
   font-size: clamp(1.18rem, 1.32vw, 1.52rem);
-  font-weight: 700;
+  font-weight: 500;
   border: 0;
   border-radius: 0.46rem;
   background: linear-gradient(180deg, #082e6c, #061f4c);
@@ -539,7 +548,7 @@ input {
   margin: 1.45rem 0 0;
   color: #9aa5b3;
   font-size: 0.86rem;
-  font-weight: 700;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -822,14 +831,14 @@ input {
 .brand-signature strong {
   color: #fff;
   font-size: 1.16rem;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: -0.03em;
 }
 
 .brand-signature small {
   color: rgba(255, 255, 255, 0.58);
   font-size: 0.66rem;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.12em;
 }
 
@@ -841,7 +850,7 @@ input {
   margin: 0;
   color: #fff;
   font-size: clamp(2.35rem, 3.2vw, 3.25rem);
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: -0.055em;
   line-height: 1.08;
   white-space: nowrap;
@@ -887,13 +896,13 @@ input {
 .login-feature-list strong {
   color: #fff;
   font-size: 0.93rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .login-feature-list small {
   color: rgba(255, 255, 255, 0.57);
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .login-panel {
@@ -991,7 +1000,7 @@ input {
   margin: 0 0 0.55rem;
   color: #9a6b16;
   font-size: 0.66rem;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: 0.14em;
 }
 
@@ -1003,7 +1012,7 @@ input {
   margin: 0;
   color: #071f49;
   font-size: clamp(1.65rem, 2vw, 1.95rem);
-  font-weight: 900;
+  font-weight: 600;
   text-align: center;
   letter-spacing: -0.05em;
   line-height: 1.2;
@@ -1014,7 +1023,7 @@ input {
   margin: 0.48rem 0 0;
   color: #748096;
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -1028,7 +1037,7 @@ input {
   margin: 0 0 0.48rem;
   color: #26364f;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .input-control,
@@ -1055,7 +1064,7 @@ input {
   padding: 0 3.1rem 0 2.85rem;
   color: #17233a;
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 400;
   border: 1px solid #d9e0ea;
   border-radius: 0.7rem;
   outline: none;
@@ -1081,7 +1090,7 @@ input {
 
 .field input::placeholder {
   color: #9aa5b5;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .field .input-control > .field-valid-icon,
@@ -1130,7 +1139,7 @@ input {
   overflow: hidden;
   color: #c23b32;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.35;
   opacity: 0;
   transform: translateY(-0.2rem);
@@ -1191,7 +1200,7 @@ input {
   margin: 0.1rem 0 0;
   color: #b42318;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -1205,7 +1214,7 @@ input {
   margin-top: 0.85rem;
   color: #fff;
   font-size: 0.86rem;
-  font-weight: 800;
+  font-weight: 500;
   border: 1px solid #071f49;
   border-radius: 0.7rem;
   background: #071f49;
@@ -1263,7 +1272,7 @@ input {
   margin: 0.95rem 0 0;
   color: #8792a3;
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .login-security i {
@@ -1275,7 +1284,7 @@ input {
   margin: 1.45rem 0 0;
   color: #a0a9b7;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -1531,7 +1540,7 @@ input {
   gap: 0.78rem;
   color: var(--navy-dark);
   font-size: 1.18rem;
-  font-weight: 900;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -1616,7 +1625,7 @@ input {
   border-radius: 999px;
   background: #d92d20;
   font-size: 0.59rem;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -1660,7 +1669,7 @@ input {
   background: transparent;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1703,7 +1712,7 @@ input {
 .backup-notification-header span {
   color: #9a6b16;
   font-size: 0.68rem;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: 0.08em;
 }
 
@@ -1711,7 +1720,7 @@ input {
   margin: 0;
   color: var(--navy-dark);
   font-size: 1.05rem;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: -0.03em;
 }
 
@@ -1727,7 +1736,7 @@ input {
   background: #fff;
   font: inherit;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1757,7 +1766,7 @@ input {
 .server-usage-heading span {
   color: #53637b;
   font-size: 0.7rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .server-usage-heading b {
@@ -1766,19 +1775,19 @@ input {
   border-radius: 999px;
   background: #e7f7ee;
   font-size: 0.58rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .server-usage-summary strong {
   color: #102a55;
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .server-usage-summary span {
   color: #1f5da8;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .server-usage-progress {
@@ -1801,7 +1810,7 @@ input {
   margin: 0;
   color: #748198;
   font-size: 0.64rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .server-usage-card.is-warning .server-usage-summary span {
@@ -1842,7 +1851,7 @@ input {
   padding: 1.7rem 1rem;
   color: #758198;
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -1905,7 +1914,7 @@ input {
   margin: 0;
   color: #102a55;
   font-size: 0.87rem;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: -0.025em;
 }
 
@@ -1913,7 +1922,7 @@ input {
   margin: 0.25rem 0 0;
   color: #66738a;
   font-size: 0.73rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.55;
 }
 
@@ -1933,7 +1942,7 @@ input {
   border-radius: 999px;
   background: #f0f3f7;
   font-size: 0.65rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .backup-notification-counts .is-synced {
@@ -1954,7 +1963,7 @@ input {
   padding: 0.68rem 0.88rem;
   color: #9f241c;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 600;
   cursor: pointer;
   list-style-position: inside;
 }
@@ -1988,7 +1997,7 @@ input {
   overflow-wrap: anywhere;
   color: #5f6b7e;
   font-size: 0.67rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -2001,7 +2010,7 @@ input {
   padding: 0 0.9rem 0.78rem;
   color: #7a4650;
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .backup-notification-footer {
@@ -2010,7 +2019,7 @@ input {
   border-top: 1px solid #e5eaf1;
   background: #fff;
   font-size: 0.66rem;
-  font-weight: 700;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -2031,13 +2040,13 @@ input {
 .update-history-intro strong {
   color: #102a55;
   font-size: 0.84rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .update-history-intro span {
   color: #708097;
   font-size: 0.67rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -2074,14 +2083,14 @@ input {
 .update-history-card time {
   color: #b07813;
   font-size: 0.65rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .update-history-card h3 {
   margin: 0;
   color: #102a55;
   font-size: 0.84rem;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: -0.025em;
 }
 
@@ -2092,7 +2101,7 @@ input {
   border-radius: 999px;
   background: #e7f7ee;
   font-size: 0.58rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .update-history-items {
@@ -2108,7 +2117,7 @@ input {
   padding-left: 0.72rem;
   color: #5f6e84;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.55;
 }
 
@@ -2130,7 +2139,7 @@ input {
   padding-left: 1.2rem;
   color: var(--navy-dark);
   font: inherit;
-  font-weight: 800;
+  font-weight: 600;
   border-left: 1px solid #dbe2ec;
   border-top: 0;
   border-right: 0;
@@ -2191,7 +2200,7 @@ input {
 .admin-user-menu-profile small {
   color: #7a8799;
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .admin-logout-button {
@@ -2204,7 +2213,7 @@ input {
   color: #c63333;
   font: inherit;
   font-size: 0.86rem;
-  font-weight: 800;
+  font-weight: 500;
   text-align: left;
   border: 0;
   border-radius: 0.55rem;
@@ -2262,7 +2271,7 @@ input {
   gap: 0.72rem;
   color: #667489;
   font-size: 0.92rem;
-  font-weight: 800;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -2349,7 +2358,7 @@ input {
   display: block;
   margin-top: 0.55rem;
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .admin-main {
@@ -2371,19 +2380,19 @@ input {
   margin: 0.15rem 0 0.55rem;
   color: var(--navy-dark);
   font-size: clamp(1.85rem, 2.1vw, 2.45rem);
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .page-heading p {
   margin: 0;
   color: #69778b;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .eyebrow {
   color: var(--gold) !important;
   font-size: 0.78rem;
-  font-weight: 900 !important;
+  font-weight: 600 !important;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -2396,7 +2405,7 @@ input {
   gap: 0.58rem;
   min-height: 3.15rem;
   padding: 0 1.25rem;
-  font-weight: 900;
+  font-weight: 600;
   border-radius: 0.38rem;
   cursor: pointer;
   transition:
@@ -2476,7 +2485,7 @@ input {
   display: block;
   color: var(--navy-dark);
   font-size: 1.45rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .product-hero span {
@@ -2484,7 +2493,7 @@ input {
   margin-top: 0.25rem;
   color: #77849a;
   font-size: 0.9rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .list-tools {
@@ -2518,7 +2527,7 @@ input {
   height: 3.2rem;
   padding: 0 1rem 0 3.2rem;
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 400;
   border: 1px solid #dde5ef;
   border-radius: 0.42rem;
   outline: none;
@@ -2551,7 +2560,7 @@ input {
   height: 3.2rem;
   padding: 0 3rem 0 1rem;
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 400;
   border: 1px solid #dde5ef;
   border-radius: 0.42rem;
   outline: none;
@@ -2577,7 +2586,7 @@ input {
   padding: 0.95rem 1.25rem;
   color: #63728a;
   font-size: 0.92rem;
-  font-weight: 800;
+  font-weight: 600;
   border-bottom: 1px solid #e5ebf2;
   background: #fbfcfe;
 }
@@ -2611,7 +2620,7 @@ input {
 .product-table th {
   color: var(--navy-dark);
   font-size: 0.86rem;
-  font-weight: 900;
+  font-weight: 500;
   background: linear-gradient(180deg, #fbfcfe, #f5f8fc);
 }
 
@@ -2625,7 +2634,7 @@ input {
 .product-table .empty-cell {
   height: 4.2rem;
   color: #66758d;
-  font-weight: 900;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -2637,7 +2646,7 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .color-chip i {
@@ -2779,14 +2788,14 @@ input {
   gap: 0.45rem;
   color: #273b5c;
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.25;
 }
 
 .inventory-summary-label small {
   color: #65758c;
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -2796,7 +2805,7 @@ input {
   gap: 0.32rem;
   color: var(--navy-dark);
   font-size: 1.8rem;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: 0;
 }
@@ -2805,7 +2814,7 @@ input {
   color: #65758c;
   font-size: 0.92rem;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1;
 }
 
@@ -2830,7 +2839,7 @@ input {
 .inventory-list-header h2 {
   color: var(--navy-dark);
   font-size: 0.98rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .inventory-filter-panel h2 {
@@ -2853,7 +2862,7 @@ input {
 .inventory-filter-field > span {
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .inventory-filter-field input,
@@ -2864,7 +2873,7 @@ input {
   padding: 0 2.65rem 0 0.85rem;
   color: var(--navy-dark);
   font-size: 0.84rem;
-  font-weight: 800;
+  font-weight: 400;
   border: 1px solid #dce5f0;
   border-radius: 0.42rem;
   outline: none;
@@ -2933,7 +2942,7 @@ input {
 
 .detail-filter-button {
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .inventory-insight-grid {
@@ -2966,7 +2975,7 @@ input {
 .inventory-card-title span {
   color: #748199;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -2983,7 +2992,7 @@ input {
   margin: 0.15rem 3.4rem 0 5.65rem;
   color: #7a879a;
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .inventory-bar-axis span {
@@ -3005,7 +3014,7 @@ input {
   gap: 0.62rem;
   color: #22324b;
   font-size: 0.84rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .inventory-bar-row > span {
@@ -3034,7 +3043,7 @@ input {
 
 .inventory-bar-row strong {
   color: #173365;
-  font-weight: 900;
+  font-weight: 600;
   text-align: left;
 }
 
@@ -3050,7 +3059,7 @@ input {
   padding: 0 1rem;
   color: var(--navy-dark);
   font-size: 0.84rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dfe7f0;
   border-radius: 0.38rem;
   background: #fff;
@@ -3129,13 +3138,13 @@ input {
   margin-bottom: 0.14rem;
   color: #34435a;
   font-size: 0.84rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .attention-item strong {
   color: var(--navy-dark);
   font-size: 1.24rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .attention-item em {
@@ -3215,7 +3224,7 @@ input {
   overflow: hidden;
   color: #65758c;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3223,13 +3232,13 @@ input {
 .inventory-total-chip strong {
   color: var(--navy-dark);
   font-size: 0.92rem;
-  font-weight: 900;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .inventory-export-button {
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .inventory-table {
@@ -3275,7 +3284,7 @@ input {
 .inventory-total-row td {
   border-bottom: 1px solid #dbe7f5;
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .inventory-total-label {
@@ -3288,19 +3297,19 @@ input {
   background: #e6f2ff;
   color: #0b64ce;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .inventory-total-value {
   display: inline-block;
   white-space: nowrap;
   color: #08204a;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .inventory-total-muted {
   color: #7a8798;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .inventory-detail-button {
@@ -3308,7 +3317,7 @@ input {
   padding: 0 0.58rem;
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dfe7f0;
   border-radius: 0.3rem;
   background: #fff;
@@ -3347,7 +3356,7 @@ input {
   padding: 0 0.45rem;
   border-radius: 0.35rem;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .inventory-badge.blue {
@@ -3382,7 +3391,7 @@ input {
 .inventory-table-footer > span,
 .inventory-table-footer .pagination span {
   color: #25354e;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 @media (max-width: 1500px) {
@@ -3620,7 +3629,7 @@ input {
   padding-left: 0.58rem;
   color: var(--navy-dark);
   font-size: 0.98rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-section-title h2::before,
@@ -3656,7 +3665,7 @@ input {
 .shipping-filter-field > span {
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-search-input {
@@ -3685,7 +3694,7 @@ input {
   padding: 0 2.65rem 0 0.85rem;
   color: var(--navy-dark);
   font-size: 0.84rem;
-  font-weight: 800;
+  font-weight: 400;
   border: 1px solid #dce5f0;
   border-radius: 0.42rem;
   outline: none;
@@ -3728,7 +3737,7 @@ input {
   gap: 0.35rem;
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-sort-field select {
@@ -3859,7 +3868,7 @@ input {
   display: block;
   color: #273b5c;
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-settlement-summary .shipping-summary-card span {
@@ -3873,7 +3882,7 @@ input {
   margin-top: 0.35rem;
   color: var(--navy-dark);
   font-size: 1.75rem;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -3886,7 +3895,7 @@ input {
   color: #65758c;
   font-size: 0.92rem;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .shipping-settlement-panel {
@@ -3909,13 +3918,13 @@ input {
   margin: 0;
   color: #718099;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .shipping-settlement-header span {
   color: #718099;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .shipping-settlement-date-tools {
@@ -3936,7 +3945,7 @@ input {
   color: #718099;
   white-space: nowrap;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-settlement-date-tools label {
@@ -3948,7 +3957,7 @@ input {
   padding: 0 0.72rem;
   color: #718099;
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dce5f0;
   border-radius: 0.42rem;
   background: #fff;
@@ -3958,7 +3967,7 @@ input {
   flex: 0 0 auto;
   color: #718099;
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .shipping-settlement-date-tools input {
@@ -3970,7 +3979,7 @@ input {
   color: var(--navy-dark);
   font: inherit;
   font-size: 0.92rem;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: 0;
   border: 0;
   outline: none;
@@ -3983,7 +3992,7 @@ input {
   color: #94a3b8;
   font-style: normal;
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-settlement-date-tools button {
@@ -3992,7 +4001,7 @@ input {
   padding: 0 0.9rem;
   color: var(--navy-dark);
   font-size: 0.86rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dce5f0;
   border-radius: 0.42rem;
   background: #f7f9fc;
@@ -4050,7 +4059,7 @@ input {
   display: block;
   color: #5e6d83;
   font-size: 0.8rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-settlement-card strong {
@@ -4060,7 +4069,7 @@ input {
   margin-top: 0.5rem;
   color: var(--navy-dark);
   font-size: 1.48rem;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -4072,7 +4081,7 @@ input {
   color: #65758c;
   font-size: 0.78rem;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-settlement-card.danger strong b {
@@ -4152,7 +4161,7 @@ input {
 .shipping-table td:nth-child(2),
 .shipping-table td:nth-child(4) {
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-table th:nth-child(4),
@@ -4171,7 +4180,7 @@ input {
 
 .shipping-table .shipping-shipped-value {
   color: #53647a;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .shipping-status-badges {
@@ -4190,7 +4199,7 @@ input {
   min-height: 1.48rem;
   padding: 0 0.62rem;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
   border-radius: 0.32rem;
   white-space: nowrap;
@@ -4253,7 +4262,7 @@ input {
   height: 1.95rem;
   color: var(--navy-dark);
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dce5f0;
   border-radius: 0.32rem;
   background: #fff;
@@ -4332,7 +4341,7 @@ input {
   height: 1.95rem;
   color: #175a36;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 600;
   font-family: inherit;
   border: 1px solid #c9ecd8;
   border-radius: 0.32rem;
@@ -4437,7 +4446,7 @@ input {
   margin: 0 0 0.4rem;
   color: #64748b;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .transfer-return-grid .form-field select {
@@ -4445,7 +4454,7 @@ input {
   padding: 0 2rem 0 0.82rem;
   color: var(--navy-dark);
   font: inherit;
-  font-weight: 900;
+  font-weight: 400;
   border: 1px solid #dce5f0;
   border-radius: 0.48rem;
   background-color: #fff;
@@ -4497,14 +4506,14 @@ input {
 .transfer-return-status-field strong {
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .transfer-return-status-field small {
   margin-top: 0.22rem;
   color: #718096;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1.35;
 }
 
@@ -4536,7 +4545,7 @@ input {
   padding: 0 0.55rem;
   color: #0c66c2;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 600;
   border: 1px solid #cde2fb;
   border-radius: 999px;
   background: #e8f3ff;
@@ -4566,7 +4575,7 @@ input {
   display: block;
   color: #6b7890;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-waiting-confirm-summary strong {
@@ -4575,7 +4584,7 @@ input {
   margin-top: 0.32rem;
   color: var(--navy-dark);
   font-size: 0.95rem;
-  font-weight: 900;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4595,7 +4604,7 @@ input {
   margin: 0 0 0.7rem;
   color: var(--navy-dark);
   font-size: 0.95rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-waiting-confirm-boxes div {
@@ -4611,7 +4620,7 @@ input {
   padding: 0 0.65rem;
   color: #9a5f00;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 400;
   border: 1px solid #f0d8ac;
   border-radius: 999px;
   background: #fff4dd;
@@ -4628,7 +4637,7 @@ input {
   padding: 0 0.55rem;
   color: #9a5f00;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 600;
   border: 1px solid #f0d8ac;
   border-radius: 999px;
   background: #fff4dd;
@@ -4660,7 +4669,7 @@ input {
   display: block;
   color: #6b7890;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-hold-guide-summary strong {
@@ -4669,7 +4678,7 @@ input {
   margin-top: 0.32rem;
   color: var(--navy-dark);
   font-size: 0.95rem;
-  font-weight: 900;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4696,14 +4705,14 @@ input {
   margin-top: 0.25rem;
   color: #b16600;
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .shipping-hold-guide-status p {
   margin: 0;
   color: #334155;
   font-size: 0.88rem;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1.55;
 }
 
@@ -4718,7 +4727,7 @@ input {
   margin: 0 0 0.7rem;
   color: var(--navy-dark);
   font-size: 0.95rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-hold-guide-steps ol {
@@ -4728,7 +4737,7 @@ input {
   padding-left: 1.15rem;
   color: #334155;
   font-size: 0.86rem;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.45;
 }
 
@@ -4792,7 +4801,7 @@ input {
   margin-bottom: 0.35rem;
   color: #6d7b90;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-completion-summary strong {
@@ -4800,7 +4809,7 @@ input {
   overflow: hidden;
   color: var(--navy-dark);
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4829,7 +4838,7 @@ input {
   margin: 0.3rem 0 0;
   padding: 0.9rem;
   color: #6b7890;
-  font-weight: 800;
+  font-weight: 400;
   text-align: center;
   border: 1px dashed #cfd9e6;
   border-radius: 0.5rem;
@@ -4856,14 +4865,14 @@ input {
   margin-bottom: 0.55rem;
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-completion-defect-photos p {
   margin: -0.25rem 0 0.62rem;
   color: #68758a;
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .shipping-completion-defect-photos div,
@@ -4880,7 +4889,7 @@ input {
   min-height: 1.65rem;
   padding: 0 0.55rem;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 600;
   border-radius: 999px;
 }
 
@@ -4900,7 +4909,7 @@ input {
   margin-bottom: 0.45rem;
   color: var(--navy-dark);
   font-size: 0.75rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-photo-link-list {
@@ -4916,7 +4925,7 @@ input {
   padding: 0 0.58rem;
   color: #0b5fc4;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 600;
   text-decoration: none;
   border-radius: 999px;
   background: #e7f2ff;
@@ -4943,7 +4952,7 @@ input {
   padding: 0 0.58rem;
   color: #0c66c2;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 400;
   border-radius: 999px;
   background: #e6f2ff;
   white-space: nowrap;
@@ -4982,7 +4991,7 @@ input {
   padding: 0 0.82rem;
   color: var(--navy-dark);
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 400;
   border: 1px solid #dce5f0;
   border-radius: 0.42rem;
   background-color: #fff;
@@ -5045,13 +5054,13 @@ input {
 
 .shipping-inspection-summary span {
   color: #66758d;
-  font-weight: 900;
+  font-weight: 400;
   background: #f7f9fc;
 }
 
 .shipping-inspection-summary strong {
   color: #263449;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-box-section-header {
@@ -5070,7 +5079,7 @@ input {
   margin: 0;
   color: #718096;
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 400;
   word-break: keep-all;
 }
 
@@ -5084,7 +5093,7 @@ input {
   white-space: nowrap;
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 600;
   border: 1px solid #dce4ef;
   border-radius: 999px;
   background: #fff;
@@ -5122,7 +5131,7 @@ input {
   height: 1.35rem;
   color: #9a5f00;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 600;
   border-radius: 999px;
   background: #fff3dc;
 }
@@ -5168,13 +5177,13 @@ input {
 .shipping-box-check-card strong {
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-box-check-card small {
   color: #718096;
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .product-modal.remaining-inventory-modal {
@@ -5252,7 +5261,7 @@ input {
   margin-top: 0.3rem;
   color: #718096;
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .remaining-inventory-category-grid {
@@ -5307,13 +5316,13 @@ input {
 .remaining-inventory-category-card strong {
   color: var(--navy-dark);
   font-size: 0.94rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .remaining-inventory-category-card small {
   color: #718096;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -5362,13 +5371,13 @@ input {
 .remaining-inventory-box-card > b {
   color: var(--navy-dark);
   font-size: 0.84rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .remaining-inventory-box-card small {
   color: #718096;
   font-size: 0.73rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .remaining-inventory-quantity-field {
@@ -5393,7 +5402,7 @@ input {
   color: var(--navy-dark);
   font: inherit;
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 600;
   text-align: right;
   border: 0;
   outline: 0;
@@ -5404,7 +5413,7 @@ input {
   color: #718096;
   font-size: 0.72rem;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .remaining-inventory-quantity-field:has(input:disabled) {
@@ -5454,7 +5463,7 @@ input {
   color: var(--navy-dark);
   font: inherit;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 600;
   text-align: right;
   border: 0;
   outline: 0;
@@ -5465,14 +5474,14 @@ input {
   color: #718096;
   font-size: 0.72rem;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-box-summary {
   margin: 0.7rem 0 0;
   color: #53647a;
   font-size: 0.8rem;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .shipping-inspection-detail-grid {
@@ -5503,7 +5512,7 @@ input {
   min-height: 2.25rem;
   padding: 0 0.75rem;
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dfe7f0;
   border-radius: 0.48rem;
   background: #fff;
@@ -5534,7 +5543,7 @@ input {
   padding: 0 1rem;
   color: var(--navy-dark);
   line-height: 3.1rem;
-  font-weight: 900;
+  font-weight: 600;
   border: 1px solid #dce4ef;
   border-radius: 0.38rem;
   background: linear-gradient(180deg, #f9fbfe, #eef4fb);
@@ -5600,13 +5609,13 @@ input {
 .shipping-hold-option strong {
   color: #8a4f00;
   font-size: 0.88rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-hold-option small {
   color: #6b7890;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .shipping-discard-option {
@@ -5652,12 +5661,12 @@ input {
 .shipping-photo-heading span {
   color: var(--navy-dark);
   font-size: 0.96rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .shipping-photo-heading small {
   color: #718096;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -5722,13 +5731,13 @@ input {
   min-width: 0;
   color: var(--navy-dark);
   font-size: 0.98rem;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .shipping-photo-button small {
   min-width: 0;
   color: #7a8798;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1.35;
 }
 
@@ -5742,7 +5751,7 @@ input {
   padding: 0.34rem 0.56rem;
   color: #314057;
   font-size: 0.82rem;
-  font-weight: 850;
+  font-weight: 400;
   border: 1px solid #dbe5f0;
   border-radius: 999px;
   background: #fff;
@@ -5789,7 +5798,7 @@ input {
   margin-bottom: 0;
   color: var(--navy-dark);
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-photo-saved-copy small {
@@ -5797,7 +5806,7 @@ input {
   margin-top: 0.18rem;
   color: #6e7b8e;
   font-size: 0.76rem;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .shipping-photo-saved-card .shipping-photo-link-list {
@@ -5872,7 +5881,7 @@ input {
   padding: 0 0.7rem;
   color: var(--navy-dark);
   font: inherit;
-  font-weight: 900;
+  font-weight: 600;
   text-align: left;
   border: 0;
   border-radius: 0.36rem;
@@ -5909,7 +5918,7 @@ input {
 
 .table-footer > span {
   color: #3c4d65;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .pagination {
@@ -5926,7 +5935,7 @@ input {
   height: 2.35rem;
   padding: 0 0.55rem;
   color: #41536c;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dde5ef;
   border-radius: 0.36rem;
   background: #fff;
@@ -5955,7 +5964,7 @@ input {
   height: 2.85rem;
   padding: 0 3rem 0 1.15rem;
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 400;
   border: 1px solid #dde5ef;
   border-radius: 0.38rem;
   background-color: #fff;
@@ -6030,7 +6039,7 @@ input {
 .product-create-modal .modal-header p {
   margin-top: 0.28rem;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .product-create-modal .modal-close {
@@ -6290,7 +6299,7 @@ input {
 
 .product-image-placeholder small {
   font-size: 0.67rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .product-image-placeholder[hidden],
@@ -6307,7 +6316,7 @@ input {
 .product-image-controls > span {
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .product-image-controls > strong {
@@ -6321,7 +6330,7 @@ input {
 .product-image-controls > small {
   color: #718198;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -6345,7 +6354,7 @@ input {
   color: #173868;
   background: #fff;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -6405,7 +6414,7 @@ input {
   min-width: 0;
   margin: 0;
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.35;
   white-space: nowrap;
 }
@@ -6461,13 +6470,13 @@ input {
 .product-process-heading strong {
   color: var(--navy-dark);
   font-size: 0.86rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .product-process-heading small {
   color: #718198;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .product-process-type {
@@ -6481,7 +6490,7 @@ input {
   margin: 0;
   color: #65758c;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -6491,7 +6500,7 @@ input {
   padding: 0 2rem 0 0.7rem;
   background-color: #f8fafc;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .product-process-stages {
@@ -6526,19 +6535,19 @@ input {
 .product-create-form .product-process-stage > span > b {
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .product-process-stage small {
   color: #9a6b13;
   font-size: 0.66rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .product-create-form .product-process-stage select {
   min-height: 2.35rem;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .product-process-stage:has(select:disabled) {
@@ -6553,7 +6562,7 @@ input {
   color: #8b651d;
   background: #fff9ee;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .product-create-form fieldset.usage-field:has(input[name="productUsage"][value="사용중"]:checked) {
@@ -6610,7 +6619,7 @@ input {
 
 .common-container-check .ti {
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 600;
   opacity: 0;
   transform: scale(0.72);
   transition: opacity 140ms ease, transform 140ms ease;
@@ -6642,14 +6651,14 @@ input {
 
 .common-container-toggle-copy strong {
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .common-container-toggle-copy small {
   margin-top: 0.14rem;
   color: #728097;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.4;
 }
 
@@ -6757,7 +6766,7 @@ input {
 .existing-stock-create-modal .modal-header p {
   margin-top: 0.28rem;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .existing-stock-create-modal .modal-close {
@@ -6831,7 +6840,7 @@ input {
   margin-bottom: 0.4rem;
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .existing-stock-create-form .existing-stock-category-field legend b {
@@ -6883,7 +6892,7 @@ input {
   border-radius: 0.42rem;
   color: #082e6c;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 500;
   background: #f8fafc;
   white-space: nowrap;
 }
@@ -6985,13 +6994,13 @@ input {
   margin: 0;
   color: var(--navy-dark);
   font-size: 1.55rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .modal-header p {
   margin: 0.55rem 0 0;
   color: #6e7d92;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .modal-close {
@@ -7105,7 +7114,7 @@ input {
 .product-picker-modal .modal-header p {
   margin-top: 0.28rem;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .product-picker-modal .modal-close {
@@ -7166,7 +7175,7 @@ input {
   padding: 0 0.1rem;
   color: #738096;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .picker-result-summary p {
@@ -7195,7 +7204,7 @@ input {
   padding: 0.18rem 0.28rem 0.18rem 0.62rem;
   color: #536178;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 600;
   border: 1px solid #d8e1ec;
   border-radius: 0.42rem;
   background: #fff;
@@ -7207,7 +7216,7 @@ input {
   color: #0d3268;
   font: inherit;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 400;
   border: 0;
   background-color: transparent;
   cursor: pointer;
@@ -7231,7 +7240,7 @@ input {
   color: #fff;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
@@ -7332,7 +7341,7 @@ input {
   padding: 0.7rem 0.78rem;
   color: #315071;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 600;
   border: 1px solid #d8e1ec;
   border-radius: 0.5rem;
   background: #f8fafc;
@@ -7406,7 +7415,7 @@ input {
 
 .picker-product-main strong {
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .product-picker-modal .picker-product-main strong {
@@ -7420,7 +7429,7 @@ input {
 .picker-product-main em {
   color: var(--gold);
   font-style: normal;
-  font-weight: 900;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -7428,7 +7437,7 @@ input {
   color: #b88322;
   font-size: 0.78rem;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 600;
   text-align: right;
   white-space: nowrap;
 }
@@ -7439,7 +7448,7 @@ input {
   gap: 0.45rem;
   color: #657489;
   font-size: 0.83rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .product-picker-modal .picker-product-meta {
@@ -7488,13 +7497,13 @@ input {
 .picker-product-spec small {
   color: #8995a7;
   font-size: 0.64rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .picker-product-spec b {
   color: #31415a;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .picker-product-spec b i {
@@ -7537,7 +7546,7 @@ input {
 .inventory-attention-search > span {
   color: var(--muted);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -7616,7 +7625,7 @@ input {
   overflow: hidden;
   color: var(--navy-dark);
   font-size: 0.95rem;
-  font-weight: 900;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -7625,7 +7634,7 @@ input {
   margin-top: 0.25rem;
   color: #657489;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .inventory-attention-row-meta {
@@ -7643,14 +7652,14 @@ input {
   padding: 0.16rem 0.5rem;
   color: #66758b;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 400;
   border-radius: 999px;
   background: #f4f7fb;
 }
 
 .inventory-attention-row-meta b {
   color: #102b55;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .inventory-attention-row-meta .inventory-audit-status.unconfirmed {
@@ -7679,7 +7688,7 @@ input {
   padding: 0 0.7rem;
   color: var(--navy-dark);
   font-size: 0.8rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dce5f0;
   border-radius: 0.38rem;
   background: #fff;
@@ -7709,7 +7718,7 @@ input {
   min-height: 2rem;
   padding: 0.35rem 0.7rem;
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 400;
   border-radius: 999px;
 }
 
@@ -7786,14 +7795,14 @@ input {
 .inventory-audit-box-card strong {
   color: var(--navy-dark);
   font-size: 0.84rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .inventory-audit-box-card span,
 .inventory-audit-box-card small {
   color: #738198;
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .inventory-audit-box-card > b {
@@ -7815,7 +7824,7 @@ input {
   min-height: 2rem;
   color: #fff;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 0;
   border-radius: 0.38rem;
   background: var(--navy-dark);
@@ -7828,7 +7837,7 @@ input {
 .inventory-audit-confirm-toolbar > span { color: #738198; font-size: 0.78rem; }
 .inventory-audit-confirm-toolbar button, .inventory-audit-box-actions button {
   min-height: 2.1rem; padding: 0.4rem 0.75rem; border: 1px solid #dfe7f0;
-  border-radius: 0.4rem; font: inherit; font-weight: 800; cursor: pointer;
+  border-radius: 0.4rem; font: inherit; font-weight: 500; cursor: pointer;
   background: #fff; color: var(--navy-dark);
 }
 .inventory-audit-box-card > .inventory-audit-box-actions {
@@ -7848,7 +7857,7 @@ input {
   padding: 1.15rem 0.5rem;
   color: #8693a6;
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -7872,7 +7881,7 @@ input {
   padding: 0 0.58rem;
   color: #9a5f00;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 600;
   border: 1px solid #efd7a8;
   border-radius: 999px;
   background: #fff4dd;
@@ -7894,7 +7903,7 @@ input {
   overflow: hidden;
   color: var(--navy-dark);
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -7902,7 +7911,7 @@ input {
 .inventory-audit-box-confirm-product span {
   color: #6f7d92;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .inventory-audit-box-confirm-summary {
@@ -7927,7 +7936,7 @@ input {
 .inventory-audit-box-confirm-summary span {
   color: #758298;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .inventory-audit-box-confirm-summary strong {
@@ -7935,7 +7944,7 @@ input {
   margin-top: 0.28rem;
   color: var(--navy-dark);
   font-size: 0.88rem;
-  font-weight: 900;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -7945,7 +7954,7 @@ input {
   padding: 0.8rem 0.9rem;
   color: #8c2e13;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.5;
   border: 1px solid #f1c8b7;
   border-radius: 0.48rem;
@@ -7971,7 +7980,7 @@ input {
 .picker-empty {
   margin: 1.5rem 0 0;
   color: #7a879a;
-  font-weight: 800;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -7987,7 +7996,7 @@ input {
   margin: 0 0 0.65rem;
   color: var(--navy-dark);
   font-size: 1.05rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .detail-grid {
@@ -8029,12 +8038,12 @@ input {
 
 .detail-item span {
   color: #63728a;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .detail-item strong {
   color: #263449;
-  font-weight: 900;
+  font-weight: 600;
   word-break: keep-all;
   white-space: normal;
 }
@@ -8063,13 +8072,13 @@ input {
 .shipping-history-main span,
 .shipping-history-meta span {
   color: #63728a;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .shipping-history-main strong {
   color: var(--navy-dark);
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .shipping-history-meta {
@@ -8087,7 +8096,7 @@ input {
   border: 1px dashed #cfdae8;
   border-radius: 0.5rem;
   color: #63728a;
-  font-weight: 900;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -8111,18 +8120,18 @@ input {
 .discarded-box-detail-copy span {
   color: #8a3a33;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .discarded-box-detail-copy strong {
   color: #7a271a;
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .discarded-box-detail-copy small {
   color: #7a5a57;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .discarded-box-cancel-button {
@@ -8130,7 +8139,7 @@ input {
   min-height: 2.5rem;
   padding: 0 1.05rem;
   color: #fff;
-  font-weight: 800;
+  font-weight: 500;
   border: 0;
   border-radius: 0.42rem;
   background: #c43228;
@@ -8235,7 +8244,7 @@ input {
 .attachment-card-header strong {
   color: var(--navy-dark);
   font-size: 0.88rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .attachment-link-list {
@@ -8254,7 +8263,7 @@ input {
   padding: 0 0.72rem;
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 600;
   text-decoration: none;
   border: 1px solid #d7e2ee;
   border-radius: 0.42rem;
@@ -8288,7 +8297,7 @@ input {
   margin: 0;
   color: #7a8798;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .attachment-file-name {
@@ -8307,7 +8316,7 @@ input {
   padding: 0 0.68rem;
   border-radius: 999px;
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .status-pill.active {
@@ -8338,7 +8347,7 @@ input {
   margin: 0 0 1rem;
   color: var(--navy-dark);
   font-size: 1.05rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .form-grid {
@@ -8351,7 +8360,7 @@ input {
 .form-field {
   min-width: 0;
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .form-field.full-span {
@@ -8377,7 +8386,7 @@ input {
   padding: 0 1rem;
   color: #263449;
   font: inherit;
-  font-weight: 800;
+  font-weight: 400;
   border: 1px solid #dce4ef;
   border-radius: 0.38rem;
   outline: none;
@@ -8484,7 +8493,7 @@ input {
   right: 1rem;
   color: var(--navy-dark);
   font-style: normal;
-  font-weight: 900;
+  font-weight: 600;
   transform: translateY(-50%);
 }
 
@@ -8505,7 +8514,7 @@ input {
   gap: 0.55rem;
   margin-right: 1.9rem;
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8553,7 +8562,7 @@ input {
   margin: 0.25rem 0 0;
   color: #b42318;
   font-size: 0.9rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .form-message.success {
@@ -8571,7 +8580,7 @@ input {
 .secondary-modal-action {
   min-width: 8.6rem;
   height: 3rem;
-  font-weight: 900;
+  font-weight: 600;
   border-radius: 0.38rem;
   cursor: pointer;
 }
@@ -8603,7 +8612,7 @@ input {
   max-width: min(28rem, calc(100vw - 2rem));
   padding: 0.95rem 1.15rem;
   color: #fff;
-  font-weight: 800;
+  font-weight: 600;
   border-radius: 0.45rem;
   background: rgba(6, 31, 76, 0.95);
   box-shadow: 0 1rem 2rem rgba(8, 42, 98, 0.2);
@@ -8673,7 +8682,7 @@ input {
   margin: 0.35rem 0 0;
   color: var(--muted);
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .production-plan-heading-actions,
@@ -8701,7 +8710,7 @@ input {
   border-radius: 0.5rem;
   font: inherit;
   font-size: 0.86rem;
-  font-weight: 850;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8769,7 +8778,7 @@ input {
   border-radius: 0.45rem;
   color: var(--navy);
   font: inherit;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8797,7 +8806,7 @@ input {
   background: transparent;
   font: inherit;
   font-size: 0.86rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .production-plan-date-control input {
@@ -8824,7 +8833,7 @@ input {
 .production-plan-context label span {
   color: var(--muted);
   font-size: 0.77rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .production-plan-summary {
@@ -8857,14 +8866,14 @@ input {
 .production-plan-summary span {
   color: var(--muted);
   font-size: 0.77rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .production-plan-summary strong {
   margin-top: 0.25rem;
   color: var(--navy-dark);
   font-size: 1.4rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .production-plan-summary em {
@@ -8905,7 +8914,7 @@ input {
   background: #fff;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 850;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -8962,14 +8971,14 @@ input {
 .production-plan-detail-header span {
   color: #8592a5;
   font-size: 0.66rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .production-plan-detail-header h2 {
   margin-top: 0.08rem;
   color: var(--navy-dark);
   font-size: 1.05rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .production-plan-detail-header button {
@@ -9040,7 +9049,7 @@ input {
 .production-plan-detail-product span {
   color: #9a6b17;
   font-size: 0.66rem;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .production-plan-detail-product strong {
@@ -9054,7 +9063,7 @@ input {
   margin-top: 0.35rem;
   color: #7b899c;
   font-size: 0.66rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .production-plan-policy {
@@ -9086,7 +9095,7 @@ input {
   margin-top: 0.18rem;
   color: #8b7449;
   font-size: 0.64rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -9107,7 +9116,7 @@ input {
   margin: 0;
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .production-plan-source-badge,
@@ -9116,7 +9125,7 @@ input {
   padding: 0.2rem 0.42rem;
   border-radius: 999px;
   font-size: 0.6rem;
-  font-weight: 850;
+  font-weight: 500;
 }
 
 .production-plan-source-badge {
@@ -9169,14 +9178,14 @@ input {
 .production-plan-detail-grid span {
   color: #758398;
   font-size: 0.62rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .production-plan-detail-grid strong {
   margin-top: 0.25rem;
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -9212,7 +9221,7 @@ input {
   background: #fff;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 850;
+  font-weight: 400;
   text-align: right;
 }
 
@@ -9240,13 +9249,13 @@ input {
   color: #64748b;
   background: #f7f9fc;
   font-size: 0.61rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .production-plan-formula-guide summary {
   color: #53647a;
   cursor: pointer;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .production-plan-formula-guide p {
@@ -9273,7 +9282,7 @@ input {
   background: transparent;
   font: inherit;
   font-size: 0.86rem;
-  font-weight: 850;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -9305,14 +9314,14 @@ input {
 .production-plan-section-heading h2 {
   color: var(--navy-dark);
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .production-plan-section-heading p {
   margin-top: 0.25rem;
   color: var(--muted);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .production-plan-filter {
@@ -9365,7 +9374,7 @@ input {
   color: #4f5f75;
   background: #f6f8fb;
   font-size: 0.73rem;
-  font-weight: 900;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -9384,7 +9393,7 @@ input {
   color: #2f4057;
   background: #fff;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .production-plan-table tr[data-due="urgent"] > td:not(.production-plan-process) {
@@ -9413,7 +9422,7 @@ input {
 .production-plan-table .production-plan-process {
   color: var(--navy-dark);
   background: #f8fafc;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .production-plan-process span {
@@ -9458,7 +9467,7 @@ input {
   background: #fff;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -9556,7 +9565,7 @@ input {
 
 .production-plan-balance {
   color: #9b6d15;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .production-plan-due {
@@ -9586,7 +9595,7 @@ input {
   background: #fff;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .production-plan-table input[type="number"] {
@@ -9604,7 +9613,7 @@ input {
   margin: 0.7rem 0 0;
   color: var(--muted);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .production-plan-status[data-type="success"] {
@@ -9615,7 +9624,7 @@ input {
   gap: 0.8rem;
   color: #64748b;
   font-size: 0.72rem;
-  font-weight: 750;
+  font-weight: 500;
 }
 
 .schedule-board-legend span {
@@ -9658,7 +9667,7 @@ input {
   color: #596a80;
   background: #f6f8fb;
   font-size: 0.72rem;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .machine-schedule-label,
@@ -9751,14 +9760,14 @@ input {
 
 .machine-schedule-task strong {
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .machine-schedule-task span {
   margin-top: 0.12rem;
   color: #63748a;
   font-size: 0.63rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .machine-schedule-empty {
@@ -9782,7 +9791,7 @@ input {
   color: #5f6f84;
   background: #f8fafc;
   font-size: 0.72rem;
-  font-weight: 750;
+  font-weight: 500;
 }
 
 @media (max-width: 1100px) {
@@ -9888,7 +9897,7 @@ input {
   display: block;
   color: #718096;
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .purchase-order-summary-grid strong {
@@ -9896,7 +9905,7 @@ input {
   margin-top: 0.35rem;
   color: var(--navy-dark);
   font-size: 1.45rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .purchase-order-summary-grid em {
@@ -9987,7 +9996,7 @@ input {
   padding: 0.32rem 0.62rem;
   color: #24446d;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 500;
   border-radius: 999px;
   background: #edf3fa;
 }
@@ -10028,7 +10037,7 @@ input {
   height: 2rem;
   padding: 0 0.6rem;
   color: var(--navy-dark);
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #dce4ee;
   border-radius: 0.38rem;
   background: #fff;
@@ -10058,7 +10067,7 @@ input {
 .purchase-order-modal .modal-header p {
   margin-top: 0.28rem;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .purchase-order-modal .modal-close {
@@ -10156,7 +10165,7 @@ input {
   align-items: center;
   min-width: 0;
   color: #263449;
-  font-weight: 800;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -10325,7 +10334,7 @@ input {
   margin: 0 0 0.65rem;
   color: var(--navy-dark);
   font-size: 0.92rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .inbound-card h2,
@@ -10399,7 +10408,7 @@ input {
   padding: 0 0.75rem;
   color: #263449;
   font: inherit;
-  font-weight: 800;
+  font-weight: 600;
   border: 1px solid #dce4ef;
   border-radius: 0.38rem;
   outline: none;
@@ -10478,7 +10487,7 @@ input {
 .option-check {
   color: var(--navy-dark);
   font-size: 0.95rem;
-  font-weight: 900;
+  font-weight: 600;
   opacity: 0;
 }
 
@@ -10494,7 +10503,7 @@ input {
   padding: 0.12rem 0.42rem;
   color: #263449;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
   border-radius: 999px;
   white-space: nowrap;
@@ -10578,7 +10587,7 @@ input {
   padding: 0 0.72rem;
   color: #173868;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid #d6dfeb;
   border-radius: 0.38rem;
   background: #f7f9fc;
@@ -10861,7 +10870,7 @@ input {
   padding: 0.22rem 0.45rem;
   color: #fff;
   font-size: 0.68rem;
-  font-weight: 900;
+  font-weight: 500;
   border-radius: 999px;
   background: rgba(5, 28, 67, 0.72);
 }
@@ -10918,7 +10927,7 @@ input {
   gap: 0.28rem;
   color: #8290a4;
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 600;
   text-align: center;
 }
 
@@ -10940,7 +10949,7 @@ input {
   color: #fff;
   background: rgba(6, 31, 76, 0.84);
   font-size: 0.65rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .product-image-gallery-backdrop {
@@ -11137,19 +11146,19 @@ input {
 .inbound-summary-card dt {
   color: #536176;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .inbound-summary-card dd {
   margin: 0;
   color: var(--navy-dark);
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .inbound-summary-card dd strong {
   font-size: 0.86rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .summary-totals {
@@ -11187,12 +11196,12 @@ input {
 .summary-formula-card span {
   color: var(--navy-dark);
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .summary-formula-card strong {
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.35;
 }
 
@@ -11216,13 +11225,13 @@ input {
 .summary-order-row span {
   color: #4f5f75;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .summary-order-row strong {
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -11292,12 +11301,12 @@ input {
   margin: 0;
   color: #5f6f85;
   font-size: 0.82rem;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .summary-progress-rate {
   color: var(--gold);
-  font-weight: 950;
+  font-weight: 600;
 }
 
 .summary-progress-rate-next {
@@ -11315,14 +11324,14 @@ input {
 .summary-total > span {
   color: var(--navy-dark);
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 400;
   padding-left: 0.28rem;
 }
 
 .summary-total strong {
   color: var(--navy-dark);
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 600;
   padding-right: 0.65rem;
   white-space: nowrap;
 }
@@ -11385,7 +11394,7 @@ input {
   height: 2.35rem;
   padding-left: 2.55rem;
   font-size: 0.8rem;
-  font-weight: 900;
+  font-weight: 400;
   border-radius: 0.38rem;
   box-shadow: 0 0.25rem 0.75rem rgba(8, 42, 98, 0.04);
 }
@@ -11405,7 +11414,7 @@ input {
 .date-range-field span {
   color: #65748b;
   font-size: 0.75rem;
-  font-weight: 900;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -11416,14 +11425,14 @@ input {
   color: var(--navy-dark);
   font: inherit;
   font-size: 0.8rem;
-  font-weight: 900;
+  font-weight: 400;
   background: transparent;
 }
 
 .date-range-separator {
   color: #8b98aa;
   font-size: 0.85rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .compact-action {
@@ -11626,7 +11635,7 @@ input {
   border-radius: 0.4rem;
   background: #fff;
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -11704,7 +11713,7 @@ input {
   margin: 0.3rem 0 0;
   color: #66758a;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -11739,7 +11748,7 @@ input {
   padding: 0 0.62rem;
   color: #53647a;
   font-size: 0.74rem;
-  font-weight: 900;
+  font-weight: 500;
   border: 0;
   border-radius: 0.32rem;
   background: transparent;
@@ -11793,7 +11802,7 @@ input {
   padding: 2rem 0;
   color: #66758a;
   text-align: center;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .qr-error {
@@ -11822,7 +11831,7 @@ input {
   background: #090f19;
   color: #fff;
   font-size: 7.5pt;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -11855,7 +11864,7 @@ input {
   border-radius: 0.6mm;
   color: #111827;
   font-size: 5.8pt;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .box-qr-checks i {
@@ -11895,7 +11904,7 @@ input {
 .box-qr-meta dd {
   margin: 0;
   font-size: 6.6pt;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.15;
 }
 
@@ -12003,7 +12012,7 @@ input {
 .box-qr-work-field span {
   color: #46566b;
   font-size: 7.6pt;
-  font-weight: 900;
+  font-weight: 400;
   line-height: 1;
 }
 
@@ -12627,7 +12636,7 @@ input {
   .inbound-view .page-heading p {
     color: var(--dev-muted);
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: 400;
   }
 
   .eyebrow,
@@ -12981,7 +12990,7 @@ input {
     padding-left: 0;
     color: #526078;
     font-size: 0.74rem;
-    font-weight: 800;
+    font-weight: 400;
     line-height: 1.25;
   }
 
@@ -13458,7 +13467,7 @@ input {
   min-width: 0;
   color: #59677d;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -13514,7 +13523,7 @@ input {
 .remainder-input-copy > span {
   color: #53627a;
   font-size: 0.72rem;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .remainder-input-copy .unit-input {
@@ -13573,7 +13582,7 @@ input {
   color: #8e6517;
   background: #fffaf0;
   font-size: 0.74rem;
-  font-weight: 850;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -13649,7 +13658,7 @@ input {
 .multiple-remainder-header span {
   color: #6b778a;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .multiple-remainder-header output {
@@ -13660,7 +13669,7 @@ input {
   color: #8c641b;
   background: #fff9ec;
   font-size: 0.7rem;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .multiple-remainder-panel > .remainder-input-list {
@@ -13749,7 +13758,7 @@ input {
     margin: 0;
     color: var(--dev-navy) !important;
     font-size: 1.12rem;
-    font-weight: 900;
+    font-weight: 600;
     letter-spacing: -0.03em;
     text-transform: none;
   }
@@ -13889,7 +13898,7 @@ input {
   .product-view .product-hero span:not(.material-symbols-outlined) {
     color: #69758a;
     font-size: 0.72rem;
-    font-weight: 800;
+    font-weight: 400;
   }
 
   .product-view .product-hero-visual {
@@ -14282,7 +14291,7 @@ input {
     padding: 0 0.85rem 0 0;
     color: var(--dev-navy) !important;
     font-size: 0.82rem;
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1;
     letter-spacing: -0.025em;
     text-transform: none;
@@ -14302,7 +14311,7 @@ input {
     color: var(--dev-navy);
     border-left: 1px solid #cfd7e2;
     font-size: 1.32rem;
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1;
     letter-spacing: -0.035em;
     white-space: nowrap;
@@ -14362,7 +14371,7 @@ input {
 #inboundDetailModal:not(.is-editing) .detail-modal .modal-header p {
   margin-top: 0.28rem;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 #productDetailModal .detail-modal .modal-close,
@@ -14411,7 +14420,7 @@ input {
   margin-bottom: 0.28rem;
   color: #a87118;
   font-size: 0.7rem;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0.02em;
 }
 
@@ -14420,7 +14429,7 @@ input {
   overflow: hidden;
   color: #082e6c;
   font-size: 1.13rem;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -14435,7 +14444,7 @@ input {
   margin: 0.38rem 0 0;
   color: #6c7a8f;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .detail-overview-stats {
@@ -14464,13 +14473,13 @@ input {
 .detail-overview-stat > span {
   color: #718096;
   font-size: 0.68rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .detail-overview-stat > strong {
   color: #102f5d;
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -14503,7 +14512,7 @@ input {
   padding-left: 0.62rem;
   color: #102f5d;
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 600;
   border-left: 2px solid #d2a342;
 }
 
@@ -14552,14 +14561,14 @@ input {
 #inboundDetailModal:not(.is-editing) .detail-item > span {
   color: #718096;
   font-size: 0.7rem;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 #productDetailModal .detail-item > strong,
 #inboundDetailModal:not(.is-editing) .detail-item > strong {
   color: #23344d;
   font-size: 0.86rem;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.45;
   word-break: keep-all;
 }
@@ -14622,7 +14631,7 @@ input {
   border: 1px solid #b88322;
   background: #b88322;
   font: inherit;
-  font-weight: 900;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -14769,7 +14778,7 @@ input {
   border-radius: 0.4rem;
   color: var(--muted);
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -14953,14 +14962,14 @@ input {
 :is(#productDetailModal, .inventory-detail-layout) .product-profile { border-top: 3px solid #d2a342; }
 :is(#productDetailModal, .inventory-detail-layout) .product-profile-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 :is(#productDetailModal, .inventory-detail-layout) .product-profile-identity { min-width: 0; }
-:is(#productDetailModal, .inventory-detail-layout) .product-profile-client { margin: 0 0 .4rem; color: #65758d; font-size: .8rem; font-weight: 700; }
+:is(#productDetailModal, .inventory-detail-layout) .product-profile-client { margin: 0 0 .4rem; color: #65758d; font-size: .8rem; font-weight: 400; }
 :is(#productDetailModal, .inventory-detail-layout) .product-profile h3 { margin: 0; color: #102f5d; font-size: 1.25rem; line-height: 1.45; letter-spacing: -.025em; overflow-wrap: anywhere; }
 :is(#productDetailModal, .inventory-detail-layout) .product-profile-heading > .status-pill { flex-shrink: 0; margin-top: .15rem; }
 :is(#productDetailModal, .inventory-detail-layout) dl { margin: 0; }
 :is(#productDetailModal, .inventory-detail-layout) .product-profile-meta { display: flex; flex-wrap: wrap; gap: .6rem 1.75rem; margin-top: 1rem; padding-top: .9rem; border-top: 1px solid #edf0f5; }
 :is(#productDetailModal, .inventory-detail-layout) .product-profile-meta .product-fact { display: flex; align-items: center; gap: .65rem; }
-:is(#productDetailModal, .inventory-detail-layout) dt { color: #65758d; font-size: .76rem; font-weight: 600; }
-:is(#productDetailModal, .inventory-detail-layout) dd { margin: 0; color: #23344d; font-size: .84rem; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+:is(#productDetailModal, .inventory-detail-layout) dt { color: #65758d; font-size: .76rem; font-weight: 500; }
+:is(#productDetailModal, .inventory-detail-layout) dd { margin: 0; color: #23344d; font-size: .84rem; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
 :is(#productDetailModal, .inventory-detail-layout) .color-chip { padding: 0; font-size: inherit; }
 :is(#productDetailModal, .inventory-detail-layout) .product-profile-images { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #edf0f5; }
 :is(#productDetailModal, .inventory-detail-layout) .product-profile-images > span { flex-shrink: 0; color: #65758d; font-size: .75rem; }
@@ -14968,14 +14977,14 @@ input {
 :is(#productDetailModal, .inventory-detail-layout) .detail-product-image-list { display: flex; gap: .5rem; overflow-x: auto; min-width: 0; }
 :is(#productDetailModal, .inventory-detail-layout) .detail-product-image-list button { flex: 0 0 4.25rem; width: 4.25rem; height: 4.25rem; }
 :is(#productDetailModal, .inventory-detail-layout) .detail-product-image-list img { width: 100%; height: 100%; object-fit: contain; }
-:is(#productDetailModal, .inventory-detail-layout) .product-detail-section > h3 { margin: 0 0 .85rem; color: #102f5d; font-size: .88rem; font-weight: 800; }
+:is(#productDetailModal, .inventory-detail-layout) .product-detail-section > h3 { margin: 0 0 .85rem; color: #102f5d; font-size: .88rem; font-weight: 600; }
 :is(#productDetailModal, .inventory-detail-layout) .product-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #e0e6ee; border-radius: .5rem; background: #f8fafc; }
 :is(#productDetailModal, .inventory-detail-layout) .product-metrics > div { min-width: 0; padding: 1rem; }
 :is(#productDetailModal, .inventory-detail-layout) .product-metrics > div + div { border-left: 1px solid #e0e6ee; }
-:is(#productDetailModal, .inventory-detail-layout) .product-metrics dd { margin: .4rem 0 .2rem; color: #102f5d; font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-:is(#productDetailModal, .inventory-detail-layout) .product-metrics dd small { margin-left: .35rem; font-size: .72rem; font-weight: 600; }
+:is(#productDetailModal, .inventory-detail-layout) .product-metrics dd { margin: .4rem 0 .2rem; color: #102f5d; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+:is(#productDetailModal, .inventory-detail-layout) .product-metrics dd small { margin-left: .35rem; font-size: .72rem; font-weight: 400; }
 :is(#productDetailModal, .inventory-detail-layout) .product-metrics > div > span { color: #738197; font-size: .7rem; }
-:is(#productDetailModal, .inventory-detail-layout) .product-metric-empty { color: #8793a6; font-size: 1rem; font-weight: 600; }
+:is(#productDetailModal, .inventory-detail-layout) .product-metric-empty { color: #8793a6; font-size: 1rem; font-weight: 400; }
 :is(#productDetailModal, .inventory-detail-layout) .product-detail-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 :is(#productDetailModal, .inventory-detail-layout) .product-facts .product-fact { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: .75rem; padding: .65rem 0; border-top: 1px solid #edf0f5; align-items: baseline; }
 :is(#productDetailModal, .inventory-detail-layout) .product-facts .product-fact:last-child { padding-bottom: 0; }
@@ -15023,7 +15032,7 @@ input {
 
 /* Inventory detail uses the approved product profile layout. */
 .inventory-detail-layout { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
-.inventory-detail-layout .inventory-detail-status { flex-shrink: 0; border-radius: 1rem; padding: .4rem .85rem; color: #174b85; background: #edf4ff; font-size: .8rem; font-weight: 800; }
+.inventory-detail-layout .inventory-detail-status { flex-shrink: 0; border-radius: 1rem; padding: .4rem .85rem; color: #174b85; background: #edf4ff; font-size: .8rem; font-weight: 600; }
 .inventory-detail-layout .inventory-storage-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; padding: 1rem .25rem 0; }
 .inventory-detail-layout .inventory-storage-facts dd { margin-top: .35rem; }
 @media (max-width: 700px) {
@@ -15036,7 +15045,7 @@ input {
 .inventory-audit-bulk-toolbar { padding: .85rem 1rem; border: 1px solid #dfe7f0; border-radius: .5rem; background: #f5f8fc; }
 .inventory-audit-bulk-toolbar[hidden] { display: none; }
 .inventory-audit-bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem 1rem; }
-.inventory-audit-bulk-actions label { display: flex; align-items: center; gap: .5rem; font-weight: 800; }
+.inventory-audit-bulk-actions label { display: flex; align-items: center; gap: .5rem; font-weight: 500; }
 .inventory-audit-bulk-actions button { margin-left: auto; }
 .inventory-audit-bulk-toolbar p { margin: .6rem 0 0; color: #657489; font-size: .8rem; }
 #inventoryAuditBulkResult { white-space: pre-line; max-height: 7rem; overflow-y: auto; color: #9b342b; }
@@ -15049,13 +15058,13 @@ input {
   .inventory-audit-selectable .inventory-attention-row-meta, .inventory-audit-selectable > button { grid-column: 2; }
 }
 .inventory-audit-bulk-toolbar { margin-bottom: 1rem; }
-#inventoryAuditBulkSubmit { border: 1px solid #0b2858; border-radius: .45rem; padding: .65rem 1rem; background: #0b2858; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+#inventoryAuditBulkSubmit { border: 1px solid #0b2858; border-radius: .45rem; padding: .65rem 1rem; background: #0b2858; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
 #inventoryAuditBulkSubmit:disabled { opacity: .5; cursor: default; }
 #inventoryAuditBulkSubmit:focus-visible, .inventory-audit-row-checkbox:focus-visible { outline: 3px solid #d4a343; outline-offset: 3px; }
 
 .inventory-detail-media { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #edf0f5; }
 :is(#productDetailModal, .inventory-detail-layout) .inventory-detail-media .product-profile-images { display: flex; flex-direction: column; align-items: flex-start; gap: .75rem; margin: 0; padding: 1rem; border: 1px solid #e1e7f0; border-radius: .5rem; background: #f8fafd; }
-:is(#productDetailModal, .inventory-detail-layout) .inventory-detail-media .product-profile-images > span { color: #102f5d; font-size: .9rem; font-weight: 800; }
+:is(#productDetailModal, .inventory-detail-layout) .inventory-detail-media .product-profile-images > span { color: #102f5d; font-size: .9rem; font-weight: 400; }
 .inventory-detail-layout .product-detail-section > .attachment-card { margin-top: 1rem; }
 @media (max-width: 720px) { .inventory-detail-media { grid-template-columns: minmax(0, 1fr); } }
 
@@ -15070,7 +15079,7 @@ input {
   padding: 0;
   border: 0;
   font-size: .88rem;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.5;
   color: #102f5d;
 }
@@ -15080,10 +15089,10 @@ input {
   padding: .3rem .6rem;
   border-radius: .4rem;
   font-size: .76rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.5;
 }
-.inventory-detail-layout .inventory-audit-box-summary b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.inventory-detail-layout .inventory-audit-box-summary b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .inventory-detail-layout .inventory-audit-confirm-toolbar {
   gap: .65rem .85rem;
   margin: 0 0 1rem;
@@ -15098,7 +15107,7 @@ input {
   border-radius: .4rem;
   font-family: inherit;
   font-size: .76rem;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.5;
 }
 .inventory-detail-layout .inventory-audit-box-groups { gap: 1rem; }
@@ -15109,12 +15118,12 @@ input {
   font-size: .76rem;
   line-height: 1.5;
 }
-.inventory-detail-layout .inventory-audit-box-group > header strong { font-weight: 700; }
-.inventory-detail-layout .inventory-audit-box-group > header span { font-weight: 600; font-variant-numeric: tabular-nums; }
+.inventory-detail-layout .inventory-audit-box-group > header strong { font-weight: 600; }
+.inventory-detail-layout .inventory-audit-box-group > header span { font-weight: 400; font-variant-numeric: tabular-nums; }
 .inventory-detail-layout .inventory-audit-box-group > div { gap: .5rem; padding: .65rem; }
 .inventory-detail-layout .inventory-audit-box-card { gap: .5rem .75rem; padding: .75rem .85rem; border-color: #e0e6ee; border-radius: .4rem; }
-.inventory-detail-layout .inventory-audit-box-card strong { font-size: .84rem; font-weight: 700; line-height: 1.5; color: #23344d; }
-.inventory-detail-layout .inventory-audit-box-card span { font-size: .76rem; font-weight: 600; line-height: 1.5; color: #65758d; }
+.inventory-detail-layout .inventory-audit-box-card strong { font-size: .84rem; font-weight: 600; line-height: 1.5; color: #23344d; }
+.inventory-detail-layout .inventory-audit-box-card span { font-size: .76rem; font-weight: 400; line-height: 1.5; color: #65758d; }
 .inventory-detail-layout .inventory-audit-box-card small { font-size: .72rem; font-weight: 400; line-height: 1.5; color: #738197; }
 .inventory-detail-layout .inventory-audit-box-card > b { font-size: .72rem; font-weight: 600; }
 .inventory-detail-layout .inventory-audit-box-actions [data-inventory-audit-confirm] span { color: inherit; }
