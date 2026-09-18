@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "재고 상세 첨부 자료 배치 개선", items: ["거래명세서는 제품 이미지 옆에, 불량사진은 검수 정보에 배치했습니다."] },
   { date: "2026-09-18", title: "재고 목록 중복 합계 제거", items: ["컬럼 제목 아래의 중복 합계 줄을 제거하고 상단 재고 요약에만 합계를 표시합니다."] },
   { date: "2026-09-18", title: "미확인 재고 일괄 정리", items: ["실물 확인 현황에서 항목 선택 및 검색 결과 전체 선택", "선택한 미확인 박스만 재고 정리하고 처리 결과 표시"] },
   { date: "2026-09-18", title: "재고 상세보기 화면 구성 개선", items: [
@@ -11238,7 +11239,7 @@ function formatInventoryStorageDays(value, now = new Date()) {
 
 function renderInventoryDetailLayout(inbound, productImageUrls, remainderDetail) {
   const field = (label, value) => `<div class="product-fact"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(normalizeDisplayValue(value))}</dd></div>`;
-  const section = (title, fields) => `<section class="product-detail-section"><h3>${title}</h3><dl class="product-facts">${fields.join("")}</dl></section>`;
+  const section = (title, fields, attachment = "") => `<section class="product-detail-section"><h3>${title}</h3><dl class="product-facts">${fields.join("")}</dl>${attachment}</section>`;
   return `<div class="inventory-detail-layout">
     <section class="product-profile" aria-labelledby="inventoryDetailName">
       <div class="product-profile-heading">
@@ -11251,10 +11252,13 @@ function renderInventoryDetailLayout(inbound, productImageUrls, remainderDetail)
       <dl class="product-profile-meta">
         ${field("관리 ID", inbound.managementId)}${field("제품코드", inbound.productId)}${field("최종공정", inbound.process)}
       </dl>
-      ${productImageUrls.length ? `<div class="product-profile-images" role="group" aria-label="제품 이미지">
-        <span id="inventoryDetailProductImageTitle">제품 이미지 <b>${productImageUrls.length}</b></span>
-        <div class="detail-product-image-list">${productImageUrls.map((url, index) => `<button type="button" data-inventory-detail-product-image="${index}" aria-label="${index + 1}번째 제품 이미지 크게 보기"><img src="${escapeAttribute(url)}" alt="${escapeAttribute(inbound.productName)} 제품 이미지 ${index + 1}" loading="lazy" /></button>`).join("")}</div>
-      </div>` : ""}
+      <div class="inventory-detail-media">
+      <div class="product-profile-images" role="group" aria-label="제품 이미지">
+        <span id="inventoryDetailProductImageTitle">제품 이미지${productImageUrls.length ? ` <b>${productImageUrls.length}장</b>` : ""}</span>
+        ${productImageUrls.length ? `<div class="detail-product-image-list">${productImageUrls.map((url, index) => `<button type="button" data-inventory-detail-product-image="${index}" aria-label="${index + 1}번째 제품 이미지 크게 보기"><img src="${escapeAttribute(url)}" alt="${escapeAttribute(inbound.productName)} 제품 이미지 ${index + 1}" loading="lazy" /></button>`).join("")}</div>` : `<p class="attachment-empty">등록된 제품 이미지가 없습니다.</p>`}
+      </div>
+      ${renderAttachmentViewCard("거래명세서", inbound.invoiceFileUrl, "등록된 거래명세서가 없습니다.")}
+      </div>
     </section>
     <section class="product-detail-section" aria-labelledby="inventoryDetailCurrentTitle">
       <h3 id="inventoryDetailCurrentTitle">현재 재고</h3>
@@ -11270,12 +11274,11 @@ function renderInventoryDetailLayout(inbound, productImageUrls, remainderDetail)
     <div class="product-detail-columns">
       ${section("입고·발주 정보", [field("입고 유형", inbound.inboundType), field("입고 시간", inbound.inboundTime), field("발주명", inbound.purchaseOrderRound), field("발주 ID", inbound.purchaseOrderId), field("차수", inbound.batch)])}
       ${section("입고·포장 수량", [field("입고 총 수량", formatDetailMetric(inbound.inboundTotalQuantity, "ea")), field("박스당 수량", inbound.boxQuantity), field("완박스 수", inbound.inboundBoxCount), field("잔량", inbound.remainQuantity), ...(remainderDetail ? [field("잔량 박스별 수량", remainderDetail)] : []), field("입고 박스 수", inbound.boxTotalCount)])}
-      ${section("검수 정보", [field("검수 수량", inbound.inspectionQuantity), field("불량 수량", inbound.defectQuantity), field("불량률", inbound.defectRate), field("불량 사유", inbound.defectReason)])}
+      ${section("검수 정보", [field("검수 수량", inbound.inspectionQuantity), field("불량 수량", inbound.defectQuantity), field("불량률", inbound.defectRate), field("불량 사유", inbound.defectReason)], renderAttachmentViewCard("불량사진", inbound.defectPhotoUrls, "등록된 불량사진이 없습니다."))}
       ${section("관리 정보", [field("등록자", inbound.registrant), field("최종 재고 확인일시", inbound.lastInventoryCheckedAt)])}
     </div>
     ${renderInventoryAuditBoxStatus(inbound)}
     <section class="product-detail-section"><h3>비고</h3><p class="product-detail-note">${escapeHtml(normalizeDisplayValue(inbound.note) === "-" ? "등록된 비고가 없습니다." : inbound.note)}</p></section>
-    ${renderInboundAttachmentDetail(inbound)}
   </div>`;
 }
 
