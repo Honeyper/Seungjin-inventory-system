@@ -10878,6 +10878,20 @@ small, em {
   object-fit: contain;
 }
 
+.attachment-image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.attachment-image-list button {
+  flex: 0 0 4.25rem;
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
 @media (max-width: 760px) {
   .product-image-field {
     grid-template-columns: 1fr;

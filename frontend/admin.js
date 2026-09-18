@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "거래명세서 이미지 미리보기", items: ["재고·입고 상세와 수정 화면의 거래명세서를 썸네일로 표시하며, 클릭하면 화면 안에서 크게 볼 수 있습니다."] },
   { date: "2026-09-18", title: "최대 6도 동시 공정 설정", items: ["제품에서 함께 작업하는 도수를 묶어 저장하고, QR에는 1도+2도처럼 작업 묶음별로 표시합니다. 최종공정은 전체 도수를 유지합니다."] },
   { date: "2026-09-18", title: "확인 완료 재고 정리 지원", items: ["실물 확인 완료 박스도 상세보기에서 재고정리할 수 있으며, 장기 보관 목록에서 선택·전체 선택하여 일괄 처리할 수 있습니다."] },
   { date: "2026-09-18", title: "사출·인쇄재고 재고정리 제외 해제", items: ["사출·인쇄·자사재고를 모두 선택하여 재고정리할 수 있도록 화면과 서버의 제외 조건을 통일했습니다."] },
@@ -2094,6 +2095,12 @@ window.InventoryAuditCards?.attach(inboundDetailContent, {
   confirm: numbers => { void confirmInventoryPhysicalBoxes(numbers); }
 });
 inboundDetailContent?.addEventListener("click", (event) => {
+  const attachment = event.target.closest("[data-attachment-preview-url]");
+  if (attachment) {
+    const buttons = Array.from(attachment.closest(".attachment-image-list").querySelectorAll("[data-attachment-preview-url]"));
+    openProductImageGallery(buttons.map(button => button.dataset.attachmentPreviewUrl), "거래명세서", buttons.indexOf(attachment), "거래명세서");
+    return;
+  }
   const confirm = event.target.closest("[data-inventory-audit-confirm], [data-inventory-audit-confirm-all]");
   if (confirm) {
     if (confirm.disabled) return;
@@ -6707,7 +6714,7 @@ function updateInboundSummaryProductImage(product) {
   }
 }
 
-function openProductImageGallery(imageUrls, productName, initialIndex = 0) {
+function openProductImageGallery(imageUrls, productName, initialIndex = 0, imageLabel = "제품 이미지") {
   const urls = normalizeProductImageUrls(imageUrls).map(normalizeInboundSummaryProductImageUrl);
   if (!urls.length || !productImageGalleryModal || !productImageGalleryImage) {
     return;
@@ -6716,6 +6723,12 @@ function openProductImageGallery(imageUrls, productName, initialIndex = 0) {
   state.activeProductImageUrls = urls;
   state.activeProductImageIndex = Math.max(0, Math.min(Number(initialIndex) || 0, urls.length - 1));
   state.activeProductImageName = String(productName || "제품").trim() || "제품";
+  state.activeProductImageLabel = imageLabel;
+  state.productImageGalleryReturnFocus = document.activeElement;
+  productImageGalleryModal.querySelector(".modal-header span").textContent = imageLabel;
+  closeProductImageGalleryModalButton.setAttribute("aria-label", `${imageLabel} 닫기`);
+  previousProductImageButton.setAttribute("aria-label", `이전 ${imageLabel}`);
+  nextProductImageButton.setAttribute("aria-label", `다음 ${imageLabel}`);
   productImageGalleryModal.hidden = false;
   document.body.classList.add("modal-open");
   renderProductImageGallery();
@@ -6732,7 +6745,7 @@ function renderProductImageGallery() {
   state.activeProductImageIndex = index;
   productImageGalleryTitle.textContent = state.activeProductImageName;
   productImageGalleryImage.src = urls[index];
-  productImageGalleryImage.alt = `${state.activeProductImageName} 제품 이미지 ${index + 1}`;
+  productImageGalleryImage.alt = `${state.activeProductImageName} ${state.activeProductImageLabel || "제품 이미지"} ${index + 1}`;
   productImageGalleryCounter.textContent = `${index + 1} / ${urls.length}`;
   previousProductImageButton.hidden = urls.length < 2;
   nextProductImageButton.hidden = urls.length < 2;
@@ -6741,7 +6754,7 @@ function renderProductImageGallery() {
       class="product-image-gallery-thumbnail${thumbnailIndex === index ? " active" : ""}"
       type="button"
       data-product-gallery-index="${thumbnailIndex}"
-      aria-label="${thumbnailIndex + 1}번째 제품 이미지 보기"
+      aria-label="${thumbnailIndex + 1}번째 ${escapeAttribute(state.activeProductImageLabel || "제품 이미지")} 보기"
       aria-current="${thumbnailIndex === index ? "true" : "false"}"
     >
       <img src="${escapeAttribute(url)}" alt="" />
@@ -6767,6 +6780,8 @@ function closeProductImageGallery() {
   state.activeProductImageUrls = [];
   state.activeProductImageIndex = 0;
   state.activeProductImageName = "";
+  state.productImageGalleryReturnFocus?.focus?.({ preventScroll: true });
+  state.productImageGalleryReturnFocus = null;
   if (productModal?.hidden && productDetailModal?.hidden && inboundDetailModal?.hidden) {
     document.body.classList.remove("modal-open");
   }
@@ -11682,7 +11697,7 @@ function renderAttachmentViewCard(title, urls, emptyText) {
       <div class="attachment-card-header">
         <strong>${escapeHtml(title)}</strong>
       </div>
-      ${renderAttachmentLinks(urls, emptyText)}
+      ${title === "거래명세서" ? renderInvoicePreviews(urls, emptyText) : renderAttachmentLinks(urls, emptyText)}
     </div>
   `;
 }
@@ -11693,7 +11708,7 @@ function renderAttachmentEditCard({ title, urls, inputId, buttonId, fileNameId, 
       <div class="attachment-card-header">
         <strong>${escapeHtml(title)}</strong>
       </div>
-      ${renderAttachmentLinks(urls, emptyText)}
+      ${title === "거래명세서" ? renderInvoicePreviews(urls, emptyText) : renderAttachmentLinks(urls, emptyText)}
       <input class="visually-hidden" id="${escapeAttribute(inputId)}" type="file" accept="image/*" ${multiple ? "multiple" : ""} />
       <button class="attachment-upload-button" id="${escapeAttribute(buttonId)}" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -11706,6 +11721,26 @@ function renderAttachmentEditCard({ title, urls, inputId, buttonId, fileNameId, 
       <p class="attachment-file-name" id="${escapeAttribute(fileNameId)}">새 파일을 선택하지 않으면 기존 파일이 유지됩니다.</p>
     </div>
   `;
+}
+
+function getInvoicePreviewUrl(url, size = 600) {
+  const preview = normalizeInboundSummaryProductImageUrl(url);
+  if (/^https:\/\/drive\.google\.com\/thumbnail\?/i.test(preview)) {
+    const address = new URL(preview);
+    address.searchParams.set("sz", `w${size}`);
+    return address.href;
+  }
+  return preview;
+}
+
+function renderInvoicePreviews(urls, emptyText) {
+  const images = normalizeProductImageUrls(Array.isArray(urls) ? urls : parseAttachmentUrls(urls));
+  if (!images.length) return `<p class="attachment-empty">${escapeHtml(emptyText)}</p>`;
+  return `<div class="detail-product-image-list attachment-image-list">${images.map((url, index) => `
+    <button type="button" data-attachment-preview-url="${escapeAttribute(getInvoicePreviewUrl(url, 1600))}" aria-label="${index + 1}번째 거래명세서 크게 보기">
+      <img src="${escapeAttribute(getInvoicePreviewUrl(url))}" alt="거래명세서 ${index + 1}" loading="lazy" />
+    </button>
+  `).join("")}</div>`;
 }
 
 function renderAttachmentLinks(urls, emptyText) {
