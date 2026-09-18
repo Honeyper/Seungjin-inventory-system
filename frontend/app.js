@@ -39,6 +39,7 @@ loginForm.addEventListener("submit", (event) => {
 });
 
 async function handleLogin() {
+  if (loginButton.disabled) return;
   const accountId = accountIdInput.value.trim();
   const password = passwordInput.value.trim();
 
@@ -68,8 +69,9 @@ async function handleLogin() {
     if (window.SeungjinDataGateway?.enabled) {
       result = await window.SeungjinDataGateway.login({ accountId, password });
     } else {
-      const response = await fetch(API_URL, {
+      result = await window.SeungjinHttp.request(API_URL, {
         method: "POST",
+        timeoutMs: 65000,
         body: JSON.stringify({
           action: "login",
           payload: {
@@ -78,7 +80,6 @@ async function handleLogin() {
           }
         })
       });
-      result = await response.json();
     }
     const loginResult = result.data || result;
 

@@ -1,3 +1,4 @@
+import { readRequestBody, publicError } from "./request-errors.js";
 import {
   applyMutation,
   ShippingStateConflict,
@@ -13,12 +14,13 @@ const DEV_APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzSz-9IspdGb_wcAIUVhokQdQR0egaiR5M1sJ9PQVX5pjm_w7-FPU3gaj-cmLwjAvxvsg/exec";
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_CACHE_TTL_MS = 60 * 1000;
-const SNAPSHOT_TTL_MS = 30 * 1000;
 const FREE_DATABASE_LIMIT_BYTES = 500 * 1024 * 1024;
 const ALLOWED_ORIGINS = new Set([
   "https://honeyper.github.io",
   "http://localhost:8000",
-  "http://127.0.0.1:8000"
+  "http://127.0.0.1:8000",
+  "http://localhost:8766",
+  "http://127.0.0.1:8766"
 ]);
 const CLIENT_SAFE_ERROR_MESSAGES = new Map([
   [INVENTORY_ADJUSTMENT_CONFLICT, INVENTORY_ADJUSTMENT_CONFLICT],
@@ -732,42 +734,6 @@ async function syncDatasets(datasets: SnapshotDataset[]) {
   return Promise.all(datasets.map((dataset) => syncDataset(dataset)));
 }
 
-async function getSnapshot(dataset: SnapshotDataset) {
-  const rows = await databaseRequest(
-    `api_snapshots?dataset=eq.${dataset}&select=payload,source_refreshed_at&limit=1`
-  ) as Array<{ payload: JsonRecord; source_refreshed_at: string }>;
-  return rows?.[0] || null;
-}
-
-function refreshStaleSnapshot(dataset: SnapshotDataset, refreshedAt: string) {
-  const age = Date.now() - new Date(refreshedAt).getTime();
-  if (!Number.isFinite(age) || age <= SNAPSHOT_TTL_MS) return;
-
-  const refreshPromise = syncDataset(dataset).catch((error) => {
-    console.error(`Snapshot refresh failed for ${dataset}:`, error.message);
-  });
-  const edgeRuntime = (globalThis as typeof globalThis & {
-    EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void };
-  }).EdgeRuntime;
-  if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(refreshPromise);
-}
-
-function filterInbounds(data: JsonRecord, payload: JsonRecord) {
-  const inbounds = Array.isArray(data.inbounds) ? data.inbounds as JsonRecord[] : [];
-  const requestedStart = String(payload.startDate || payload.date || data.startDate || "2000-01-01");
-  const requestedEnd = String(payload.endDate || payload.date || requestedStart);
-  const startDate = requestedStart <= requestedEnd ? requestedStart : requestedEnd;
-  const endDate = requestedStart <= requestedEnd ? requestedEnd : requestedStart;
-  return {
-    startDate,
-    endDate,
-    inbounds: inbounds.filter((item) => {
-      const inboundDate = String(item.inboundDate || "");
-      return inboundDate >= startDate && inboundDate <= endDate;
-    })
-  };
-}
-
 async function handleLogin(request: Request, payload: JsonRecord) {
   const loginData = await fetchAppsScript("login", payload);
   if (loginData.success !== true) {
@@ -821,9 +787,7 @@ async function handleRequest(request: Request) {
     return jsonResponse(request, { ok: false, message: "유효하지 않은 애플리케이션 키입니다." }, 401);
   }
 
-  const body = await request.json() as { action?: string; payload?: JsonRecord };
-  const action = String(body.action || "");
-  const payload = body.payload || {};
+  const { action, payload } = await readRequestBody(request);
 
   if (action === "login") return handleLogin(request, payload);
   if (action === "bootstrap") return handleBootstrap(request);
@@ -916,11 +880,11 @@ Deno.serve(async (request) => {
     return await handleRequest(request);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const clientMessage = error instanceof ShippingStateConflict ? error.message : CLIENT_SAFE_ERROR_MESSAGES.get(errorMessage);
+    const clientError = publicError(error, CLIENT_SAFE_ERROR_MESSAGES, ShippingStateConflict);
     console.error("Seungjin DEV gateway error:", errorMessage);
     return jsonResponse(request, {
       ok: false,
-      message: clientMessage || "Supabase 데이터 처리 중 문제가 발생했습니다."
-    }, clientMessage ? 409 : 500);
+      message: clientError.message
+    }, clientError.status);
   }
 });

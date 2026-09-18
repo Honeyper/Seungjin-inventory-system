@@ -54,6 +54,7 @@
     returnTakenOutInventory: ["getProducts", "getInventoryDashboard"]
   };
   const pendingRefreshes = new Map();
+  const pendingReads = new Map();
 
   class GatewayError extends Error {
     constructor(message, status = 0) {
@@ -72,14 +73,14 @@
 
   function readStoredSession() {
     const storageKeys = [
-      [sessionStorage, "seungjinAdminSession"],
-      [sessionStorage, "seungjinMobileSession"],
-      [localStorage, "seungjinMobilePersistentSession"]
+      [() => sessionStorage, "seungjinAdminSession"],
+      [() => sessionStorage, "seungjinMobileSession"],
+      [() => localStorage, "seungjinMobilePersistentSession"]
     ];
 
     for (const [storage, key] of storageKeys) {
       try {
-        const session = JSON.parse(storage.getItem(key) || "null");
+        const session = JSON.parse(storage().getItem(key) || "null");
         if (hasSession(session)) return session;
       } catch (error) {
         // Keep checking other session stores when one is unavailable.
@@ -99,21 +100,13 @@
     };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const response = await fetch(config.SUPABASE_GATEWAY_URL, {
+    return window.SeungjinHttp.request(config.SUPABASE_GATEWAY_URL, {
       method: "POST",
       headers,
-      body: JSON.stringify({ action, payload })
+      body: JSON.stringify({ action, payload }),
+      readOnly: readActions.has(action),
+      timeoutMs: action === "login" ? 65000 : 45000
     });
-    let result = null;
-    try {
-      result = await response.json();
-    } catch (error) {
-      throw new GatewayError("Supabase 응답을 확인할 수 없습니다.", response.status);
-    }
-    if (!response.ok || !result?.ok) {
-      throw new GatewayError(result?.message || "Supabase 요청에 실패했습니다.", response.status);
-    }
-    return result;
   }
 
   async function login(payload) {
@@ -134,7 +127,7 @@
       try {
         await pendingRefresh;
       } catch (error) {
-        // The caller can fall back to Apps Script if the refresh failed.
+        // A failed refresh must not block the next canonical read.
       }
     }
 
@@ -142,8 +135,17 @@
     if (!session) {
       throw new GatewayError("로그인이 만료되었습니다. 다시 로그인해주세요.", 401);
     }
-    const result = await callGateway(action, payload, session.supabaseSessionToken);
-    return result.data;
+    const key = JSON.stringify([session.supabaseSessionToken, action, payload]);
+    let pendingRead = pendingReads.get(key);
+    if (!pendingRead) {
+      pendingRead = callGateway(action, payload, session.supabaseSessionToken).then((result) => result.data);
+      pendingReads.set(key, pendingRead);
+    }
+    try {
+      return await pendingRead;
+    } finally {
+      if (pendingReads.get(key) === pendingRead) pendingReads.delete(key);
+    }
   }
 
   async function requestMutation(action, payload = {}) {
@@ -154,8 +156,14 @@
     if (!session) {
       throw new GatewayError("로그인이 만료되었습니다. 다시 로그인해주세요.", 401);
     }
-    const result = await callGateway(action, payload, session.supabaseSessionToken);
-    return result.data;
+    pendingReads.clear();
+    try {
+      const result = await callGateway(action, payload, session.supabaseSessionToken);
+      return result.data;
+    } finally {
+      // Reads started before or during a write must not be reused after it finishes.
+      pendingReads.clear();
+    }
   }
 
   function refreshForMutation(action) {
@@ -165,6 +173,7 @@
     const session = readStoredSession();
     if (!session) return null;
 
+    pendingReads.clear();
     const refreshPromise = callGateway(
       "refresh",
       { actions },
@@ -172,6 +181,7 @@
     );
     actions.forEach((readAction) => pendingRefreshes.set(readAction, refreshPromise));
     const clearPendingRefresh = () => {
+      pendingReads.clear();
       actions.forEach((readAction) => {
         if (pendingRefreshes.get(readAction) === refreshPromise) {
           pendingRefreshes.delete(readAction);

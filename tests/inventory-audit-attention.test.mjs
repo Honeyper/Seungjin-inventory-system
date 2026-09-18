@@ -15,7 +15,7 @@ test("실물 확인 상세는 미확인 박스와 확인 완료 박스를 구분
   assert.doesNotMatch(adminSource, /미확인 박스가 남아 있는 재고만 표시합니다/);
   assert.match(adminSource, /미확인 .*inventoryUnconfirmedBoxCount/);
   assert.match(adminSource, /확인 완료 .*inventoryConfirmedBoxCount/);
-  assert.match(adminSource, /Number\(item\?\.inventoryAuditTargetBoxCount \|\| 0\) > 0/);
+  assert.match(adminSource, /Number\(item\?\.inventoryUnconfirmedBoxCount \|\| 0\) > 0/);
   assert.doesNotMatch(adminSource, /metric: \(item\) => `\$\{formatNumber\(item\.inventoryAdjustmentBoxCount\)\} box`/);
 });
 

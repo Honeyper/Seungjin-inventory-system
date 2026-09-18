@@ -15,6 +15,6 @@ test("신규 발주 화면은 서버 요청 전에 동일 제품과 발주명을
 
 test("Supabase 함수도 중복 발주 검증 문구를 안전하게 반환한다", () => {
   assert.match(gatewaySource, /CLIENT_SAFE_ERROR_MESSAGES/);
-  assert.match(gatewaySource, /clientMessage \? 409 : 500/);
+  assert.match(gatewaySource, /publicError\(error, CLIENT_SAFE_ERROR_MESSAGES, ShippingStateConflict\)/);
   assert.match(gatewaySource, /기존 발주를 수정하거나 다른 발주 차수를 입력해주세요/);
 });

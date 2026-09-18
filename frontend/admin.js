@@ -3,9 +3,6 @@ const MAX_INVOICE_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_DEFECT_PHOTO_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PRODUCT_IMAGE_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PRODUCT_IMAGE_COUNT = 10;
-const INVOICE_IMAGE_COMPRESSION_MIN_SIZE = 512 * 1024;
-const INVOICE_IMAGE_MAX_EDGE = 2000;
-const INVOICE_IMAGE_JPEG_QUALITY = 0.88;
 
 const DEFAULT_CLIENTS = [
   "아이원(아이텍)",
@@ -65,7 +62,7 @@ const INVENTORY_CLIENT_ACCENT_BY_KEY = {
 };
 const INVENTORY_CLIENT_FALLBACK_ACCENTS = ["#2583c5", "#7c63c6", "#2f9a78", "#d36f60", "#d39735", "#238b8f", "#c55f86"];
 
-const session = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
+const session = readAdminSession();
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v3:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const INVENTORY_DASHBOARD_CACHE_KEY = "inventory-dashboard:v2";
@@ -96,6 +93,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "통신·첨부 파일 안정성 개선", items: ["통신 대기 시간과 오류 처리를 정리하고, 사진 업로드 재시도 시 성공한 파일은 재사용합니다. 여러 사진은 폴더 생성 후 최대 2개씩 전송하며, 입력 오류의 원인을 표시합니다."] },
   { date: "2026-09-18", title: "QR 복수 공정 글자 크기 보완", items: ["1도+2도 표기를 단독 공정과 동일한 글자 크기로 표시합니다."] },
   { date: "2026-09-18", title: "거래명세서 이미지 미리보기", items: ["재고·입고 상세와 수정 화면의 거래명세서를 썸네일로 표시하며, 클릭하면 화면 안에서 크게 볼 수 있습니다."] },
   { date: "2026-09-18", title: "최대 6도 동시 공정 설정", items: ["제품에서 함께 작업하는 도수를 묶어 저장하고, QR에는 1도+2도처럼 작업 묶음별로 표시합니다. 최종공정은 전체 도수를 유지합니다."] },
@@ -2518,21 +2516,9 @@ function deleteProductionPlanRow(planRowId) {
   }
 }
 
-function isProductionPlanNonWorkingDate(dateValue) {
-  if (!dateValue) return false;
-  const date = new Date(`${dateValue}T00:00:00`);
-  const day = date.getDay();
-  return day === 0 || day === 6 || PRODUCTION_NON_WORKING_DATES.has(dateValue);
-}
-
 function getProductionPlanWorkingDays(startValue, endValue) {
   return window.SeungjinProductionPlanner.datesBetween(startValue, endValue, PRODUCTION_NON_WORKING_DATES)
     .filter(day => !day.holiday).length;
-}
-
-function ceilProductionPlanHours(value) {
-  const numeric = Number(value || 0);
-  return numeric > 0 ? Math.ceil(numeric * 2) / 2 : 0;
 }
 
 function getProductionPlanCalculations(job) {
@@ -2555,14 +2541,6 @@ function getProductionPlanCalculations(job) {
       ? source.cumulativeProduction / source.cumulativeHours : null
   });
   return { ...values, source, sameOrder, sourceDate: source?.sourceDate || "" };
-}
-
-function getProductionPlanRecommendedHours(job, calculations) {
-  if (!(calculations.hourlyRate > 0) || calculations.remaining === null) return 8;
-  const days = getProductionPlanWorkingDays(state.productionPlanDate, job.dueDate);
-  if (calculations.remaining <= calculations.hourlyRate * days * 8) return 8;
-  if (calculations.remaining <= calculations.hourlyRate * days * 9) return 9;
-  return 10;
 }
 
 async function loadProductionPlanReferenceRows(force = false) {
@@ -2917,14 +2895,6 @@ function selectProductionPlanJob(planRowId, { open = false } = {}) {
   renderProductionPlanDetail();
 }
 
-function formatProductionPlanHours(value) {
-  const numeric = Number(value || 0);
-  if (!numeric) return "입력 필요";
-  const hours = Math.floor(numeric);
-  const minutes = Math.round((numeric - hours) * 60);
-  return `${hours ? `${hours}시간` : ""}${minutes ? ` ${minutes}분` : ""}`.trim();
-}
-
 function renderProductionPlanDetail() {
   if (!productionPlanDetailBody) return;
   const job = state.productionPlanJobs.find((item) => item.planRowId === state.productionPlanSelectedJobId);
@@ -2969,11 +2939,6 @@ function renderProductionPlanDetail() {
     <section class="production-plan-detail-section"><header><h3>납기별 작업 일정</h3></header><p>${escapeHtml(job.planMessage || "")}</p>
       ${days.map(day => `<p>${day.date}${day.holiday ? " (휴일)" : ""} · ${escapeHtml(day.machine)} · ${day.shiftHours}시간 근무 · ${formatNumber(day.quantity)}ea</p>`).join("")}
     </section>`;
-}
-
-function updateProductionPlanDetailCalculations(job) {
-  updateProductionPlanTargets(state.productionPlanJobs);
-  renderProductionPlanDetail();
 }
 
 function handleProductionPlanDetailChange(event) {
@@ -4278,14 +4243,6 @@ function closeShippingHoldGuideModal() {
   ) {
     document.body.classList.remove("modal-open");
   }
-}
-
-async function registerShippingWaiting(row) {
-  if (!row) {
-    return;
-  }
-
-  openShippingWaitingConfirmModal(row);
 }
 
 async function queueShippingThenComplete(row) {
@@ -6310,30 +6267,6 @@ function formatShippingSettlementPercent(value) {
   return Math.abs(number - Math.round(number)) < 0.05 ? String(Math.round(number)) : number.toFixed(1);
 }
 
-function getShippingSettlementRows() {
-  const tbody = document.querySelector(".shipping-table tbody");
-  if (!tbody) {
-    return [];
-  }
-
-  return Array.from(tbody.querySelectorAll("tr")).filter(
-    (row) => row.children.length >= 13 && !row.querySelector(".empty-state")
-  );
-}
-
-function getShippingSettlementMetric(row, columnIndex, datasetKey) {
-  const datasetValue = datasetKey ? row.dataset?.[datasetKey] : undefined;
-  if (datasetValue != null && datasetValue !== "") {
-    return parseShippingSettlementNumber(datasetValue);
-  }
-
-  if (columnIndex < 0) {
-    return 0;
-  }
-
-  return parseShippingSettlementNumber(row.children[columnIndex]?.textContent || "");
-}
-
 function getShippingSettlementQuantity(item) {
   const currentQuantity = parseShippingSettlementNumber(item.currentTotalQuantity);
   return currentQuantity > 0 ? currentQuantity : parseShippingSettlementNumber(item.inboundTotalQuantity);
@@ -6886,50 +6819,7 @@ async function getInboundInvoicePayload() {
 }
 
 async function optimizeInboundInvoiceImage(file) {
-  const compressibleTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-  if (
-    file.size < INVOICE_IMAGE_COMPRESSION_MIN_SIZE
-    || !compressibleTypes.has(file.type)
-    || typeof createImageBitmap !== "function"
-  ) {
-    return file;
-  }
-
-  let bitmap = null;
-  try {
-    bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, INVOICE_IMAGE_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d", { alpha: false });
-    if (!context) {
-      return file;
-    }
-
-    context.fillStyle = "#fff";
-    context.fillRect(0, 0, width, height);
-    context.drawImage(bitmap, 0, 0, width, height);
-    const optimizedBlob = await new Promise((resolve) => {
-      canvas.toBlob(resolve, "image/jpeg", INVOICE_IMAGE_JPEG_QUALITY);
-    });
-    if (!optimizedBlob || optimizedBlob.size >= file.size) {
-      return file;
-    }
-
-    const optimizedName = file.name.replace(/\.[^.]+$/, "") || "거래명세서";
-    return new File([optimizedBlob], `${optimizedName}.jpg`, {
-      type: "image/jpeg",
-      lastModified: file.lastModified
-    });
-  } catch (error) {
-    console.warn("거래명세서 이미지 최적화를 건너뜁니다.", error);
-    return file;
-  } finally {
-    bitmap?.close?.();
-  }
+  return window.SeungjinAttachments.optimizeInvoice(file);
 }
 
 async function uploadInboundInvoiceFile(payload, invoiceFile) {
@@ -6948,8 +6838,7 @@ async function uploadInboundInvoiceFile(payload, invoiceFile) {
 }
 
 async function uploadInboundDefectFiles(payload, files) {
-  const urls = [];
-  for (const [index, file] of files.entries()) {
+  const urls = await window.SeungjinAttachments.uploadBatch(files, async (file, index) => {
     try {
       const result = await requestApi("uploadInboundDefectPhotos", {
         managementId: payload.managementId || "",
@@ -6960,11 +6849,11 @@ async function uploadInboundDefectFiles(payload, files) {
       });
       const url = String(result?.defectPhotoUrls || "").trim();
       if (!url) throw new Error("사진 링크를 생성하지 못했습니다.");
-      urls.push(url);
+      return url;
     } catch (error) {
       throw new Error(`불량사진 ${index + 1}/${files.length} 업로드 실패: ${error.message || "잠시 후 다시 시도해주세요."}`);
     }
-  }
+  });
   return [...new Set(urls)].join(" ");
 }
 
@@ -6982,7 +6871,9 @@ async function getFilePayloadFromInput(input, { label, maxSize }) {
     return null;
   }
 
-  return getFilePayload(file, { label, maxSize });
+  window.SeungjinAttachments.validateImage(file, { label, maxSize });
+  const uploadFile = label === "거래명세서" ? await optimizeInboundInvoiceImage(file) : file;
+  return getFilePayload(uploadFile, { label, maxSize });
 }
 
 async function getFilePayloadsFromInput(input, { label, maxSize }) {
@@ -6992,35 +6883,12 @@ async function getFilePayloadsFromInput(input, { label, maxSize }) {
     return [];
   }
 
-  return Promise.all(files.map((file) => getFilePayload(file, { label, maxSize })));
+  files.forEach(file => window.SeungjinAttachments.validateImage(file, { label, maxSize }));
+  return window.SeungjinAttachments.mapLimit(files, file => getFilePayload(file, { label, maxSize }));
 }
 
 async function getFilePayload(file, { label, maxSize }) {
-  if (!file.type.startsWith("image/")) {
-    throw new Error(`${label}는 이미지 파일만 업로드할 수 있습니다.`);
-  }
-
-  if (file.size > maxSize) {
-    throw new Error(`${label} 파일은 개별 10MB 이하로 등록해주세요.`);
-  }
-
-  const dataUrl = await readFileAsDataUrl(file);
-  const base64Data = dataUrl.split(",")[1] || "";
-
-  return {
-    name: file.name,
-    mimeType: file.type || "application/octet-stream",
-    data: base64Data
-  };
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(String(reader.result || "")));
-    reader.addEventListener("error", () => reject(new Error("파일을 읽지 못했습니다.")));
-    reader.readAsDataURL(file);
-  });
+  return window.SeungjinAttachments.readImage(file, { label, maxSize });
 }
 
 function isFileDragEvent(event) {
@@ -7217,8 +7085,7 @@ function removeProductImageSelection() {
 }
 
 async function resolveProductImageUrls(payload) {
-  const uploadedUrls = [];
-  for (const { file } of state.productImagePendingFiles) {
+  const uploadedUrls = await window.SeungjinAttachments.uploadBatch(state.productImagePendingFiles, async ({ file }) => {
     const imageFile = await getFilePayload(file, {
       label: "제품 이미지",
       maxSize: MAX_PRODUCT_IMAGE_FILE_SIZE
@@ -7233,8 +7100,8 @@ async function resolveProductImageUrls(payload) {
     if (!productImageUrl) {
       throw new Error("제품 이미지 링크를 생성하지 못했습니다.");
     }
-    uploadedUrls.push(productImageUrl);
-  }
+    return productImageUrl;
+  });
 
   const productImageUrls = normalizeProductImageUrls([...state.productImageUrls, ...uploadedUrls]);
   state.productImageUrls = productImageUrls;
@@ -9186,16 +9053,8 @@ function getInventoryAttentionDescription(type, rows, config) {
   return config.description;
 }
 
-function getInventoryBoxCountTotal(rows) {
-  return rows.reduce((sum, row) => sum + getQuantityNumberFromText(row.currentBoxCount || row.boxTotalCount), 0);
-}
-
 function isInventoryPhysicalMissing(item) {
   return Number(item?.inventoryUnconfirmedBoxCount || 0) > 0;
-}
-
-function isInventoryAuditTarget(item) {
-  return Number(item?.inventoryAuditTargetBoxCount || 0) > 0;
 }
 
 function isLongStoredInventory(item) {
@@ -9929,6 +9788,15 @@ function setInboundRefreshButtonLoading(isLoading) {
   }
 }
 
+function readAdminSession() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("seungjinAdminSession") || "null");
+    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
 async function requestApi(action, payload = {}) {
   if (window.SeungjinDataGateway?.canMutate(action)) {
     try {
@@ -9954,20 +9822,21 @@ async function requestApi(action, payload = {}) {
     }
   }
 
-  const response = await fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify({ action, payload })
-  });
-  const result = await response.json();
-
-  if (!response.ok || !result.ok) {
-    throw new Error(result.message || "API 요청에 실패했습니다.");
-  }
+  const send = async (requestPayload = payload) => {
+    const result = await window.SeungjinHttp.request(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action, payload: requestPayload }),
+      readOnly: action.startsWith("get"),
+      timeoutMs: action.startsWith("upload") ? 120000 : 65000
+    });
+    return result.data;
+  };
+  const data = await window.SeungjinAttachments.uploadOnce(action, payload, send);
 
   window.SeungjinDataGateway?.refreshForMutation(action)?.catch((error) => {
     console.warn(`Supabase ${action} 후속 동기화에 실패했습니다.`, error);
   });
-  return result.data;
+  return data;
 }
 
 function sortProductList(products, mode = "client") {
@@ -10318,22 +10187,6 @@ function closeShippingRowActionMenu(restoreFocus = false) {
   }
 }
 
-function getInboundMenuActionLabel(action) {
-  if (action === "view") {
-    return "입고 상세보기";
-  }
-
-  if (action === "edit") {
-    return "입고 수정";
-  }
-
-  if (action === "delete") {
-    return "입고 삭제";
-  }
-
-  return "입고 관리";
-}
-
 async function deleteActiveProduct() {
   if (state.isDeletingProduct || !state.activeMenuProductCode) {
     return;
@@ -10552,10 +10405,6 @@ function markInboundQrGenerated(managementId, productId, generatedCount) {
   state.filteredInventoryRows = state.filteredInventoryRows.map(updateItem);
   renderTodayInbounds();
   renderInventoryTable();
-}
-
-function getInboundQrProcessText(inbound) {
-  return inbound?.process || inbound?.finalProcess || inbound?.processStatus || "-";
 }
 
 function findInboundQrProduct(inbound, boxes = []) {
