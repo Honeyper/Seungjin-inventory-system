@@ -96,6 +96,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "재고 상세보기 화면 구성 개선", items: [
+    "재고 조회의 상세보기에 제품 상세보기 디자인을 적용하고, 현재 수량·입고일·보관기간을 상단에 모았습니다. 입고·포장·검수·관리 정보와 실물 확인 기능도 함께 확인할 수 있습니다."
+  ] },
   { date: "2026-09-18", title: "실물 미확인 목록 표시 기준 수정", items: [
     "미확인 박스가 0개인 재고는 실물 확인 현황에서 제외하고, 표시된 목록 기준으로 건수와 박스 수를 집계합니다."
   ] },
@@ -11114,6 +11117,63 @@ function renderProductDetail(product) {
   });
 }
 
+function formatInventoryStorageDays(value, now = new Date()) {
+  const date = toDateInputValue(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return "-";
+  const [, year, month, day] = match.map(Number);
+  const start = Date.UTC(year, month - 1, day);
+  const parsed = new Date(start);
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) return "-";
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const part = (type) => Number(today.find((item) => item.type === type)?.value);
+  const elapsed = Math.floor((Date.UTC(part("year"), part("month") - 1, part("day")) - start) / 86400000);
+  return elapsed < 0 ? "-" : `${formatNumber(elapsed)}일`;
+}
+
+function renderInventoryDetailLayout(inbound, productImageUrls, remainderDetail) {
+  const field = (label, value) => `<div class="product-fact"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(normalizeDisplayValue(value))}</dd></div>`;
+  const section = (title, fields) => `<section class="product-detail-section"><h3>${title}</h3><dl class="product-facts">${fields.join("")}</dl></section>`;
+  return `<div class="inventory-detail-layout">
+    <section class="product-profile" aria-labelledby="inventoryDetailName">
+      <div class="product-profile-heading">
+        <div class="product-profile-identity">
+          <p class="product-profile-client">${escapeHtml(normalizeDisplayValue(inbound.clientName))}</p>
+          <h3 id="inventoryDetailName">${escapeHtml(normalizeDisplayValue(inbound.productName))}</h3>
+        </div>
+        <span class="inventory-detail-status">${escapeHtml(normalizeDisplayValue(inbound.stockStatus))}</span>
+      </div>
+      <dl class="product-profile-meta">
+        ${field("관리 ID", inbound.managementId)}${field("제품코드", inbound.productId)}${field("최종공정", inbound.process)}
+      </dl>
+      ${productImageUrls.length ? `<div class="product-profile-images" role="group" aria-label="제품 이미지">
+        <span id="inventoryDetailProductImageTitle">제품 이미지 <b>${productImageUrls.length}</b></span>
+        <div class="detail-product-image-list">${productImageUrls.map((url, index) => `<button type="button" data-inventory-detail-product-image="${index}" aria-label="${index + 1}번째 제품 이미지 크게 보기"><img src="${escapeAttribute(url)}" alt="${escapeAttribute(inbound.productName)} 제품 이미지 ${index + 1}" loading="lazy" /></button>`).join("")}</div>
+      </div>` : ""}
+    </section>
+    <section class="product-detail-section" aria-labelledby="inventoryDetailCurrentTitle">
+      <h3 id="inventoryDetailCurrentTitle">현재 재고</h3>
+      <dl class="product-metrics">
+        <div><dt>현재 수량</dt><dd>${escapeHtml(formatDetailMetric(inbound.currentTotalQuantity, "ea"))}</dd><span>남아 있는 재고</span></div>
+        <div><dt>현재 박스 수</dt><dd>${escapeHtml(formatDetailMetric(inbound.currentBoxCount, "box"))}</dd><span>남아 있는 박스</span></div>
+        <div><dt>보관 위치</dt><dd>${escapeHtml(normalizeDisplayValue(inbound.storage))}</dd><span>현재 보관 장소</span></div>
+      </dl>
+      <dl class="inventory-storage-facts">
+        ${field("입고일", inbound.inboundDate)}${field("보관기간 (입고일 기준)", formatInventoryStorageDays(inbound.inboundDate))}${field("납기일", inbound.dueDate)}
+      </dl>
+    </section>
+    <div class="product-detail-columns">
+      ${section("입고·발주 정보", [field("입고 유형", inbound.inboundType), field("입고 시간", inbound.inboundTime), field("발주명", inbound.purchaseOrderRound), field("발주 ID", inbound.purchaseOrderId), field("차수", inbound.batch)])}
+      ${section("입고·포장 수량", [field("입고 총 수량", formatDetailMetric(inbound.inboundTotalQuantity, "ea")), field("박스당 수량", inbound.boxQuantity), field("완박스 수", inbound.inboundBoxCount), field("잔량", inbound.remainQuantity), ...(remainderDetail ? [field("잔량 박스별 수량", remainderDetail)] : []), field("입고 박스 수", inbound.boxTotalCount)])}
+      ${section("검수 정보", [field("검수 수량", inbound.inspectionQuantity), field("불량 수량", inbound.defectQuantity), field("불량률", inbound.defectRate), field("불량 사유", inbound.defectReason)])}
+      ${section("관리 정보", [field("등록자", inbound.registrant), field("최종 재고 확인일시", inbound.lastInventoryCheckedAt)])}
+    </div>
+    ${renderInventoryAuditBoxStatus(inbound)}
+    <section class="product-detail-section"><h3>비고</h3><p class="product-detail-note">${escapeHtml(normalizeDisplayValue(inbound.note) === "-" ? "등록된 비고가 없습니다." : inbound.note)}</p></section>
+    ${renderInboundAttachmentDetail(inbound)}
+  </div>`;
+}
+
 function renderInboundDetail(inbound) {
   const isInventoryDetail = state.activeDetailInboundSource === "inventory";
   const inventoryProduct = isInventoryDetail ? findInboundQrProduct(inbound) : null;
@@ -11128,7 +11188,9 @@ function renderInboundDetail(inbound) {
     .map((value, index) => `${index + 1}번 ${Number(value).toLocaleString("ko-KR")} ea`)
     .join(", ");
 
-  inboundDetailContent.innerHTML = `
+  inboundDetailContent.innerHTML = isInventoryDetail
+    ? renderInventoryDetailLayout(inbound, productImageUrls, remainderQuantities.length > 1 ? remainderDetail : "")
+    : `
     ${renderDetailOverview({
       label: isInventoryDetail ? "재고 제품" : "입고 제품",
       title: inbound.productName,
