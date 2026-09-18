@@ -29,7 +29,7 @@ function setup({ failure = '', changed = false, cancel = false, readFail = false
       const result=applyMutation(action,payload,db); db=result.state; return result.result;
     }
   });
-  for(const name of ['normalizeInventoryStockStatus','isProtectedInventoryAuditBox','getInventoryAuditEligibleBoxes','getInventoryAuditTargetBoxes','getInventoryAuditSelectionKey','getInventoryAuditSelectionSnapshot','renderInventoryAuditBulkControls','saveInventoryAuditBulk']) {
+  for(const name of ['normalizeInventoryStockStatus','isProtectedInventoryAuditBox','getInventoryPhysicalConfirmationBoxes','getInventoryAuditEligibleBoxes','getInventoryAuditTargetBoxes','getInventoryAuditSelectionKey','getInventoryAuditSelectionSnapshot','renderInventoryAuditBulkControls','saveInventoryAuditBulk']) {
     const match=source.match(new RegExp(`^(?:async )?function ${name}\\([^]*?\\n\\}`,'m')); assert.ok(match,name);vm.runInContext(match[0],app);
   }
   for(const row of app.state.inventoryRows) app.state.inventoryAuditSelection.set(app.getInventoryAuditSelectionKey(row),app.getInventoryAuditSelectionSnapshot(row));

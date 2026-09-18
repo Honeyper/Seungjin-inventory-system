@@ -10,7 +10,7 @@ const normalize = value => String(value ?? '').replace(/\s+/g, '').toLowerCase()
 function ui() {
   const context = vm.createContext({ normalizeSearchText: normalize, normalizeScanValue: normalize,
     parseShippingSettlementNumber: Number, mergeShippingBoxDraft: x => x, normalizeInventoryProcessStatus: x => x });
-  for (const name of ['normalizeInventoryStockStatus', 'isProtectedInventoryAuditBox', 'getInventoryAuditEligibleBoxes', 'getInventoryAuditTargetBoxes', 'normalizeInventoryRows']) vm.runInContext(extract(admin, name), context);
+  for (const name of ['normalizeInventoryStockStatus', 'isProtectedInventoryAuditBox', 'getInventoryPhysicalConfirmationBoxes','getInventoryAuditEligibleBoxes', 'getInventoryAuditTargetBoxes', 'normalizeInventoryRows']) vm.runInContext(extract(admin, name), context);
   vm.runInContext(extract(mobile, 'isProtectedInventoryAdjustmentBox'), context);
   return context;
 }
@@ -54,4 +54,42 @@ test('cached counters are recalculated and confirmed hold/discard boxes are excl
   assert.equal(server.inventoryConfirmedBoxCount,1);
   assert.equal(server.inventoryUnconfirmedBoxCount,4);
   assert.equal(cached.inventoryAuditTargetBoxCount,9);
+});
+
+test('eight own-stock boxes remain physically confirmable while inventory adjustment stays blocked', () => {
+  const h = ui();
+  const boxes = Array.from({length: 8}, (_, index) => ({ ...record, boxId: `B${index+1}`, number: index+1,
+    quantity: 320, status: '보관', inventoryCategory: '자사재고' }));
+  boxes.push({ ...record, boxId: 'B9', number: 9, quantity: 0, status: '출고완료' });
+  const state = {products: [], orders: [], inbounds: [], records: [record], boxes};
+  const row = h.normalizeInventoryRows(buildInventoryDashboard([record], boxes).rows)[0];
+  assert.equal(row.inventoryUnconfirmedBoxCount, 8);
+  assert.equal(row.inventoryConfirmedBoxCount, 0);
+  assert.equal(row.inventoryAuditTargetBoxCount, 0);
+  assert.equal(h.getInventoryAuditTargetBoxes(row).length, 0);
+  Object.assign(h, {state: {}, formatNumber: String, escapeHtml: String, normalizeDisplayValue: String});
+  vm.runInContext(extract(admin, 'renderInventoryAuditBoxStatus'), h);
+  const html = h.renderInventoryAuditBoxStatus(row);
+  assert.equal((html.match(/data-inventory-audit-confirm="/g) || []).length, 8);
+  assert.doesNotMatch(html, /data-inventory-audit-box=/);
+  const result = applyMutation('adjustMissingInventory', {confirmationOnly: true, confirmedBoxes: [{...record, selectedBoxes: [1,2,3,4,5,6,7,8]}]}, state);
+  assert.equal(result.result.confirmedBoxRows, 8);
+  assert.equal(result.result.updatedBoxRows, 0);
+  const confirmed = buildInventoryDashboard(result.state.records, result.state.boxes).rows[0];
+  assert.equal(confirmed.inventoryConfirmedBoxCount, 8);
+  assert.equal(confirmed.inventoryUnconfirmedBoxCount, 0);
+  assert.equal(confirmed.inventoryAuditTargetBoxCount, 0);
+  assert.equal(confirmed.currentTotalQuantity, '2,560 ea');
+  assert.deepEqual(result.state.boxes.map(b => [b.quantity, b.status, b.inventoryCategory]), boxes.map(b => [b.quantity, b.status, b.inventoryCategory]));
+});
+
+test('physical confirmation includes injection, printing and waiting stock but excludes hold/discard/shipped', () => {
+  const h = ui();
+  const boxes = ['사출재고', '인쇄재고', '출고대기', '보류', '폐기', '출고완료'].map((status,index) => ({...record, boxId:`B${index+1}`, number:index+1,quantity:100,status}));
+  const dashboard = buildInventoryDashboard([record], boxes);
+  const row = h.normalizeInventoryRows(dashboard.rows)[0];
+  assert.deepEqual(Array.from(h.getInventoryPhysicalConfirmationBoxes(row), b => b.number), [1,2,3]);
+  assert.deepEqual(Array.from(h.getInventoryAuditTargetBoxes(row), b => b.number), [3]);
+  assert.equal(dashboard.attention.physicalMissingCount, 3);
+  assert.equal(row.inventoryUnconfirmedBoxCount, 3);
 });

@@ -99,6 +99,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "자사재고 실물 확인 표시 수정", items: ["자사·사출·인쇄재고의 실물 확인과 미확인 집계를 표시하며, 재고정리 제외 기준은 유지합니다."] },
   { date: "2026-09-18", title: "재고 보관 위치 변경 오류 수정", items: ["수량 변경 없이 보관 위치를 수정할 때 기존 박스 수량과 출고·재고 처리 이력을 유지하도록 수정했습니다."] },
   { date: "2026-09-18", title: "재고 화면 안내 문구 정리", items: ["재고 상세와 실물 확인 현황의 반복 안내 문구를 제거했습니다."] },
   { date: "2026-09-18", title: "실물 확인 영역 디자인 통일", items: ["실물 확인 제목, 상태 표시, 박스 카드와 버튼의 글자 및 여백을 재고 상세보기와 통일했습니다."] },
@@ -4635,7 +4636,7 @@ function isProtectedInventoryAuditBox(item, box) {
     || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
 }
 
-function getInventoryAuditEligibleBoxes(item) {
+function getInventoryPhysicalConfirmationBoxes(item) {
   const activeBoxes = Array.isArray(item?.activeShippingBoxes) && item.activeShippingBoxes.length
     ? item.activeShippingBoxes
     : Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : [];
@@ -4644,8 +4645,7 @@ function getInventoryAuditEligibleBoxes(item) {
     .filter((box) => {
       const status = normalizeInventoryStockStatus(box?.rawStatus || box?.status || "보관");
       return parseShippingSettlementNumber(box?.quantity) > 0
-        && !/출고완료|폐기|보류/.test(status)
-        && !isProtectedInventoryAuditBox(item, box);
+        && !/출고완료|폐기|보류/.test(status);
     })
     .map((box, index) => ({
       ...box,
@@ -4654,6 +4654,11 @@ function getInventoryAuditEligibleBoxes(item) {
     }))
     .filter((box) => Number.isFinite(box.number) && box.number > 0)
     .sort((left, right) => left.number - right.number);
+}
+
+function getInventoryAuditEligibleBoxes(item) {
+  return getInventoryPhysicalConfirmationBoxes(item)
+    .filter((box) => !isProtectedInventoryAuditBox(item, box));
 }
 
 function getInventoryAuditTargetBoxes(item) {
@@ -9266,8 +9271,8 @@ function normalizeInventoryRows(rows) {
       processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
     });
     if (Array.isArray(row.activeShippingBoxes) || Array.isArray(row.allShippingBoxes)) {
-      const auditBoxes = getInventoryAuditEligibleBoxes(row);
-      row.inventoryAuditTargetBoxCount = auditBoxes.length;
+      const auditBoxes = getInventoryPhysicalConfirmationBoxes(row);
+      row.inventoryAuditTargetBoxCount = getInventoryAuditEligibleBoxes(row).length;
       row.inventoryConfirmedBoxCount = auditBoxes.filter((box) => String(box.lastInventoryCheckedAt || "").trim()).length;
       row.inventoryUnconfirmedBoxCount = auditBoxes.length - row.inventoryConfirmedBoxCount;
     }
@@ -12126,7 +12131,8 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
   if (state.isSavingInventoryConfirmation) return;
   const item = getInventoryRecordByManagementId(state.activeDetailInboundId, state.activeDetailInboundProductId);
   const selected = new Set(boxNumbers.map(Number));
-  const boxes = getInventoryAuditTargetBoxes(item).filter((box) => selected.has(box.number));
+  const boxes = getInventoryPhysicalConfirmationBoxes(item)
+    .filter((box) => !String(box.lastInventoryCheckedAt || "").trim() && selected.has(box.number));
   if (!item || !boxes.length) {
     showToast('실물 확인할 미확인 박스가 없습니다.');
     return;
@@ -12170,7 +12176,7 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
           if (confirmed.has(Number(box.number))) box.lastInventoryCheckedAt = result.inventoryCheckedAt;
         });
       }
-      const eligible = getInventoryAuditEligibleBoxes(item);
+      const eligible = getInventoryPhysicalConfirmationBoxes(item);
       item.inventoryConfirmedBoxCount = eligible.filter((box) => String(box.lastInventoryCheckedAt || '').trim()).length;
       item.inventoryUnconfirmedBoxCount = eligible.length - item.inventoryConfirmedBoxCount;
       renderCurrent(item);
@@ -12196,7 +12202,7 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
 }
 
 function renderInventoryAuditBoxStatus(inbound) {
-  const boxes = getInventoryAuditEligibleBoxes(inbound);
+  const boxes = getInventoryPhysicalConfirmationBoxes(inbound);
   const unconfirmedBoxes = boxes.filter((box) => !String(box.lastInventoryCheckedAt || "").trim());
   const confirmedBoxes = boxes.filter((box) => String(box.lastInventoryCheckedAt || "").trim());
   const renderBox = (box, isConfirmed) => `
@@ -12209,7 +12215,7 @@ function renderInventoryAuditBoxStatus(inbound) {
       <b>${isConfirmed ? "확인 완료" : "미확인"}</b>
       ${isConfirmed ? "" : `
         <div class="inventory-audit-box-actions">
-          <button type="button" data-inventory-audit-box="${box.number}">재고 정리</button>
+          ${isProtectedInventoryAuditBox(inbound, box) ? "" : `<button type="button" data-inventory-audit-box="${box.number}">재고 정리</button>`}
           <button type="button" data-inventory-audit-confirm="${box.number}" aria-label="${box.number}번 박스 실물 확인">실물 확인 <span aria-hidden="true">→</span></button>
         </div>
       `}
