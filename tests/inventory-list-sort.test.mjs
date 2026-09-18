@@ -40,11 +40,11 @@ test('actual renderer sorts all filtered records before paging and keeps totals 
  const state={filteredInventoryRows:[...rows],inventoryPage:2,inventoryPageSize:2,inventoryFilters:{},inventoryRows:rows};
  const body={innerHTML:'',querySelectorAll:()=>[]};let totals;
  const ctx=vm.createContext({state,inventoryTableBody:body,inventoryCountLabel:{},inventoryColumnSort:{sort},
- renderInventoryListTotals:r=>totals=r,renderInventoryAggregateRow:()=>'<tr>SUM</tr>',
+ renderInventoryListTotals:r=>totals=r,
  renderQrActionButton:()=>'',escapeHtml:String,escapeAttribute:String,renderInventoryProcessBadge:()=>'',renderInventoryDueBadge:()=>'',renderInventoryPagination:()=>{}});
  vm.runInContext(fn,ctx);ctx.renderInventoryTable();
  assert.equal(totals.length,4);
- assert.match(body.innerHTML,/^<tr>SUM<\/tr>/);
+ assert.equal((body.innerHTML.match(/<tr>/g) || []).length, 2);
  assert.ok(body.innerHTML.indexOf('<strong>IN-10</strong>') < body.innerHTML.indexOf('<strong>IN-1</strong>'));
  assert.ok(!body.innerHTML.includes('<strong>IN-3</strong>'));
 });
