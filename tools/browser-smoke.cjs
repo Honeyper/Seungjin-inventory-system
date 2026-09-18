@@ -17,6 +17,21 @@ async function installFixtures(context, state) {
     if (url.origin !== origin) return route.abort();
     if (url.pathname.startsWith('/api/')) {
       const { action, payload } = route.request().postDataJSON();
+      if (state.inventory && ['getInventoryDashboard', 'getInventoryVersion', 'adjustMissingInventory'].includes(action)) {
+        const engine = await import('../supabase/functions/seungjin-dev-gateway/state-engine.js');
+        let data;
+        if (action === 'adjustMissingInventory') {
+          state.confirmations.push(payload);
+          const mutation = engine.applyMutation(action, payload, state.inventory, state.now);
+          state.inventory = mutation.state;
+          state.version++;
+          data = mutation.result;
+        } else if (action === 'getInventoryDashboard') {
+          state.inventoryReads++;
+          data = engine.buildInventoryDashboard(state.inventory.records, state.inventory.boxes, [], state.now);
+        } else data = {};
+        return route.fulfill({ json: { ok: true, data: { ...data, stateVersion: state.version } } });
+      }
       if (action === 'login') {
         state.loginCalls++;
         await new Promise(resolve => setTimeout(resolve, 30));
@@ -104,6 +119,38 @@ async function verifyPartialUpload(page, fixture) {
   assert.deepEqual(fixture.uploads, ['1.png', '2.png', '3.png', '2.png']);
 }
 
+async function verifyMonthlyConfirmation(page, fixture) {
+  const record = { managementId: 'MONTHLY-UI', productId: 'P1', productName: '월간 확인 테스트', clientName: 'Fixture', storage: 'A', inboundDate: '2026-08-18' };
+  fixture.inventory = { products: [], orders: [], inbounds: [], records: [record], boxes: [
+    { ...record, boxId: 'B1', number: 1, quantity: 100, status: '보관', lastInventoryCheckedAt: '2026-08-18 14:20:30' },
+    { ...record, boxId: 'B2', number: 2, quantity: 100, status: '출고대기' },
+    { ...record, boxId: 'B3', number: 3, quantity: 100, status: '출고완료' }
+  ] };
+  fixture.now = new Date('2026-09-18T05:20:29Z');
+  fixture.version = 12;
+  fixture.inventoryReads = 0;
+  fixture.confirmations = [];
+  await page.clock.setSystemTime(fixture.now);
+  await page.goto(`${origin}/admin.html#inventory`);
+  await page.waitForFunction(() => state.inventoryRows.some(row => row.managementId === 'MONTHLY-UI'));
+  assert.equal((await page.locator('#inventoryPhysicalMissing').textContent()).trim(), '0');
+  await page.locator('[data-inventory-detail="MONTHLY-UI"]').click();
+  assert.equal(await page.locator('.inventory-audit-box-card.confirmed').count(), 1);
+  assert.equal(await page.locator('.inventory-audit-box-card.unconfirmed').count(), 0);
+  fixture.now = new Date('2026-09-18T05:21:31Z');
+  const reads = fixture.inventoryReads;
+  await page.clock.runFor(62000);
+  assert.equal((await page.locator('#inventoryPhysicalMissing').textContent()).trim(), '1');
+  assert.equal(await page.locator('.inventory-audit-box-card.unconfirmed').count(), 1);
+  assert.equal(await page.locator('.inventory-audit-box-card.confirmed').count(), 0);
+  assert.equal(fixture.inventoryReads, reads); // Expiry works without a data version change or full read.
+  await page.locator('[data-inventory-audit-confirm-all]').click();
+  await page.waitForFunction(() => !state.isSavingInventoryConfirmation && document.querySelectorAll('.inventory-audit-box-card.confirmed').length === 1);
+  assert.equal((await page.locator('#inventoryPhysicalMissing').textContent()).trim(), '0');
+  assert.deepEqual(fixture.confirmations[0].confirmedBoxes[0].selectedBoxes, [1]);
+  assert.deepEqual(fixture.inventory.boxes.map(box => [box.status, box.quantity]), [['보관', 100], ['출고대기', 100], ['출고완료', 100]]);
+}
+
 async function measureBatch(page) {
   return page.evaluate(async () => {
     const items = Array.from({ length: 10 }, (_, index) => index);
@@ -127,9 +174,11 @@ async function main() {
     const errors = [];
     await installFixtures(context, fixture);
     const page = await context.newPage();
+    await page.clock.install({ time: new Date('2026-09-18T05:20:20Z') });
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    await verifyMonthlyConfirmation(page, fixture);
     await verifyPartialUpload(page, fixture);
     const timing = await measureBatch(page);
 
@@ -143,7 +192,7 @@ async function main() {
     assert.equal(fixture.loginCalls, 2);
     await page.setViewportSize({ width: 390, height: 844 });
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
+    console.log(JSON.stringify({ passed: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
   } finally {
     await browser.close();
   }

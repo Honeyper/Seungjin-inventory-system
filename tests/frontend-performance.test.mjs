@@ -113,6 +113,7 @@ test("a missing exact box ID cannot fall back to another box with the same numbe
 test("administrator inventory also tags fetched rows with the version checked before the read", async () => {
   let applied;
   const app = loadFunctions(adminSource, ["loadInventoryDashboardRequest"], {
+    refreshInventoryConfirmationStatus() {},
     state: { inventoryLoaded: true, inventoryStateVersion: 1 },
     window: { SeungjinDataGateway: { canRead: () => true } },
     requestApi: async (action) => action === "getInventoryVersion" ? { stateVersion: 2 } : { rows: [], stateVersion: 3 },
@@ -128,6 +129,7 @@ test("old administrator caches are displayed but their unverified version cannot
   for (const verified of [false, true]) {
     let fullReads = 0;
     const app = loadFunctions(adminSource, ["loadInventoryDashboardRequest"], {
+    refreshInventoryConfirmationStatus() {},
       state: { inventoryLoaded: false, inventoryStateVersion: null },
       window: { SeungjinDataGateway: { canRead: () => true } },
       readAdminLargeCache: async () => ({ rows: [], stateVersion: 2, versionCheckedBeforeRead: verified }),

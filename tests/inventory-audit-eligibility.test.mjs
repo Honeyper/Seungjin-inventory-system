@@ -8,9 +8,9 @@ const mobile = fs.readFileSync(new URL('../frontend/mobile/mobile.js', import.me
 const extract = (source, name) => source.slice(source.indexOf(`function ${name}(`), source.indexOf('\n}', source.indexOf(`function ${name}(`)) + 2);
 const normalize = value => String(value ?? '').replace(/\s+/g, '').toLowerCase();
 function ui() {
-  const context = vm.createContext({ normalizeSearchText: normalize, normalizeScanValue: normalize,
+  const context = vm.createContext({ window: { SeungjinInventoryConfirmation: globalThis.SeungjinInventoryConfirmation }, normalizeSearchText: normalize, normalizeScanValue: normalize,
     parseShippingSettlementNumber: Number, mergeShippingBoxDraft: x => x, normalizeInventoryProcessStatus: x => x });
-  for (const name of ['normalizeInventoryStockStatus', 'isProtectedInventoryAuditBox', 'getInventoryPhysicalConfirmationBoxes','getInventoryAuditEligibleBoxes', 'getInventoryAuditTargetBoxes', 'normalizeInventoryRows']) vm.runInContext(extract(admin, name), context);
+  for (const name of ['isInventoryBoxConfirmed', 'normalizeInventoryStockStatus', 'isProtectedInventoryAuditBox', 'getInventoryPhysicalConfirmationBoxes','getInventoryAuditEligibleBoxes', 'getInventoryAuditTargetBoxes', 'normalizeInventoryRows']) vm.runInContext(extract(admin, name), context);
   vm.runInContext(extract(mobile, 'isProtectedInventoryAdjustmentBox'), context);
   return context;
 }
@@ -44,8 +44,8 @@ test('PC and mobile include every inventory category and exclude hold, discard a
 });
 test('cached counters are recalculated and confirmed hold/discard boxes are excluded on both sides', () => {
   const h=ui(), boxes=fixture();
-  for(const n of [1,2,3,7]) boxes[n-1].lastInventoryCheckedAt='2026-09-17 12:00:00';
-  boxes.push({...record,number:9,quantity:100,status:'폐기',lastInventoryCheckedAt:'2026-09-17 12:00:00'});
+  for(const n of [1,2,3,7]) boxes[n-1].lastInventoryCheckedAt=new Date().toISOString();
+  boxes.push({...record,number:9,quantity:100,status:'폐기',lastInventoryCheckedAt:new Date().toISOString()});
   const cached={...record,activeShippingBoxes:boxes,inventoryAuditTargetBoxCount:9,inventoryConfirmedBoxCount:5,inventoryUnconfirmedBoxCount:4};
   const [row]=h.normalizeInventoryRows([cached]);
   assert.equal(row.inventoryAuditTargetBoxCount,5);
@@ -88,15 +88,15 @@ test('eight own-stock boxes are selectable for cleanup and remain physically con
   assert.deepEqual(result.state.boxes.map(b => [b.quantity, b.status, b.inventoryCategory]), boxes.map(b => [b.quantity, b.status, b.inventoryCategory]));
 });
 
-test('physical confirmation includes injection, printing and waiting stock but excludes hold/discard/shipped', () => {
+test('physical confirmation excludes waiting stock while cleanup continues to include it', () => {
   const h = ui();
   const boxes = ['사출재고', '인쇄재고', '출고대기', '보류', '폐기', '출고완료'].map((status,index) => ({...record, boxId:`B${index+1}`, number:index+1,quantity:100,status}));
   const dashboard = buildInventoryDashboard([record], boxes);
   const row = h.normalizeInventoryRows(dashboard.rows)[0];
-  assert.deepEqual(Array.from(h.getInventoryPhysicalConfirmationBoxes(row), b => b.number), [1,2,3]);
+  assert.deepEqual(Array.from(h.getInventoryPhysicalConfirmationBoxes(row), b => b.number), [1,2]);
   assert.deepEqual(Array.from(h.getInventoryAuditTargetBoxes(row), b => b.number), [1,2,3]);
-  assert.equal(dashboard.attention.physicalMissingCount, 3);
-  assert.equal(row.inventoryUnconfirmedBoxCount, 3);
+  assert.equal(dashboard.attention.physicalMissingCount, 2);
+  assert.equal(row.inventoryUnconfirmedBoxCount, 2);
 });
 
 test('classified stock can be selected, cleaned up and retried through PC and mobile mutations', () => {

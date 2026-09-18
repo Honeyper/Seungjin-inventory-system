@@ -20,7 +20,7 @@ function runtime() {
     closeInventoryAttentionModalButton: null, document: { querySelector: () => null, body: { classList: { add() {} } } },
     window: { setTimeout() {} }, resetModalScrollPosition() {},
     isInventoryUnspecifiedStorageTarget: () => true, isLongStoredInventory: () => false,
-    renderInventoryAuditBulkControls() {},
+    renderInventoryAuditBulkControls() {}, refreshInventoryConfirmationStatus() {},
     renderInventoryAttentionRow: item => item.managementId,
     formatNumber: value => Number(value || 0).toLocaleString("ko-KR")
   });

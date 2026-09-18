@@ -12,13 +12,14 @@ function harness({fail=false,refresh=true}={}) {
  const section={outerHTML:''};const message={textContent:''};const calls=[];const notices=[];
  const context=vm.createContext({state:{activeDetailInboundId:'IN-TEST',activeDetailInboundProductId:'P1',activeDetailInboundSource:'inventory'},
   inboundDetailModal:{hidden:false},inboundDetailContent:{querySelector:selector=>selector==='.inventory-audit-box-section'?section:message},
-  getInventoryRecordByManagementId:()=>item,getInventoryAuditTargetBoxes:()=>boxes.filter(b=>!b.lastInventoryCheckedAt),getInventoryPhysicalConfirmationBoxes:()=>boxes,
+  getInventoryRecordByManagementId:()=>item,getInventoryAuditTargetBoxes:()=>boxes.filter(b=>!b.lastInventoryCheckedAt),getInventoryPhysicalConfirmationBoxes:()=>boxes.filter(globalThis.SeungjinInventoryConfirmation.isEligible),
+  isInventoryBoxConfirmed:box=>globalThis.SeungjinInventoryConfirmation.isConfirmed(box),
   updateInventoryAuditConfirmControls:()=>{},renderInventoryAuditBoxStatus:record=>JSON.stringify(record),normalizeInboundDetailRecord:x=>x,
   signedInAdminName:'담당자',formatNumber:String,showToast:t=>notices.push(t),loadInventoryDashboard:async()=>refresh,
   requestApi:async(action,payload)=>{calls.push({action,payload});if(fail)throw new Error('연결 실패');return {confirmedBoxRows:payload.confirmedBoxes[0].selectedBoxes.length,inventoryCheckedAt:'2026-09-16 10:00:00'};}});
  vm.runInContext(code,context);return {context,boxes,calls,notices,section};
 }
-for(const numbers of [[2],[1,2,3]]) test(`PC confirmation saves only selected boxes ${numbers}`,async()=>{
+for(const numbers of [[1],[1,3]]) test(`PC confirmation saves only selected boxes ${numbers}`,async()=>{
  const h=harness();await h.context.confirmInventoryPhysicalBoxes(numbers);
  assert.equal(h.calls.length,1);const {action,payload}=h.calls[0];
  assert.equal(action,'adjustMissingInventory');assert.equal(payload.confirmationOnly,true);assert.equal(payload.adjustments.length,0);
@@ -43,9 +44,9 @@ test('empty selection and double click do not send an extra mutation',async()=>{
 test('canonical confirmation only preserves quantities and shipping status, even with adjustment data',()=>{
  const boxes=makeBoxes();const before=structuredClone(boxes);
  const state={products:[],orders:[],inbounds:[],records:[{managementId:'IN-TEST',productId:'P1',storage:'A'}],boxes};
- const mutation=applyMutation('adjustMissingInventory',{confirmationOnly:true,confirmedBoxes:[{managementId:'IN-TEST',productId:'P1',selectedBoxes:[1,2]}],adjustments:[{managementId:'IN-TEST',productId:'P1',selectedBoxes:[3]}]},state,new Date('2026-09-16T01:00:00Z'));
- assert.equal(mutation.result.confirmedBoxRows,2);assert.equal(mutation.result.updatedBoxRows,0);
- for(const box of mutation.state.boxes){const original=before.find(b=>b.boxId===box.boxId);const {lastInventoryCheckedAt,...rest}=box;assert.deepEqual(rest,original);assert.equal(Boolean(lastInventoryCheckedAt),box.number<3);}
- const dashboard=buildInventoryDashboard(mutation.state.records,mutation.state.boxes);
- assert.equal(dashboard.rows[0].inventoryConfirmedBoxCount,2);assert.equal(dashboard.rows[0].inventoryUnconfirmedBoxCount,1);
+ const mutation=applyMutation('adjustMissingInventory',{confirmationOnly:true,confirmedBoxes:[{managementId:'IN-TEST',productId:'P1',selectedBoxes:[1]}],adjustments:[{managementId:'IN-TEST',productId:'P1',selectedBoxes:[3]}]},state,new Date('2026-09-16T01:00:00Z'));
+ assert.equal(mutation.result.confirmedBoxRows,1);assert.equal(mutation.result.updatedBoxRows,0);
+ for(const box of mutation.state.boxes){const original=before.find(b=>b.boxId===box.boxId);const {lastInventoryCheckedAt,...rest}=box;assert.deepEqual(rest,original);assert.equal(Boolean(lastInventoryCheckedAt),box.number===1);}
+ const dashboard=buildInventoryDashboard(mutation.state.records,mutation.state.boxes,[],new Date("2026-09-16T01:00:00Z"));
+ assert.equal(dashboard.rows[0].inventoryConfirmedBoxCount,1);assert.equal(dashboard.rows[0].inventoryUnconfirmedBoxCount,1);
 });
