@@ -80,6 +80,10 @@ test('eight own-stock boxes are selectable for cleanup and remain physically con
   assert.equal(confirmed.inventoryConfirmedBoxCount, 8);
   assert.equal(confirmed.inventoryUnconfirmedBoxCount, 0);
   assert.equal(confirmed.inventoryAuditTargetBoxCount, 8);
+  assert.equal(h.getInventoryAuditTargetBoxes(confirmed).length, 8);
+  const confirmedHtml = h.renderInventoryAuditBoxStatus(confirmed);
+  assert.equal((confirmedHtml.match(/data-inventory-audit-box=/g) || []).length, 8);
+  assert.equal((confirmedHtml.match(/data-inventory-audit-confirm="/g) || []).length, 0);
   assert.equal(confirmed.currentTotalQuantity, '2,560 ea');
   assert.deepEqual(result.state.boxes.map(b => [b.quantity, b.status, b.inventoryCategory]), boxes.map(b => [b.quantity, b.status, b.inventoryCategory]));
 });
