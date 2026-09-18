@@ -1254,9 +1254,10 @@ export function buildInventoryDashboard(records, boxes, products = []) {
         || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
       return !isProtected && !/보류|폐기/.test(status);
     });
+    const physicalConfirmationBoxes = active.filter((box) => !/보류|폐기/.test(normalizeStatus(box.rawStatus || box.status)));
     row.inventoryAuditTargetBoxCount = inventoryAuditBoxes.length;
-    row.inventoryConfirmedBoxCount = inventoryAuditBoxes.filter((box) => text(box.lastInventoryCheckedAt)).length;
-    row.inventoryUnconfirmedBoxCount = inventoryAuditBoxes.length - row.inventoryConfirmedBoxCount;
+    row.inventoryConfirmedBoxCount = physicalConfirmationBoxes.filter((box) => text(box.lastInventoryCheckedAt)).length;
+    row.inventoryUnconfirmedBoxCount = physicalConfirmationBoxes.length - row.inventoryConfirmedBoxCount;
     return row;
   }).filter((row) => !text(row.stockStatus).includes("폐기") && (number(row.currentTotalQuantity) > 0 || text(row.stockStatus).includes("출고완료"))).reverse();
 
