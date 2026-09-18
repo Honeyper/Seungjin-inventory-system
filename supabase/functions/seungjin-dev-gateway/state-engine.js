@@ -1028,15 +1028,39 @@ function mutateInventory(action, payload, state, changes, now) {
       && payload.autoShippingInspection === true
       && number(payload.inspectionQuantity) > 0;
     const quantityMap = getBoxQuantityMap(payload);
+    const reopensCompleted = payload.allowReopenCompleted === true;
+    if (reopensCompleted && (status !== "출고대기" || boxes.length !== 1)) {
+      throw new Error("QR로 확인한 출고 완료 박스 한 개만 출고대기로 변경할 수 있습니다.");
+    }
     boxes.forEach((box) => {
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
+      if (reopensCompleted) {
+        const expected = payload.expectedCompletedBox;
+        const quantity = quantityMap.get(integer(box.number));
+        const matchesSnapshot = expected
+          && text(expected.boxId) === text(box.boxId)
+          && Number(expected.quantity) === number(box.quantity)
+          && text(expected.rawStatus) === text(box.rawStatus || box.status)
+          && ["shippingUpdatedAt", "shippingDate", "shippingType"].every((key) => text(expected[key]) === text(box[key]));
+        if (!/^출고완료(?:\(|$)/.test(currentStatus) || /폐기/.test(currentStatus) || !matchesSnapshot) {
+          throw new ShippingStateConflict(`${box.number}번 박스의 출고 상태가 변경되었습니다. QR을 다시 스캔해주세요.`);
+        }
+        if (!Number.isSafeInteger(quantity) || quantity <= 0 || (number(box.quantity) > 0 && quantity !== number(box.quantity))) {
+          throw new Error("해당 박스의 실제 수량을 확인해주세요.");
+        }
+        const previousShipment = Object.fromEntries(["quantity", "status", "rawStatus", "shippingDate", "shippingTime", "shippingType", "transferCompany", "shipper", "shippingUpdatedAt", "inspectionDate", "inspectionTime", "inspector", "inspectionQuantity", "defectQuantity", "defectRate", "defectReason", "defectPhotoFolderUrl", "defectPhotoCount"].map((key) => [key, box[key] ?? ""]));
+        box.shippingReopenHistory = [...(Array.isArray(box.shippingReopenHistory) ? box.shippingReopenHistory : []),
+          { ...previousShipment, reopenedAt: parts.timestamp, reopenedBy: text(payload.userName || "Admin"), reopenedQuantity: quantity }];
+        const auditNote = `[출고대기 재등록 ${parts.timestamp}] 이전 출고 ${text(box.shippingDate) || "-"} · ${text(box.shippingType) || "-"} · 처리자 ${text(payload.userName || "Admin")}`;
+        box.note = [text(box.note), auditNote].filter(Boolean).join("\n");
+      }
       if (status === "출고완료" && /출고완료|폐기/.test(currentStatus)) {
         throw new ShippingStateConflict(`${box.number}번 박스는 이미 출고되었거나 폐기되어 출고할 수 없습니다.`);
       }
       if (status === "출고완료" && currentStatus !== "출고대기" && payload.allowInventoryAdjustment !== true && !completesWithInspection) {
         throw new Error(`${box.number}번 박스는 출고 검수가 완료되지 않았습니다.`);
       }
-      if (status === "출고대기" && /출고완료|폐기/.test(currentStatus)) {
+      if (status === "출고대기" && /출고완료|폐기/.test(currentStatus) && !reopensCompleted) {
         throw new ShippingStateConflict(`${text(box.managementId)} · ${box.number}번 박스는 이미 ${currentStatus} 상태입니다${text(box.shippingDate) ? ` (${text(box.shippingDate)})` : ""}. 최신 목록에서 처리 상태를 확인해주세요.`);
       }
       if (status === "보류" && /출고완료|폐기/.test(currentStatus)) {
@@ -1061,7 +1085,7 @@ function mutateInventory(action, payload, state, changes, now) {
         box.shipper = text(payload.shipper || "Admin");
         box.defectPhotoFolderUrl = mergeAttachmentUrls(box.defectPhotoFolderUrl, payload.defectPhotoFolderUrl);
         box.defectPhotoCount = number(box.defectPhotoCount) + number(payload.defectPhotoCount);
-      } else if (status === "보관") {
+      } else if (status === "보관" || reopensCompleted) {
         box.shippingDate = "";
         box.shippingTime = "";
         box.shippingType = "";
