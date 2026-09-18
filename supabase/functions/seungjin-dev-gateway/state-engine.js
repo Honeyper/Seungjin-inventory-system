@@ -837,7 +837,7 @@ function mutateInventory(action, payload, state, changes, now) {
       }
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
       const isProtectedInventory = payload.protectClassifiedInventory === true
-        && /자사재고|사출|인쇄/.test(`${text(box.inventoryCategory)} ${text(box.rawStatus || box.status)}`);
+        && /사출|인쇄/.test(`${text(box.inventoryCategory)} ${text(box.rawStatus || box.status)}`);
       const isSameAdjustment = /^출고완료/.test(currentStatus)
         && text(box.shippingType) === "재고조정"
         && number(box.quantity) === adjustedQuantity
@@ -1251,8 +1251,7 @@ export function buildInventoryDashboard(records, boxes, products = []) {
     const inventoryAuditBoxes = active.filter((box) => {
       const inventoryCategory = text(box.inventoryCategory);
       const status = normalizeStatus(box.rawStatus || box.status);
-      const isProtected = inventoryCategory === "자사재고"
-        || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
+      const isProtected = /사출|인쇄/.test(`${inventoryCategory} ${status}`);
       return !isProtected && !/보류|폐기/.test(status);
     });
     const physicalConfirmationBoxes = active.filter((box) => !/보류|폐기/.test(normalizeStatus(box.rawStatus || box.status)));

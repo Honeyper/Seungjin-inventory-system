@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "자사재고 일괄 재고정리 지원", items: ["실물 확인 현황에서 자사재고도 선택·전체 선택하여 재고정리할 수 있도록 개선했습니다."] },
   { date: "2026-09-18", title: "재고 상세 이미지·명세서 정렬 보완", items: ["제품 이미지와 거래명세서 카드의 내부 여백과 제목·안내문 간격을 통일했습니다."] },
   { date: "2026-09-18", title: "발주 완료 취소 버튼 색상 구분", items: ["완료 취소 버튼을 옅은 주황색으로 표시하여 발주 완료 버튼과 구분했습니다."] },
   { date: "2026-09-18", title: "첨부자료 및 공통 글자 굵기 보완", items: ["거래명세서·불량사진 안내문, 파일명, 수정창과 모바일에 남아 있던 굵기를 정리했습니다."] },
@@ -4444,8 +4445,7 @@ function isProtectedInventoryAuditBox(item, box) {
       || item?.["재고 구분"]
   );
   const status = normalizeSearchText(box?.rawStatus || box?.status || "");
-  return inventoryCategory === normalizeSearchText("자사재고")
-    || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
+  return /사출|인쇄/.test(`${inventoryCategory} ${status}`);
 }
 
 function getInventoryPhysicalConfirmationBoxes(item) {
@@ -4491,7 +4491,7 @@ function openRemainingInventoryModal(source, mode = "classify", selectedBoxNumbe
     : getRemainingInventoryTargetBoxes(source);
   if (!targetBoxes.length) {
     showToast(isAudit
-      ? "재고 정리할 수 있는 일반재고 박스가 없습니다. 보류·폐기·사출·인쇄·자사재고는 제외됩니다."
+      ? "재고 정리할 수 있는 재고 박스가 없습니다. 보류·폐기·사출·인쇄재고는 제외됩니다."
       : "등록할 수 있는 남은 박스가 없습니다.");
     return false;
   }
@@ -4519,7 +4519,7 @@ function openRemainingInventoryModal(source, mode = "classify", selectedBoxNumbe
   }
   if (remainingInventoryBoxHelp) {
     remainingInventoryBoxHelp.textContent = isAudit
-      ? "정리가 필요한 재고를 선택해주세요. 보류·폐기·사출·인쇄·자사재고는 제외되며, 선택한 박스는 출고완료(재고조정)로 처리됩니다."
+      ? "정리가 필요한 재고를 선택해주세요. 보류·폐기·사출·인쇄재고는 제외되며, 선택한 박스는 출고완료(재고조정)로 처리됩니다."
       : "같은 제품 안에서도 박스별로 다른 재고 구분을 저장할 수 있습니다.";
   }
 

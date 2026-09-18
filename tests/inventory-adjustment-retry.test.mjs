@@ -66,7 +66,7 @@ test('보류·폐기·정상 출고완료·분류재고·빈 박스·미지원 �
     const state=fixture();state.boxes[0].status=status;state.boxes[0].rawStatus=status;
     assert.throws(()=>applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true,expectedBoxQuantities:{3:480,23:480}},state,firstTime),/최신 재고를 확인/,status);
   }
-  for(const patch of [{inventoryCategory:'자사재고'},{inventoryCategory:'사출 보관재고'},{quantity:0},{quantity:479}]) {
+  for(const patch of [{inventoryCategory:'사출 보관재고'},{quantity:0},{quantity:479}]) {
     const state=fixture();Object.assign(state.boxes[0],patch);
     assert.throws(()=>applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true,expectedBoxQuantities:{3:480,23:480}},state,firstTime),/최신 재고를 확인/);
   }

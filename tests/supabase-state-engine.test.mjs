@@ -917,7 +917,7 @@ test("physical unconfirmed inventory counts unchecked mobile-audit boxes and dec
 
   const before = buildInventoryDashboard(holder.state.records, holder.state.boxes);
   assert.equal(before.attention.physicalMissingCount, 2);
-  assert.equal(before.rows[0].inventoryAuditTargetBoxCount, 2);
+  assert.equal(before.rows[0].inventoryAuditTargetBoxCount, 3);
   assert.equal(before.rows[0].inventoryConfirmedBoxCount, 1);
   assert.equal(before.rows[0].inventoryUnconfirmedBoxCount, 2);
 
@@ -929,7 +929,7 @@ test("physical unconfirmed inventory counts unchecked mobile-audit boxes and dec
 
   const after = buildInventoryDashboard(holder.state.records, holder.state.boxes);
   assert.equal(after.attention.physicalMissingCount, 1);
-  assert.equal(after.rows[0].inventoryAuditTargetBoxCount, 2);
+  assert.equal(after.rows[0].inventoryAuditTargetBoxCount, 3);
   assert.equal(after.rows[0].inventoryConfirmedBoxCount, 2);
   assert.equal(after.rows[0].inventoryUnconfirmedBoxCount, 1);
 });
