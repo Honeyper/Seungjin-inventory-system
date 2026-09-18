@@ -57,6 +57,11 @@ button, label, th {
   font-weight: 500;
 }
 
+/* Units and supporting copy stay regular even inside emphasized values. */
+small, em {
+  font-weight: 400;
+}
+
 .login-page {
   position: relative;
   display: grid;
@@ -250,7 +255,7 @@ button, label, th {
   padding: 0 1.32rem;
   color: #253244;
   font-size: clamp(1rem, 1vw, 1.22rem);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .module-item + .module-item {
@@ -281,7 +286,7 @@ button, label, th {
   margin-top: 3.35rem;
   color: #263449;
   font-size: clamp(1rem, 1vw, 1.2rem);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .capability-list span {
@@ -1272,7 +1277,7 @@ button, label, th {
   margin: 0.95rem 0 0;
   color: #8792a3;
   font-size: 0.74rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .login-security i {
@@ -1669,7 +1674,7 @@ button, label, th {
   background: transparent;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -1736,7 +1741,7 @@ button, label, th {
   background: #fff;
   font: inherit;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -1963,7 +1968,7 @@ button, label, th {
   padding: 0.68rem 0.88rem;
   color: #9f241c;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   list-style-position: inside;
 }
@@ -2010,7 +2015,7 @@ button, label, th {
   padding: 0 0.9rem 0.78rem;
   color: #7a4650;
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .backup-notification-footer {
@@ -2019,7 +2024,7 @@ button, label, th {
   border-top: 1px solid #e5eaf1;
   background: #fff;
   font-size: 0.66rem;
-  font-weight: 500;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -2083,7 +2088,7 @@ button, label, th {
 .update-history-card time {
   color: #b07813;
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .update-history-card h3 {
@@ -2101,7 +2106,7 @@ button, label, th {
   border-radius: 999px;
   background: #e7f7ee;
   font-size: 0.58rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .update-history-items {
@@ -2117,7 +2122,7 @@ button, label, th {
   padding-left: 0.72rem;
   color: #5f6e84;
   font-size: 0.7rem;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.55;
 }
 
@@ -2139,7 +2144,7 @@ button, label, th {
   padding-left: 1.2rem;
   color: var(--navy-dark);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   border-left: 1px solid #dbe2ec;
   border-top: 0;
   border-right: 0;
@@ -2195,6 +2200,7 @@ button, label, th {
   font-size: 0.92rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .admin-user-menu-profile small {
@@ -2271,7 +2277,7 @@ button, label, th {
   gap: 0.72rem;
   color: #667489;
   font-size: 0.92rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -2392,7 +2398,7 @@ button, label, th {
 .eyebrow {
   color: var(--gold) !important;
   font-size: 0.78rem;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -2405,7 +2411,7 @@ button, label, th {
   gap: 0.58rem;
   min-height: 3.15rem;
   padding: 0 1.25rem;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 0.38rem;
   cursor: pointer;
   transition:
@@ -2586,7 +2592,7 @@ button, label, th {
   padding: 0.95rem 1.25rem;
   color: #63728a;
   font-size: 0.92rem;
-  font-weight: 600;
+  font-weight: 400;
   border-bottom: 1px solid #e5ebf2;
   background: #fbfcfe;
 }
@@ -2646,7 +2652,7 @@ button, label, th {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .color-chip i {
@@ -2992,7 +2998,7 @@ button, label, th {
   margin: 0.15rem 3.4rem 0 5.65rem;
   color: #7a879a;
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .inventory-bar-axis span {
@@ -3014,7 +3020,7 @@ button, label, th {
   gap: 0.62rem;
   color: #22324b;
   font-size: 0.84rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .inventory-bar-row > span {
@@ -3138,7 +3144,7 @@ button, label, th {
   margin-bottom: 0.14rem;
   color: #34435a;
   font-size: 0.84rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .attention-item strong {
@@ -3309,7 +3315,7 @@ button, label, th {
 
 .inventory-total-muted {
   color: #7a8798;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .inventory-detail-button {
@@ -3737,7 +3743,7 @@ button, label, th {
   gap: 0.35rem;
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .shipping-sort-field select {
@@ -3755,6 +3761,7 @@ button, label, th {
   background-repeat: no-repeat;
   background-position: right 0.8rem center;
   background-size: 0.9rem;
+  font-weight: 400;
 }
 
 .shipping-sort-field select:focus {
@@ -3992,7 +3999,7 @@ button, label, th {
   color: #94a3b8;
   font-style: normal;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .shipping-settlement-date-tools button {
@@ -4341,7 +4348,7 @@ button, label, th {
   height: 1.95rem;
   color: #175a36;
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 500;
   font-family: inherit;
   border: 1px solid #c9ecd8;
   border-radius: 0.32rem;
@@ -4446,7 +4453,7 @@ button, label, th {
   margin: 0 0 0.4rem;
   color: #64748b;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .transfer-return-grid .form-field select {
@@ -4506,7 +4513,7 @@ button, label, th {
 .transfer-return-status-field strong {
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .transfer-return-status-field small {
@@ -4545,7 +4552,7 @@ button, label, th {
   padding: 0 0.55rem;
   color: #0c66c2;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #cde2fb;
   border-radius: 999px;
   background: #e8f3ff;
@@ -4637,7 +4644,7 @@ button, label, th {
   padding: 0 0.55rem;
   color: #9a5f00;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #f0d8ac;
   border-radius: 999px;
   background: #fff4dd;
@@ -4737,7 +4744,7 @@ button, label, th {
   padding-left: 1.15rem;
   color: #334155;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -4889,8 +4896,15 @@ button, label, th {
   min-height: 1.65rem;
   padding: 0 0.55rem;
   font-size: 0.76rem;
-  font-weight: 600;
   border-radius: 999px;
+}
+
+.shipping-completion-defect-photos a {
+  font-weight: 500;
+}
+
+.shipping-completion-shipped-boxes span {
+  font-weight: 400;
 }
 
 .shipping-completion-defect-photos a {
@@ -4925,7 +4939,7 @@ button, label, th {
   padding: 0 0.58rem;
   color: #0b5fc4;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
   border-radius: 999px;
   background: #e7f2ff;
@@ -5093,7 +5107,7 @@ button, label, th {
   white-space: nowrap;
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #dce4ef;
   border-radius: 999px;
   background: #fff;
@@ -5131,7 +5145,7 @@ button, label, th {
   height: 1.35rem;
   color: #9a5f00;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 999px;
   background: #fff3dc;
 }
@@ -5316,7 +5330,7 @@ button, label, th {
 .remaining-inventory-category-card strong {
   color: var(--navy-dark);
   font-size: 0.94rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .remaining-inventory-category-card small {
@@ -5402,7 +5416,7 @@ button, label, th {
   color: var(--navy-dark);
   font: inherit;
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 400;
   text-align: right;
   border: 0;
   outline: 0;
@@ -5463,7 +5477,7 @@ button, label, th {
   color: var(--navy-dark);
   font: inherit;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 400;
   text-align: right;
   border: 0;
   outline: 0;
@@ -5481,7 +5495,7 @@ button, label, th {
   margin: 0.7rem 0 0;
   color: #53647a;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .shipping-inspection-detail-grid {
@@ -5609,7 +5623,7 @@ button, label, th {
 .shipping-hold-option strong {
   color: #8a4f00;
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .shipping-hold-option small {
@@ -5798,7 +5812,7 @@ button, label, th {
   margin-bottom: 0;
   color: var(--navy-dark);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .shipping-photo-saved-copy small {
@@ -5881,7 +5895,7 @@ button, label, th {
   padding: 0 0.7rem;
   color: var(--navy-dark);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   text-align: left;
   border: 0;
   border-radius: 0.36rem;
@@ -6414,7 +6428,7 @@ button, label, th {
   min-width: 0;
   margin: 0;
   color: var(--navy-dark);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
   white-space: nowrap;
 }
@@ -6470,7 +6484,7 @@ button, label, th {
 .product-process-heading strong {
   color: var(--navy-dark);
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .product-process-heading small {
@@ -6535,7 +6549,7 @@ button, label, th {
 .product-create-form .product-process-stage > span > b {
   color: var(--navy-dark);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .product-process-stage small {
@@ -6562,7 +6576,7 @@ button, label, th {
   color: #8b651d;
   background: #fff9ee;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .product-create-form fieldset.usage-field:has(input[name="productUsage"][value="사용중"]:checked) {
@@ -6651,7 +6665,7 @@ button, label, th {
 
 .common-container-toggle-copy strong {
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .common-container-toggle-copy small {
@@ -6840,7 +6854,7 @@ button, label, th {
   margin-bottom: 0.4rem;
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .existing-stock-create-form .existing-stock-category-field legend b {
@@ -7175,7 +7189,7 @@ button, label, th {
   padding: 0 0.1rem;
   color: #738096;
   font-size: 0.74rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .picker-result-summary p {
@@ -7204,7 +7218,7 @@ button, label, th {
   padding: 0.18rem 0.28rem 0.18rem 0.62rem;
   color: #536178;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #d8e1ec;
   border-radius: 0.42rem;
   background: #fff;
@@ -7240,7 +7254,7 @@ button, label, th {
   color: #fff;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
@@ -7341,7 +7355,7 @@ button, label, th {
   padding: 0.7rem 0.78rem;
   color: #315071;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #d8e1ec;
   border-radius: 0.5rem;
   background: #f8fafc;
@@ -7437,7 +7451,7 @@ button, label, th {
   color: #b88322;
   font-size: 0.78rem;
   font-style: normal;
-  font-weight: 600;
+  font-weight: 400;
   text-align: right;
   white-space: nowrap;
 }
@@ -7448,7 +7462,7 @@ button, label, th {
   gap: 0.45rem;
   color: #657489;
   font-size: 0.83rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .product-picker-modal .picker-product-meta {
@@ -7503,7 +7517,7 @@ button, label, th {
 .picker-product-spec b {
   color: #31415a;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .picker-product-spec b i {
@@ -7659,7 +7673,7 @@ button, label, th {
 
 .inventory-attention-row-meta b {
   color: #102b55;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .inventory-attention-row-meta .inventory-audit-status.unconfirmed {
@@ -7881,7 +7895,7 @@ button, label, th {
   padding: 0 0.58rem;
   color: #9a5f00;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #efd7a8;
   border-radius: 999px;
   background: #fff4dd;
@@ -7954,7 +7968,7 @@ button, label, th {
   padding: 0.8rem 0.9rem;
   color: #8c2e13;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.5;
   border: 1px solid #f1c8b7;
   border-radius: 0.48rem;
@@ -8043,7 +8057,7 @@ button, label, th {
 
 .detail-item strong {
   color: #263449;
-  font-weight: 600;
+  font-weight: 400;
   word-break: keep-all;
   white-space: normal;
 }
@@ -8244,7 +8258,7 @@ button, label, th {
 .attachment-card-header strong {
   color: var(--navy-dark);
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .attachment-link-list {
@@ -8263,7 +8277,7 @@ button, label, th {
   padding: 0 0.72rem;
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
   border: 1px solid #d7e2ee;
   border-radius: 0.42rem;
@@ -8297,7 +8311,7 @@ button, label, th {
   margin: 0;
   color: #7a8798;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .attachment-file-name {
@@ -8360,7 +8374,7 @@ button, label, th {
 .form-field {
   min-width: 0;
   color: var(--navy-dark);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .form-field.full-span {
@@ -8493,7 +8507,7 @@ button, label, th {
   right: 1rem;
   color: var(--navy-dark);
   font-style: normal;
-  font-weight: 600;
+  font-weight: 400;
   transform: translateY(-50%);
 }
 
@@ -8580,7 +8594,7 @@ button, label, th {
 .secondary-modal-action {
   min-width: 8.6rem;
   height: 3rem;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 0.38rem;
   cursor: pointer;
 }
@@ -8612,7 +8626,7 @@ button, label, th {
   max-width: min(28rem, calc(100vw - 2rem));
   padding: 0.95rem 1.15rem;
   color: #fff;
-  font-weight: 600;
+  font-weight: 400;
   border-radius: 0.45rem;
   background: rgba(6, 31, 76, 0.95);
   box-shadow: 0 1rem 2rem rgba(8, 42, 98, 0.2);
@@ -8914,7 +8928,7 @@ button, label, th {
   background: #fff;
   font: inherit;
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -9185,7 +9199,7 @@ button, label, th {
   margin-top: 0.25rem;
   color: var(--navy-dark);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 
@@ -9249,13 +9263,13 @@ button, label, th {
   color: #64748b;
   background: #f7f9fc;
   font-size: 0.61rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .production-plan-formula-guide summary {
   color: #53647a;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .production-plan-formula-guide p {
@@ -9422,7 +9436,7 @@ button, label, th {
 .production-plan-table .production-plan-process {
   color: var(--navy-dark);
   background: #f8fafc;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .production-plan-process span {
@@ -9667,7 +9681,7 @@ button, label, th {
   color: #596a80;
   background: #f6f8fb;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .machine-schedule-label,
@@ -10165,7 +10179,7 @@ button, label, th {
   align-items: center;
   min-width: 0;
   color: #263449;
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -10408,7 +10422,7 @@ button, label, th {
   padding: 0 0.75rem;
   color: #263449;
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #dce4ef;
   border-radius: 0.38rem;
   outline: none;
@@ -10927,7 +10941,7 @@ button, label, th {
   gap: 0.28rem;
   color: #8290a4;
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -10949,7 +10963,7 @@ button, label, th {
   color: #fff;
   background: rgba(6, 31, 76, 0.84);
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .product-image-gallery-backdrop {
@@ -11432,7 +11446,7 @@ button, label, th {
 .date-range-separator {
   color: #8b98aa;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .compact-action {
@@ -11635,7 +11649,7 @@ button, label, th {
   border-radius: 0.4rem;
   background: #fff;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -11802,7 +11816,7 @@ button, label, th {
   padding: 2rem 0;
   color: #66758a;
   text-align: center;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .qr-error {
@@ -13467,7 +13481,7 @@ button, label, th {
   min-width: 0;
   color: #59677d;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -13653,6 +13667,7 @@ button, label, th {
 .multiple-remainder-header strong {
   color: #071f49;
   font-size: 0.82rem;
+  font-weight: 500;
 }
 
 .multiple-remainder-header span {
@@ -13758,7 +13773,7 @@ button, label, th {
     margin: 0;
     color: var(--dev-navy) !important;
     font-size: 1.12rem;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.03em;
     text-transform: none;
   }
@@ -14291,7 +14306,7 @@ button, label, th {
     padding: 0 0.85rem 0 0;
     color: var(--dev-navy) !important;
     font-size: 0.82rem;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1;
     letter-spacing: -0.025em;
     text-transform: none;
@@ -14568,7 +14583,7 @@ button, label, th {
 #inboundDetailModal:not(.is-editing) .detail-item > strong {
   color: #23344d;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.45;
   word-break: keep-all;
 }
@@ -14778,7 +14793,7 @@ button, label, th {
   border-radius: 0.4rem;
   color: var(--muted);
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -14990,7 +15005,7 @@ button, label, th {
 :is(#productDetailModal, .inventory-detail-layout) .product-facts .product-fact:last-child { padding-bottom: 0; }
 :is(#productDetailModal, .inventory-detail-layout) .product-detail-note { margin: 0; color: #23344d; font-size: .82rem; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
 :is(#productDetailModal, .inventory-detail-layout) .product-detail-note.is-empty { color: #8793a6; }
-:is(#productDetailModal, .inventory-detail-layout) .product-section-count { margin-left: .4rem; color: #738197; font-size: .75rem; font-weight: 600; }
+:is(#productDetailModal, .inventory-detail-layout) .product-section-count { margin-left: .4rem; color: #738197; font-size: .75rem; font-weight: 500; }
 :is(#productDetailModal, .inventory-detail-layout) .product-shared-names { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem 1.5rem; margin: 0; padding-left: 1.1rem; color: #23344d; font-size: .82rem; line-height: 1.6; overflow-wrap: anywhere; }
 @media (max-width: 700px) {
   :is(#productDetailModal, .inventory-detail-layout) .detail-content { padding: .8rem; gap: .8rem; }
@@ -15032,7 +15047,7 @@ button, label, th {
 
 /* Inventory detail uses the approved product profile layout. */
 .inventory-detail-layout { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
-.inventory-detail-layout .inventory-detail-status { flex-shrink: 0; border-radius: 1rem; padding: .4rem .85rem; color: #174b85; background: #edf4ff; font-size: .8rem; font-weight: 600; }
+.inventory-detail-layout .inventory-detail-status { flex-shrink: 0; border-radius: 1rem; padding: .4rem .85rem; color: #174b85; background: #edf4ff; font-size: .8rem; font-weight: 500; }
 .inventory-detail-layout .inventory-storage-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; padding: 1rem .25rem 0; }
 .inventory-detail-layout .inventory-storage-facts dd { margin-top: .35rem; }
 @media (max-width: 700px) {
@@ -15058,13 +15073,13 @@ button, label, th {
   .inventory-audit-selectable .inventory-attention-row-meta, .inventory-audit-selectable > button { grid-column: 2; }
 }
 .inventory-audit-bulk-toolbar { margin-bottom: 1rem; }
-#inventoryAuditBulkSubmit { border: 1px solid #0b2858; border-radius: .45rem; padding: .65rem 1rem; background: #0b2858; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+#inventoryAuditBulkSubmit { border: 1px solid #0b2858; border-radius: .45rem; padding: .65rem 1rem; background: #0b2858; color: #fff; font: inherit; font-weight: 500; cursor: pointer; }
 #inventoryAuditBulkSubmit:disabled { opacity: .5; cursor: default; }
 #inventoryAuditBulkSubmit:focus-visible, .inventory-audit-row-checkbox:focus-visible { outline: 3px solid #d4a343; outline-offset: 3px; }
 
 .inventory-detail-media { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #edf0f5; }
 :is(#productDetailModal, .inventory-detail-layout) .inventory-detail-media .product-profile-images { display: flex; flex-direction: column; align-items: flex-start; gap: .75rem; margin: 0; padding: 1rem; border: 1px solid #e1e7f0; border-radius: .5rem; background: #f8fafd; }
-:is(#productDetailModal, .inventory-detail-layout) .inventory-detail-media .product-profile-images > span { color: #102f5d; font-size: .9rem; font-weight: 400; }
+:is(#productDetailModal, .inventory-detail-layout) .inventory-detail-media .product-profile-images > span { color: #102f5d; font-size: .9rem; font-weight: 500; }
 .inventory-detail-layout .product-detail-section > .attachment-card { margin-top: 1rem; }
 @media (max-width: 720px) { .inventory-detail-media { grid-template-columns: minmax(0, 1fr); } }
 
@@ -15125,7 +15140,7 @@ button, label, th {
 .inventory-detail-layout .inventory-audit-box-card strong { font-size: .84rem; font-weight: 600; line-height: 1.5; color: #23344d; }
 .inventory-detail-layout .inventory-audit-box-card span { font-size: .76rem; font-weight: 400; line-height: 1.5; color: #65758d; }
 .inventory-detail-layout .inventory-audit-box-card small { font-size: .72rem; font-weight: 400; line-height: 1.5; color: #738197; }
-.inventory-detail-layout .inventory-audit-box-card > b { font-size: .72rem; font-weight: 600; }
+.inventory-detail-layout .inventory-audit-box-card > b { font-size: .72rem; font-weight: 500; }
 .inventory-detail-layout .inventory-audit-box-actions [data-inventory-audit-confirm] span { color: inherit; }
 .inventory-detail-layout .inventory-audit-box-empty { padding: 1.25rem .75rem; font-size: .76rem; font-weight: 400; line-height: 1.6; color: #738197; }
 @media (max-width: 700px) {
