@@ -26,14 +26,9 @@ test("재고 상세 조회에도 거래명세서와 불량사진 링크를 포�
   assert.match(adminSource, /const detailInbound = normalizeInboundDetailRecord\(mergeInboundAttachmentDetails\(/);
 });
 
-test("거래명세서 원본은 문서 가독성을 유지하는 크기로 줄여 전송한다", () => {
-  assert.match(adminSource, /const INVOICE_IMAGE_MAX_EDGE = 2000/);
-  assert.match(adminSource, /const INVOICE_IMAGE_JPEG_QUALITY = 0\.88/);
-  assert.match(adminSource, /async function optimizeInboundInvoiceImage\(file\)/);
-  assert.match(adminSource, /await createImageBitmap\(file\)/);
-  assert.match(adminSource, /canvas\.toBlob\(resolve, "image\/jpeg", INVOICE_IMAGE_JPEG_QUALITY\)/);
-  assert.match(adminSource, /optimizedBlob\.size >= file\.size/);
-  assert.match(adminSource, /const uploadFile = await optimizeInboundInvoiceImage\(file\)/);
+test("신규 등록과 수정 화면이 같은 거래명세서 최적화 모듈을 사용한다", () => {
+  assert.match(adminSource, /return window\.SeungjinAttachments\.optimizeInvoice\(file\)/);
+  assert.match(adminSource, /label === "거래명세서" \? await optimizeInboundInvoiceImage\(file\)/);
 });
 
 test("거래명세서 최적화와 불량사진 읽기를 병렬로 준비한다", () => {

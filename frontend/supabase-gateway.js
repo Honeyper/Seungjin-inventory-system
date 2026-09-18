@@ -74,14 +74,14 @@
 
   function readStoredSession() {
     const storageKeys = [
-      [sessionStorage, "seungjinAdminSession"],
-      [sessionStorage, "seungjinMobileSession"],
-      [localStorage, "seungjinMobilePersistentSession"]
+      [() => sessionStorage, "seungjinAdminSession"],
+      [() => sessionStorage, "seungjinMobileSession"],
+      [() => localStorage, "seungjinMobilePersistentSession"]
     ];
 
     for (const [storage, key] of storageKeys) {
       try {
-        const session = JSON.parse(storage.getItem(key) || "null");
+        const session = JSON.parse(storage().getItem(key) || "null");
         if (hasSession(session)) return session;
       } catch (error) {
         // Keep checking other session stores when one is unavailable.
@@ -101,21 +101,13 @@
     };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const response = await fetch(config.SUPABASE_GATEWAY_URL, {
+    return window.SeungjinHttp.request(config.SUPABASE_GATEWAY_URL, {
       method: "POST",
       headers,
-      body: JSON.stringify({ action, payload })
+      body: JSON.stringify({ action, payload }),
+      readOnly: readActions.has(action),
+      timeoutMs: action === "login" ? 65000 : 45000
     });
-    let result = null;
-    try {
-      result = await response.json();
-    } catch (error) {
-      throw new GatewayError("Supabase 응답을 확인할 수 없습니다.", response.status);
-    }
-    if (!response.ok || !result?.ok) {
-      throw new GatewayError(result?.message || "Supabase 요청에 실패했습니다.", response.status);
-    }
-    return result;
   }
 
   async function login(payload) {
@@ -136,7 +128,7 @@
       try {
         await pendingRefresh;
       } catch (error) {
-        // The caller can fall back to Apps Script if the refresh failed.
+        // A failed refresh must not block the next canonical read.
       }
     }
 

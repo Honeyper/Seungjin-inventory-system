@@ -1056,6 +1056,7 @@ function handleAdminLogin(event) {
 }
 
 async function attemptAdminLogin() {
+  if (elements.adminLoginButton?.disabled) return;
   const accountId = elements.accountId.value.trim();
   const password = elements.password.value.trim();
   setLoginMessage("");
@@ -1743,17 +1744,6 @@ function groupScannedInventoryMoveRows(rows) {
   });
 
   return Array.from(groups.values());
-}
-
-function isMobileShippingCandidate(row) {
-  const status = normalizeText(row.stockStatus || row.processStatus);
-  const activeBoxes = Array.isArray(row.activeShippingBoxes) ? row.activeShippingBoxes : [];
-  const hasActiveShippingBox = activeBoxes.some((box) => {
-    const boxStatus = normalizeText(box.status);
-    return boxStatus.includes("출고대기");
-  });
-
-  return hasActiveShippingBox || (status.includes("출고대기") && activeBoxes.length > 0);
 }
 
 function normalizeProductImageUrls(value, fallback = "") {
@@ -7418,15 +7408,12 @@ async function requestApi(action, payload = {}, options = {}) {
     }
   }
 
-  const response = await fetch(API_URL, {
+  const result = await window.SeungjinHttp.request(API_URL, {
     method: "POST",
-    body: JSON.stringify({ action, payload })
+    body: JSON.stringify({ action, payload }),
+    readOnly: action.startsWith("get"),
+    timeoutMs: 65000
   });
-  const result = await response.json();
-
-  if (!response.ok || !result.ok) {
-    throw new Error(result.message || "API 요청에 실패했습니다.");
-  }
 
   window.SeungjinDataGateway?.refreshForMutation(action)?.catch((error) => {
     console.warn(`Supabase ${action} 후속 동기화에 실패했습니다.`, error);
@@ -8413,11 +8400,6 @@ function toDateKeyFromValue(value) {
     matched[2].padStart(2, "0"),
     matched[3].padStart(2, "0")
   ].join("-");
-}
-
-function formatShortDate(date) {
-  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-  return `${date.getMonth() + 1}.${date.getDate()} (${weekdays[date.getDay()]})`;
 }
 
 function formatLongDate(date) {

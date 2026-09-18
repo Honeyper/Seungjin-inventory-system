@@ -13,14 +13,15 @@ const photo = {name:'불량.jpg', mimeType:'image/jpeg', data:'YWJj'};
 const folder = 'https://drive.google.com/drive/folders/defects';
 function frontendHarness(requestApi, payload = {}) {
   const notices=[];
-  const context=vm.createContext({requestApi, state:{}, getInboundPayload:()=>({...payload}), validateInboundPayload:()=>'',
+  const context=vm.createContext({window:{},setTimeout,clearTimeout,requestApi, state:{}, getInboundPayload:()=>({...payload}), validateInboundPayload:()=>'',
     setInboundSaving:()=>{}, getInboundInvoicePayload:async()=>null, getInboundDefectFilePayloads:async()=>[photo,photo],
     refreshInboundMutationDataAfterMutation:()=>{}, refreshInboundMutationData:async()=>{}, resetInboundDefectDefaults:()=>{}, updateInboundSummary:()=>{},
     showToast:message=>notices.push(message)});
+  vm.runInContext(fs.readFileSync(new URL("../frontend/attachments.js", import.meta.url), "utf8"),context);
   vm.runInContext(uploader+create+edit,context);
   return {context,notices};
 }
-test('multiple photos upload one at a time; createInbound receives URLs without binary data',async()=>{
+test('first photo initializes the folder; createInbound receives URLs without binary data',async()=>{
   const calls=[];let active=0;
   const {context,notices}=frontendHarness(async(action,payload)=>{
     calls.push({action,payload});

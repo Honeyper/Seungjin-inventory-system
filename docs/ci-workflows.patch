@@ -1,0 +1,40 @@
+diff --git a/.github/workflows/pages.yml b/.github/workflows/pages.yml
+index 88a150b..4cd0aef 100644
+--- a/.github/workflows/pages.yml
++++ b/.github/workflows/pages.yml
+@@ -41,6 +41,15 @@ jobs:
+       - name: Configure Pages
+         uses: actions/configure-pages@v5
+ 
++      - uses: actions/setup-node@v4
++        with:
++          node-version: '22.18.0'
++
++      - name: Verify production and development
++        run: |
++          node dev-src/tools/verify.mjs prod-src
++          node dev-src/tools/verify.mjs dev-src
++
+       - name: Build Pages artifact
+         run: |
+           mkdir -p pages-dist/dev
+diff --git a/.github/workflows/verify.yml b/.github/workflows/verify.yml
+new file mode 100644
+index 0000000..836c59d
+--- /dev/null
++++ b/.github/workflows/verify.yml
+@@ -0,0 +1,14 @@
++name: Verify application
++on:
++  pull_request:
++  push:
++    branches: [main, dev]
++jobs:
++  verify:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-node@v4
++        with:
++          node-version: '22.18.0'
++      - run: node tools/verify.mjs

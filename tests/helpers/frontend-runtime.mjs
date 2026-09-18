@@ -8,7 +8,7 @@ export const adminSource = readFileSync(new URL("../../frontend/admin.js", impor
 export function loadFunctions(source, names, globals = {}) {
   const context = vm.createContext(globals);
   for (const name of names) {
-    const match = source.match(new RegExp(`^(?:async )?function ${name}\\([^]*?\\n\\}`, "m"));
+    const match = source.match(new RegExp(`^(?:async )?function ${name}\\([^]*?\\n\\}(?=\\n|$)`, "m"));
     assert.ok(match, `Missing function: ${name}`);
     vm.runInContext(match[0], context);
   }

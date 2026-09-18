@@ -1,3 +1,5 @@
+import { ValidationError } from "./request-errors.js";
+
 export class ShippingStateConflict extends Error {}
 
 export const INVENTORY_ADJUSTMENT_CONFLICT = "이미 처리됐거나 수량이 변경되어 재고조정 대상이 아닙니다. 최신 재고를 확인해주세요.";
@@ -168,24 +170,24 @@ function getProductProcess(payload, current = {}) {
   const stages = Array.from({ length: 6 }, (_, index) => {
     const step = index + 1;
     const method = single ? "" : text(payload[`${step}도 공정`] ?? payload[`stage${step}Process`] ?? current[`processStage${step}`]);
-    if (method && !["실크", "박"].includes(method)) throw new Error(`${step}도 공정은 실크 또는 박을 선택해주세요.`);
+    if (method && !["실크", "박"].includes(method)) throw new ValidationError(`${step}도 공정은 실크 또는 박을 선택해주세요.`);
     return method;
   });
   stages.forEach((method, index) => {
-    if (method && index > 0 && !stages[index - 1]) throw new Error(`${index + 1}도 공정을 등록하려면 ${index}도 공정을 먼저 선택해주세요.`);
+    if (method && index > 0 && !stages[index - 1]) throw new ValidationError(`${index + 1}도 공정을 등록하려면 ${index}도 공정을 먼저 선택해주세요.`);
   });
   const count = stages.filter(Boolean).length;
   const finalProcess = count ? `${count}도` : requestedFinal;
-  if (!finalProcess) throw new Error("SKU 고정 공정을 선택해주세요.");
+  if (!finalProcess) throw new ValidationError("SKU 고정 공정을 선택해주세요.");
   const finalCount = single ? 0 : Number(/^([1-6])도$/.exec(finalProcess)?.[1] || 0);
-  if (!single && !finalCount) throw new Error("최종공정은 1도부터 6도까지 선택해주세요.");
+  if (!single && !finalCount) throw new ValidationError("최종공정은 1도부터 6도까지 선택해주세요.");
   const defaultGroups = Array.from({ length: finalCount }, (_, index) => [index + 1]);
   const hasGroups = Object.prototype.hasOwnProperty.call(payload, "processGroups");
   const groups = single ? [] : hasGroups ? payload.processGroups
     : current.finalProcess === finalProcess && Array.isArray(current.processGroups) ? current.processGroups : defaultGroups;
   if (!Array.isArray(groups) || groups.some(group => !Array.isArray(group) || !group.length)
     || JSON.stringify(groups.flat()) !== JSON.stringify(defaultGroups.flat())) {
-    throw new Error("동시 공정은 1도부터 최종공정까지 중복이나 누락 없이 순서대로 묶어주세요.");
+    throw new ValidationError("동시 공정은 1도부터 최종공정까지 중복이나 누락 없이 순서대로 묶어주세요.");
   }
   return { stages, groups, finalProcess };
 }
@@ -349,13 +351,13 @@ function selectBoxes(state, payload, { allowEmpty = false, requireSelection = fa
   const managementId = text(payload.managementId);
   const productId = text(payload.productId || payload["제품ID"] || payload["제품 ID"]);
   const { numbers: selectedNumbers, ids: selectedIds } = getBoxSelection(payload);
-  if (requireSelection && !selectedNumbers.size && !selectedIds.size) throw new Error("처리할 박스를 선택해주세요.");
+  if (requireSelection && !selectedNumbers.size && !selectedIds.size) throw new ValidationError("처리할 박스를 선택해주세요.");
   const matches = state.boxes.filter((box) => (
     text(box.managementId) === managementId
     && (!productId || text(box.productId) === productId)
     && ((!selectedNumbers.size && !selectedIds.size) || selectedNumbers.has(integer(box.number)) || selectedIds.has(text(box.boxId)))
   ));
-  if (!allowEmpty && !matches.length) throw new Error("처리할 박스를 찾을 수 없습니다. 최신 목록을 다시 불러와주세요.");
+  if (!allowEmpty && !matches.length) throw new ValidationError("처리할 박스를 찾을 수 없습니다. 최신 목록을 다시 불러와주세요.");
   return matches;
 }
 
@@ -405,7 +407,7 @@ function touchInventoryRecords(state, managementIds, changes) {
 function parseProductHourlyProductionRate(value) {
   if (value === null || value === undefined || String(value).trim() === "" || String(value).trim() === "-") return null;
   const rate = typeof value === "number" ? value : Number(String(value).replaceAll(",", "").trim());
-  if (!Number.isFinite(rate) || rate <= 0 || rate > Number.MAX_SAFE_INTEGER) throw new Error("시간당 평균 생산량은 0보다 큰 숫자로 입력해주세요.");
+  if (!Number.isFinite(rate) || rate <= 0 || rate > Number.MAX_SAFE_INTEGER) throw new ValidationError("시간당 평균 생산량은 0보다 큰 숫자로 입력해주세요.");
   return rate;
 }
 
@@ -415,12 +417,12 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
   const current = action === "updateProduct"
     ? products.find((item) => text(item.productId || item.productCode) === requestedId)
     : null;
-  if (action === "updateProduct" && !current) throw new Error("수정할 제품을 찾을 수 없습니다.");
+  if (action === "updateProduct" && !current) throw new ValidationError("수정할 제품을 찾을 수 없습니다.");
   const clientName = text(payload["업체명"] ?? payload.clientName ?? current?.clientName);
   const productName = text(payload["제품명"] ?? payload.productName ?? current?.productName);
   const boxQuantity = payload["박스당 수량"] ?? payload.boxQuantity ?? current?.boxQuantity;
   const trayQuantity = payload["트레이 수량"] ?? payload.trayQuantity ?? current?.trayQuantity;
-  if (!clientName || !productName || number(boxQuantity) <= 0 || number(trayQuantity) <= 0) throw new Error("제품 필수값과 수량을 확인해주세요.");
+  if (!clientName || !productName || number(boxQuantity) <= 0 || number(trayQuantity) <= 0) throw new ValidationError("제품 필수값과 수량을 확인해주세요.");
   const hourlyProductionRate = parseProductHourlyProductionRate(
     Object.prototype.hasOwnProperty.call(payload, "시간당 평균 생산량") ? payload["시간당 평균 생산량"]
       : Object.prototype.hasOwnProperty.call(payload, "hourlyProductionRate") ? payload.hourlyProductionRate : current?.hourlyProductionRate
@@ -484,10 +486,10 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
 function createOrUpdatePurchaseOrder(action, payload, state, changes, now) {
   const id = text(payload.purchaseOrderId);
   const current = action === "updatePurchaseOrder" ? state.orders.find((item) => text(item.purchaseOrderId) === id) : null;
-  if (action === "updatePurchaseOrder" && !current) throw new Error("수정할 발주를 찾을 수 없습니다.");
+  if (action === "updatePurchaseOrder" && !current) throw new ValidationError("수정할 발주를 찾을 수 없습니다.");
   if (current && ["complete", "reopen"].includes(payload.completionAction)) {
     const closed = payload.completionAction === "complete";
-    if (current.status === "취소") throw new Error("취소된 발주는 완료 처리할 수 없습니다.");
+    if (current.status === "취소") throw new ValidationError("취소된 발주는 완료 처리할 수 없습니다.");
     current.status = closed ? "임의 완료" : "진행 중";
     current.storedStatus = current.status;
     current.updatedAt = dateParts(now).timestamp;
@@ -501,13 +503,13 @@ function createOrUpdatePurchaseOrder(action, payload, state, changes, now) {
   const total = integer(payload.totalOrderQuantity ?? current?.totalOrderQuantity);
   const startDate = text(payload.startDate || current?.startDate);
   const endDate = text(payload.endDate ?? current?.endDate);
-  if (!productId || !text(payload.clientName || current?.clientName) || !text(payload.productName || current?.productName) || !startDate || total <= 0) throw new Error("발주 필수값을 확인해주세요.");
-  if (endDate && startDate > endDate) throw new Error("납기일은 발주 시작일보다 빠를 수 없습니다.");
+  if (!productId || !text(payload.clientName || current?.clientName) || !text(payload.productName || current?.productName) || !startDate || total <= 0) throw new ValidationError("발주 필수값을 확인해주세요.");
+  if (endDate && startDate > endDate) throw new ValidationError("납기일은 발주 시작일보다 빠를 수 없습니다.");
   const currentTotal = integer(current?.totalOrderQuantity);
   const accumulatedInbound = number(current?.accumulatedInboundQuantity);
-  if (current && total < currentTotal && total < accumulatedInbound) throw new Error("총 발주량은 현재 누적 입고량보다 작게 변경할 수 없습니다.");
+  if (current && total < currentTotal && total < accumulatedInbound) throw new ValidationError("총 발주량은 현재 누적 입고량보다 작게 변경할 수 없습니다.");
   const orderRound = text(payload.orderRound ?? current?.orderRound);
-  if (orderRound && state.orders.some((item) => item !== current && text(item.productId) === productId && text(item.orderRound) === orderRound)) throw new Error("동일 제품과 발주 차수가 이미 등록되어 있습니다.");
+  if (orderRound && state.orders.some((item) => item !== current && text(item.productId) === productId && text(item.orderRound) === orderRound)) throw new ValidationError("동일 제품과 발주 차수가 이미 등록되어 있습니다.");
   const parts = dateParts(now);
   const orderId = current?.purchaseOrderId || generatePurchaseOrderId(state.orders, productId, now);
   const order = {
@@ -544,7 +546,7 @@ function makeInboundRecord(payload, managementId, product, order, now, current =
   const totalQuantity = boxQuantity * fullBoxes + remainders.reduce((sum, value) => sum + value, 0);
   const inspectionQuantity = integer(payload.inspectionQuantity);
   const defectQuantity = integer(payload.defectQuantity);
-  if (!text(payload.inboundDate) || !text(payload.inboundTime) || !text(payload.inboundType) || !text(payload.storage) || boxQuantity <= 0 || totalBoxes <= 0) throw new Error("입고 필수값과 수량을 확인해주세요.");
+  if (!text(payload.inboundDate) || !text(payload.inboundTime) || !text(payload.inboundType) || !text(payload.storage) || boxQuantity <= 0 || totalBoxes <= 0) throw new ValidationError("입고 필수값과 수량을 확인해주세요.");
   const parts = dateParts(now);
   return {
     ...current,
@@ -587,16 +589,16 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   const parts = dateParts(now);
   const productId = text(payload.productId);
   const product = state.products.find((item) => text(item.productId || item.productCode) === productId);
-  if (!product) throw new Error("선택한 제품을 찾을 수 없습니다.");
+  if (!product) throw new ValidationError("선택한 제품을 찾을 수 없습니다.");
   const requestedOrderId = text(payload.purchaseOrderId);
   const order = requestedOrderId ? state.orders.find((item) => text(item.purchaseOrderId) === requestedOrderId) : null;
-  if (requestedOrderId && !order) throw new Error("선택한 발주 건을 찾을 수 없습니다.");
-  if (order && text(order.productId) !== productId) throw new Error("선택한 발주와 입고 제품이 일치하지 않습니다.");
-  if (order?.status === "취소") throw new Error("취소된 발주에는 입고를 등록할 수 없습니다.");
+  if (requestedOrderId && !order) throw new ValidationError("선택한 발주 건을 찾을 수 없습니다.");
+  if (order && text(order.productId) !== productId) throw new ValidationError("선택한 발주와 입고 제품이 일치하지 않습니다.");
+  if (order?.status === "취소") throw new ValidationError("취소된 발주에는 입고를 등록할 수 없습니다.");
   const currentManagementId = text(payload.managementId);
   const currentInbound = action === "updateInbound" ? state.inbounds.find((item) => text(item.managementId) === currentManagementId && (!productId || text(item.productId) === productId)) : null;
   const currentRecord = action === "updateInbound" ? state.records.find((item) => text(item.managementId) === currentManagementId && (!productId || text(item.productId) === productId)) : null;
-  if (action === "updateInbound" && !currentRecord) throw new Error("수정할 입고 내역을 찾을 수 없습니다.");
+  if (action === "updateInbound" && !currentRecord) throw new ValidationError("수정할 입고 내역을 찾을 수 없습니다.");
   const managementId = currentManagementId || generateManagementId(state.inbounds, state.records, productId, now);
   const inbound = makeInboundRecord(payload, managementId, product, order, now, currentInbound || currentRecord || {});
   const previousBoxes = state.boxes.filter((box) => text(box.managementId) === managementId && text(box.productId) === productId);
@@ -717,7 +719,7 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
         const nextQuantity = nextQuantities[integer(box.number) - 1];
         return nextQuantity === undefined || nextQuantity !== integer(box.quantity);
       });
-      if (protectedBoxConflict) throw new Error(INBOUND_BOX_CONFIGURATION_CONFLICT);
+      if (protectedBoxConflict) throw new ValidationError(INBOUND_BOX_CONFIGURATION_CONFLICT);
 
       const previousBoxesById = new Map(previousBoxes.map((box) => [text(box.boxId), box]));
       const changedBoxes = [];
@@ -879,9 +881,9 @@ function mutateInventory(action, payload, state, changes, now) {
 
   if (action === "classifyRemainingInventory") {
     const category = text(payload.inventoryCategory);
-    if (!["자사재고", "사출 보관재고"].includes(category)) throw new Error("재고 구분을 선택해주세요.");
+    if (!["자사재고", "사출 보관재고"].includes(category)) throw new ValidationError("재고 구분을 선택해주세요.");
     boxes.forEach((box) => {
-      if (normalizeStatus(box.rawStatus || box.status) !== "보관" || number(box.quantity) <= 0) throw new Error("등록할 수 있는 남은 박스가 아닙니다.");
+      if (normalizeStatus(box.rawStatus || box.status) !== "보관" || number(box.quantity) <= 0) throw new ValidationError("등록할 수 있는 남은 박스가 아닙니다.");
       box.inventoryCategory = category;
       box.inventoryClassifiedAt = parts.timestamp;
       box.inventoryClassifier = text(payload.userName || "Admin");
@@ -892,7 +894,7 @@ function mutateInventory(action, payload, state, changes, now) {
 
   if (action === "adjustRemainingInventory") {
     const adjustmentDate = text(payload.adjustmentDate || parts.date);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(adjustmentDate)) throw new Error("조정일 형식이 올바르지 않습니다.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(adjustmentDate)) throw new ValidationError("조정일 형식이 올바르지 않습니다.");
     const quantityMap = getBoxQuantityMap(payload);
     const adjuster = text(payload.userName || payload.registrant || "Admin") || "Admin";
     const note = text(payload.note || payload.memo);
@@ -902,7 +904,7 @@ function mutateInventory(action, payload, state, changes, now) {
       const boxNumber = integer(box.number);
       const adjustedQuantity = quantityMap.get(boxNumber);
       if (!Number.isInteger(adjustedQuantity) || adjustedQuantity < 0) {
-        throw new Error(`${boxNumber}번 박스의 조정 수량을 0 이상의 정수로 입력해주세요.`);
+        throw new ValidationError(`${boxNumber}번 박스의 조정 수량을 0 이상의 정수로 입력해주세요.`);
       }
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
       const isSameAdjustment = /^출고완료/.test(currentStatus)
@@ -921,7 +923,7 @@ function mutateInventory(action, payload, state, changes, now) {
         && expectedQuantity !== undefined
         && (!Number.isFinite(Number(expectedQuantity)) || Number(expectedQuantity) !== number(box.quantity));
       if (!allowedSourceStatuses.includes(currentStatus) || number(box.quantity) <= 0 || staleAuditQuantity) {
-        throw new Error(INVENTORY_ADJUSTMENT_CONFLICT);
+        throw new ValidationError(INVENTORY_ADJUSTMENT_CONFLICT);
       }
       box.quantity = adjustedQuantity;
       box.status = "출고완료";
@@ -961,9 +963,9 @@ function mutateInventory(action, payload, state, changes, now) {
 
   if (action === "cancelDiscardedBoxes") {
     boxes.forEach((box) => {
-      if (!/폐기/.test(normalizeStatus(box.rawStatus || box.status))) throw new Error("폐기 상태가 아닌 박스가 포함되어 있습니다.");
+      if (!/폐기/.test(normalizeStatus(box.rawStatus || box.status))) throw new ValidationError("폐기 상태가 아닌 박스가 포함되어 있습니다.");
       const restoredQuantity = number(box.beforeDiscardQuantity) || number(box.originalQuantity) || number(box.quantity);
-      if (restoredQuantity <= 0) throw new Error(`${box.number}번 박스의 복구할 수량을 확인할 수 없습니다.`);
+      if (restoredQuantity <= 0) throw new ValidationError(`${box.number}번 박스의 복구할 수량을 확인할 수 없습니다.`);
       box.quantity = restoredQuantity;
       box.beforeDiscardQuantity = 0;
       box.status = "보관";
@@ -985,19 +987,19 @@ function mutateInventory(action, payload, state, changes, now) {
 
   if (action === "saveShippingInspection") {
     const reasons = Array.isArray(payload.defectReasons) ? payload.defectReasons.map(text).filter(Boolean) : text(payload.defectReasons).split(",").map(text).filter(Boolean);
-    if (!reasons.length) throw new Error("불량내역을 하나 이상 선택해주세요.");
+    if (!reasons.length) throw new ValidationError("불량내역을 하나 이상 선택해주세요.");
     const clear = clearShippingWaiting;
     const discard = payload.discardRequested === true;
     const hold = payload.holdRequested === true;
-    if (hold && discard) throw new Error("출고 보류와 박스 폐기는 동시에 선택할 수 없습니다.");
+    if (hold && discard) throw new ValidationError("출고 보류와 박스 폐기는 동시에 선택할 수 없습니다.");
     if (clear) {
       boxes = boxes.filter((box) => ["출고대기", "보류"].includes(normalizeStatus(box.rawStatus || box.status)));
-      if (!boxes.length) throw new Error("해제할 출고대기 박스를 찾을 수 없습니다.");
+      if (!boxes.length) throw new ValidationError("해제할 출고대기 박스를 찾을 수 없습니다.");
     }
     const quantityMap = getBoxQuantityMap(payload);
     boxes.sort((left, right) => integer(left.number) - integer(right.number)).forEach((box, index) => {
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
-      if (!clear && /출고완료|폐기/.test(currentStatus)) throw new Error(`${box.number}번 박스는 출고 검수 대상이 아닙니다.`);
+      if (!clear && /출고완료|폐기/.test(currentStatus)) throw new ValidationError(`${box.number}번 박스는 출고 검수 대상이 아닙니다.`);
       const changedQuantity = quantityMap.get(integer(box.number));
       if (!discard && changedQuantity !== undefined) box.quantity = changedQuantity;
       if (discard) {
@@ -1040,7 +1042,7 @@ function mutateInventory(action, payload, state, changes, now) {
     const status = normalizeStatus(payload.status);
     const rawStatus = text(payload.status) || status;
     const allowed = ["보관", "보류", "출고대기", "출고완료"];
-    if (!allowed.includes(status)) throw new Error("지원하지 않는 출고 상태입니다.");
+    if (!allowed.includes(status)) throw new ValidationError("지원하지 않는 출고 상태입니다.");
     // Mobile QR shipping records inspection and completion in this same mutation.
     // forceCompleteShipping alone must not bypass the inspection requirement.
     const completesWithInspection = payload.forceCompleteShipping === true
@@ -1049,7 +1051,7 @@ function mutateInventory(action, payload, state, changes, now) {
     const quantityMap = getBoxQuantityMap(payload);
     const reopensCompleted = payload.allowReopenCompleted === true;
     if (reopensCompleted && (status !== "출고대기" || boxes.length !== 1)) {
-      throw new Error("QR로 확인한 출고 완료 박스 한 개만 출고대기로 변경할 수 있습니다.");
+      throw new ValidationError("QR로 확인한 출고 완료 박스 한 개만 출고대기로 변경할 수 있습니다.");
     }
     boxes.forEach((box) => {
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
@@ -1065,7 +1067,7 @@ function mutateInventory(action, payload, state, changes, now) {
           throw new ShippingStateConflict(`${box.number}번 박스의 출고 상태가 변경되었습니다. QR을 다시 스캔해주세요.`);
         }
         if (!Number.isSafeInteger(quantity) || quantity <= 0 || (number(box.quantity) > 0 && quantity !== number(box.quantity))) {
-          throw new Error("해당 박스의 실제 수량을 확인해주세요.");
+          throw new ValidationError("해당 박스의 실제 수량을 확인해주세요.");
         }
         const previousShipment = Object.fromEntries(["quantity", "status", "rawStatus", "shippingDate", "shippingTime", "shippingType", "transferCompany", "shipper", "shippingUpdatedAt", "inspectionDate", "inspectionTime", "inspector", "inspectionQuantity", "defectQuantity", "defectRate", "defectReason", "defectPhotoFolderUrl", "defectPhotoCount"].map((key) => [key, box[key] ?? ""]));
         box.shippingReopenHistory = [...(Array.isArray(box.shippingReopenHistory) ? box.shippingReopenHistory : []),
@@ -1077,19 +1079,19 @@ function mutateInventory(action, payload, state, changes, now) {
         throw new ShippingStateConflict(`${box.number}번 박스는 이미 출고되었거나 폐기되어 출고할 수 없습니다.`);
       }
       if (status === "출고완료" && currentStatus !== "출고대기" && payload.allowInventoryAdjustment !== true && !completesWithInspection) {
-        throw new Error(`${box.number}번 박스는 출고 검수가 완료되지 않았습니다.`);
+        throw new ValidationError(`${box.number}번 박스는 출고 검수가 완료되지 않았습니다.`);
       }
       if (status === "출고대기" && /출고완료|폐기/.test(currentStatus) && !reopensCompleted) {
         throw new ShippingStateConflict(`${text(box.managementId)} · ${box.number}번 박스는 이미 ${currentStatus} 상태입니다${text(box.shippingDate) ? ` (${text(box.shippingDate)})` : ""}. 최신 목록에서 처리 상태를 확인해주세요.`);
       }
       if (status === "보류" && /출고완료|폐기/.test(currentStatus)) {
-        throw new Error(`${box.number}번 박스는 출고 보류로 변경할 수 없는 상태입니다.`);
+        throw new ValidationError(`${box.number}번 박스는 출고 보류로 변경할 수 없는 상태입니다.`);
       }
       if (status === "보관" && currentStatus === "출고완료" && payload.allowCancelCompleted !== true) {
-        throw new Error(`${box.number}번 박스의 출고 취소 권한을 확인해주세요.`);
+        throw new ValidationError(`${box.number}번 박스의 출고 취소 권한을 확인해주세요.`);
       }
       if (status === "보관" && /폐기/.test(currentStatus)) {
-        throw new Error(`${box.number}번 박스는 보관 상태로 변경할 수 없습니다.`);
+        throw new ValidationError(`${box.number}번 박스는 보관 상태로 변경할 수 없습니다.`);
       }
       const changedQuantity = quantityMap.get(integer(box.number));
       if (["출고대기", "출고완료"].includes(status) && changedQuantity !== undefined) box.quantity = changedQuantity;
@@ -1134,10 +1136,10 @@ function mutateInventory(action, payload, state, changes, now) {
   if (action === "updateInventoryBoxMove") {
     const injection = text(payload.inventoryAction) === "setInjectionStock";
     const targetStorage = text(payload.targetStorage);
-    if (!injection && !targetStorage) throw new Error("이동할 보관 위치를 선택해주세요.");
+    if (!injection && !targetStorage) throw new ValidationError("이동할 보관 위치를 선택해주세요.");
     boxes.forEach((box) => {
       const status = normalizeStatus(box.rawStatus || box.status);
-      if (/출고완료|폐기|출고대기|보류/.test(status) || number(box.quantity) <= 0) throw new Error(`${box.number}번 박스는 현재 변경할 수 없는 상태입니다.`);
+      if (/출고완료|폐기|출고대기|보류/.test(status) || number(box.quantity) <= 0) throw new ValidationError(`${box.number}번 박스는 현재 변경할 수 없는 상태입니다.`);
       if (injection) {
         box.status = "사출재고";
         box.rawStatus = "사출재고";
@@ -1153,7 +1155,7 @@ function mutateInventory(action, payload, state, changes, now) {
     return { managementId: text(payload.managementId), inventoryAction: injection ? "setInjectionStock" : "move", updatedBoxRows: boxes.length, targetStorage: injection ? text(payload.currentStorage || payload.storage) : targetStorage, remainingSourceActiveRows: state.boxes.filter((box) => text(box.managementId) === text(payload.managementId) && text(box.storage) === text(payload.currentStorage || payload.storage) && number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))).length };
   }
 
-  throw new Error(`지원하지 않는 재고 작업입니다: ${action}`);
+  throw new ValidationError(`지원하지 않는 재고 작업입니다: ${action}`);
 }
 
 function adjustMissingInventory(payload, state, changes, now) {
@@ -1173,7 +1175,7 @@ function adjustMissingInventory(payload, state, changes, now) {
   const adjusted = [];
   adjustments.forEach((group) => {
     selectBoxes(state, { ...group, productId: group.productId }, { requireSelection: true }).forEach((box) => {
-      if (number(box.quantity) <= 0 || /보류|폐기|출고완료/.test(normalizeStatus(box.rawStatus || box.status))) throw new Error(`${group.productName || "제품"} ${box.number}번 박스는 재고조정 대상에서 제외됩니다.`);
+      if (number(box.quantity) <= 0 || /보류|폐기|출고완료/.test(normalizeStatus(box.rawStatus || box.status))) throw new ValidationError(`${group.productName || "제품"} ${box.number}번 박스는 재고조정 대상에서 제외됩니다.`);
       box.status = "출고완료";
       box.rawStatus = "출고완료";
       box.shippingType = "재고조정";
@@ -1196,11 +1198,11 @@ function returnInventory(action, payload, state, changes, now) {
   const mode = action === "returnTakenOutInventory" ? "takeout" : "transfer";
   const requiredPrefix = mode === "takeout" ? "반출" : "이관";
   const targetStatus = normalizeStatus(payload.targetStatus || payload.status);
-  if (!["보관", "출고대기"].includes(targetStatus)) throw new Error("복귀 상태는 보관 또는 출고대기만 선택할 수 있습니다.");
+  if (!["보관", "출고대기"].includes(targetStatus)) throw new ValidationError("복귀 상태는 보관 또는 출고대기만 선택할 수 있습니다.");
   const storage = text(payload.storage || payload.storageLocation);
-  if (!storage) throw new Error("복귀할 보관 위치를 선택해주세요.");
+  if (!storage) throw new ValidationError("복귀할 보관 위치를 선택해주세요.");
   boxes.forEach((box) => {
-    if (normalizeStatus(box.rawStatus || box.status) !== "출고완료" || !text(box.shippingType).startsWith(requiredPrefix)) throw new Error(`${box.number}번 박스는 ${requiredPrefix} 복귀 대상이 아닙니다.`);
+    if (normalizeStatus(box.rawStatus || box.status) !== "출고완료" || !text(box.shippingType).startsWith(requiredPrefix)) throw new ValidationError(`${box.number}번 박스는 ${requiredPrefix} 복귀 대상이 아닙니다.`);
     const previousShippingDate = text(box.shippingDate);
     const previousShippingTime = text(box.shippingTime);
     const previousShipper = text(box.shipper);
@@ -1239,7 +1241,7 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
     result = createOrUpdateProduct(action, payload, state, changes, now);
   } else if (action === "deleteProduct") {
     const productId = text(payload.productId || payload.productCode);
-    if (!state.products.some((item) => text(item.productId || item.productCode) === productId)) throw new Error("삭제할 제품을 찾을 수 없습니다.");
+    if (!state.products.some((item) => text(item.productId || item.productCode) === productId)) throw new ValidationError("삭제할 제품을 찾을 수 없습니다.");
     state.products = state.products.filter((item) => text(item.productId || item.productCode) !== productId);
     changes.products.deletes.push(productId);
     result = { productId, deleted: true };
@@ -1248,8 +1250,8 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
   } else if (action === "deletePurchaseOrder") {
     const id = text(payload.purchaseOrderId);
     const order = state.orders.find((item) => text(item.purchaseOrderId) === id);
-    if (!order) throw new Error("삭제할 발주를 찾을 수 없습니다.");
-    if (number(order.accumulatedInboundQuantity) > 0) throw new Error("입고 내역이 연결된 발주는 삭제할 수 없습니다. 상태를 취소로 변경해주세요.");
+    if (!order) throw new ValidationError("삭제할 발주를 찾을 수 없습니다.");
+    if (number(order.accumulatedInboundQuantity) > 0) throw new ValidationError("입고 내역이 연결된 발주는 삭제할 수 없습니다. 상태를 취소로 변경해주세요.");
     state.orders = state.orders.filter((item) => item !== order);
     changes.purchaseOrders.deletes.push(id);
     result = { purchaseOrderId: id, deleted: true };
@@ -1261,7 +1263,7 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
     const inbound = state.inbounds.find((item) => text(item.managementId) === managementId && (!productId || text(item.productId) === productId));
     const records = state.records.filter((item) => text(item.managementId) === managementId && (!productId || text(item.productId) === productId));
     const boxes = state.boxes.filter((item) => text(item.managementId) === managementId && (!productId || text(item.productId) === productId));
-    if (!inbound && !records.length) throw new Error("삭제할 입고 내역을 찾을 수 없습니다.");
+    if (!inbound && !records.length) throw new ValidationError("삭제할 입고 내역을 찾을 수 없습니다.");
     if (inbound) changes.inbounds.deletes.push(inboundKey(inbound.managementId, inbound.productId));
     records.forEach((row) => changes.inventoryRecords.deletes.push(text(row.recordKey || inventoryKey(row.managementId, row.productId, row.storage))));
     boxes.forEach((box) => changes.inventoryBoxes.deletes.push(box.boxId));
@@ -1283,7 +1285,7 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
   } else if (action === "returnTransferredInventory" || action === "returnTakenOutInventory") {
     result = returnInventory(action, payload, state, changes, now);
   } else {
-    throw new Error(`지원하지 않는 Supabase 쓰기 요청입니다: ${action}`);
+    throw new ValidationError(`지원하지 않는 Supabase 쓰기 요청입니다: ${action}`);
   }
 
   return { state, changes, result };
