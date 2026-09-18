@@ -17,9 +17,10 @@ function runtime() {
     inventoryAttentionModal: { hidden: true, dataset: {} }, inventoryAttentionList: { innerHTML: "", querySelectorAll: () => [] },
     inventoryAttentionEmpty: {}, inventoryAttentionTitle: {}, inventoryAttentionDescription: {},
     inventoryAttentionSearch: { hidden: true }, inventoryAttentionSearchInput: { value: "" }, inventoryAttentionSearchCount: {},
-    closeInventoryAttentionModalButton: null, document: { body: { classList: { add() {} } } },
+    closeInventoryAttentionModalButton: null, document: { querySelector: () => null, body: { classList: { add() {} } } },
     window: { setTimeout() {} }, resetModalScrollPosition() {},
     isInventoryUnspecifiedStorageTarget: () => true, isLongStoredInventory: () => false,
+    renderInventoryAuditBulkControls() {},
     renderInventoryAttentionRow: item => item.managementId,
     formatNumber: value => Number(value || 0).toLocaleString("ko-KR")
   });

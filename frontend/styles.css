@@ -15031,3 +15031,24 @@ input {
   .inventory-detail-layout .inventory-storage-facts .product-fact { display: flex; justify-content: space-between; gap: 1rem; }
   .inventory-detail-layout .inventory-storage-facts dd { margin: 0; }
 }
+
+/* Audit overview: selection stays separate from opening stock details. */
+.inventory-audit-bulk-toolbar { padding: .85rem 1rem; border: 1px solid #dfe7f0; border-radius: .5rem; background: #f5f8fc; }
+.inventory-audit-bulk-toolbar[hidden] { display: none; }
+.inventory-audit-bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem 1rem; }
+.inventory-audit-bulk-actions label { display: flex; align-items: center; gap: .5rem; font-weight: 800; }
+.inventory-audit-bulk-actions button { margin-left: auto; }
+.inventory-audit-bulk-toolbar p { margin: .6rem 0 0; color: #657489; font-size: .8rem; }
+#inventoryAuditBulkResult { white-space: pre-line; max-height: 7rem; overflow-y: auto; color: #9b342b; }
+#inventoryAuditBulkResult:empty { display: none; }
+.inventory-attention-row.inventory-audit-selectable { grid-template-columns: 1.25rem minmax(12rem, 1.15fr) minmax(0, 2fr) auto; }
+.inventory-audit-selectable.is-selected { background: #eef4ff; border-color: #96b5e7; }
+.inventory-audit-row-checkbox, #inventoryAuditSelectAll { width: 1.15rem; height: 1.15rem; accent-color: #0b2858; cursor: pointer; }
+@media (max-width: 900px) {
+  .inventory-attention-row.inventory-audit-selectable { grid-template-columns: 1.25rem minmax(0, 1fr); }
+  .inventory-audit-selectable .inventory-attention-row-meta, .inventory-audit-selectable > button { grid-column: 2; }
+}
+.inventory-audit-bulk-toolbar { margin-bottom: 1rem; }
+#inventoryAuditBulkSubmit { border: 1px solid #0b2858; border-radius: .45rem; padding: .65rem 1rem; background: #0b2858; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+#inventoryAuditBulkSubmit:disabled { opacity: .5; cursor: default; }
+#inventoryAuditBulkSubmit:focus-visible, .inventory-audit-row-checkbox:focus-visible { outline: 3px solid #d4a343; outline-offset: 3px; }
