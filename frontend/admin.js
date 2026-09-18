@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "재고 목록 중복 합계 제거", items: ["컬럼 제목 아래의 중복 합계 줄을 제거하고 상단 재고 요약에만 합계를 표시합니다."] },
   { date: "2026-09-18", title: "미확인 재고 일괄 정리", items: ["실물 확인 현황에서 항목 선택 및 검색 결과 전체 선택", "선택한 미확인 박스만 재고 정리하고 처리 결과 표시"] },
   { date: "2026-09-18", title: "재고 상세보기 화면 구성 개선", items: [
     "재고 조회의 상세보기에 제품 상세보기 디자인을 적용하고, 현재 수량·입고일·보관기간을 상단에 모았습니다. 입고·포장·검수·관리 정보와 실물 확인 기능도 함께 확인할 수 있습니다."
@@ -9581,29 +9582,6 @@ function renderInventoryListTotals(rows) {
   `;
 }
 
-function renderInventoryAggregateRow(rows) {
-  const stats = buildInventoryAggregateStats(rows);
-
-  return `
-    <tr class="inventory-total-row">
-      <td><span class="inventory-total-label">합계</span></td>
-      <td><span class="inventory-total-muted">-</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.totalRows)}건</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.clientCount)}곳</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.productCount)}품목</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.batchCount)}개</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.purchaseOrderRoundCount)}개</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.processCount)}개</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.totalBoxes)} box</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.totalQuantity)} ea</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.storageCount)}곳</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.statusCount)}상태</span></td>
-      <td><span class="inventory-total-value">${formatNumber(stats.dueCount)}건</span></td>
-      <td><span class="inventory-total-muted">-</span></td>
-    </tr>
-  `;
-}
-
 function renderInventoryTable(message = "") {
   if (!inventoryTableBody || !inventoryCountLabel) {
     return;
@@ -9625,7 +9603,6 @@ function renderInventoryTable(message = "") {
     `;
   } else {
     inventoryTableBody.innerHTML = [
-      renderInventoryAggregateRow(state.filteredInventoryRows),
       ...rows.map((item) => `
       <tr>
         <td>${renderQrActionButton(item, "inventory")}</td>
