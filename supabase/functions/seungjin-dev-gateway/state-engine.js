@@ -836,24 +836,22 @@ function mutateInventory(action, payload, state, changes, now) {
         throw new Error(`${boxNumber}번 박스의 조정 수량을 0 이상의 정수로 입력해주세요.`);
       }
       const currentStatus = normalizeStatus(box.rawStatus || box.status);
-      const isProtectedInventory = payload.protectClassifiedInventory === true
-        && /사출|인쇄/.test(`${text(box.inventoryCategory)} ${text(box.rawStatus || box.status)}`);
       const isSameAdjustment = /^출고완료/.test(currentStatus)
         && text(box.shippingType) === "재고조정"
         && number(box.quantity) === adjustedQuantity
         && text(box.shippingDate).replace(/^\(조정일\)/, "") === adjustmentDate;
-      if (isSameAdjustment && !isProtectedInventory) {
+      if (isSameAdjustment) {
         alreadyAdjustedBoxRows += 1;
         return;
       }
       const allowedSourceStatuses = payload.protectClassifiedInventory === true
-        ? ["보관", "일부 출고", "작업중", "출고대기"]
+        ? ["보관", "일부 출고", "작업중", "출고대기", "사출재고", "사출 보관재고", "인쇄재고", "자사재고"]
         : ["보관", "일부 출고"];
       const expectedQuantity = payload.expectedBoxQuantities?.[boxNumber];
       const staleAuditQuantity = payload.protectClassifiedInventory === true
         && expectedQuantity !== undefined
         && (!Number.isFinite(Number(expectedQuantity)) || Number(expectedQuantity) !== number(box.quantity));
-      if (!allowedSourceStatuses.includes(currentStatus) || isProtectedInventory || number(box.quantity) <= 0 || staleAuditQuantity) {
+      if (!allowedSourceStatuses.includes(currentStatus) || number(box.quantity) <= 0 || staleAuditQuantity) {
         throw new Error(INVENTORY_ADJUSTMENT_CONFLICT);
       }
       box.quantity = adjustedQuantity;
@@ -1106,7 +1104,7 @@ function adjustMissingInventory(payload, state, changes, now) {
   const adjusted = [];
   adjustments.forEach((group) => {
     selectBoxes(state, { ...group, productId: group.productId }, { requireSelection: true }).forEach((box) => {
-      if (/자사재고|사출|인쇄/.test(`${text(box.inventoryCategory)} ${text(box.rawStatus || box.status)}`)) throw new Error(`${group.productName || "제품"} ${box.number}번 박스는 재고조정 대상에서 제외됩니다.`);
+      if (number(box.quantity) <= 0 || /보류|폐기|출고완료/.test(normalizeStatus(box.rawStatus || box.status))) throw new Error(`${group.productName || "제품"} ${box.number}번 박스는 재고조정 대상에서 제외됩니다.`);
       box.status = "출고완료";
       box.rawStatus = "출고완료";
       box.shippingType = "재고조정";
@@ -1273,10 +1271,8 @@ export function buildInventoryDashboard(records, boxes, products = []) {
     row.defectPhotoFolderUrl = [...new Set(active.map((box) => text(box.defectPhotoFolderUrl)).filter(Boolean))].join(" ");
     row.defectPhotoCount = row.defectPhotoFolderUrl ? row.defectPhotoFolderUrl.split(/\s+/).length : 0;
     const inventoryAuditBoxes = active.filter((box) => {
-      const inventoryCategory = text(box.inventoryCategory);
       const status = normalizeStatus(box.rawStatus || box.status);
-      const isProtected = /사출|인쇄/.test(`${inventoryCategory} ${status}`);
-      return !isProtected && !/보류|폐기/.test(status);
+      return !/보류|폐기/.test(status);
     });
     const physicalConfirmationBoxes = active.filter((box) => !/보류|폐기/.test(normalizeStatus(box.rawStatus || box.status)));
     row.inventoryAuditTargetBoxCount = inventoryAuditBoxes.length;

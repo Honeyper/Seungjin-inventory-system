@@ -4199,23 +4199,15 @@ function renderInventoryMoveBoxOverview({
 }
 
 function isProtectedInventoryAdjustmentBox(item, box) {
-  const inventoryCategory = normalizeScanValue(
-    box?.inventoryCategory
-      || box?.["재고 구분"]
-      || item?.inventoryCategory
-      || item?.["재고 구분"]
-  );
   const status = normalizeScanValue(box?.rawStatus || box?.status);
-  return /보류|폐기|출고완료/.test(status)
-    || inventoryCategory === normalizeScanValue("자사재고")
-    || /사출|인쇄/.test(`${inventoryCategory} ${status}`);
+  return /보류|폐기|출고완료/.test(status);
 }
 
 const INVENTORY_AUDIT_SCOPE_DEFINITIONS = [
   { value: "management", label: "현재 입고 건만" },
   { value: "product", label: "이 제품 전체" },
   { value: "scannedProducts", label: "스캔한 모든 제품" },
-  { value: "allInventory", label: "전체 일반재고" }
+  { value: "allInventory", label: "전체 재고" }
 ];
 
 function normalizeInventoryAuditScope(value) {
@@ -4487,7 +4479,7 @@ function openMissingInventoryAdjustmentScopePicker(selectedItem = null, preferre
   if (!previewPlans.some(({ plan }) => plan.confirmedBoxCount > 0 && plan.invalidBoxCount === 0)) {
     const protectedBoxCount = Math.max(...previewPlans.map(({ plan }) => plan.protectedBoxCount), 0);
     showToast(protectedBoxCount > 0
-      ? "실물 확인할 일반재고가 없습니다. 사출·인쇄·자사재고는 대상에서 제외됩니다."
+      ? "실물 확인할 박스가 없습니다. 보류·폐기·출고완료 박스는 대상에서 제외됩니다."
       : "실물 확인할 박스를 찾지 못했습니다.");
     return;
   }
@@ -4519,7 +4511,7 @@ function openMissingInventoryAdjustmentConfirm({ scope = "management", selectedI
 
   if (!plan.confirmedBoxCount) {
     showToast(plan.protectedBoxCount > 0
-      ? "실물 확인할 일반재고가 없습니다. 사출·인쇄·자사재고는 대상에서 제외됩니다."
+      ? "실물 확인할 박스가 없습니다. 보류·폐기·출고완료 박스는 대상에서 제외됩니다."
       : "실물 확인할 박스를 찾지 못했습니다.");
     return;
   }
@@ -4542,7 +4534,7 @@ function openMissingInventoryAdjustmentConfirm({ scope = "management", selectedI
       )),
       ...(remainingProductCount > 0 ? [`외 ${formatNumber(remainingProductCount)}개 제품 포함`] : []),
       ...(plan.protectedBoxCount > 0
-        ? [`사출·인쇄·자사재고 ${formatNumber(plan.protectedBoxCount)}박스는 대상에서 제외`]
+        ? [`보류·폐기·출고완료 ${formatNumber(plan.protectedBoxCount)}박스는 대상에서 제외`]
         : [])
     ],
     acceptLabel: "재고 실물 확인",

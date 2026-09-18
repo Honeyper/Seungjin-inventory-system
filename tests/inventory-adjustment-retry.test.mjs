@@ -56,17 +56,17 @@ test('부분출고 26박스 중 남은 15박스 8319개만 정리하고 정상 �
   assert.equal(retry.result.alreadyAdjustedBoxRows,15);
 });
 test('실물 정리는 화면에서 허용한 보관·부분출고·작업중·검수완료·출고대기 상태와 일치한다',()=>{
-  for(const status of ['보관','일부 출고','일부출고','부분출고','부분 출고','작업중','검수완료','출고대기','출고대기(검수완료)']) {
+  for(const status of ['보관','일부 출고','일부출고','부분출고','부분 출고','작업중','검수완료','출고대기','출고대기(검수완료)','사출재고','사출 보관재고','인쇄재고','자사재고']) {
     const state=fixture();state.boxes.forEach(b=>{b.status=status;b.rawStatus=status;});
     assert.equal(applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true},state,firstTime).result.updatedBoxRows,2,status);
   }
 });
-test('보류·폐기·정상 출고완료·분류재고·빈 박스·미지원 상태는 계속 보호한다',()=>{
-  for(const status of ['보류','출고 보류','폐기','출고완료','출고완료(정상출고)','알수없음','사출재고','인쇄재고']) {
+test('보류·폐기·정상 출고완료·빈 박스·미지원 상태는 계속 보호한다',()=>{
+  for(const status of ['보류','출고 보류','폐기','출고완료','출고완료(정상출고)','알수없음']) {
     const state=fixture();state.boxes[0].status=status;state.boxes[0].rawStatus=status;
     assert.throws(()=>applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true,expectedBoxQuantities:{3:480,23:480}},state,firstTime),/최신 재고를 확인/,status);
   }
-  for(const patch of [{inventoryCategory:'사출 보관재고'},{quantity:0},{quantity:479}]) {
+  for(const patch of [{quantity:0},{quantity:479}]) {
     const state=fixture();Object.assign(state.boxes[0],patch);
     assert.throws(()=>applyMutation('adjustRemainingInventory',{...payload,protectClassifiedInventory:true,expectedBoxQuantities:{3:480,23:480}},state,firstTime),/최신 재고를 확인/);
   }
