@@ -1,6 +1,6 @@
 (function initializeSeungjinQrLabel(globalScope) {
   function getProcessStep(value) {
-    const match = String(value || "").match(/([1-3])\s*도/);
+    const match = String(value || "").match(/([1-6])\s*도/);
     return match ? Number(match[1]) : 0;
   }
 
@@ -66,7 +66,8 @@
   function getProcessRows({
     finalProcess = "",
     flameTreatmentStatus = "무",
-    dustRemovalStatus = "무"
+    dustRemovalStatus = "무",
+    processGroups = null
   } = {}) {
     const singleProcess = String(finalProcess).trim();
     if (["코팅", "라벨"].includes(singleProcess)) {
@@ -79,6 +80,15 @@
     const hasFlameTreatment = isEnabled(flameTreatmentStatus);
     const hasDustRemoval = isEnabled(dustRemovalStatus);
     const finalStep = getProcessStep(finalProcess);
+    if (Array.isArray(processGroups) || finalStep > 3) {
+      const rows = getProcessGroups({ finalProcess, processGroups }).map(group => ({
+        label: group.map(step => `${step}도`).join("+"), disabled: false, treatment: false
+      }));
+      if (hasFlameTreatment) rows.unshift({label: "화염", disabled: false, treatment: true});
+      if (hasDustRemoval) rows.push({label: "박가루", disabled: false, treatment: true});
+      while (rows.length < 3) rows.push({label: "---", disabled: true, treatment: false});
+      return rows;
+    }
     const labels = hasFlameTreatment
       ? ["화염", "1도", "2도"]
       : ["1도", "2도", "3도"];
@@ -97,9 +107,17 @@
     });
   }
 
+  function getProcessGroups({ finalProcess = "", processGroups = null } = {}) {
+    const defaults = Array.from({length: getProcessStep(finalProcess)}, (_, index) => [index + 1]);
+    return Array.isArray(processGroups) && processGroups.every(group => Array.isArray(group) && group.length)
+      && JSON.stringify(processGroups.flat()) === JSON.stringify(defaults.flat())
+      ? processGroups.map(group => [...group]) : defaults;
+  }
+
   globalScope.SeungjinQrLabel = Object.freeze({
     getBoxQuantityData,
     getProcessRows,
+    getProcessGroups,
     getProcessSummary,
     getProcessStep,
     isEnabled

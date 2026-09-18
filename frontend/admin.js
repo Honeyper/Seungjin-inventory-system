@@ -99,6 +99,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "최대 6도 동시 공정 설정", items: ["제품에서 함께 작업하는 도수를 묶어 저장하고, QR에는 1도+2도처럼 작업 묶음별로 표시합니다. 최종공정은 전체 도수를 유지합니다."] },
   { date: "2026-09-18", title: "확인 완료 재고 정리 지원", items: ["실물 확인 완료 박스도 상세보기에서 재고정리할 수 있으며, 장기 보관 목록에서 선택·전체 선택하여 일괄 처리할 수 있습니다."] },
   { date: "2026-09-18", title: "사출·인쇄재고 재고정리 제외 해제", items: ["사출·인쇄·자사재고를 모두 선택하여 재고정리할 수 있도록 화면과 서버의 제외 조건을 통일했습니다."] },
   { date: "2026-09-18", title: "모바일 출고 완료 QR 재등록", items: ["출고 완료 박스의 QR을 다시 스캔하면 확인 후 해당 박스를 출고대기로 변경할 수 있습니다."] },
@@ -729,6 +730,10 @@ const productProcessStages = document.querySelector("#productProcessStages");
 const productProcessStage1 = document.querySelector("#productProcessStage1");
 const productProcessStage2 = document.querySelector("#productProcessStage2");
 const productProcessStage3 = document.querySelector("#productProcessStage3");
+const productProcessStage4 = document.querySelector("#productProcessStage4");
+const productProcessStage5 = document.querySelector("#productProcessStage5");
+const productProcessStage6 = document.querySelector("#productProcessStage6");
+const productProcessJoins = document.querySelectorAll("[data-product-process-join]");
 const productProcessSummary = document.querySelector("#productProcessSummary");
 const productCommonContainer = document.querySelector("#productCommonContainer");
 const productCommonContainerFields = document.querySelector("#productCommonContainerFields");
@@ -2167,7 +2172,7 @@ productProcessType?.addEventListener("change", () => {
   productFinalProcess.dataset.legacyFinalProcess = "";
   syncProductProcessFields();
 });
-[productProcessStage1, productProcessStage2, productProcessStage3].forEach((select) => {
+[productProcessStage1, productProcessStage2, productProcessStage3, productProcessStage4, productProcessStage5, productProcessStage6, ...productProcessJoins].forEach((select) => {
   select?.addEventListener("change", () => {
     productFinalProcess.dataset.legacyFinalProcess = "";
     syncProductProcessFields();
@@ -11266,16 +11271,17 @@ function findInboundQrProduct(inbound, boxes = []) {
 
 function getInboundQrProcessData(inbound, boxes = [], productProcessInfo = null) {
   const product = findInboundQrProduct(inbound, boxes);
+  const treatmentSource = productProcessInfo || product || {};
   const inboundProcess = [inbound?.process, inbound?.finalProcess, inbound?.processStatus]
     .find((value) => String(value || "").trim());
-  const finalProcess = String(inboundProcess || productProcessInfo?.finalProcess || product?.finalProcess || "-")
+  const finalProcess = String((Array.isArray(treatmentSource.processGroups) ? treatmentSource.finalProcess : "") || inboundProcess || treatmentSource.finalProcess || "-")
     .split("|")[0]
     .trim();
-  const treatmentSource = productProcessInfo || product || {};
   const flameTreatmentStatus = treatmentSource.flameTreatmentStatus || "무";
   const dustRemovalStatus = treatmentSource.dustRemovalStatus || "무";
   const processRows = globalThis.SeungjinQrLabel?.getProcessRows({
     finalProcess,
+    processGroups: treatmentSource.processGroups,
     flameTreatmentStatus,
     dustRemovalStatus
   }) || ["1도", "2도", "3도"].map((label) => ({ label, disabled: false, treatment: false }));
@@ -11388,7 +11394,7 @@ function renderInboundQrReferenceLabel({
   const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
 
   return `
-    <article class="box-qr-label box-qr-label-reference${variantClass ? ` ${variantClass}` : ""}">
+    <article class="box-qr-label box-qr-label-reference${variantClass ? ` ${variantClass}` : ""}${processData.processRows.length > 3 ? " has-expanded-processes" : ""}" style="--qr-process-row-count:${processData.processRows.length}">
       <div class="box-qr-reference-title">
         <strong class="box-qr-reference-final-process">최종공정 ${escapeHtml(processData.summary)}</strong>
         <strong class="box-qr-reference-box-count">${escapeHtml(boxLabel)}</strong>
@@ -11431,7 +11437,7 @@ function renderInboundQrReferenceLabel({
 function renderQrReferenceProcessRow(processRow) {
   const disabledClass = processRow.disabled ? " is-disabled" : "";
   return `
-    <div class="box-qr-reference-row${disabledClass}"${processRow.disabled ? ' aria-disabled="true"' : ""}>
+    <div class="box-qr-reference-row${disabledClass}${processRow.label.includes("+") ? " is-combined" : ""}${processRow.label.split("+").length > 4 ? " is-long-combined" : ""}"${processRow.disabled ? ' aria-disabled="true"' : ""}>
       <strong>${escapeHtml(processRow.label)}</strong>
       <span class="box-qr-reference-quantity">ea</span>
       <span class="box-qr-reference-work-date">
@@ -12588,7 +12594,7 @@ function renderInboundEditForm(inbound) {
         <label class="form-field">
           <span>SKU 고정 공정 <b>*</b></span>
           <select id="inboundEditProcess" disabled>
-            ${renderOptionList(["", "1도", "2도", "3도", "코팅", "라벨"], normalizeEditableValue(inbound.process), "선택하세요.")}
+            ${renderOptionList(["", "1도", "2도", "3도", "4도", "5도", "6도", "코팅", "라벨"], normalizeEditableValue(inbound.process), "선택하세요.")}
           </select>
         </label>
         <label class="form-field">
@@ -13231,80 +13237,79 @@ function normalizeProductProcessMethod(value) {
   return ["실크", "박"].includes(normalized) ? normalized : "";
 }
 
-function getProductProcessRoute(product) {
-  const stages = [product?.processStage1, product?.processStage2, product?.processStage3]
-    .map((method, index) => {
-      const normalizedMethod = normalizeProductProcessMethod(method);
-      return normalizedMethod ? `${index + 1}도 ${normalizedMethod}` : "";
-    })
-    .filter(Boolean);
+function getProductProcessStageControls() {
+  return [productProcessStage1, productProcessStage2, productProcessStage3, productProcessStage4, productProcessStage5, productProcessStage6];
+}
 
-  return stages.length
-    ? stages.join(" → ")
-    : normalizeEditableValue(product?.processRoute || product?.finalProcess);
+function getProductProcessFormGroups() {
+  const groups = [];
+  if (productProcessType.value !== "print") return groups;
+  getProductProcessStageControls().forEach((control, index) => {
+    if (!normalizeProductProcessMethod(control?.value)) return;
+    const joined = Array.from(productProcessJoins).find(input => Number(input.dataset.productProcessJoin) === index + 1)?.checked;
+    if (joined && groups.length) groups[groups.length - 1].push(index + 1);
+    else groups.push([index + 1]);
+  });
+  return groups;
+}
+
+function getProductProcessRoute(product) {
+  const stages = Array.from({length: 6}, (_, index) => normalizeProductProcessMethod(product?.[`processStage${index + 1}`]));
+  const count = stages.filter(Boolean).length;
+  if (!count) return normalizeEditableValue(product?.processRoute || product?.finalProcess);
+  const groups = globalThis.SeungjinQrLabel.getProcessGroups({...product, finalProcess: `${count}도`});
+  return groups.map(group => {
+    const methods = group.map(step => stages[step - 1]);
+    return methods.every(method => method === methods[0])
+      ? `${group.map(step => `${step}도`).join("+")} ${methods[0]}`
+      : group.map(step => `${step}도 ${stages[step - 1]}`).join("+");
+  }).join(" → ");
 }
 
 function setProductProcessForm(product = null) {
   const finalProcess = normalizeEditableValue(product?.finalProcess);
-  const stage1 = normalizeProductProcessMethod(product?.processStage1);
-  const stage2 = normalizeProductProcessMethod(product?.processStage2);
-  const stage3 = normalizeProductProcessMethod(product?.processStage3);
-  const hasStageData = Boolean(stage1 || stage2 || stage3);
+  const stages = Array.from({length: 6}, (_, index) => normalizeProductProcessMethod(product?.[`processStage${index + 1}`]));
+  const hasStageData = stages.some(Boolean);
   const singleProcessType = !hasStageData ? ({ "코팅": "coating", "라벨": "label" }[finalProcess] || "") : "";
-
   productProcessType.value = singleProcessType || "print";
-  productProcessStage1.value = stage1;
-  productProcessStage2.value = stage2 || "none";
-  productProcessStage3.value = stage3 || "none";
+  getProductProcessStageControls().forEach((control, index) => { control.value = stages[index] || (index ? "none" : ""); });
+  const groups = globalThis.SeungjinQrLabel.getProcessGroups(product || {});
+  productProcessJoins.forEach(input => { input.checked = groups.some(group => group.slice(1).includes(Number(input.dataset.productProcessJoin))); });
   productFinalProcess.dataset.legacyFinalProcess = !hasStageData && !singleProcessType ? finalProcess : "";
   syncProductProcessFields();
 }
 
 function syncProductProcessFields() {
-  if (!productFinalProcess || !productProcessType) {
-    return;
-  }
-
+  if (!productFinalProcess || !productProcessType) return;
   const isSaving = Boolean(state.isSavingProduct);
   const singleProcess = { coating: "코팅", label: "라벨" }[productProcessType.value] || "";
   const isSingleProcess = Boolean(singleProcess);
   const treatmentOptions = productForm?.querySelector(".product-treatment-grid");
   if (treatmentOptions) treatmentOptions.hidden = productProcessType.value === "label";
-  const stage1 = normalizeProductProcessMethod(productProcessStage1?.value);
-  const stage2 = normalizeProductProcessMethod(productProcessStage2?.value);
-
-  if (!stage2 && productProcessStage3) {
-    productProcessStage3.value = "none";
-  }
-
-  const stage3 = normalizeProductProcessMethod(productProcessStage3?.value);
+  const stages = [];
+  getProductProcessStageControls().forEach((control, index) => {
+    if (index && !stages[index - 1]) control.value = "none";
+    stages.push(normalizeProductProcessMethod(control.value));
+    control.disabled = isSaving || isSingleProcess || (index > 0 && !stages[index - 1]);
+  });
+  productProcessJoins.forEach(input => {
+    const step = Number(input.dataset.productProcessJoin);
+    input.disabled = isSaving || isSingleProcess || !stages[step - 1] || !stages[step - 2];
+    if (!stages[step - 1] || !stages[step - 2]) input.checked = false;
+  });
   const legacyFinalProcess = normalizeEditableValue(productFinalProcess.dataset.legacyFinalProcess);
-  const finalProcess = isSingleProcess
-    ? singleProcess
-    : stage3
-      ? "3도"
-      : stage2
-        ? "2도"
-        : stage1
-          ? "1도"
-          : legacyFinalProcess;
-
+  const finalProcess = isSingleProcess ? singleProcess
+    : stages.some(Boolean) ? `${stages.filter(Boolean).length}도` : legacyFinalProcess;
   productFinalProcess.value = finalProcess;
   productProcessStages.hidden = isSingleProcess;
-  productProcessStage1.disabled = isSaving || isSingleProcess;
-  productProcessStage2.disabled = isSaving || isSingleProcess || !stage1;
-  productProcessStage3.disabled = isSaving || isSingleProcess || !stage2;
-
   if (isSingleProcess) {
     productProcessSummary.textContent = singleProcess;
     return;
   }
-
-  const route = [stage1, stage2, stage3]
-    .map((method, index) => method ? `${index + 1}도 ${method}` : "")
-    .filter(Boolean)
-    .join(" → ");
-
+  const route = stages.some(Boolean) ? getProductProcessRoute({
+    ...Object.fromEntries(stages.map((method, index) => [`processStage${index + 1}`, method])),
+    finalProcess, processGroups: getProductProcessFormGroups()
+  }) : "";
   productProcessSummary.textContent = route
     || (legacyFinalProcess ? `${legacyFinalProcess} · 실크/박 방식 미지정` : "공정을 선택해주세요.");
 }
@@ -13646,6 +13651,8 @@ function getProductFormPayload() {
     "1도 공정": processStage1,
     "2도 공정": processStage2,
     "3도 공정": processStage3,
+    ...Object.fromEntries(getProductProcessStageControls().slice(3).map((control, index) => [`${index + 4}도 공정`, productProcessType.value === "print" ? normalizeProductProcessMethod(control.value) : ""])),
+    ...(productFinalProcess.dataset.legacyFinalProcess ? {} : {processGroups: getProductProcessFormGroups()}),
     "박가루제거 유무": dustRemoval,
     "화염처리 유무": flameTreatment,
     "공용용기 제품": isCommonContainer ? "유" : "무",

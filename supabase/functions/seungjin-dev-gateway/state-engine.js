@@ -163,14 +163,31 @@ function clone(value) {
 }
 
 function getProductProcess(payload, current = {}) {
-  const stage1 = text(payload["1도 공정"] ?? payload.stage1Process ?? current.processStage1);
-  const stage2 = text(payload["2도 공정"] ?? payload.stage2Process ?? current.processStage2);
-  const stage3 = text(payload["3도 공정"] ?? payload.stage3Process ?? current.processStage3);
-  if (stage3 && !stage2) throw new Error("3도 공정을 등록하려면 2도 공정을 먼저 선택해주세요.");
-  if (stage2 && !stage1) throw new Error("2도 공정을 등록하려면 1도 공정을 먼저 선택해주세요.");
-  const finalProcess = stage3 ? "3도" : stage2 ? "2도" : stage1 ? "1도" : text(payload["최종공정"] ?? payload.finalProcess ?? current.finalProcess);
+  const requestedFinal = text(payload["최종공정"] ?? payload.finalProcess ?? current.finalProcess);
+  const single = ["코팅", "라벨"].includes(requestedFinal);
+  const stages = Array.from({ length: 6 }, (_, index) => {
+    const step = index + 1;
+    const method = single ? "" : text(payload[`${step}도 공정`] ?? payload[`stage${step}Process`] ?? current[`processStage${step}`]);
+    if (method && !["실크", "박"].includes(method)) throw new Error(`${step}도 공정은 실크 또는 박을 선택해주세요.`);
+    return method;
+  });
+  stages.forEach((method, index) => {
+    if (method && index > 0 && !stages[index - 1]) throw new Error(`${index + 1}도 공정을 등록하려면 ${index}도 공정을 먼저 선택해주세요.`);
+  });
+  const count = stages.filter(Boolean).length;
+  const finalProcess = count ? `${count}도` : requestedFinal;
   if (!finalProcess) throw new Error("SKU 고정 공정을 선택해주세요.");
-  return { stage1, stage2, stage3, finalProcess };
+  const finalCount = single ? 0 : Number(/^([1-6])도$/.exec(finalProcess)?.[1] || 0);
+  if (!single && !finalCount) throw new Error("최종공정은 1도부터 6도까지 선택해주세요.");
+  const defaultGroups = Array.from({ length: finalCount }, (_, index) => [index + 1]);
+  const hasGroups = Object.prototype.hasOwnProperty.call(payload, "processGroups");
+  const groups = single ? [] : hasGroups ? payload.processGroups
+    : current.finalProcess === finalProcess && Array.isArray(current.processGroups) ? current.processGroups : defaultGroups;
+  if (!Array.isArray(groups) || groups.some(group => !Array.isArray(group) || !group.length)
+    || JSON.stringify(groups.flat()) !== JSON.stringify(defaultGroups.flat())) {
+    throw new Error("동시 공정은 1도부터 최종공정까지 중복이나 누락 없이 순서대로 묶어주세요.");
+  }
+  return { stages, groups, finalProcess };
 }
 
 function makeClientCode(clientName) {
@@ -439,10 +456,14 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     flameTreatmentStatus: text(payload["화염처리 유무"] ?? current?.flameTreatmentStatus) || "무",
     useStatus: text(payload["사용 여부"] ?? current?.useStatus) || "사용중",
     finalProcess: process.finalProcess,
-    processStage1: process.stage1,
-    processStage2: process.stage2,
-    processStage3: process.stage3,
-    processRoute: [process.stage1, process.stage2, process.stage3].map((value, index) => value ? `${index + 1}도 ${value}` : "").filter(Boolean).join(" → ") || process.finalProcess,
+    ...Object.fromEntries(process.stages.map((method, index) => [`processStage${index + 1}`, method])),
+    processGroups: process.groups,
+    processRoute: process.groups.map(group => {
+      const methods = group.map(step => process.stages[step - 1]);
+      return methods.every(method => method === methods[0])
+        ? `${group.map(step => `${step}도`).join("+")}${methods[0] ? ` ${methods[0]}` : ""}`
+        : group.map(step => `${step}도 ${process.stages[step - 1]}`).join("+");
+    }).join(" → ") || process.finalProcess,
     orderQuantity: text(payload["발주량"] ?? current?.orderQuantity) || "-",
     accumulatedInboundQuantity: current?.accumulatedInboundQuantity || "0 ea",
     boxQuantity: formatEa(number(boxQuantity)),
