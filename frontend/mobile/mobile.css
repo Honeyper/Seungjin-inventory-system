@@ -56,6 +56,11 @@ button, label, th {
   font-weight: 500;
 }
 
+/* Units and supporting copy stay regular even inside emphasized values. */
+small, em {
+  font-weight: 400;
+}
+
 button {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -608,7 +613,7 @@ img {
 .menu-copy strong {
   color: var(--navy-dark);
   font-size: 25px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.16;
   letter-spacing: 0;
 }
@@ -1206,7 +1211,7 @@ img {
   margin: 0;
   color: #2b3546;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .item-worker span {
@@ -1352,7 +1357,7 @@ img {
   display: block;
   color: var(--muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -1491,7 +1496,7 @@ img {
   color: #fff;
   text-align: center;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
   background: rgba(0, 0, 0, 0.7);
 }
 
@@ -1723,7 +1728,7 @@ img {
 .scanner-list-header strong {
   color: #111827;
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .scanner-list-header button {
@@ -1806,7 +1811,7 @@ img {
   color: #526176;
   background: #fff;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -1977,7 +1982,7 @@ img {
   color: #fff;
   text-align: center;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   background: rgba(6, 31, 76, 0.96);
   box-shadow: 0 14px 28px rgba(6, 31, 76, 0.22);
   opacity: 0;
@@ -2301,6 +2306,7 @@ img {
 
 .menu-copy strong {
   font-size: 24px;
+  font-weight: 500;
 }
 
 .menu-copy small {
@@ -2702,6 +2708,7 @@ img {
 .menu-copy strong {
   font-size: 25px;
   line-height: 1.15;
+  font-weight: 500;
 }
 
 .menu-copy small {
@@ -3321,6 +3328,7 @@ img {
 #homeScreen .menu-copy strong {
   color: var(--navy-dark);
   font-size: 22px;
+  font-weight: 500;
 }
 
 #homeScreen .menu-copy small {
@@ -3476,6 +3484,7 @@ img {
 #homeScreen .menu-copy strong {
   font-size: 17px;
   line-height: 1.12;
+  font-weight: 500;
 }
 
 #homeScreen .menu-copy small {
@@ -3705,7 +3714,7 @@ img {
 
 #homeScreen .menu-copy strong {
   font-size: 21px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.08;
   word-break: keep-all;
 }
@@ -4440,7 +4449,7 @@ img {
   margin: 12px 2px 9px;
   color: #6f7d91;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .box-picker-product-list {
@@ -5304,7 +5313,7 @@ img {
 
 .hardware-scanner-panel > strong {
   font-size: 19px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .hardware-scanner-panel > span:not(.hardware-scanner-icon) {
@@ -5816,7 +5825,7 @@ img {
   overflow: hidden;
   color: var(--navy-dark);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6276,7 +6285,7 @@ img {
 #shippingScreen .item-registered-date {
   justify-content: flex-end;
   color: #2b3546;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 #shippingScreen .shipping-product-details {
@@ -6355,7 +6364,7 @@ img {
   overflow-wrap: anywhere;
   color: #26364e;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.25;
 }
 
@@ -6949,7 +6958,7 @@ img {
 #shippingScreen .metric-support-row {
   color: #667387;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -7567,6 +7576,7 @@ body {
 
 .menu-copy strong {
   font-size: 18px;
+  font-weight: 500;
 }
 
 .menu-copy small {
@@ -8220,6 +8230,7 @@ body {
 .mobile-transfer-return-status strong {
   color: var(--mobile-text);
   font-size: 12px;
+  font-weight: 500;
 }
 
 .mobile-transfer-return-status small {
@@ -8784,6 +8795,7 @@ body {
   color: var(--operations-ink);
   font-size: 19px;
   letter-spacing: -0.04em;
+  font-weight: 500;
 }
 
 .menu-copy small {
@@ -10433,6 +10445,41 @@ button.shipping-product-visual.has-photo:focus-visible {
 .shipping-action-row p,
 .control-button,
 .shipping-completed-toggle {
+}
+
+#shippingScreen .scan-button {
+  font-weight: 500;
+}
+
+#inventoryMoveScreen .scan-button {
+  font-weight: 500;
+}
+
+.manual-shipping-open-copy strong {
+  font-weight: 500;
+}
+
+.shipping-live-clock > span {
+  font-weight: 500;
+}
+
+.shipping-live-clock strong {
+  font-weight: 500;
+}
+
+.shipping-live-clock time {
+  font-weight: 500;
+}
+
+.shipping-action-row p {
+  font-weight: 400;
+}
+
+.control-button {
+  font-weight: 500;
+}
+
+.shipping-completed-toggle {
   font-weight: 500;
 }
 
@@ -10450,6 +10497,25 @@ button.shipping-product-visual.has-photo:focus-visible {
 .metric-label,
 .shipping-card-metrics .metric > span:first-child,
 .shipping-card-metrics .metric-value-row small,
+.shipping-card-menu-popover button {
+}
+
+.shipping-client {
+  font-weight: 500;
+}
+
+.metric-label {
+  font-weight: 500;
+}
+
+.shipping-card-metrics .metric > span:first-child {
+  font-weight: 500;
+}
+
+.shipping-card-metrics .metric-value-row small {
+  font-weight: 400;
+}
+
 .shipping-card-menu-popover button {
   font-weight: 500;
 }
@@ -10612,7 +10678,7 @@ button.shipping-product-visual.has-photo:focus-visible {
 #shippingScreen .shipping-product-details[open] .shipping-product-detail-item strong {
   color: #26364e;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.35;
 }
 
@@ -10881,7 +10947,7 @@ button.shipping-product-visual.has-photo:focus-visible {
 .mobile-inventory-audit-scope-option strong {
   color: var(--operations-ink);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .mobile-inventory-audit-scope-option small {
@@ -11289,7 +11355,7 @@ button.shipping-product-visual.has-photo:focus-visible {
 .quantity-editor-box-option > b {
   color: var(--operations-ink);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -11401,7 +11467,7 @@ button.shipping-product-visual.has-photo:focus-visible {
   margin: 8px 1px 0;
   color: #7a8698;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.4;
 }
 
@@ -11411,7 +11477,7 @@ button.shipping-product-visual.has-photo:focus-visible {
 
 #shippingQuantityMessage.is-error {
   color: #b23a31;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .quantity-editor-footer {
@@ -11662,9 +11728,6 @@ button.shipping-product-visual.has-photo:focus-visible {
 
 /* 2026-08-07 unified medium typography and compact shipping metrics */
 
-#mobileApp :is(strong, b, h1, h2, h3, h4, h5, h6) {
-  font-weight: 600;
-}
 
 #shippingScreen .shipping-card-footer {
   padding-top: 10px;
@@ -11882,7 +11945,7 @@ button.shipping-product-visual.has-photo:focus-visible {
   overflow: hidden;
   color: #748196;
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -11891,7 +11954,7 @@ button.shipping-product-visual.has-photo:focus-visible {
   overflow: hidden;
   color: #94a0b1;
   font-size: 8px;
-  font-weight: 500;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
