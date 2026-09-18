@@ -96,6 +96,9 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "실물 미확인 목록 표시 기준 수정", items: [
+    "미확인 박스가 0개인 재고는 실물 확인 현황에서 제외하고, 표시된 목록 기준으로 건수와 박스 수를 집계합니다."
+  ] },
   { date: "2026-09-18", title: "재고 정리 후 실물 확인 목록 갱신", items: [
     "재고 정리 후 열려 있는 실물 확인 현황도 최신 데이터로 갱신해, 처리 완료된 재고가 이전 목록에 남지 않도록 수정했습니다."
   ] },
@@ -9060,10 +9063,10 @@ function getInventoryAttentionConfig(type) {
   const configs = {
     audit: {
       title: "실물 확인 현황",
-      description: "재고조사 대상 박스를 확인 상태별로 구분합니다.",
+      description: "미확인 박스가 남아 있는 재고만 표시합니다.",
       tone: "purple",
       isAudit: true,
-      filter: isInventoryAuditTarget
+      filter: isInventoryPhysicalMissing
     },
     storage: {
       title: "미지정 보관 재고",
