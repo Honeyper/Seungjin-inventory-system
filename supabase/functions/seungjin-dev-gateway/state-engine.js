@@ -610,6 +610,31 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     activeShippingBoxes: undefined,
     shippedShippingBoxes: undefined
   };
+  // Location-only edits preserve canonical boxes, including partial/adjusted quantities.
+  const relocatesWithoutQuantityChange = action === "updateInbound"
+    && text(currentRecord.storage) !== text(inbound.storage)
+    && nextBoxQuantity === integer(currentRecord.boxQuantity)
+    && nextFullBoxCount === currentFullBoxCount
+    && nextRemainders.length === currentRemainders.length
+    && nextRemainders.every((quantity, index) => quantity === currentRemainders[index]);
+  if (relocatesWithoutQuantityChange) {
+    Object.assign(currentRecord, record);
+    const movedBoxes = previousBoxes.filter((box) => number(box.quantity) > 0
+      && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))
+      && text(box.storage) !== text(inbound.storage));
+    movedBoxes.forEach((box) => {
+      box.storage = inbound.storage;
+      box.inventoryMovedAt = parts.timestamp;
+      box.inventoryMover = text(payload.registrant || payload.userName || "Admin");
+    });
+    upsertBoxes(movedBoxes, changes);
+    touchInventoryRecords(state, [managementId], changes);
+    recalculateOrders(state.orders, state.inbounds, changes, parts.date);
+    recalculateProductInbound(state.products, state.records, state.boxes, changes, new Set([productId]));
+    return { managementId, boxCount: previousBoxes.length, boxIds: previousBoxes.map((box) => box.boxId),
+      updatedBoxRows: movedBoxes.length, storage: inbound.storage };
+  }
+
   const oldRecordKey = currentRecord ? text(currentRecord.recordKey || inventoryKey(currentRecord.managementId, currentRecord.productId, currentRecord.storage)) : "";
   const recordKey = inventoryKey(managementId, productId, inbound.storage);
   if (oldRecordKey && oldRecordKey !== recordKey) changes.inventoryRecords.deletes.push(oldRecordKey);

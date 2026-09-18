@@ -2379,6 +2379,15 @@ function updateInbound(payload) {
     }
 
     const row = rowInfo.rowValues.slice();
+    const storedRemainders = parseRemainderQuantities_(
+      pickCell_(row, rowInfo.indexes, ['잔량 상세', '잔량상세']),
+      pickCell_(row, rowInfo.indexes, ['잔량 수량', '잔량수량'])
+    );
+    const preserveBoxQuantities = (storage !== String(pickCell_(row, rowInfo.indexes, ['보관위치']) || '').trim()
+      || stockStatus === String(pickCell_(row, rowInfo.indexes, ['상태', '재고 상태']) || '').trim())
+      && boxQuantity === displayQuantityToNumber_(pickCell_(row, rowInfo.indexes, ['박스당 수량', '박스당수량']))
+      && inboundBoxCount === displayQuantityToNumber_(pickCell_(row, rowInfo.indexes, ['입고 박스 수', '입고박스수']))
+      && JSON.stringify(remainderQuantities) === JSON.stringify(storedRemainders);
     const storedDueDate = pickCell_(row, rowInfo.indexes, ['납기일']);
     const storedPurchaseOrderId = pickCell_(row, rowInfo.indexes, ['발주ID', '발주 ID']);
     const storedPurchaseOrderRound = pickCell_(row, rowInfo.indexes, ['발주 차수']);
@@ -2489,7 +2498,7 @@ function updateInbound(payload) {
       });
     }
 
-    const boxSync = syncInboundBoxManagementRows_(boxSheet, managementId, boxRecords);
+    const boxSync = syncInboundBoxManagementRows_(boxSheet, managementId, boxRecords, { preserveBoxQuantities });
 
     return {
       managementId,
@@ -3269,7 +3278,7 @@ function appendBoxManagementRows_(sheet, boxRecords) {
   return appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber);
 }
 
-function syncInboundBoxManagementRows_(sheet, managementId, boxRecords) {
+function syncInboundBoxManagementRows_(sheet, managementId, boxRecords, options) {
   const values = sheet.getDataRange().getDisplayValues();
   const headerInfo = findHeaderRow_(values, ['박스ID', '관리ID', '제품명']);
 
@@ -3314,6 +3323,22 @@ function syncInboundBoxManagementRows_(sheet, managementId, boxRecords) {
   }
 
   const existingRows = identityRows.length ? identityRows : managementRows;
+  if (options && options.preserveBoxQuantities) {
+    const storageIndex = findHeaderIndex_(indexes, ['보관 위치', '보관위치', '보관 장소']);
+    const targetStorage = boxRecords[0] && boxRecords[0].storage;
+    let updatedRows = 0;
+    if (storageIndex >= 0 && targetStorage) {
+      existingRows.forEach((rowInfo) => {
+        const row = rowInfo.rowValues;
+        const status = normalizeHeaderValue_(pickCell_(row, indexes, ['상태', '재고 상태']));
+        const quantity = displayQuantityToNumber_(pickCell_(row, indexes, ['현재 수량', '현재수량']));
+        if (quantity <= 0 || /출고완료|폐기/.test(status) || row[storageIndex] === targetStorage) return;
+        sheet.getRange(rowInfo.rowNumber, storageIndex + 1).setValue(targetStorage);
+        updatedRows += 1;
+      });
+    }
+    return { firstRowNumber: existingRows[0]?.rowNumber || 0, updatedRows, deletedRows: 0, retiredRows: 0, insertedRows: 0 };
+  }
   const targetSequenceSet = new Set(boxRecords.map((record) => Number(record.sequence)));
   const rowsBySequence = new Map();
   const extraRows = [];
