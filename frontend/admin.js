@@ -99,6 +99,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "재고 화면 안내 문구 정리", items: ["재고 상세와 실물 확인 현황의 반복 안내 문구를 제거했습니다."] },
   { date: "2026-09-18", title: "실물 확인 영역 디자인 통일", items: ["실물 확인 제목, 상태 표시, 박스 카드와 버튼의 글자 및 여백을 재고 상세보기와 통일했습니다."] },
   { date: "2026-09-18", title: "재고 상세 첨부 자료 배치 개선", items: ["거래명세서는 제품 이미지 옆에, 불량사진은 검수 정보에 배치했습니다."] },
   { date: "2026-09-18", title: "재고 목록 중복 합계 제거", items: ["컬럼 제목 아래의 중복 합계 줄을 제거하고 상단 재고 요약에만 합계를 표시합니다."] },
@@ -9697,7 +9698,7 @@ function getInventoryAttentionConfig(type) {
   const configs = {
     audit: {
       title: "실물 확인 현황",
-      description: "미확인 박스가 남아 있는 재고만 표시합니다.",
+      description: "",
       tone: "purple",
       isAudit: true,
       filter: isInventoryPhysicalMissing
@@ -9754,7 +9755,7 @@ function getInventoryAttentionDescription(type, rows, config) {
   if (type === "audit") {
     const unconfirmedBoxes = rows.reduce((sum, item) => sum + Number(item.inventoryUnconfirmedBoxCount || 0), 0);
     const confirmedBoxes = rows.reduce((sum, item) => sum + Number(item.inventoryConfirmedBoxCount || 0), 0);
-    return `${config.description} 미확인 ${formatNumber(unconfirmedBoxes)} box, 확인 완료 ${formatNumber(confirmedBoxes)} box입니다.`;
+    return `미확인 ${formatNumber(unconfirmedBoxes)} box, 확인 완료 ${formatNumber(confirmedBoxes)} box`;
   }
 
   return config.description;
@@ -11647,7 +11648,7 @@ function setInboundDetailMode(mode) {
     inboundDetailDescription.textContent = isEdit
       ? "수정 가능한 입고 정보와 수량 정보를 변경할 수 있습니다."
       : isInventoryDetail
-        ? "현재 보관 중인 재고와 최초 입고 정보를 함께 확인할 수 있습니다."
+        ? ""
         : "등록된 입고 정보와 수량 정보를 확인할 수 있습니다.";
   }
 
@@ -11981,9 +11982,9 @@ function renderInventoryDetailLayout(inbound, productImageUrls, remainderDetail)
     <section class="product-detail-section" aria-labelledby="inventoryDetailCurrentTitle">
       <h3 id="inventoryDetailCurrentTitle">현재 재고</h3>
       <dl class="product-metrics">
-        <div><dt>현재 수량</dt><dd>${escapeHtml(formatDetailMetric(inbound.currentTotalQuantity, "ea"))}</dd><span>남아 있는 재고</span></div>
-        <div><dt>현재 박스 수</dt><dd>${escapeHtml(formatDetailMetric(inbound.currentBoxCount, "box"))}</dd><span>남아 있는 박스</span></div>
-        <div><dt>보관 위치</dt><dd>${escapeHtml(normalizeDisplayValue(inbound.storage))}</dd><span>현재 보관 장소</span></div>
+        <div><dt>현재 수량</dt><dd>${escapeHtml(formatDetailMetric(inbound.currentTotalQuantity, "ea"))}</dd></div>
+        <div><dt>현재 박스 수</dt><dd>${escapeHtml(formatDetailMetric(inbound.currentBoxCount, "box"))}</dd></div>
+        <div><dt>보관 위치</dt><dd>${escapeHtml(normalizeDisplayValue(inbound.storage))}</dd></div>
       </dl>
       <dl class="inventory-storage-facts">
         ${field("입고일", inbound.inboundDate)}${field("보관기간 (입고일 기준)", formatInventoryStorageDays(inbound.inboundDate))}${field("납기일", inbound.dueDate)}
@@ -12223,7 +12224,7 @@ function renderInventoryAuditBoxStatus(inbound) {
       </div>
       <div class="inventory-audit-confirm-toolbar">
         <button type="button" data-inventory-audit-confirm-all ${unconfirmedBoxes.length && !state.isSavingInventoryConfirmation ? "" : "disabled"}>전체 실물 확인</button>
-        <span data-inventory-audit-message role="status" aria-live="polite">카드를 오른쪽으로 끌어 놓으면 실물 확인됩니다.</span>
+        <span data-inventory-audit-message role="status" aria-live="polite"></span>
       </div>
       <div class="inventory-audit-box-groups">
         <section class="inventory-audit-box-group unconfirmed">
