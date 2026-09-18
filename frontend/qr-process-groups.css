@@ -10,8 +10,11 @@
 .box-qr-label-reference .box-qr-reference-row.is-combined strong {
   white-space: normal;
   overflow-wrap: anywhere;
-  font-size: 7pt;
   line-height: 1.05;
+}
+
+.box-qr-label-reference .box-qr-reference-row.is-long-combined strong {
+  font-size: 7pt;
 }
 
 .qr-sheet-work .box-qr-label-reference .box-qr-reference-row.is-long-combined strong {
