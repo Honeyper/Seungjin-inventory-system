@@ -14873,3 +14873,5 @@ input {
   #inboundDetailModal .inventory-detail-layout .inventory-audit-box-section { padding: 1rem; }
   .inventory-detail-layout .inventory-audit-box-groups { gap: .8rem; }
 }
+
+#inboundDetailDescription:empty, .inventory-detail-layout [data-inventory-audit-message]:empty { display: none; }
