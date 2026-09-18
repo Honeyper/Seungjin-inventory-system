@@ -1,0 +1,36 @@
+/* Keep the existing label size and QR area when a route needs extra passes. */
+.box-qr-label-reference.has-expanded-processes {
+  grid-template-rows: 5.4mm 5.4mm 16.4mm 5.8mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 7.2mm;
+}
+
+.qr-sheet-work .box-qr-label-reference.has-expanded-processes {
+  grid-template-rows: 5.4mm 5.4mm 18.4mm 5.4mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 6.8mm;
+}
+
+.box-qr-label-reference .box-qr-reference-row.is-combined strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 7pt;
+  line-height: 1.05;
+}
+
+.qr-sheet-work .box-qr-label-reference .box-qr-reference-row.is-long-combined strong {
+  font-size: 5.2pt;
+  line-height: 1;
+}
+
+.box-qr-label-reference.has-expanded-processes .box-qr-reference-row:not(.box-qr-reference-manager),
+.box-qr-label-reference.has-expanded-processes .box-qr-reference-row:not(.box-qr-reference-manager) * {
+  font-size: 6.5pt;
+  line-height: 1;
+  min-height: 0;
+}
+
+@media print {
+  .box-qr-label-reference.has-expanded-processes {
+    grid-template-rows: 5.2mm 5.2mm 15.8mm 5.6mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 7mm;
+  }
+  .qr-sheet-work .box-qr-label-reference.has-expanded-processes {
+    grid-template-rows: 5.2mm 5.2mm 17.8mm 5.2mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 6.6mm;
+  }
+}

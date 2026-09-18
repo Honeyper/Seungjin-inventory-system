@@ -14,8 +14,9 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260918-audit-bulk-v1-dev-qr-reopen-r14" />
+    <link rel="stylesheet" href="./styles.css?v=20260918-audit-bulk-v1-dev-process-groups-r17" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260909-qr-worker-hint-dev" />
+    <link rel="stylesheet" href="./qr-process-groups.css?v=20260918-process-groups-r17" />
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -2509,30 +2510,74 @@
                     </label>
                   </div>
                   <div class="product-process-stages" id="productProcessStages">
-                    <label class="product-process-stage">
+                    <div class="product-process-stage">
                       <span><b>1도</b><small>필수</small></span>
-                      <select id="productProcessStage1">
+                      <select id="productProcessStage1" aria-label="1도 공정">
                         <option value="">선택하세요.</option>
                         <option value="실크">실크</option>
                         <option value="박">박</option>
                       </select>
-                    </label>
-                    <label class="product-process-stage">
+                    </div>
+                    <div class="product-process-stage">
                       <span><b>2도</b><small>선택</small></span>
-                      <select id="productProcessStage2">
+                      <select id="productProcessStage2" aria-label="2도 공정" disabled>
                         <option value="none">사용 안 함</option>
                         <option value="실크">실크</option>
                         <option value="박">박</option>
                       </select>
-                    </label>
-                    <label class="product-process-stage">
+                      <label class="product-process-join">
+                        <input type="checkbox" data-product-process-join="2" disabled />
+                        <span>이전 공정과 동시 작업</span>
+                      </label>
+                    </div>
+                    <div class="product-process-stage">
                       <span><b>3도</b><small>선택</small></span>
-                      <select id="productProcessStage3" disabled>
+                      <select id="productProcessStage3" aria-label="3도 공정" disabled>
                         <option value="none">사용 안 함</option>
                         <option value="실크">실크</option>
                         <option value="박">박</option>
                       </select>
-                    </label>
+                      <label class="product-process-join">
+                        <input type="checkbox" data-product-process-join="3" disabled />
+                        <span>이전 공정과 동시 작업</span>
+                      </label>
+                    </div>
+                    <div class="product-process-stage">
+                      <span><b>4도</b><small>선택</small></span>
+                      <select id="productProcessStage4" aria-label="4도 공정" disabled>
+                        <option value="none">사용 안 함</option>
+                        <option value="실크">실크</option>
+                        <option value="박">박</option>
+                      </select>
+                      <label class="product-process-join">
+                        <input type="checkbox" data-product-process-join="4" disabled />
+                        <span>이전 공정과 동시 작업</span>
+                      </label>
+                    </div>
+                    <div class="product-process-stage">
+                      <span><b>5도</b><small>선택</small></span>
+                      <select id="productProcessStage5" aria-label="5도 공정" disabled>
+                        <option value="none">사용 안 함</option>
+                        <option value="실크">실크</option>
+                        <option value="박">박</option>
+                      </select>
+                      <label class="product-process-join">
+                        <input type="checkbox" data-product-process-join="5" disabled />
+                        <span>이전 공정과 동시 작업</span>
+                      </label>
+                    </div>
+                    <div class="product-process-stage">
+                      <span><b>6도</b><small>선택</small></span>
+                      <select id="productProcessStage6" aria-label="6도 공정" disabled>
+                        <option value="none">사용 안 함</option>
+                        <option value="실크">실크</option>
+                        <option value="박">박</option>
+                      </select>
+                      <label class="product-process-join">
+                        <input type="checkbox" data-product-process-join="6" disabled />
+                        <span>이전 공정과 동시 작업</span>
+                      </label>
+                    </div>
                   </div>
                   <div class="product-process-summary" id="productProcessSummary">공정을 선택해주세요.</div>
                 </div>
@@ -3146,13 +3191,13 @@
     <script src="./supabase-gateway.js?v=20260911-production-capacity-v1-dev"></script>
     <script src="./product-sort.js?v=20260907-product-picker-direction-dev"></script>
     <script src="./inbound-sort.js?v=20260901-recent-first"></script>
-    <script src="./qr-label.js?v=20260916-label-process-v1"></script>
+    <script src="./qr-label.js?v=20260916-label-process-v1-process-groups-r17"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-dev"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-dev"></script>
     <script src="./production-planner.js?v=20260911-production-capacity-v1"></script>
     <script src="./purchase-order-sort.js?v=20260916-order-column-sort-v1"></script>
     <script src="./inventory-list-sort.js?v=20260917-inventory-list-sort-v1"></script>
     <script src="./inventory-audit-cards.js?v=20260917-audit-card-drag-v1"></script>
-    <script src="./admin.js?v=20260918-audit-bulk-v1-dev-confirmed-cleanup-r16"></script>
+    <script src="./admin.js?v=20260918-audit-bulk-v1-dev-process-groups-r17"></script>
   </body>
 </html>

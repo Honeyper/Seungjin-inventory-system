@@ -11,6 +11,9 @@ function form(){
  const c=vm.createContext({state:{},normalizeEditableValue:v=>String(v||'').trim(),getCommonContainerProductNameValues:()=>[],session:{name:'테스트'},productForm:{querySelector:()=>null}});
  for(const name of ['productProcessType','productProcessStage1','productProcessStage2','productProcessStage3','productProcessStages','productProcessSummary','productFinalProcess','productOrderQuantity','productBoxQuantity','productTrayQuantity','productHourlyProductionRate','productCommonContainer','productShippingProductCount','productClientName','productNameInput','productColor','productDueDate','productNote']) c[name]={value:'',dataset:{}};
  c.state.productImageUrls=[];
+ for(const step of [4,5,6])c[`productProcessStage${step}`]={value:'',dataset:{}};
+ c.productProcessJoins=[];
+ c.SeungjinQrLabel=globalThis.SeungjinQrLabel;
  vm.runInContext(section('function normalizeProductProcessMethod(', 'function openProductModal(')+section('function getProductFormPayload()', 'function validateProductPayload('),c);return c;
 }
 for (const [type,label] of [['coating','코팅'],['label','라벨']]) {

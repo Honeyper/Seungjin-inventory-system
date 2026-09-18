@@ -6435,6 +6435,7 @@ small, em {
 
 .product-process-stage {
   display: grid;
+  align-content: start;
   gap: 0.42rem;
   min-width: 0;
   padding: 0.68rem;
@@ -6482,6 +6483,31 @@ small, em {
   background: #fff9ee;
   font-size: 0.76rem;
   font-weight: 500;
+}
+
+.product-create-form .product-process-join {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #526781;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.product-create-form .form-field .product-process-join input[type="checkbox"] {
+  flex: 0 0 1rem;
+  width: 1rem;
+  height: 1rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: #163b70;
+}
+
+.product-process-stage:has(.product-process-join input:checked) {
+  border-color: #7898be;
+  background: #f3f7fc;
 }
 
 .product-create-form fieldset.usage-field:has(input[name="productUsage"][value="사용중"]:checked) {
