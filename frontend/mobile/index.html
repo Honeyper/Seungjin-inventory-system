@@ -349,6 +349,10 @@
               <strong id="confirmProductName">-</strong>
             </section>
             <div class="confirm-meta-list" id="confirmMetaList" aria-label="작업 상세"></div>
+            <label class="mobile-transfer-return-field" id="completedShippingQuantityField" hidden>
+              <span>출고대기 수량 (ea)</span>
+              <input id="completedShippingQuantity" type="number" inputmode="numeric" min="1" step="1" required placeholder="실제 수량" />
+            </label>
             <section class="mobile-inventory-audit-scope" id="mobileInventoryAuditScopeControls" hidden>
               <div class="mobile-inventory-audit-scope-heading">
                 <strong>재고 정리 범위</strong>
@@ -657,6 +661,6 @@
     <script src="../supabase-gateway.js?v=20260901-supabase-dev-2"></script>
     <script src="../vendor/jsQR.min.js"></script>
     <script src="../qr-payload.js?v=20260904-box-checksum-dev"></script>
-    <script src="./mobile.js?v=20260917-audit-eligible-status-v1-dev"></script>
+    <script src="./mobile.js?v=20260917-audit-eligible-status-v1-dev-qr-reopen-r14"></script>
   </body>
 </html>

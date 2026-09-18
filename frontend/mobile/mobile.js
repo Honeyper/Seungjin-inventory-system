@@ -3490,7 +3490,12 @@ function renderConfirmMeta(parts = []) {
     .join("");
 }
 
-function closeConfirmModal() {
+function closeConfirmModal(completedShippingQuantity = null) {
+  const resolveCompletedShippingScan = state.resolveCompletedShippingScan;
+  state.resolveCompletedShippingScan = null;
+  const reopenField = document.querySelector("#completedShippingQuantityField");
+  if (reopenField) reopenField.hidden = true;
+  if (resolveCompletedShippingScan) resolveCompletedShippingScan(Number.isSafeInteger(completedShippingQuantity) && completedShippingQuantity > 0 ? completedShippingQuantity : null);
   const shouldResumeInventoryScanner = state.selectedConfirmMode === "inventoryMoveBatch"
     && !elements.scannerScreen?.hidden
     && state.scannerInputMode === "camera";
@@ -3636,6 +3641,17 @@ async function handleReturnTransferredInventory(item) {
 }
 
 async function handleConfirmShipping() {
+  if (state.selectedConfirmMode === "completedShippingScan") {
+    const input = document.querySelector("#completedShippingQuantity");
+    const quantity = Number(input?.value);
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+      input?.reportValidity();
+      showToast("출고대기로 등록할 실제 수량을 입력해주세요.");
+      return;
+    }
+    closeConfirmModal(quantity);
+    return;
+  }
   if (state.selectedConfirmMode === "callback") {
     const callback = state.selectedConfirmCallback;
     if (typeof callback !== "function") {
@@ -6274,10 +6290,8 @@ async function handleQrValue(rawValue) {
     }
 
     if (state.activeWorkflow === "shipping" && isCompletedShippingItem(matched)) {
-      triggerScanFeedback(SCAN_DUPLICATE_VIBRATION);
-      setScannerHelp("이미 출고된 박스입니다. 다른 박스를 스캔해주세요.");
-      showToast("이미 출고된 박스입니다.");
-      return;
+      matched = await reopenCompletedShippingScan(matched);
+      if (!matched) return;
     }
 
     const key = state.activeWorkflow === "inventoryMove" ? getInventoryMoveKey(matched) : getShippingKey(matched);
@@ -6340,6 +6354,64 @@ async function handleQrValue(rawValue) {
       state.isProcessingScan = false;
     }, processingLockMs);
   }
+}
+
+function confirmCompletedShippingScan(item) {
+  const box = getScannedBox(item);
+  // Use this box's saved quantity, never the product or whole-inbound quantity.
+  const quantity = parseNumber(box?.quantity);
+  return new Promise((resolve) => {
+    state.resolveCompletedShippingScan = resolve;
+    openCallbackConfirm({
+      title: "출고 완료 박스 재등록",
+      message: "이미 출고 완료된 박스입니다. 기존 출고를 취소하고 출고대기로 변경하시겠습니까?",
+      subject: normalizeDisplay(item.productName),
+      meta: [item.managementId, getScannedBoxLabel(item), quantity > 0 ? `${formatNumber(quantity)} ea` : "실제 수량 입력 필요"],
+      acceptLabel: "출고대기로 변경", tone: "pending", icon: "ti-clock-check",
+      onConfirm: () => {}
+    });
+    state.selectedConfirmMode = "completedShippingScan";
+    const field = document.querySelector("#completedShippingQuantityField");
+    const input = document.querySelector("#completedShippingQuantity");
+    field.hidden = quantity > 0;
+    input.value = quantity > 0 ? String(quantity) : "";
+  });
+}
+
+async function reopenCompletedShippingScan(item) {
+  const box = getScannedBox(item);
+  const user = state.user;
+  const workflow = state.activeWorkflow;
+  const session = state.hardwareScannerSession;
+  const expectedCompletedBox = {
+    boxId: String(box?.boxId || item.scannedBoxId || ""),
+    quantity: parseNumber(box?.quantity),
+    rawStatus: String(box?.rawStatus || box?.status || ""),
+    shippingUpdatedAt: String(box?.shippingUpdatedAt || ""),
+    shippingDate: String(box?.shippingDate || ""),
+    shippingType: String(box?.shippingType || "")
+  };
+  const quantity = await confirmCompletedShippingScan(item);
+  if (quantity === null || user !== state.user || workflow !== state.activeWorkflow || session !== state.hardwareScannerSession) return null;
+  setScannerHelp("출고대기로 변경 중입니다.");
+  const result = await requestApi("updateShippingStatus", {
+    managementId: item.managementId, productId: item.productId,
+    selectedBoxes: [String(box.number)], selectedBoxIds: expectedCompletedBox.boxId ? [expectedCompletedBox.boxId] : [],
+    status: "출고대기", allowReopenCompleted: true, expectedCompletedBox,
+    boxQuantities: { [box.number]: quantity }, userName: user?.name || "Admin"
+  });
+  if (parseNumber(result?.updatedBoxRows) !== 1) throw new Error("출고대기로 변경된 박스를 확인하지 못했습니다.");
+  invalidateShippingDashboardRead();
+  if (user !== state.user || workflow !== state.activeWorkflow || session !== state.hardwareScannerSession) return null;
+  const pendingBox = { ...box, quantity, currentQuantity: quantity, status: "출고대기", rawStatus: "출고대기",
+    shippingDate: "", shippingTime: "", shippingType: "", transferCompany: "", shipper: "" };
+  const reopened = { ...item, scannedBox: pendingBox, stockStatus: "출고대기", processStatus: "출고대기",
+    shippedShippingBoxes: (item.shippedShippingBoxes || []).filter((entry) => String(entry.number) !== String(box.number)),
+    scannedQuantityEdited: false };
+  const key = getShippingKey(item);
+  state.scannedShippingRows = state.scannedShippingRows.map((row) => getShippingKey(row) === key ? reopened : row);
+  state.scannerSessionShippingKeys = state.scannerSessionShippingKeys.filter((entry) => entry !== key);
+  return reopened;
 }
 
 function restoreHardwareScannerQrValue(rawValue) {
