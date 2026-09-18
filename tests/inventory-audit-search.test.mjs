@@ -33,6 +33,21 @@ function runtime() {
   return app;
 }
 
+test("장기 보관 검색은 확인 완료된 재고도 검색하고 현재 목록 유형을 유지한다", () => {
+  const app = runtime();
+  app.isLongStoredInventory = () => true;
+  app.openInventoryAttentionModal("aging");
+  assert.equal(app.inventoryAttentionSearch.hidden, false);
+  assert.equal(app.getInventoryAttentionConfig("aging").canCleanup, true);
+  assert.deepEqual(Array.from(app.getInventoryAttentionRows("aging", undefined, "CONFIRMED"), row => row.managementId), ["CONFIRMED"]);
+  let listener;
+  let renderedType;
+  const handler = source.match(/inventoryAttentionSearchInput\?\.addEventListener\("input", \(\) => \{[\s\S]*?\n\}\);/)[0];
+  vm.runInNewContext(handler, {inventoryAttentionSearchInput:{addEventListener:(_,fn)=>{listener=fn;}}, inventoryAttentionModal:{dataset:{attentionType:'aging'}}, inventoryAttentionList:{scrollTop:100}, renderInventoryAttentionList:type=>{renderedType=type;}});
+  listener();
+  assert.equal(renderedType,'aging');
+});
+
 test("제품명·거래처·관리 ID를 부분 검색하고 띄어쓰기와 대소문자를 무시한다", () => {
   const app = runtime();
   for (const query of ["메디큐브pdrn", "케이알", "in-260910-kr"]) {

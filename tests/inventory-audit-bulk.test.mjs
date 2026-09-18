@@ -4,9 +4,9 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { applyMutation, buildInventoryDashboard } from '../supabase/functions/seungjin-dev-gateway/state-engine.js';
 const source = fs.readFileSync(new URL('../frontend/admin.js', import.meta.url), 'utf8');
-function setup({ failure = '', changed = false, cancel = false, readFail = false, category = '' } = {}) {
+function setup({ failure = '', changed = false, quantityChanged = false, cancel = false, readFail = false, category = '', allConfirmed = false } = {}) {
   let db = {products:[],orders:[],inbounds:[],records:['A','B'].map(managementId=>({managementId,productId:'P'})), boxes:[]};
-  for (const record of db.records) for (let n=1;n<=5;n++) db.boxes.push({...record,boxId:record.managementId+n,number:n,quantity:100,inventoryCategory:category,status:['보관','출고대기','보류','폐기','보관'][n-1],lastInventoryCheckedAt:n===5?'2026-09-18':''});
+  for (const record of db.records) for (let n=1;n<=5;n++) db.boxes.push({...record,boxId:record.managementId+n,number:n,quantity:100,inventoryCategory:category,status:['보관','출고대기','보류','폐기','보관'][n-1],lastInventoryCheckedAt:allConfirmed||n===5?'2026-09-18':''});
   const dashboard = () => buildInventoryDashboard(db.records,db.boxes);
   const nodes = new Map();
   const node = id => { if(!nodes.has(id)) nodes.set(id,{}); return nodes.get(id); };
@@ -22,6 +22,7 @@ function setup({ failure = '', changed = false, cancel = false, readFail = false
       if(action==='getInventoryDashboard') {
         if(readFail) throw new Error('offline');
         if(changed) db.boxes[0].lastInventoryCheckedAt='now';
+        if(quantityChanged) db.boxes[0].quantity=99;
         return dashboard();
       }
       mutations.push(payload);
@@ -35,12 +36,12 @@ function setup({ failure = '', changed = false, cancel = false, readFail = false
   for(const row of app.state.inventoryRows) app.state.inventoryAuditSelection.set(app.getInventoryAuditSelectionKey(row),app.getInventoryAuditSelectionSnapshot(row));
   return {app,mutations,node,db:()=>db};
 }
-test('bulk removes only unconfirmed eligible boxes, includes waiting and preserves confirmed/held/discarded boxes',async()=>{
+test('bulk removes confirmed and unconfirmed eligible boxes, includes waiting and preserves held/discarded boxes',async()=>{
   const h=setup();await h.app.saveInventoryAuditBulk();
   assert.equal(h.mutations.length,2);
-  for(const p of h.mutations){assert.deepEqual(Array.from(p.selectedBoxes),[1,2]);assert.equal(p.boxQuantities[1],0);assert.equal(p.expectedBoxQuantities[1],100);assert.equal(p.protectClassifiedInventory,true);}
-  assert.equal(h.db().boxes.filter(b=>b.shippingType==='재고조정').length,4);
-  assert.equal(h.db().boxes.filter(b=>b.quantity===100).length,6);
+  for(const p of h.mutations){assert.deepEqual(Array.from(p.selectedBoxes),[1,2,5]);assert.equal(p.boxQuantities[1],0);assert.equal(p.expectedBoxQuantities[1],100);assert.equal(p.protectClassifiedInventory,true);}
+  assert.equal(h.db().boxes.filter(b=>b.shippingType==='재고조정').length,6);
+  assert.equal(h.db().boxes.filter(b=>b.quantity===100).length,4);
   assert.equal(h.app.state.inventoryAuditSelection.size,0);
 });
 test('one failed record does not replay successful records; failed selection and reason remain',async()=>{
@@ -49,32 +50,46 @@ test('one failed record does not replay successful records; failed selection and
   assert.match(h.node('#inventoryAuditBulkResult').textContent,/B: conflict/);
   h.mutations.length=0;await h.app.saveInventoryAuditBulk();assert.equal(h.mutations.length,1);assert.equal(h.mutations[0].managementId,'B');
 });
-test('new physical confirmation since selection excludes that record without affecting others',async()=>{
-  const h=setup({changed:true});await h.app.saveInventoryAuditBulk();assert.equal(h.mutations.length,1);assert.equal(h.mutations[0].managementId,'B');assert.match(h.node('#inventoryAuditBulkResult').textContent,/확인 상태가 변경/);
+test('new physical confirmation does not block cleanup but a changed quantity still excludes the record',async()=>{
+  const confirmed=setup({changed:true});await confirmed.app.saveInventoryAuditBulk();assert.equal(confirmed.mutations.length,2);
+  const h=setup({quantityChanged:true});await h.app.saveInventoryAuditBulk();assert.equal(h.mutations.length,1);assert.equal(h.mutations[0].managementId,'B');assert.match(h.node('#inventoryAuditBulkResult').textContent,/수량 또는 재고 상태가 변경/);
 });
 test('cancel, duplicate click and failed fresh lookup never write stock',async()=>{
   for(const options of [{cancel:true},{readFail:true}]) { const h=setup(options);await h.app.saveInventoryAuditBulk();assert.equal(h.mutations.length,0); }
   const h=setup();h.app.state.isInventoryAuditBulkSaving=true;await h.app.saveInventoryAuditBulk();assert.equal(h.mutations.length,0);
 });
 test('search prunes hidden selections and visible select-all uses eligible box snapshots',()=>{
-  const h=setup(),row=h.app.state.inventoryRows[0];h.app.renderInventoryAuditBulkControls('audit',[row]);assert.equal(h.app.state.inventoryAuditSelection.size,1);assert.match(h.node('#inventoryAuditBulkSummary').textContent,/1건 · 2 box · 200 ea/);
+  const h=setup(),row=h.app.state.inventoryRows[0];h.app.renderInventoryAuditBulkControls('audit',[row]);assert.equal(h.app.state.inventoryAuditSelection.size,1);assert.match(h.node('#inventoryAuditBulkSummary').textContent,/1건 · 3 box · 300 ea/);
   h.node('#inventoryAuditSelectAll').checked=false;h.node('#inventoryAuditSelectAll').onchange();assert.equal(h.app.state.inventoryAuditSelection.size,0);
   h.node('#inventoryAuditSelectAll').checked=true;h.node('#inventoryAuditSelectAll').onchange();assert.equal(h.app.state.inventoryAuditSelection.size,1);
   h.app.renderInventoryAuditBulkControls('storage',[]);assert.equal(h.node('#inventoryAuditBulkToolbar').hidden,true);assert.equal(h.app.state.inventoryAuditSelection.size,0);
 });
 
 for (const category of ['자사재고', '사출 보관재고', '인쇄재고']) {
- test(`${category} select-all cleans unconfirmed stored and waiting boxes while preserving other boxes`, async()=>{
+ test(`${category} select-all cleans confirmed and unconfirmed stored and waiting boxes`, async()=>{
   const h=setup({category});
   h.app.renderInventoryAuditBulkControls('audit',h.app.state.inventoryRows);
   h.node('#inventoryAuditSelectAll').checked=false;h.node('#inventoryAuditSelectAll').onchange();
   h.node('#inventoryAuditSelectAll').checked=true;h.node('#inventoryAuditSelectAll').onchange();
   assert.equal(h.app.state.inventoryAuditSelection.size,2);
-  assert.match(h.node('#inventoryAuditBulkSummary').textContent,/2건 · 4 box · 400 ea/);
+  assert.match(h.node('#inventoryAuditBulkSummary').textContent,/2건 · 6 box · 600 ea/);
   await h.app.saveInventoryAuditBulk();
   assert.equal(h.mutations.length,2);
-  assert.equal(h.db().boxes.filter(b=>b.shippingType==='재고조정' && b.quantity===0).length,4);
-  assert.equal(h.db().boxes.filter(b=>b.quantity===100).length,6);
+  assert.equal(h.db().boxes.filter(b=>b.shippingType==='재고조정' && b.quantity===0).length,6);
+  assert.equal(h.db().boxes.filter(b=>b.quantity===100).length,4);
   assert.ok(h.db().boxes.every(b=>b.inventoryCategory===category));
 });
 }
+
+test('aging list can select all physically confirmed boxes and clean them up',async()=>{
+  const h=setup({allConfirmed:true});
+  h.app.state.inventoryAuditSelection.clear();
+  h.app.renderInventoryAuditBulkControls('aging',h.app.state.inventoryRows);
+  assert.equal(h.node('#inventoryAuditBulkToolbar').hidden,false);
+  assert.equal(h.node('#inventoryAuditSelectAll').disabled,false);
+  h.node('#inventoryAuditSelectAll').checked=true;h.node('#inventoryAuditSelectAll').onchange();
+  assert.equal(h.app.state.inventoryAuditSelection.size,2);
+  await h.app.saveInventoryAuditBulk();
+  assert.equal(h.db().boxes.filter(b=>b.shippingType==='재고조정').length,6);
+  assert.ok(h.db().boxes.every(b=>b.lastInventoryCheckedAt));
+});

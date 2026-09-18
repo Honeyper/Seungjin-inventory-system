@@ -19,12 +19,12 @@ test("실물 확인 상세는 미확인 박스와 확인 완료 박스를 구분
   assert.doesNotMatch(adminSource, /metric: \(item\) => `\$\{formatNumber\(item\.inventoryAdjustmentBoxCount\)\} box`/);
 });
 
-test("재고 상세는 박스별 확인 상태를 나누고 미확인 박스를 바로 정리한다", () => {
+test("재고 상세는 박스별 확인 상태를 나누고 확인 여부와 관계없이 정리한다", () => {
   assert.match(adminSource, /실물 확인 박스 현황/);
   assert.match(adminSource, /실물 미확인/);
   assert.match(adminSource, /실물 확인 완료/);
   assert.match(adminSource, /data-inventory-audit-box=/);
-  assert.match(adminSource, /getInventoryAuditEligibleBoxes\(item\)\s*\.filter\(\(box\) => !String\(box\.lastInventoryCheckedAt/);
+  assert.match(adminSource, /function getInventoryAuditTargetBoxes\(item\) \{\s*return getInventoryAuditEligibleBoxes\(item\);/);
   assert.match(adminSource, /inventoryAuditBoxConfirmModal\.hidden = false/);
   assert.match(adminSource, /requestApi\("adjustMissingInventory"/);
   assert.match(adminSource, /selectedBoxes: \[currentBox\.number\]/);

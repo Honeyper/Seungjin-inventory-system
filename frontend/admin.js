@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "확인 완료 재고 정리 지원", items: ["실물 확인 완료 박스도 상세보기에서 재고정리할 수 있으며, 장기 보관 목록에서 선택·전체 선택하여 일괄 처리할 수 있습니다."] },
   { date: "2026-09-18", title: "사출·인쇄재고 재고정리 제외 해제", items: ["사출·인쇄·자사재고를 모두 선택하여 재고정리할 수 있도록 화면과 서버의 제외 조건을 통일했습니다."] },
   { date: "2026-09-18", title: "모바일 출고 완료 QR 재등록", items: ["출고 완료 박스의 QR을 다시 스캔하면 확인 후 해당 박스를 출고대기로 변경할 수 있습니다."] },
   { date: "2026-09-18", title: "자사재고 일괄 재고정리 지원", items: ["실물 확인 현황에서 자사재고도 선택·전체 선택하여 재고정리할 수 있도록 개선했습니다."] },
@@ -1660,7 +1661,7 @@ inventoryLocationViewButtons.forEach((button) => {
 });
 closeInventoryAttentionModalButton?.addEventListener("click", closeInventoryAttentionModal);
 inventoryAttentionSearchInput?.addEventListener("input", () => {
-  renderInventoryAttentionList("audit");
+  renderInventoryAttentionList(inventoryAttentionModal?.dataset.attentionType || "audit");
   if (inventoryAttentionList) {
     inventoryAttentionList.scrollTop = 0;
   }
@@ -4470,8 +4471,7 @@ function getInventoryAuditEligibleBoxes(item) {
 }
 
 function getInventoryAuditTargetBoxes(item) {
-  return getInventoryAuditEligibleBoxes(item)
-    .filter((box) => !String(box.lastInventoryCheckedAt || "").trim());
+  return getInventoryAuditEligibleBoxes(item);
 }
 
 function openRemainingInventoryModal(source, mode = "classify", selectedBoxNumbers = []) {
@@ -8926,7 +8926,7 @@ function openInventoryAttentionModal(type, { preserveSearch = false } = {}) {
   }
 
   if (inventoryAttentionSearch) {
-    inventoryAttentionSearch.hidden = type !== "audit";
+    inventoryAttentionSearch.hidden = !["audit", "aging"].includes(type);
   }
   if (inventoryAttentionSearchInput && !preserveSearch) {
     inventoryAttentionSearchInput.value = "";
@@ -8952,7 +8952,7 @@ function refreshOpenInventoryAttentionList() {
 
 function renderInventoryAttentionList(type) {
   const config = getInventoryAttentionConfig(type);
-  const query = type === "audit" ? inventoryAttentionSearchInput?.value || "" : "";
+  const query = ["audit", "aging"].includes(type) ? inventoryAttentionSearchInput?.value || "" : "";
   const rows = getInventoryAttentionRows(type, config, query);
 
   renderInventoryAuditBulkControls(type, rows);
@@ -9115,6 +9115,7 @@ function getInventoryAttentionConfig(type) {
     },
     aging: {
       title: "장기 보관 재고",
+      canCleanup: true,
       description: "입고일 기준 1개월 이상 보관 중인 재고 목록입니다.",
       tone: "teal",
       metricLabel: "입고일",
@@ -9139,7 +9140,7 @@ function getInventoryAttentionRows(type, config = getInventoryAttentionConfig(ty
     return [];
   }
 
-  const searchQuery = type === "audit" ? normalizeSearchText(query) : "";
+  const searchQuery = ["audit", "aging"].includes(type) ? normalizeSearchText(query) : "";
   const rows = state.inventoryRows.filter((item) => config.filter(item) && (
     !searchQuery || [item.productName, item.clientName, item.managementId]
       .some((value) => normalizeSearchText(value).includes(searchQuery))
@@ -9246,12 +9247,13 @@ function getInventoryAuditSelectionSnapshot(item) {
 function renderInventoryAuditBulkControls(type, rows) {
   const toolbar = document.querySelector("#inventoryAuditBulkToolbar");
   if (!toolbar) return;
-  toolbar.hidden = type !== "audit";
+  const canCleanup = ["audit", "aging"].includes(type);
+  toolbar.hidden = !canCleanup;
   const visibleKeys = new Set(rows.map(getInventoryAuditSelectionKey));
   for (const key of state.inventoryAuditSelection.keys()) {
-    if (type !== "audit" || !visibleKeys.has(key)) state.inventoryAuditSelection.delete(key);
+    if (!canCleanup || !visibleKeys.has(key)) state.inventoryAuditSelection.delete(key);
   }
-  if (type !== "audit") return;
+  if (!canCleanup) return;
   const candidates = rows.filter((item) => getInventoryAuditTargetBoxes(item).length > 0);
   const selected = Array.from(state.inventoryAuditSelection.values());
   const boxes = selected.flatMap((item) => item.boxes);
@@ -9280,7 +9282,7 @@ async function saveInventoryAuditBulk() {
   const selected = Array.from(state.inventoryAuditSelection.entries());
   const boxes = selected.flatMap(([, item]) => item.boxes);
   if (!boxes.length || !window.confirm(
-    `선택한 ${selected.length}건의 미확인 ${boxes.length}박스 · ${formatNumber(boxes.reduce((sum, box) => sum + box.quantity, 0))} ea를 재고 정리할까요?\n선택한 미확인 박스만 출고완료(재고조정)로 처리합니다. 확인 완료 박스는 유지됩니다.`
+    `선택한 ${selected.length}건의 ${boxes.length}박스 · ${formatNumber(boxes.reduce((sum, box) => sum + box.quantity, 0))} ea를 재고 정리할까요?\n실물 확인 여부와 관계없이 선택한 박스를 출고완료(재고조정)로 처리합니다.`
   )) return;
   state.isInventoryAuditBulkSaving = true;
   const resultLabel = document.querySelector("#inventoryAuditBulkResult");
@@ -9297,7 +9299,7 @@ async function saveInventoryAuditBulk() {
       const unchanged = item.boxes.every((box) => eligible.some((current) => current.number === box.number && current.quantity === box.quantity));
       if (!unchanged) {
         state.inventoryAuditSelection.delete(key);
-        failures.push(`${item.managementId}: 수량 또는 확인 상태가 변경되어 제외했습니다. 최신 목록에서 다시 선택해주세요.`);
+        failures.push(`${item.managementId}: 수량 또는 재고 상태가 변경되어 제외했습니다. 최신 목록에서 다시 선택해주세요.`);
         continue;
       }
       try {
@@ -9308,7 +9310,7 @@ async function saveInventoryAuditBulk() {
           boxQuantities: Object.fromEntries(item.boxes.map((box) => [box.number, 0])),
           expectedBoxQuantities: Object.fromEntries(item.boxes.map((box) => [box.number, box.quantity])),
           protectClassifiedInventory: true,
-          note: "실물 확인 현황에서 선택한 미확인 박스 일괄 재고 정리",
+          note: "재고 목록에서 선택한 박스 일괄 재고 정리",
           userName: signedInAdminName
         });
         completed += Number(result?.updatedBoxRows || 0) + Number(result?.alreadyAdjustedBoxRows || 0);
@@ -9335,6 +9337,7 @@ async function saveInventoryAuditBulk() {
 }
 
 function renderInventoryAttentionRow(item, config) {
+  const canCleanup = config.isAudit || config.canCleanup;
   const accentStyle = config.isAudit
     ? ` style="border-left-color:${getInventoryClientAccent(item.clientName)}"`
     : "";
@@ -9346,8 +9349,8 @@ function renderInventoryAttentionRow(item, config) {
     : `<span>${escapeHtml(config.metricLabel)} <b>${escapeHtml(config.metric(item))}</b></span>`;
 
   return `
-    <article class="inventory-attention-row ${config.tone}${config.isAudit ? " inventory-audit-selectable" : ""}${config.isAudit && state.inventoryAuditSelection.has(getInventoryAuditSelectionKey(item)) ? " is-selected" : ""}"${accentStyle}>
-      ${config.isAudit ? `<input type="checkbox" class="inventory-audit-row-checkbox" data-inventory-audit-select="${escapeAttribute(getInventoryAuditSelectionKey(item))}" aria-label="${escapeAttribute(item.productName)} ${escapeAttribute(item.managementId)} 미확인 박스 선택" ${state.inventoryAuditSelection.has(getInventoryAuditSelectionKey(item)) ? "checked" : ""} ${state.isInventoryAuditBulkSaving || !getInventoryAuditTargetBoxes(item).length ? "disabled" : ""}>` : ""}
+    <article class="inventory-attention-row ${config.tone}${canCleanup ? " inventory-audit-selectable" : ""}${canCleanup && state.inventoryAuditSelection.has(getInventoryAuditSelectionKey(item)) ? " is-selected" : ""}"${accentStyle}>
+      ${canCleanup ? `<input type="checkbox" class="inventory-audit-row-checkbox" data-inventory-audit-select="${escapeAttribute(getInventoryAuditSelectionKey(item))}" aria-label="${escapeAttribute(item.productName)} ${escapeAttribute(item.managementId)} 재고정리 박스 선택" ${state.inventoryAuditSelection.has(getInventoryAuditSelectionKey(item)) ? "checked" : ""} ${state.isInventoryAuditBulkSaving || !getInventoryAuditTargetBoxes(item).length ? "disabled" : ""}>` : ""}
       <div class="inventory-attention-row-main">
         <strong>${escapeHtml(normalizeDisplayValue(item.productName))}</strong>
         <span>${escapeHtml(normalizeDisplayValue(item.managementId))}</span>
@@ -11003,7 +11006,7 @@ function openInventoryAuditBoxFromDetail(boxNumber) {
   const box = getInventoryAuditTargetBoxes(item)
     .find((candidate) => candidate.number === Number(boxNumber));
   if (!item || !box || !inventoryAuditBoxConfirmModal) {
-    showToast("재고 정리할 미확인 박스를 찾을 수 없습니다.");
+    showToast("재고 정리할 박스를 찾을 수 없습니다.");
     return;
   }
 
@@ -11497,12 +11500,10 @@ function renderInventoryAuditBoxStatus(inbound) {
         ${isConfirmed ? `<small>확인일시 ${escapeHtml(normalizeDisplayValue(box.lastInventoryCheckedAt))}</small>` : ""}
       </div>
       <b>${isConfirmed ? "확인 완료" : "미확인"}</b>
-      ${isConfirmed ? "" : `
         <div class="inventory-audit-box-actions">
           ${isProtectedInventoryAuditBox(inbound, box) ? "" : `<button type="button" data-inventory-audit-box="${box.number}">재고 정리</button>`}
-          <button type="button" data-inventory-audit-confirm="${box.number}" aria-label="${box.number}번 박스 실물 확인">실물 확인 <span aria-hidden="true">→</span></button>
+          ${isConfirmed ? "" : `<button type="button" data-inventory-audit-confirm="${box.number}" aria-label="${box.number}번 박스 실물 확인">실물 확인 <span aria-hidden="true">→</span></button>`}
         </div>
-      `}
     </article>
   `;
 
