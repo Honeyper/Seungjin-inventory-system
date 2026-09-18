@@ -977,6 +977,7 @@ test("remaining inventory adjustment uses canonical writes and protects classifi
     productId: "ION-0001",
     selectedBoxes: [2],
     boxQuantities: { 2: 50 },
+    expectedBoxQuantities: { 2: 99 },
     protectClassifiedInventory: true
   }), /재고조정 대상/);
 

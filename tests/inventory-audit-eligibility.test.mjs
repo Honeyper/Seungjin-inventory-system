@@ -31,15 +31,16 @@ test('mixed eight-box record exposes five audit boxes while retaining all stock'
   assert.equal(result.state.boxes.filter(b=>b.status==='보류').length,3);
   assert.equal(result.state.boxes.filter(b=>b.status==='보류').reduce((s,b)=>s+b.quantity,0),1848);
 });
-test('PC includes own stock while both clients exclude hold, discard, shipped and injection stock', () => {
+test('PC and mobile include every inventory category and exclude hold, discard and shipped boxes', () => {
   const h=ui();
   const boxes=['보관','출고대기','보류','출고 보류','폐기','출고완료'].map((status,i)=>({...record,number:i+1,quantity:100,status}));
   boxes.push({...record,number:7,quantity:100,status:'보관',inventoryCategory:'자사재고'});
   boxes.push({...record,number:8,quantity:100,status:'사출재고'});
+  boxes.push({...record,number:9,quantity:100,status:'인쇄재고'});
   const row=buildInventoryDashboard([record],boxes).rows[0];
-  assert.deepEqual(Array.from(h.getInventoryAuditEligibleBoxes(row),b=>b.number),[1,2,7]);
-  assert.equal(row.inventoryAuditTargetBoxCount,3);
-  assert.deepEqual(boxes.filter(b=>!h.isProtectedInventoryAdjustmentBox(record,b)).map(b=>b.number),[1,2]);
+  assert.deepEqual(Array.from(h.getInventoryAuditEligibleBoxes(row),b=>b.number),[1,2,7,8,9]);
+  assert.equal(row.inventoryAuditTargetBoxCount,5);
+  assert.deepEqual(boxes.filter(b=>!h.isProtectedInventoryAdjustmentBox(record,b)).map(b=>b.number),[1,2,7,8,9]);
 });
 test('cached counters are recalculated and confirmed hold/discard boxes are excluded on both sides', () => {
   const h=ui(), boxes=fixture();
@@ -89,7 +90,25 @@ test('physical confirmation includes injection, printing and waiting stock but e
   const dashboard = buildInventoryDashboard([record], boxes);
   const row = h.normalizeInventoryRows(dashboard.rows)[0];
   assert.deepEqual(Array.from(h.getInventoryPhysicalConfirmationBoxes(row), b => b.number), [1,2,3]);
-  assert.deepEqual(Array.from(h.getInventoryAuditTargetBoxes(row), b => b.number), [3]);
+  assert.deepEqual(Array.from(h.getInventoryAuditTargetBoxes(row), b => b.number), [1,2,3]);
   assert.equal(dashboard.attention.physicalMissingCount, 3);
   assert.equal(row.inventoryUnconfirmedBoxCount, 3);
+});
+
+test('classified stock can be selected, cleaned up and retried through PC and mobile mutations', () => {
+  for (const category of ['사출 보관재고','인쇄재고','자사재고']) {
+    const boxes = [1,2].map(number => ({...record, boxId:`B${number}`, number, quantity:1089, status:'보관', inventoryCategory:category}));
+    const initial = {products:[], orders:[], inbounds:[], records:[record], boxes};
+    const row = buildInventoryDashboard([record], boxes).rows[0];
+    const selected = Array.from(ui().getInventoryAuditTargetBoxes(row), box => box.number);
+    assert.deepEqual(selected,[1,2]);
+    const payload = {...record, selectedBoxes:selected, boxQuantities:{1:0,2:0}, expectedBoxQuantities:{1:1089,2:1089}, protectClassifiedInventory:true};
+    const first = applyMutation('adjustRemainingInventory', payload, initial, new Date('2026-09-18T00:00:00Z'));
+    assert.equal(first.result.updatedBoxRows,2,category);
+    assert.equal(buildInventoryDashboard(first.state.records, first.state.boxes).rows[0].inventoryUnconfirmedBoxCount,0);
+    const retry = applyMutation('adjustRemainingInventory', payload, first.state, new Date('2026-09-18T00:00:00Z'));
+    assert.equal(retry.result.alreadyAdjustedBoxRows,2);
+    const mobile = applyMutation('adjustMissingInventory', {adjustments:[{...record,selectedBoxes:selected}]}, initial);
+    assert.equal(mobile.result.updatedBoxRows,2,category);
+  }
 });
