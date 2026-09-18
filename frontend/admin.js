@@ -99,6 +99,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "발주 완료 취소 버튼 색상 구분", items: ["완료 취소 버튼을 옅은 주황색으로 표시하여 발주 완료 버튼과 구분했습니다."] },
   { date: "2026-09-18", title: "첨부자료 및 공통 글자 굵기 보완", items: ["거래명세서·불량사진 안내문, 파일명, 수정창과 모바일에 남아 있던 굵기를 정리했습니다."] },
   { date: "2026-09-18", title: "보관 위치 변경 오류 수정", items: ["제품 기준 수량이 달라져도 기존 입고 수량을 유지하여 보관 위치를 변경할 수 있도록 수정했습니다."] },
   { date: "2026-09-18", title: "전체 화면 글자 굵기 정리", items: ["본문과 입력값은 일반 두께, 버튼과 항목명은 미디엄, 제목과 강조 수치는 세미볼드로 조정했습니다."] },
@@ -8765,7 +8766,7 @@ function renderPurchaseOrders(message = "") {
         <td><span class="purchase-order-status-badge" data-status="${getPurchaseOrderDisplayStatus(order)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "발주 완료" : getPurchaseOrderDisplayStatus(order)}</span></td>
         <td>
           <span class="purchase-order-actions">
-            ${order.status !== "취소" ? `<button type="button" data-purchase-order-action="complete" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "완료 취소" : "발주 완료"}</button>` : ""}
+            ${order.status !== "취소" ? `<button type="button" data-purchase-order-action="complete" data-completed="${getPurchaseOrderDisplayStatus(order) === "임의 완료"}" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "완료 취소" : "발주 완료"}</button>` : ""}
             <button class="purchase-order-more" type="button" data-purchase-order-action="menu" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}" aria-label="${escapeAttribute(order.orderRound || "발주")} 관리 메뉴" aria-haspopup="menu" aria-expanded="false" aria-controls="purchaseOrderActionMenu"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
           </span>
         </td>

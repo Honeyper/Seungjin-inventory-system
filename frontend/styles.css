@@ -14936,6 +14936,15 @@ small, em {
   border-color: var(--navy-dark);
 }
 .purchase-order-actions button[data-purchase-order-action="complete"]:hover { background: #163b70; }
+.purchase-order-actions button[data-purchase-order-action="complete"][data-completed="true"] {
+  color: #96500c;
+  background: #fff4e5;
+  border-color: #eac78d;
+}
+.purchase-order-actions button[data-purchase-order-action="complete"][data-completed="true"]:hover {
+  background: #ffe7c2;
+  border-color: #d6a450;
+}
 .purchase-order-actions .purchase-order-more {
   display: inline-flex;
   align-items: center;
