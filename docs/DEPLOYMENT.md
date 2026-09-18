@@ -54,7 +54,7 @@ Repository Settings > Pages > Build and deployment > Source: GitHub Actions
 4. PRD 고유 QR 스타일·캐시 경로를 보존하여 같은 변경을 PRD에 적용합니다. PRD Edge/Pages를 배포합니다.
 5. 배포된 JS/CSS 내용과 캐시 버전, Pages 실행 결과를 확인합니다. 커밋 ID·Edge 버전·검사 결과를 인수인계합니다.
 
-Edge 함수 `seungjin-dev-gateway`는 `index.ts`, `state-engine.js`, `request-errors.js`, `backup-notifications.js`, `purchase-order-shipping.js`를 함께 배포합니다. 기존 사용자 세션 인증을 사용하므로 현재의 `verify_jwt=false` 설정을 임의로 바꾸지 않습니다. PRD/DEV의 `index.ts`, `state-engine.js`는 차이가 있으므로 통째로 덮어쓰지 않습니다.
+Edge 함수 `seungjin-dev-gateway`는 `index.ts`, `state-engine.js`, `request-errors.js`, `inventory-confirmation.js`, `backup-notifications.js`, `purchase-order-shipping.js`를 함께 배포합니다. 기존 사용자 세션 인증을 사용하므로 현재의 `verify_jwt=false` 설정을 임의로 바꾸지 않습니다. PRD/DEV의 `index.ts`, `state-engine.js`는 차이가 있으므로 통째로 덮어쓰지 않습니다.
 
 ## 복구
 

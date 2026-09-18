@@ -4188,6 +4188,10 @@ function renderInventoryMoveBoxOverview({
   `;
 }
 
+function isExcludedFromInventoryConfirmation(box) {
+  return !window.SeungjinInventoryConfirmation.isEligible(box);
+}
+
 function isProtectedInventoryAdjustmentBox(item, box) {
   const status = normalizeScanValue(box?.rawStatus || box?.status);
   return /보류|폐기|출고완료/.test(status);
@@ -4273,7 +4277,7 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
   };
 
   scannedRows.forEach((row) => {
-    if (!isInScope(row)) {
+    if (!isInScope(row) || isExcludedFromInventoryConfirmation(getScannedBox(row))) {
       return;
     }
 
@@ -4310,7 +4314,7 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
       }
       seenActiveBoxKeys.add(boxKey);
 
-      if (isProtectedInventoryAdjustmentBox(row, box)) {
+      if (isExcludedFromInventoryConfirmation(box)) {
         protectedBoxCount += 1;
         return;
       }
@@ -4337,7 +4341,7 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
 
     const box = getScannedBox(row);
     const boxKey = getInventoryAuditBoxKey(row, box);
-    if (!boxKey || seenConfirmedBoxKeys.has(boxKey) || isProtectedInventoryAdjustmentBox(row, box)) {
+    if (!boxKey || seenConfirmedBoxKeys.has(boxKey) || isExcludedFromInventoryConfirmation(box)) {
       return;
     }
 
@@ -4384,7 +4388,7 @@ function buildMissingInventoryAdjustmentPlan({ scope = "management", selectedIte
     invalidBoxCount,
     protectedBoxCount,
     activeBoxCount,
-    scannedBoxKeys: Array.from(scannedBoxKeys),
+    scannedBoxKeys: Array.from(seenConfirmedBoxKeys),
     productKeys: summarizedProducts.map((summary) => summary.productKey),
     productSummaries: summarizedProducts,
     affectedProductCount: affectedProducts.length,
@@ -4469,7 +4473,7 @@ function openMissingInventoryAdjustmentScopePicker(selectedItem = null, preferre
   if (!previewPlans.some(({ plan }) => plan.confirmedBoxCount > 0 && plan.invalidBoxCount === 0)) {
     const protectedBoxCount = Math.max(...previewPlans.map(({ plan }) => plan.protectedBoxCount), 0);
     showToast(protectedBoxCount > 0
-      ? "실물 확인할 박스가 없습니다. 보류·폐기·출고완료 박스는 대상에서 제외됩니다."
+      ? "실물 확인할 박스가 없습니다. 출고대기·출고완료·보류·폐기 박스는 제외됩니다."
       : "실물 확인할 박스를 찾지 못했습니다.");
     return;
   }
@@ -4501,7 +4505,7 @@ function openMissingInventoryAdjustmentConfirm({ scope = "management", selectedI
 
   if (!plan.confirmedBoxCount) {
     showToast(plan.protectedBoxCount > 0
-      ? "실물 확인할 박스가 없습니다. 보류·폐기·출고완료 박스는 대상에서 제외됩니다."
+      ? "실물 확인할 박스가 없습니다. 출고대기·출고완료·보류·폐기 박스는 제외됩니다."
       : "실물 확인할 박스를 찾지 못했습니다.");
     return;
   }
@@ -4524,7 +4528,7 @@ function openMissingInventoryAdjustmentConfirm({ scope = "management", selectedI
       )),
       ...(remainingProductCount > 0 ? [`외 ${formatNumber(remainingProductCount)}개 제품 포함`] : []),
       ...(plan.protectedBoxCount > 0
-        ? [`보류·폐기·출고완료 ${formatNumber(plan.protectedBoxCount)}박스는 대상에서 제외`]
+        ? [`출고대기·출고완료·보류·폐기 ${formatNumber(plan.protectedBoxCount)}박스는 대상에서 제외`]
         : [])
     ],
     acceptLabel: "재고 실물 확인",

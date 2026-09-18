@@ -93,6 +93,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-18", title: "월간 실물 재고 재확인", items: ["박스별 최종 실물 확인 후 한 달이 지나면 다시 미확인으로 표시합니다. 출고대기·출고완료·보류·폐기 박스는 실물 확인 대상에서 제외하며, 기존 확인 이력은 유지합니다."] },
   { date: "2026-09-18", title: "통신·첨부 파일 안정성 개선", items: ["통신 대기 시간과 오류 처리를 정리하고, 사진 업로드 재시도 시 성공한 파일은 재사용합니다. 여러 사진은 폴더 생성 후 최대 2개씩 전송하며, 입력 오류의 원인을 표시합니다."] },
   { date: "2026-09-18", title: "QR 복수 공정 글자 크기 보완", items: ["1도+2도 표기를 단독 공정과 동일한 글자 크기로 표시합니다."] },
   { date: "2026-09-18", title: "거래명세서 이미지 미리보기", items: ["재고·입고 상세와 수정 화면의 거래명세서를 썸네일로 표시하며, 클릭하면 화면 안에서 크게 볼 수 있습니다."] },
@@ -2429,6 +2430,13 @@ if (window.SeungjinDataGateway?.canRead("getServerUsage")) {
   }, SERVER_USAGE_POLL_MS);
 }
 
+window.setInterval(() => {
+  if (!document.hidden) refreshInventoryConfirmationStatus();
+}, 60000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshInventoryConfirmationStatus();
+});
+
 function initializeProductionPlan() {
   state.productionPlanDate = getLocalDateInputValue();
   state.productionPlanFactory = productionPlanFactory?.value || "1공장";
@@ -4416,7 +4424,7 @@ function isProtectedInventoryAuditBox(item, box) {
   return /보류|폐기|출고완료/.test(status);
 }
 
-function getInventoryPhysicalConfirmationBoxes(item) {
+function getInventoryAuditEligibleBoxes(item) {
   const activeBoxes = Array.isArray(item?.activeShippingBoxes) && item.activeShippingBoxes.length
     ? item.activeShippingBoxes
     : Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : [];
@@ -4436,9 +4444,12 @@ function getInventoryPhysicalConfirmationBoxes(item) {
     .sort((left, right) => left.number - right.number);
 }
 
-function getInventoryAuditEligibleBoxes(item) {
-  return getInventoryPhysicalConfirmationBoxes(item)
-    .filter((box) => !isProtectedInventoryAuditBox(item, box));
+function getInventoryPhysicalConfirmationBoxes(item) {
+  return getInventoryAuditEligibleBoxes(item).filter(window.SeungjinInventoryConfirmation.isEligible);
+}
+
+function isInventoryBoxConfirmed(box, now = Date.now()) {
+  return window.SeungjinInventoryConfirmation.isConfirmed(box, now);
 }
 
 function getInventoryAuditTargetBoxes(item) {
@@ -8404,6 +8415,7 @@ async function loadInventoryDashboard(showLoadingToast = true) {
 }
 
 async function loadInventoryDashboardRequest(showLoadingToast = true) {
+  refreshInventoryConfirmationStatus();
   const hadLoadedData = state.inventoryLoaded;
   const cachedResult = state.inventoryLoaded ? null : readAdminCache(INVENTORY_DASHBOARD_CACHE_KEY);
 
@@ -8547,7 +8559,7 @@ function renderInventorySummary(summary, attention) {
   }
 }
 
-function normalizeInventoryRows(rows) {
+function normalizeInventoryRows(rows, now = Date.now()) {
   return rows.map((item) => {
     const stockStatus = normalizeInventoryStockStatus(item.stockStatus);
     const row = mergeShippingBoxDraft({
@@ -8559,11 +8571,38 @@ function normalizeInventoryRows(rows) {
     if (Array.isArray(row.activeShippingBoxes) || Array.isArray(row.allShippingBoxes)) {
       const auditBoxes = getInventoryPhysicalConfirmationBoxes(row);
       row.inventoryAuditTargetBoxCount = getInventoryAuditEligibleBoxes(row).length;
-      row.inventoryConfirmedBoxCount = auditBoxes.filter((box) => String(box.lastInventoryCheckedAt || "").trim()).length;
+      row.inventoryConfirmedBoxCount = auditBoxes.filter((box) => isInventoryBoxConfirmed(box, now)).length;
       row.inventoryUnconfirmedBoxCount = auditBoxes.length - row.inventoryConfirmedBoxCount;
     }
     return row;
   });
+}
+
+// Time can invalidate confirmation even when the server data version has not changed.
+function refreshInventoryConfirmationStatus(now = Date.now()) {
+  if (!state.inventoryLoaded || state.isSavingInventoryConfirmation || state.isInventoryAuditBulkSaving) return;
+  let changed = false;
+  let detailChanged = false;
+  for (const row of state.inventoryRows) {
+    const boxes = getInventoryPhysicalConfirmationBoxes(row);
+    const confirmed = boxes.filter((box) => isInventoryBoxConfirmed(box, now)).length;
+    const unconfirmed = boxes.length - confirmed;
+    if (row.inventoryConfirmedBoxCount === confirmed && row.inventoryUnconfirmedBoxCount === unconfirmed) continue;
+    row.inventoryConfirmedBoxCount = confirmed;
+    row.inventoryUnconfirmedBoxCount = unconfirmed;
+    changed = true;
+    if (row.managementId === state.activeDetailInboundId && row.productId === state.activeDetailInboundProductId) detailChanged = true;
+  }
+  if (!changed) return;
+  if (inventoryPhysicalMissing) {
+    inventoryPhysicalMissing.textContent = formatNumber(state.inventoryRows.reduce((sum, row) => sum + Number(row.inventoryUnconfirmedBoxCount || 0), 0));
+  }
+  refreshOpenInventoryAttentionList();
+  if (detailChanged && inboundDetailModal?.hidden === false && state.activeDetailInboundSource === "inventory") {
+    const item = getInventoryRecordByManagementId(state.activeDetailInboundId, state.activeDetailInboundProductId);
+    const section = inboundDetailContent?.querySelector(".inventory-audit-box-section");
+    if (item && section) section.outerHTML = renderInventoryAuditBoxStatus(item);
+  }
 }
 
 function readShippingBoxDrafts() {
@@ -8820,6 +8859,7 @@ function openInventoryAttentionModal(type, { preserveSearch = false } = {}) {
   if (inventoryAttentionSearchInput && !preserveSearch) {
     inventoryAttentionSearchInput.value = "";
   }
+  refreshInventoryConfirmationStatus();
   const bulkResult = document.querySelector("#inventoryAuditBulkResult");
   if (bulkResult) bulkResult.textContent = "";
   inventoryAttentionModal.dataset.attentionType = type;
@@ -11295,7 +11335,7 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
   const item = getInventoryRecordByManagementId(state.activeDetailInboundId, state.activeDetailInboundProductId);
   const selected = new Set(boxNumbers.map(Number));
   const boxes = getInventoryPhysicalConfirmationBoxes(item)
-    .filter((box) => !String(box.lastInventoryCheckedAt || "").trim() && selected.has(box.number));
+    .filter((box) => !isInventoryBoxConfirmed(box) && selected.has(box.number));
   if (!item || !boxes.length) {
     showToast('실물 확인할 미확인 박스가 없습니다.');
     return;
@@ -11340,7 +11380,7 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
         });
       }
       const eligible = getInventoryPhysicalConfirmationBoxes(item);
-      item.inventoryConfirmedBoxCount = eligible.filter((box) => String(box.lastInventoryCheckedAt || '').trim()).length;
+      item.inventoryConfirmedBoxCount = eligible.filter((box) => isInventoryBoxConfirmed(box)).length;
       item.inventoryUnconfirmedBoxCount = eligible.length - item.inventoryConfirmedBoxCount;
       renderCurrent(item);
       updateInventoryAuditConfirmControls();
@@ -11366,14 +11406,15 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
 
 function renderInventoryAuditBoxStatus(inbound) {
   const boxes = getInventoryPhysicalConfirmationBoxes(inbound);
-  const unconfirmedBoxes = boxes.filter((box) => !String(box.lastInventoryCheckedAt || "").trim());
-  const confirmedBoxes = boxes.filter((box) => String(box.lastInventoryCheckedAt || "").trim());
+  const now = Date.now();
+  const unconfirmedBoxes = boxes.filter((box) => !isInventoryBoxConfirmed(box, now));
+  const confirmedBoxes = boxes.filter((box) => isInventoryBoxConfirmed(box, now));
   const renderBox = (box, isConfirmed) => `
     <article class="inventory-audit-box-card ${isConfirmed ? "confirmed" : "unconfirmed"}" data-inventory-audit-card="${box.number}" draggable="${!isConfirmed && !state.isSavingInventoryConfirmation}"${isConfirmed ? "" : ' title="오른쪽 실물 확인 완료 영역으로 끌어 놓으세요"'}>
       <div>
         <strong>${formatNumber(box.number)}번 박스</strong>
         <span>${formatNumber(box.quantity)} ea · ${escapeHtml(normalizeDisplayValue(box.storage || inbound.storage))}</span>
-        ${isConfirmed ? `<small>확인일시 ${escapeHtml(normalizeDisplayValue(box.lastInventoryCheckedAt))}</small>` : ""}
+        ${box.lastInventoryCheckedAt ? `<small>최종 확인 ${escapeHtml(normalizeDisplayValue(box.lastInventoryCheckedAt))}</small>` : ""}
       </div>
       <b>${isConfirmed ? "확인 완료" : "미확인"}</b>
         <div class="inventory-audit-box-actions">

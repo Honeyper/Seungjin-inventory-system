@@ -1,4 +1,7 @@
 import { ValidationError } from "./request-errors.js";
+import "./inventory-confirmation.js";
+
+const inventoryConfirmation = globalThis.SeungjinInventoryConfirmation;
 
 export class ShippingStateConflict extends Error {}
 
@@ -1116,6 +1119,10 @@ function adjustMissingInventory(payload, state, changes, now) {
   let confirmedBoxRows = 0;
   confirmations.forEach((group) => {
     selectBoxes(state, { ...group, productId: group.productId }, { allowEmpty: true, requireSelection: true }).forEach((box) => {
+      // Recheck the live state, including shipments made after the scanner loaded its list.
+      if (!inventoryConfirmation.isEligible(box)) {
+        throw new ValidationError(`${box.number}번 박스는 현재 실물 확인 대상이 아닙니다. 출고대기·출고완료·보류·폐기 상태와 현재 수량을 확인해주세요.`);
+      }
       box.lastInventoryCheckedAt = parts.timestamp;
       changes.inventoryBoxes.upserts.push({ box_id: box.boxId, management_id: box.managementId, product_id: box.productId, storage: box.storage, box_number: integer(box.number), data: box });
       confirmedBoxRows += 1;
@@ -1243,7 +1250,7 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
   return { state, changes, result };
 }
 
-export function buildInventoryDashboard(records, boxes, products = []) {
+export function buildInventoryDashboard(records, boxes, products = [], now = new Date()) {
   const productsById = new Map(products.map((product) => [
     text(product.productId || product.productCode),
     product
@@ -1297,9 +1304,9 @@ export function buildInventoryDashboard(records, boxes, products = []) {
       const status = normalizeStatus(box.rawStatus || box.status);
       return !/보류|폐기/.test(status);
     });
-    const physicalConfirmationBoxes = active.filter((box) => !/보류|폐기/.test(normalizeStatus(box.rawStatus || box.status)));
+    const physicalConfirmationBoxes = active.filter(inventoryConfirmation.isEligible);
     row.inventoryAuditTargetBoxCount = inventoryAuditBoxes.length;
-    row.inventoryConfirmedBoxCount = physicalConfirmationBoxes.filter((box) => text(box.lastInventoryCheckedAt)).length;
+    row.inventoryConfirmedBoxCount = physicalConfirmationBoxes.filter((box) => inventoryConfirmation.isConfirmed(box, now)).length;
     row.inventoryUnconfirmedBoxCount = physicalConfirmationBoxes.length - row.inventoryConfirmedBoxCount;
     return row;
   }).filter((row) => !text(row.stockStatus).includes("폐기") && (number(row.currentTotalQuantity) > 0 || text(row.stockStatus).includes("출고완료"))).reverse();
