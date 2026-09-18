@@ -1032,3 +1032,32 @@ test("location-only edit preserves partial box quantities even without completed
   assert.equal(holder.state.boxes[0].status, "일부 출고");
   assert.equal(holder.state.boxes[0].storage, "B-1");
 });
+
+test("inventory detail keeps the inbound packing quantity when the product standard changes", () => {
+  const managementId = "IN-260917-JUS-0035-001", productId = "JUS-0035";
+  const inbound = { ...inventoryRecord(managementId, productId, 5832, "미지정"),
+    inboundDate: "2026-09-17", inboundTime: "16:20", inboundType: "정상입고",
+    boxQuantity: "216 ea", inboundBoxCount: "27 box", remainderQuantities: [],
+    remainQuantity: "0 ea", process: "1도" };
+  const shippedNumbers = new Set([2, 3, 5, 9, 15, 17, 19, 25]);
+  const boxes = Array.from({ length: 27 }, (_, index) => inventoryBox(managementId, productId, index + 1, 216, {
+    storage: "미지정", status: shippedNumbers.has(index + 1) ? "출고완료" : "보관"
+  }));
+  const holder = { state: { products: [{ ...product(productId), boxQuantity: "360 ea" }],
+    orders: [], inbounds: [{ ...inbound }], records: [{ ...inbound }], boxes } };
+  const detail = buildInventoryDashboard(holder.state.records, holder.state.boxes, holder.state.products).rows[0];
+  assert.equal(detail.boxQuantity, "216 ea");
+  assert.equal(detail.inboundBoxCount, "27 box");
+  assert.equal(detail.currentTotalQuantity, "4,104 ea");
+
+  const result = mutate(holder, "updateInbound", { ...detail, storage: "B-1",
+    boxQuantity: Number(detail.boxQuantity.replace(/[^0-9]/g, "")), inboundBoxCount: 27, remainQuantity: 0 });
+  assert.equal(result.changes.inventoryBoxes.upserts.length, 19);
+  assert.deepEqual(result.changes.inventoryBoxes.deletes, []);
+  assert.deepEqual(holder.state.boxes.map(box => box.quantity), boxes.map(box => box.quantity));
+  assert.deepEqual(holder.state.boxes.map(box => box.status), boxes.map(box => box.status));
+  holder.state.boxes.forEach(box => assert.equal(box.storage, shippedNumbers.has(box.number) ? "미지정" : "B-1"));
+  assert.equal(holder.state.records[0].currentTotalQuantity, "4,104 ea");
+  assert.equal(holder.state.inbounds[0].inboundTotalQuantity, "5,832 ea");
+  assert.equal(holder.state.products[0].boxQuantity, "360 ea");
+});
