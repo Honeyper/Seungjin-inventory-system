@@ -93,6 +93,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-21", title: "QR 생성 상태 표시 수정", items: ["입고에서 저장한 QR 생성 기록을 재고 목록에도 반영하고, QR 생성 후 새로고침할 때 이전 미생성 표시가 남지 않도록 수정했습니다."] },
   { date: "2026-09-18", title: "월간 실물 재고 재확인", items: ["박스별 최종 실물 확인 후 한 달이 지나면 다시 미확인으로 표시합니다. 출고대기·출고완료·보류·폐기 박스는 실물 확인 대상에서 제외하며, 기존 확인 이력은 유지합니다."] },
   { date: "2026-09-18", title: "통신·첨부 파일 안정성 개선", items: ["통신 대기 시간과 오류 처리를 정리하고, 사진 업로드 재시도 시 성공한 파일은 재사용합니다. 여러 사진은 폴더 생성 후 최대 2개씩 전송하며, 입력 오류의 원인을 표시합니다."] },
   { date: "2026-09-18", title: "QR 복수 공정 글자 크기 보완", items: ["1도+2도 표기를 단독 공정과 동일한 글자 크기로 표시합니다."] },
@@ -465,6 +466,7 @@ const state = {
   inventoryPageSize: 10,
   inventoryLoaded: false,
   inventoryStateVersion: null,
+  inventoryQrStatusVersion: null,
   inventoryFilters: {
     query: "",
     client: "",
@@ -8428,15 +8430,20 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
 
   try {
     const currentStateVersion = cachedResult?.stateVersion ?? state.inventoryStateVersion;
+    const currentQrStatusVersion = cachedResult?.qrStatusVersion ?? state.inventoryQrStatusVersion;
+    let checkedQrStatusVersion = null;
     if (currentStateVersion !== null && currentStateVersion !== undefined) {
       const versionResult = await requestApi("getInventoryVersion");
-      if (Number(versionResult?.stateVersion) === Number(currentStateVersion)) {
+      checkedQrStatusVersion = versionResult?.qrStatusVersion ?? null;
+      if (Number(versionResult?.stateVersion) === Number(currentStateVersion)
+        && checkedQrStatusVersion !== null && checkedQrStatusVersion === currentQrStatusVersion) {
         if (showLoadingToast) showToast("최신 재고 정보를 표시했습니다.");
         return true;
       }
     }
 
     const result = await requestApi("getInventoryDashboard");
+    result.qrStatusVersion = checkedQrStatusVersion;
     applyInventoryDashboardResult(result);
     writeAdminCache(INVENTORY_DASHBOARD_CACHE_KEY, result);
 
@@ -8500,6 +8507,7 @@ async function refreshInventoryDashboard() {
 function applyInventoryDashboardResult(result) {
   state.inventoryLoaded = true;
   state.inventoryStateVersion = Number(result?.stateVersion) || null;
+  state.inventoryQrStatusVersion = result?.qrStatusVersion ?? null;
   state.inventoryRows = normalizeInventoryRows(Array.isArray(result?.rows) ? result.rows : []);
   state.inventoryLocationBoxStats = Array.isArray(result?.locationBoxStats) ? result.locationBoxStats : [];
   state.inventoryLocationQuantityStats = Array.isArray(result?.locationQuantityStats) ? result.locationQuantityStats : [];

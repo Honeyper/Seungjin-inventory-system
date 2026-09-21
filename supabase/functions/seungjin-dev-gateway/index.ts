@@ -409,7 +409,7 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     };
   }
   if (action === "getInventoryDashboard") {
-    const [state, stateRows, productRows] = await Promise.all([
+    const [state, stateRows, productRows, qrInboundRows] = await Promise.all([
       databaseRequest("rpc/read_dev_inventory_state", {
         method: "POST",
         body: "{}"
@@ -420,7 +420,8 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
         boxRows?: JsonRecord[];
       }>,
       databaseRows("dev_state?singleton=eq.true&select=version&limit=1"),
-      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity,product_image_url:data->>productImageUrl,product_image_urls:data->productImageUrls")
+      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity,product_image_url:data->>productImageUrl,product_image_urls:data->productImageUrls"),
+      databaseRows("dev_inbounds?select=management_id,product_id,qr_generated_count:data->>qrGeneratedCount")
     ]);
     const products = productRows.map((row) => ({
       productId: row.product_id,
@@ -436,12 +437,21 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
       ? mapInventoryBoxRows(state.boxRows)
       : state.boxes || [];
     return {
-      ...(buildInventoryDashboard(records, boxes, products) as JsonRecord),
+      ...(buildInventoryDashboard(records, boxes, products, new Date(), qrInboundRows.map((row) => ({
+        managementId: row.management_id,
+        productId: row.product_id,
+        qrGeneratedCount: row.qr_generated_count
+      }))) as JsonRecord),
       stateVersion: Number(stateRows[0]?.version) || null
     };
   }
   if (action === "getInventoryVersion") {
-    return { stateVersion: await loadStateVersion() };
+    const [stateVersion, qrRows] = await Promise.all([
+      loadStateVersion(),
+      databaseRequest("dev_inbounds?select=updated_at&order=updated_at.desc&limit=1") as Promise<Array<{ updated_at: string }>>
+    ]);
+    // The fast QR write updates inbounds without changing the inventory version.
+    return { stateVersion, qrStatusVersion: String(qrRows?.[0]?.updated_at || "empty") };
   }
   throw new Error(`지원하지 않는 Supabase 조회 요청입니다: ${action}`);
 }

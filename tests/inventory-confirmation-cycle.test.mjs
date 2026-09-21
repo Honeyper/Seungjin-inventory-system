@@ -93,7 +93,7 @@ test('open counters and detail refresh when time expires without downloading or 
   const rows = buildInventoryDashboard([record], [box(1)], [], new Date(+expiry - 1)).rows;
   const section = { outerHTML: '' }, count = { textContent: '0' };
   let listRefreshes = 0;
-  const ui = runtime({ state: { inventoryLoaded: true, inventoryStateVersion: 7, inventoryRows: rows,
+  const ui = runtime({ state: { inventoryLoaded: true, inventoryStateVersion: 7, inventoryQrStatusVersion: "same", inventoryRows: rows,
     activeDetailInboundId: record.managementId, activeDetailInboundProductId: record.productId, activeDetailInboundSource: 'inventory' },
     inventoryPhysicalMissing: count, formatNumber: String, refreshOpenInventoryAttentionList() { listRefreshes++; },
     inboundDetailModal: { hidden: false }, inboundDetailContent: { querySelector: () => section },
@@ -109,7 +109,7 @@ test('open counters and detail refresh when time expires without downloading or 
   const loader = loadFunctions(adminSource, ['loadInventoryDashboardRequest'], { state: ui.state,
     refreshInventoryConfirmationStatus: () => ui.refreshInventoryConfirmationStatus(expiry),
     window: { SeungjinDataGateway: { canRead: () => true } },
-    requestApi: async action => { calls.push(action); return { stateVersion: 7 }; } });
+    requestApi: async action => { calls.push(action); return { stateVersion: 7, qrStatusVersion: "same" }; } });
   assert.equal(await loader.loadInventoryDashboardRequest(false), true);
   assert.deepEqual(calls, ['getInventoryVersion']);
 });
