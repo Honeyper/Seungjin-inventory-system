@@ -1298,7 +1298,11 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
   return { state, changes, result };
 }
 
-export function buildInventoryDashboard(records, boxes, products = [], now = new Date()) {
+export function buildInventoryDashboard(records, boxes, products = [], now = new Date(), qrInbounds = []) {
+  const qrCountsByInbound = new Map(qrInbounds.map((inbound) => [
+    `${text(inbound.managementId)}\u0000${text(inbound.productId)}`,
+    number(inbound.qrGeneratedCount)
+  ]));
   const productsById = new Map(products.map((product) => [
     text(product.productId || product.productCode),
     product
@@ -1341,7 +1345,13 @@ export function buildInventoryDashboard(records, boxes, products = [], now = new
     row.currentTotalQuantity = formatEa(counted.reduce((sum, box) => sum + number(box.quantity), 0));
     row.completedShippingType = !active.length && shipped.length ? (shipped.some((box) => text(box.shippingType).startsWith("반출")) ? "반출" : shipped.some((box) => text(box.shippingType).startsWith("이관")) ? "이관" : "") : "";
     row.countsAsInventory = counted.length > 0 && !row.completedShippingType.startsWith("반출");
-    row.qrGeneratedCount = all.filter((box) => box.qrData || box.qrGeneratedAt).length || number(row.qrGeneratedCount);
+    // QR generation is recorded on the inbound by the fast QR endpoint.
+    // Inventory records may still contain the earlier "미인쇄" snapshot.
+    const recordedQrCount = Math.max(qrCountsByInbound.get(relatedKey) || 0, number(row.qrGeneratedCount));
+    row.qrGeneratedCount = Math.max(
+      all.filter((box) => box.qrData || box.qrGeneratedAt).length,
+      recordedQrCount
+    );
     row.qrPrintStatus = all.length > 0 && row.qrGeneratedCount >= all.length ? "QR 생성" : "미인쇄";
     row.shippingInspectionCount = active.filter((box) => box.inspectionDate || number(box.inspectionQuantity) > 0).length;
     row.shippingInspectionQuantity = formatEa(active.reduce((sum, box) => sum + number(box.inspectionQuantity), 0));

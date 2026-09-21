@@ -132,9 +132,9 @@ test("old administrator caches are displayed but their unverified version cannot
     refreshInventoryConfirmationStatus() {},
       state: { inventoryLoaded: false, inventoryStateVersion: null },
       window: { SeungjinDataGateway: { canRead: () => true } },
-      readAdminLargeCache: async () => ({ rows: [], stateVersion: 2, versionCheckedBeforeRead: verified }),
+      readAdminLargeCache: async () => ({ rows: [], stateVersion: 2, qrStatusVersion: "same", versionCheckedBeforeRead: verified }),
       requestApi: async (action) => {
-        if (action === "getInventoryVersion") return { stateVersion: 2 };
+        if (action === "getInventoryVersion") return { stateVersion: 2, qrStatusVersion: "same" };
         fullReads += 1;
         return { rows: [], stateVersion: 2 };
       },
