@@ -93,6 +93,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-22", title: "공용용기 출고 제품 지정 (DEV)", items: ["PC·모바일 정상출고 시 박스별 실제 제품과 수량을 지정할 수 있습니다.", "전체 박스 제품 일괄 지정, 혼합 박스 수량 배분, 수량 검증 및 출고 내역 표시를 추가했습니다."] },
   { date: "2026-09-21", title: "QR 생성 상태 표시 수정", items: ["입고에서 저장한 QR 생성 기록을 재고 목록에도 반영하고, QR 생성 후 새로고침할 때 이전 미생성 표시가 남지 않도록 수정했습니다."] },
   { date: "2026-09-18", title: "월간 실물 재고 재확인", items: ["박스별 최종 실물 확인 후 한 달이 지나면 다시 미확인으로 표시합니다. 출고대기·출고완료·보류·폐기 박스는 실물 확인 대상에서 제외하며, 기존 확인 이력은 유지합니다."] },
   { date: "2026-09-18", title: "통신·첨부 파일 안정성 개선", items: ["통신 대기 시간과 오류 처리를 정리하고, 사진 업로드 재시도 시 성공한 파일은 재사용합니다. 여러 사진은 폴더 생성 후 최대 2개씩 전송하며, 입력 오류의 원인을 표시합니다."] },
@@ -3536,6 +3537,7 @@ function getShippingRowBoxes(row, datasetKey, fallbackCount = 0, fallbackQuantit
         .map((box, index) => ({
           number: Number(box.number) || index + 1,
           boxId: box.boxId || "",
+          shippingAllocations: box.shippingAllocations || [],
           quantity: parseShippingSettlementNumber(box.quantity),
           status: box.status || "",
           rawStatus: box.rawStatus || box.status || "",
@@ -5387,7 +5389,7 @@ function renderShippingTable(message = "") {
         <td>${start + index + 1}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
         <td>${escapeHtml(item.clientName || "-")}</td>
-        <td>${escapeHtml(item.productName || "-")}</td>
+        <td>${escapeHtml(item.productName || "-")}${item.shippedShippingBoxes?.some(box => box.shippingAllocations?.length) ? `<small class="common-shipping-result">${escapeHtml(window.SeungjinCommonShipping.summary(item.shippedShippingBoxes))}</small>` : ""}</td>
         <td>${escapeHtml(item.batch || "-")}</td>
         <td>${escapeHtml(item.finalProcess || "-")}</td>
         <td>${escapeHtml(item.storage || "-")}</td>
@@ -5487,6 +5489,7 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
       item.clientName,
       item.batch,
       item.purchaseOrderRound,
+      ...(item.shippedShippingBoxes || []).flatMap(box => (box.shippingAllocations || []).map(entry => entry.productName)),
       item.finalProcess,
       item.storage,
       item.currentBoxCount,
@@ -9800,6 +9803,7 @@ function renderShippingHistoryGroups(groups = []) {
               ${shouldShowTransferCompanySeparately(group.shippingType, group.transferCompany) ? `<span>이관 업체 ${escapeHtml(group.transferCompany)}</span>` : ""}
               <span>출고자 ${escapeHtml(group.shipper)}</span>
               <span class="full">박스 ${escapeHtml(boxNumbers || "-")}</span>
+              ${group.boxes.some(box => box.shippingAllocations?.length) ? `<span class="full common-shipping-result">출고 제품 ${escapeHtml(window.SeungjinCommonShipping.summary(group.boxes))}</span>` : ""}
             </div>
           </article>
         `;
@@ -9846,6 +9850,9 @@ function readAdminSession() {
 }
 
 async function requestApi(action, payload = {}) {
+  if (window.SeungjinCommonShipping) {
+    payload = await window.SeungjinCommonShipping.prepare(action, payload, requestApi);
+  }
   if (window.SeungjinDataGateway?.canMutate(action)) {
     try {
       return await window.SeungjinDataGateway.requestMutation(action, payload);

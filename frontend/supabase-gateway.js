@@ -10,6 +10,7 @@
     "getTodayInbounds",
     "getInventoryVersion",
     "getInboundBoxQrs",
+    "getCommonContainerShipping",
     "getInventoryDashboard",
     "getSheetBackupNotifications",
     "getServerUsage"

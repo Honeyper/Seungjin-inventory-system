@@ -1,3 +1,4 @@
+import { commonContainerInfo, planCommonContainerShipping, recordCommonContainerShipping } from "./common-container-shipping.js";
 import { ValidationError } from "./request-errors.js";
 import "./inventory-confirmation.js";
 
@@ -1004,6 +1005,7 @@ function mutateInventory(action, payload, state, changes, now) {
       && payload.autoShippingInspection === true
       && number(payload.inspectionQuantity) > 0;
     const quantityMap = getBoxQuantityMap(payload);
+    const allocationPlans = planCommonContainerShipping(state.products, boxes, payload, quantityMap);
     const reopensCompleted = payload.allowReopenCompleted === true;
     if (reopensCompleted && (status !== "출고대기" || boxes.length !== 1)) {
       throw new ValidationError("QR로 확인한 출고 완료 박스 한 개만 출고대기로 변경할 수 있습니다.");
@@ -1050,6 +1052,7 @@ function mutateInventory(action, payload, state, changes, now) {
       }
       const changedQuantity = quantityMap.get(integer(box.number));
       if (["출고대기", "출고완료"].includes(status) && changedQuantity !== undefined) box.quantity = changedQuantity;
+      recordCommonContainerShipping(box, allocationPlans.get(box.boxId), status, parts, payload);
       box.status = status;
       box.rawStatus = rawStatus;
       box.shippingUpdatedAt = parts.timestamp;
@@ -1274,6 +1277,7 @@ export function buildInventoryDashboard(records, boxes, products = [], now = new
     const row = clone(source);
     const product = productsById.get(text(row.productId));
     if (product) {
+      Object.assign(row, commonContainerInfo(product));
       row.trayQuantity = text(product.trayQuantity) || row.trayQuantity || "";
       // Existing inbound packing is historical data, not the current product default.
       if (number(row.boxQuantity) <= 0) row.boxQuantity = text(product.boxQuantity) || row.boxQuantity || "";

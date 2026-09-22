@@ -1,3 +1,4 @@
+import { commonContainerInfo } from "./common-container-shipping.js";
 import { readRequestBody, publicError } from "./request-errors.js";
 import {
   applyMutation,
@@ -224,6 +225,17 @@ function buildBoxQrData(box: JsonRecord) {
   });
 }
 
+// Read shipment contents without generating QR codes or changing QR print status.
+async function readCommonContainerShipping(payload: JsonRecord) {
+  const { productId, query } = buildInboundQrFilters(payload);
+  if (!productId) throw new Error("출고할 제품 ID가 필요합니다.");
+  const products = await databaseRows(`dev_products?product_id=eq.${encodeURIComponent(productId)}&select=data&limit=1`);
+  const product = products[0]?.data as JsonRecord | undefined;
+  if (!product || !commonContainerInfo(product).isCommonContainer) return { product: product || null, boxes: [] };
+  const boxes = await databaseRows(`dev_inventory_boxes?${query}&select=box_id,management_id,product_id,storage,box_number,data&order=box_number.asc`);
+  return { product, boxes: boxes.map(mapInboundQrBox) };
+}
+
 async function readInboundBoxQrs(payload: JsonRecord) {
   const { managementId, productId, query } = buildInboundQrFilters(payload);
   const boxRows = await databaseRows(
@@ -420,11 +432,13 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
         boxRows?: JsonRecord[];
       }>,
       databaseRows("dev_state?singleton=eq.true&select=version&limit=1"),
-      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity,product_image_url:data->>productImageUrl,product_image_urls:data->productImageUrls"),
+      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity,product_image_url:data->>productImageUrl,product_image_urls:data->productImageUrls,is_common_container:data->isCommonContainer,common_container_product:data->>commonContainerProduct,shipping_product_names:data->shippingProductNames"),
       databaseRows("dev_inbounds?select=management_id,product_id,qr_generated_count:data->>qrGeneratedCount")
     ]);
     const products = productRows.map((row) => ({
       productId: row.product_id,
+      isCommonContainer: row.is_common_container ?? row.common_container_product,
+      shippingProductNames: row.shipping_product_names,
       trayQuantity: row.tray_quantity,
       boxQuantity: row.box_quantity,
       productImageUrl: row.product_image_url,
@@ -852,6 +866,10 @@ async function handleRequest(request: Request) {
       data: await readServerUsage(),
       meta: { source: "supabase-live-database-size" }
     });
+  }
+
+  if (action === "getCommonContainerShipping") {
+    return jsonResponse(request, { ok: true, data: await readCommonContainerShipping(payload) });
   }
 
   if (action === "getInboundBoxQrs") {
