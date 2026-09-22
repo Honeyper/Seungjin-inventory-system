@@ -2774,6 +2774,7 @@ function renderInventoryMoveItem(item) {
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
+            ${getKnownBoxes(item).some(box => box.shippingAllocations?.length) ? `<small class="common-shipping-result">${escapeHtml(window.SeungjinCommonShipping.summary(getKnownBoxes(item)))}</small>` : ""}
           </div>
           <div class="shipping-card-meta">
             <span>${escapeHtml(batch)}</span>
@@ -3212,6 +3213,7 @@ function renderShippingItem(item) {
           <div class="shipping-client">${escapeHtml(normalizeDisplay(item.clientName || "-"))}</div>
           <div class="shipping-title">
             <span class="shipping-product-name">${escapeHtml(normalizeDisplay(item.productName || "-"))}</span>
+            ${getKnownBoxes(item).some(box => box.shippingAllocations?.length) ? `<small class="common-shipping-result">${escapeHtml(window.SeungjinCommonShipping.summary(getKnownBoxes(item)))}</small>` : ""}
           </div>
           <div class="shipping-card-meta">
             ${metaParts.map((part) => `<span>${escapeHtml(part)}</span>`).join("")}
@@ -7383,6 +7385,9 @@ function updateShippingClock() {
 }
 
 async function requestApi(action, payload = {}, options = {}) {
+  if (window.SeungjinCommonShipping) {
+    payload = await window.SeungjinCommonShipping.prepare(action, payload, requestApi);
+  }
   if (action === "login" && window.SeungjinDataGateway?.enabled) {
     const result = await window.SeungjinDataGateway.login(payload);
     return options.unwrap === false ? result : result.data;

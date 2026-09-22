@@ -1,0 +1,39 @@
+.common-shipping-dialog { width:min(760px, calc(100vw - 28px)); max-height:calc(100dvh - 32px); padding:0; border:1px solid #dce4f0; border-radius:18px; color:#172f55; background:#fff; box-shadow:0 24px 80px #10223d40; font-family:inherit; }
+.common-shipping-dialog::backdrop { background:#13244270; }
+.common-shipping-dialog * { box-sizing:border-box; }
+.common-shipping-form { display:flex; flex-direction:column; max-height:calc(100dvh - 36px); }
+.common-shipping-form header { display:flex; align-items:center; justify-content:space-between; padding:22px 24px; border-bottom:1px solid #e5eaf3; }
+.common-shipping-form header span { color:#687b96; font-size:13px; }
+.common-shipping-form h2 { margin:6px 0 0; font-size:22px; font-weight:600; }
+.common-shipping-body { padding:20px 24px; overflow:auto; }
+.common-shipping-source { display:grid; gap:8px; margin-bottom:20px; }
+.common-shipping-source strong { font-size:17px; font-weight:500; }
+.common-shipping-source span { color:#687b96; font-size:13px; }
+.common-shipping-bulk { display:flex; gap:12px; align-items:end; padding:16px; background:#f5f7fb; border-radius:10px; margin-bottom:18px; }
+.common-shipping-bulk label { flex:1; }
+.common-shipping-dialog label { display:grid; gap:6px; font-size:13px; color:#5c6f8c; }
+.common-shipping-dialog select, .common-shipping-dialog input { width:100%; min-width:0; height:42px; border:1px solid #ccd7e7; border-radius:7px; padding:8px; color:#172f55; background:#fff; font-family:inherit; font-size:15px; font-weight:400; line-height:1.4; }
+.common-shipping-dialog button { border:1px solid #ccd7e7; border-radius:7px; padding:10px 14px; background:#fff; color:#17375f; font-family:inherit; font-size:14px; font-weight:500; line-height:1.4; cursor:pointer; }
+.common-shipping-dialog button:disabled { opacity:.45; cursor:default; }
+.common-shipping-dialog :focus-visible { outline:3px solid #75a4e5; outline-offset:2px; }
+.common-shipping-box { border:1px solid #dce4f0; padding:16px; border-radius:10px; margin-bottom:12px; }
+.common-shipping-box-heading { display:flex; justify-content:space-between; margin-bottom:12px; font-size:15px; }
+.common-shipping-box-heading strong { font-weight:500; }
+.common-shipping-line { display:grid; grid-template-columns:minmax(0,1fr) 104px 40px; gap:8px; align-items:end; margin-bottom:10px; }
+.common-shipping-line button { height:42px; padding:8px; }
+.common-shipping-form footer { padding:14px 24px 20px; border-top:1px solid #e5eaf3; background:#fff; }
+.common-shipping-form footer p { font-size:13px; margin:0 0 8px; }
+.common-shipping-form [data-error] { color:#ae2929; }
+.common-shipping-form footer>div { display:flex; gap:10px; justify-content:flex-end; }
+.common-shipping-dialog .common-shipping-submit { color:white; background:#123870; border-color:#123870; }
+.common-shipping-result { display:block; margin-top:6px; font-size:13px; line-height:1.5; font-weight:400; color:#566e90; overflow-wrap:anywhere; }
+@media(max-width:520px) {
+ .common-shipping-form header, .common-shipping-body, .common-shipping-form footer { padding:16px; }
+ .common-shipping-form h2 { font-size:20px; }
+ .common-shipping-line { grid-template-columns:minmax(0,1fr) 40px; gap:8px; }
+ .common-shipping-line label:first-child { grid-column:1 / -1; }
+ .common-shipping-dialog select, .common-shipping-dialog input { font-size:16px; }
+ .common-shipping-bulk { flex-wrap:wrap; padding:12px; }
+ .common-shipping-box { padding:12px; }
+ .common-shipping-form footer>div button { flex:1; }
+}
