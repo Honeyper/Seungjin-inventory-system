@@ -432,6 +432,19 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
       : Object.prototype.hasOwnProperty.call(payload, "hourlyProductionRate") ? payload.hourlyProductionRate : current?.hourlyProductionRate
   );
   const process = getProductProcess(payload, current || {});
+  const rateKeys = process.groups.length
+    ? process.groups.map(group => group.map(step => `${step}도`).join("+"))
+    : [process.finalProcess];
+  const submittedRates = payload.processHourlyProductionRates;
+  if (submittedRates !== undefined && (!submittedRates || typeof submittedRates !== "object" || Array.isArray(submittedRates))) {
+    throw new ValidationError("공정별 시간당 생산량을 확인해주세요.");
+  }
+  if (submittedRates && Object.keys(submittedRates).some(key => !rateKeys.includes(key))) {
+    throw new ValidationError("생산량의 공정 구성이 현재 제품과 일치하지 않습니다.");
+  }
+  const previousRates = current?.processHourlyProductionRates || {};
+  const processHourlyProductionRates = Object.fromEntries(rateKeys.map(key =>
+    [key, parseProductHourlyProductionRate(submittedRates === undefined ? previousRates[key] : submittedRates[key])]));
   const productId = current?.productId || requestedId || generateProductId(products, clientName);
   const parts = dateParts(now);
   const namesValue = payload["출고시 제품명 목록"] ?? current?.shippingProductNames ?? [];
@@ -475,6 +488,7 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     boxQuantity: formatEa(number(boxQuantity)),
     trayQuantity: formatEa(number(trayQuantity)),
     hourlyProductionRate,
+    processHourlyProductionRates,
     productImageUrl: productImageUrls[0] || "",
     productImageUrls,
     dueDate: dash(payload["납기일"] ?? current?.dueDate),

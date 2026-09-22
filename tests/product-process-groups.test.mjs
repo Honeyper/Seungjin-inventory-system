@@ -11,10 +11,10 @@ const payload=(count,groups)=>({'업체명':'테스트','제품명':'복수 공�
 const create=(count,groups)=>applyMutation('createProduct',payload(count,groups),empty());
 const extract=name=>source.match(new RegExp(`^function ${name}\\([^]*?\\n}`,'m'))[0];
 function form(){
-  const c=vm.createContext({state:{},SeungjinQrLabel:qr,normalizeEditableValue:v=>String(v||'').trim(),productForm:{querySelector:()=>null}});
+  const c=vm.createContext({document:{querySelector:()=>({replaceChildren(){},querySelectorAll:()=>[]}),querySelectorAll:()=>[]},escapeHtml:String,state:{},SeungjinQrLabel:qr,normalizeEditableValue:v=>String(v||'').trim(),productForm:{querySelector:()=>null}});
   for(const key of ['productProcessType','productFinalProcess','productProcessStages','productProcessSummary',...Array.from({length:6},(_,i)=>`productProcessStage${i+1}`)])c[key]={value:'',dataset:{}};
   c.productProcessJoins=Array.from({length:5},(_,i)=>({checked:false,dataset:{productProcessJoin:String(i+2)}}));
-  for(const name of ['normalizeProductProcessMethod','getProductProcessStageControls','getProductProcessFormGroups','getProductProcessRoute','setProductProcessForm','syncProductProcessFields'])vm.runInContext(extract(name),c);
+  for(const name of ['normalizeProductProcessMethod','getProductProcessStageControls','getProductProcessFormGroups','getProductProcessRoute','renderProductProcessHourlyRates','setProductProcessForm','syncProductProcessFields'])vm.runInContext(extract(name),c);
   return c;
 }
 test('1+2 simultaneous then 3 saves the final degree and prints one group per QR row',()=>{

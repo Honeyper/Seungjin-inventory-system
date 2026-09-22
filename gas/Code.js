@@ -1469,6 +1469,13 @@ function setupSheets() {
   };
 }
 
+function parseProductProcessHourlyRates_(value) {
+  if (!value || value === '-') return {};
+  const rates = typeof value === 'string' ? JSON.parse(value) : value;
+  if (!rates || typeof rates !== 'object' || Array.isArray(rates)) throw new Error('공정별 시간당 생산량을 확인해주세요.');
+  return Object.fromEntries(Object.entries(rates).map(([key, rate]) => [key, parseProductHourlyProductionRate_(rate)]));
+}
+
 function parseProductHourlyProductionRate_(value) {
   if (value === null || value === undefined || String(value).trim() === '' || String(value).trim() === '-') return null;
   const rate = typeof value === 'number' ? value : Number(String(value).replace(/,/g, '').trim());
@@ -1495,7 +1502,8 @@ function ensureProductCommonContainerHeaders_(sheet) {
     '3도 공정',
     '제품 이미지',
     '제품 이미지 목록',
-    '시간당 평균 생산량'
+    '시간당 평균 생산량',
+    '공정별 시간당 생산량'
   ];
   const existingHeaders = new Set(headerInfo.headers.map((header) => normalizeHeaderKey_(header)));
   const missingHeaders = requiredHeaders.filter((header) => !existingHeaders.has(normalizeHeaderKey_(header)));
@@ -1690,6 +1698,7 @@ function getProducts() {
         boxQuantity: pickCell_(row, indexes, ['박스당 수량', '박스당수량']),
         trayQuantity: pickCell_(row, indexes, ['트레이 수량', '트레이수량']),
         hourlyProductionRate: parseProductHourlyProductionRate_(pickCell_(row, indexes, ['시간당 평균 생산량'])),
+        processHourlyProductionRates: parseProductProcessHourlyRates_(pickCell_(row, indexes, ['공정별 시간당 생산량'])),
         productImageUrl: pickCell_(row, indexes, ['제품 이미지', '제품 이미지 URL']),
         productImageUrls: normalizeProductImageUrls_(
           pickCell_(row, indexes, ['제품 이미지 목록']),
@@ -2170,6 +2179,7 @@ function createProduct(payload) {
   setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
   setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
   if (hasHourlyProductionRate) setRowValue_(row, indexes, ['시간당 평균 생산량'], hourlyProductionRate === null ? '' : hourlyProductionRate);
+  if (Object.prototype.hasOwnProperty.call(payload, 'processHourlyProductionRates')) setRowValue_(row, indexes, ['공정별 시간당 생산량'], JSON.stringify(parseProductProcessHourlyRates_(payload.processHourlyProductionRates)));
   setRowValue_(row, indexes, ['제품 이미지', '제품 이미지 URL'], payload.productImageUrl || payload['제품 이미지'] || '');
   setRowValue_(row, indexes, ['제품 이미지 목록'], JSON.stringify(normalizeProductImageUrls_(
     payload.productImageUrls || payload['제품 이미지 목록'],
@@ -2484,6 +2494,7 @@ function updateProduct(payload) {
       setRowValue_(row, indexes, ['박스당 수량', '박스당수량'], payload['박스당 수량'] || payload['박스당수량'] || '');
       setRowValue_(row, indexes, ['트레이 수량', '트레이수량'], payload['트레이 수량'] || payload['트레이수량'] || '');
       if (hasHourlyProductionRate) setRowValue_(row, indexes, ['시간당 평균 생산량'], hourlyProductionRate === null ? '' : hourlyProductionRate);
+  if (Object.prototype.hasOwnProperty.call(payload, 'processHourlyProductionRates')) setRowValue_(row, indexes, ['공정별 시간당 생산량'], JSON.stringify(parseProductProcessHourlyRates_(payload.processHourlyProductionRates)));
       setRowValue_(row, indexes, ['제품 이미지', '제품 이미지 URL'], productImageUrl);
       setRowValue_(row, indexes, ['제품 이미지 목록'], JSON.stringify(productImageUrls));
       setRowValue_(row, indexes, ['납기일'], payload['납기일'] || '');

@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-22", title: "공정별 시간당 생산량 입력", items: ["제품 등록·수정에서 각 공정의 시간당 생산량을 입력하고 상세보기에서 확인할 수 있습니다. 동시 작업 공정은 하나로 묶어 관리합니다."] },
   { date: "2026-09-22", title: "공용용기 출고 제품 종류 확대", items: ["출고 시 제품 종류를 최대 20개까지 선택하고 등록할 수 있도록 확대했습니다."] },
   { date: "2026-09-22", title: "공용용기 출고 제품 지정", items: ["PC·모바일 정상출고 시 박스별 실제 제품과 수량을 지정할 수 있습니다.", "전체 박스 제품 일괄 지정, 혼합 박스 수량 배분, 수량 검증 및 출고 내역 표시를 추가했습니다."] },
   { date: "2026-09-21", title: "QR 생성 상태 표시 수정", items: ["입고에서 저장한 QR 생성 기록을 재고 목록에도 반영하고, QR 생성 후 새로고침할 때 이전 미생성 표시가 남지 않도록 수정했습니다."] },
@@ -11834,7 +11835,8 @@ function renderProductDetail(product) {
     <section class="product-detail-section product-standards" aria-labelledby="detailStandardTitle">
       <h3 id="detailStandardTitle">생산·포장 기준</h3>
       <dl class="product-metrics">
-        <div><dt>시간당 평균 생산량</dt><dd>${Number.isFinite(hourlyRate) && hourlyRate > 0 ? `${escapeHtml(hourlyRate.toLocaleString("ko-KR", { maximumFractionDigits: 2 }))}<small>개/시간</small>` : '<span class="product-metric-empty">미입력</span>'}</dd><span>작업자 1명 기준</span></div>
+        ${renderProductProcessRateDetails(product)}
+        ${hourlyRate > 0 ? `<div><dt>기존 시간당 평균 생산량</dt><dd>${Number.isFinite(hourlyRate) && hourlyRate > 0 ? `${escapeHtml(hourlyRate.toLocaleString("ko-KR", { maximumFractionDigits: 2 }))}<small>개/시간</small>` : '<span class="product-metric-empty">미입력</span>'}</dd><span>작업자 1명 기준</span></div>` : ""}
         <div><dt>박스당 수량</dt><dd>${escapeHtml(formatDetailMetric(product.boxQuantity, "ea"))}</dd><span>1박스 기준</span></div>
         <div><dt>트레이 수량</dt><dd>${escapeHtml(formatDetailMetric(product.trayQuantity, "ea"))}</dd><span>1트레이 기준</span></div>
       </dl>
@@ -13208,7 +13210,37 @@ function getProductProcessRoute(product) {
   }).join(" → ");
 }
 
+let productProcessRateDraft = {};
+
+function readProductProcessHourlyRates() {
+  return Object.fromEntries(Array.from(document.querySelectorAll("[data-process-hourly-rate]"), input =>
+    [input.dataset.processHourlyRate, input.value.trim() === "" ? null : Number(input.value)]));
+}
+
+function renderProductProcessHourlyRates() {
+  const container = document.querySelector("#productProcessHourlyRates");
+  if (!container) return;
+  container.querySelectorAll("[data-process-hourly-rate]").forEach(input => {
+    productProcessRateDraft[input.dataset.processHourlyRate] = input.value;
+  });
+  const single = {coating: "코팅", label: "라벨"}[productProcessType.value];
+  const keys = single ? [single] : getProductProcessFormGroups().map(group => group.map(step => `${step}도`).join("+"));
+  container.innerHTML = keys.map(key => `<label class="form-field">
+    <span>${escapeHtml(key)}</span><span class="unit-input">
+    <input type="number" min="0.01" step="any" data-process-hourly-rate="${escapeHtml(key)}"
+      aria-label="${escapeHtml(key)} 시간당 생산량" placeholder="예: 1200"
+      value="${escapeHtml(String(productProcessRateDraft[key] ?? ""))}" ${state.isSavingProduct ? "disabled" : ""} />
+    <i>개/시간</i></span></label>`).join("");
+}
+
+function renderProductProcessRateDetails(product) {
+  return Object.entries(product.processHourlyProductionRates || {}).map(([key, rate]) =>
+    `<div><dt>${escapeHtml(key)} 시간당 생산량</dt><dd>${rate > 0 ? `${escapeHtml(formatNumber(rate))}<small>개/시간</small>` : '<span class="product-metric-empty">미입력</span>'}</dd></div>`).join("");
+}
+
 function setProductProcessForm(product = null) {
+  productProcessRateDraft = {...(product?.processHourlyProductionRates || {})};
+  document.querySelector("#productProcessHourlyRates").replaceChildren();
   const finalProcess = normalizeEditableValue(product?.finalProcess);
   const stages = Array.from({length: 6}, (_, index) => normalizeProductProcessMethod(product?.[`processStage${index + 1}`]));
   const hasStageData = stages.some(Boolean);
@@ -13244,6 +13276,7 @@ function syncProductProcessFields() {
     : stages.some(Boolean) ? `${stages.filter(Boolean).length}도` : legacyFinalProcess;
   productFinalProcess.value = finalProcess;
   productProcessStages.hidden = isSingleProcess;
+  renderProductProcessHourlyRates();
   if (isSingleProcess) {
     productProcessSummary.textContent = singleProcess;
     return;
@@ -13605,6 +13638,7 @@ function getProductFormPayload() {
     "납기일": productDueDate.value.trim(),
     "박스당 수량": boxQuantity ? `${Number(boxQuantity).toLocaleString("ko-KR")} ea` : "",
     "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
+    ...(productFinalProcess.dataset.legacyFinalProcess ? {} : {processHourlyProductionRates: readProductProcessHourlyRates()}),
     "시간당 평균 생산량": productHourlyProductionRate.value.trim() === "" ? null : Number(productHourlyProductionRate.value),
     "제품 이미지": state.productImageUrls[0] || "",
     "제품 이미지 목록": JSON.stringify(state.productImageUrls),
@@ -13641,6 +13675,11 @@ function validateProductPayload(payload) {
     return "수량은 1 이상의 숫자로 입력해주세요.";
   }
 
+  for (const [process, rate] of Object.entries(payload.processHourlyProductionRates || {})) {
+    if (rate !== null && (!Number.isFinite(rate) || rate <= 0 || rate > Number.MAX_SAFE_INTEGER)) {
+      return `${process} 시간당 생산량은 0보다 큰 숫자로 입력해주세요.`;
+    }
+  }
   const hourlyRate = payload["시간당 평균 생산량"];
   if (hourlyRate !== null && hourlyRate !== undefined && (!Number.isFinite(hourlyRate) || hourlyRate <= 0 || hourlyRate > Number.MAX_SAFE_INTEGER)) {
     return "시간당 평균 생산량은 0보다 큰 숫자로 입력해주세요.";

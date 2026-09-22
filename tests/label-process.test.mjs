@@ -8,7 +8,7 @@ const {getProcessRows,getProcessSummary}=globalThis.SeungjinQrLabel;
 const admin=fs.readFileSync(new URL('../frontend/admin.js',import.meta.url),'utf8');
 function section(a,b){return admin.slice(admin.indexOf(a),admin.indexOf(b,admin.indexOf(a)));}
 function form(){
- const c=vm.createContext({state:{},normalizeEditableValue:v=>String(v||'').trim(),getCommonContainerProductNameValues:()=>[],session:{name:'테스트'},productForm:{querySelector:()=>null}});
+ const c=vm.createContext({document:{querySelector:()=>({replaceChildren(){},querySelectorAll:()=>[]}),querySelectorAll:()=>[]},escapeHtml:String,state:{},normalizeEditableValue:v=>String(v||'').trim(),getCommonContainerProductNameValues:()=>[],session:{name:'테스트'},productForm:{querySelector:()=>null}});
  for(const name of ['productProcessType','productProcessStage1','productProcessStage2','productProcessStage3','productProcessStages','productProcessSummary','productFinalProcess','productOrderQuantity','productBoxQuantity','productTrayQuantity','productHourlyProductionRate','productCommonContainer','productShippingProductCount','productClientName','productNameInput','productColor','productDueDate','productNote']) c[name]={value:'',dataset:{}};
  c.state.productImageUrls=[];
  for(const step of [4,5,6])c[`productProcessStage${step}`]={value:'',dataset:{}};

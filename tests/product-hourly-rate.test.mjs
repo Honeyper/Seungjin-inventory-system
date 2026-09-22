@@ -45,3 +45,41 @@ test('sheet backup updates the rate only when supplied and preserves other produ
  const edit=rate=>{c.updateProduct({...payload,productId:'P1',...rate});return written[headers.indexOf('시간당 평균 생산량')];};
  assert.equal(edit({}),1200);assert.equal(edit({'시간당 평균 생산량':1400.25}),1400.25);assert.equal(edit({'시간당 평균 생산량':null}),'');
 });
+test('process rates persist independently and round trip with unrelated edits',()=>{
+ const first=create({processHourlyProductionRates:{'1도':1200,'2도':600}});
+ assert.deepEqual(first.state.products[0].processHourlyProductionRates,{'1도':1200,'2도':600});
+ const next=applyMutation('updateProduct',{productId:first.result.productId,'비고':'유지'},first.state,now);
+ assert.deepEqual(next.state.products[0].processHourlyProductionRates,{'1도':1200,'2도':600});
+});
+test('joined processes have one independent rate and never inherit an individual stage rate',()=>{
+ const first=create({processHourlyProductionRates:{'1도':1200,'2도':600}});
+ const edit=p=>applyMutation('updateProduct',{productId:first.result.productId,processGroups:[[1,2]],...p},first.state,now).state.products[0];
+ assert.deepEqual(edit({}).processHourlyProductionRates,{'1도+2도':null});
+ assert.deepEqual(edit({processHourlyProductionRates:{'1도+2도':850}}).processHourlyProductionRates,{'1도+2도':850});
+ assert.throws(()=>edit({processHourlyProductionRates:{'1도':1200}}),/공정 구성/);
+});
+test('per-process values reject invalid numbers and support clearing and single processes',()=>{
+ for(const value of [0,-1,'abc',Infinity]) assert.throws(()=>create({processHourlyProductionRates:{'1도':value}}),/생산량/);
+ assert.throws(()=>create({processHourlyProductionRates:[]}),/생산량/);
+ assert.deepEqual(create({processHourlyProductionRates:{'1도':null,'2도':12.5}}).state.products[0].processHourlyProductionRates,{'1도':null,'2도':12.5});
+ const coating=applyMutation('createProduct',{...payload,'최종공정':'코팅',processHourlyProductionRates:{'코팅':300}},initial(),now);
+ assert.deepEqual(coating.state.products[0].processHourlyProductionRates,{'코팅':300});
+});
+test('editor keeps separate drafts per process group and resets them for another product',()=>{
+ const source=fs.readFileSync(new URL('../frontend/admin.js',import.meta.url),'utf8');
+ const extract=name=>source.match(new RegExp(`^function ${name}\\([^]*?\\n}`,'m'))[0];
+ let inputs=[];
+ const container={replaceChildren(){inputs=[];},querySelectorAll:()=>inputs,set innerHTML(html){inputs=[...html.matchAll(/data-process-hourly-rate="([^"]+)"[^]*?value="([^"]*)"/g)].map(m=>({dataset:{processHourlyRate:m[1]},value:m[2]}));}};
+ const c=vm.createContext({document:{querySelector:()=>container,querySelectorAll:()=>inputs},state:{},escapeHtml:String,normalizeEditableValue:v=>String(v||'').trim(),SeungjinQrLabel:{getProcessGroups:p=>p.processGroups||[]},productForm:{querySelector:()=>null}});
+ for(const key of ['productProcessType','productFinalProcess','productProcessStages','productProcessSummary',...Array.from({length:6},(_,i)=>`productProcessStage${i+1}`)])c[key]={value:'',dataset:{}};
+ c.productProcessJoins=Array.from({length:5},(_,i)=>({checked:false,dataset:{productProcessJoin:String(i+2)}}));
+ vm.runInContext('let productProcessRateDraft = {};'+['normalizeProductProcessMethod','getProductProcessStageControls','getProductProcessFormGroups','getProductProcessRoute','readProductProcessHourlyRates','renderProductProcessHourlyRates','setProductProcessForm','syncProductProcessFields'].map(extract).join('\n'),c);
+ const product={finalProcess:'2도',processStage1:'실크',processStage2:'박',processGroups:[[1],[2]],processHourlyProductionRates:{'1도':1200,'2도':600}};
+ c.setProductProcessForm(product);
+ assert.equal(JSON.stringify(c.readProductProcessHourlyRates()),JSON.stringify({'1도':1200,'2도':600}));
+ inputs[0].value='1500';c.productProcessJoins[0].checked=true;c.syncProductProcessFields();
+ assert.equal(inputs.length,1);assert.equal(inputs[0].value,'');inputs[0].value='900';
+ c.productProcessJoins[0].checked=false;c.syncProductProcessFields();assert.equal(inputs[0].value,'1500');
+ c.productProcessJoins[0].checked=true;c.syncProductProcessFields();assert.equal(inputs[0].value,'900');
+ c.setProductProcessForm({...product,processHourlyProductionRates:{}});assert.ok(inputs.every(i=>i.value===''));
+});
