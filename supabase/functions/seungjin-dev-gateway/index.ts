@@ -221,7 +221,7 @@ async function readCommonContainerShipping(payload: JsonRecord) {
   const product = products[0]?.data as JsonRecord | undefined;
   if (!product || !commonContainerInfo(product).isCommonContainer) return { product: product || null, boxes: [] };
   const boxes = await databaseRows(`dev_inventory_boxes?${query}&select=box_id,management_id,product_id,storage,box_number,data&order=box_number.asc`);
-  return { product, boxes: boxes.map(mapInboundQrBox) };
+  return { product, boxes: mapInventoryBoxRows(boxes) };
 }
 
 async function readInboundBoxQrs(payload: JsonRecord) {

@@ -134,3 +134,17 @@ test('운영의 관리 ID 단위 조회도 실제 제품을 검증하며 제품 
   assert.ok(edge.includes('shippingProductReferences: productRows.map((row) => row.data)'));
   assert.ok(edge.includes('const needsProductDefinition = needsProductScope || ["출고대기", "출고완료"].includes(status)'));
 });
+test('공용용기 출고 사전 조회가 실제 박스 매퍼로 ID와 수량을 반환한다', async () => {
+  const source = readFileSync(new URL('../supabase/functions/seungjin-dev-gateway/index.ts', import.meta.url), 'utf8');
+  const extract = name => source.match(new RegExp(`(?:async )?function ${name}\\([^]*?\\n}`))[0]
+    .replace(/: JsonRecord\[\]|: JsonRecord/g, '').replace(/ as JsonRecord \| undefined/g, '').replace(/ as JsonRecord/g, '');
+  const product = fixture().products[0];
+  const calls = [];
+  const c = vm.createContext({commonContainerInfo, buildInboundQrFilters: () => ({productId:'P1', query:'product_id=eq.P1'}),
+    databaseRows: async query => { calls.push(query); return query.startsWith('dev_products?') ? [{data:product}] : [{box_id:'B1',management_id:'IN-1',product_id:'P1',storage:'A',box_number:1,data:{quantity:100,rawStatus:'출고대기'}}]; }});
+  vm.runInContext(extract('mapInventoryBoxRows') + '\n' + extract('readCommonContainerShipping'), c);
+  const result = await c.readCommonContainerShipping({productId:'P1'});
+  assert.equal(result.product.productId,'P1');
+  assert.equal(result.boxes[0].boxId,'B1');assert.equal(result.boxes[0].number,1);assert.equal(result.boxes[0].quantity,100);
+  assert.equal(calls.length,2);
+});
