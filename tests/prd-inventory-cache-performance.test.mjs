@@ -28,7 +28,9 @@ test("이미 표시한 재고와 화면 재진입도 변경된 경우에만 전�
   assert.match(adminSource, /if \(view === "inventory"\) \{\s*loadInventoryDashboard\(!state\.inventoryLoaded\);/);
 });
 
-test("다른 화면을 보는 동안 재고 데이터를 미리 준비한다", () => {
-  assert.match(adminSource, /scheduleInventoryDashboardWarmup\(\)/);
-  assert.match(adminSource, /window\.requestIdleCallback\(warmup, \{ timeout: 1500 \}\)/);
+test("재고를 보지 않는 화면에서 전체 재고를 미리 요청하지 않는다", () => {
+  assert.doesNotMatch(adminSource, /scheduleInventoryDashboardWarmup/);
+  const initializer = adminSource.slice(adminSource.indexOf("function initializeProductionPlan()"), adminSource.indexOf("function getProductionPlanStorageKey()"));
+  assert.doesNotMatch(initializer, /loadProductionPlanReferenceRows\(/);
+  assert.match(adminSource, /view === "production-plan"[\s\S]*?loadProductionPlanReferenceRows\(\)/);
 });

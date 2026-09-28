@@ -1,3 +1,4 @@
+import { createInventoryReadCache } from "./inventory-read-cache.js";
 import { compactMobileDashboard } from "./state-engine.js";
 import { commonContainerInfo } from "./common-container-shipping.js";
 import { readRequestBody, publicError } from "./request-errors.js";
@@ -29,6 +30,7 @@ const APPS_SCRIPT_URLS: Record<string, string> = {
 const APPS_SCRIPT_URL = APPS_SCRIPT_URLS[PROJECT_REF] || "";
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_CACHE_TTL_MS = 60 * 1000;
+const readInventorySnapshotCached = createInventoryReadCache();
 const FREE_DATABASE_LIMIT_BYTES = 500 * 1024 * 1024;
 const ALLOWED_ORIGINS = new Set([
   "https://honeyper.github.io",
@@ -460,7 +462,7 @@ function scheduleInboundQrStatusUpdate(payload: JsonRecord, result: JsonRecord) 
   if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(update);
 }
 
-async function readCanonicalAction(action: string, payload: JsonRecord) {
+async function readCanonicalAction(action: string, payload: JsonRecord): Promise<JsonRecord> {
   if (action === "getProducts") {
     const rows = await databaseRows("dev_products?select=data&order=product_id.asc");
     return { products: rows.map((row) => row.data) };
@@ -483,43 +485,47 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     };
   }
   if (action === "getInventoryDashboard") {
-    const [state, stateRows, productRows, qrInboundRows] = await Promise.all([
-      databaseRequest("rpc/read_dev_inventory_state", {
-        method: "POST",
-        body: "{}"
-      }) as Promise<{
-        records?: JsonRecord[];
-        boxes?: JsonRecord[];
-        recordRows?: JsonRecord[];
-        boxRows?: JsonRecord[];
-      }>,
-      databaseRequest("dev_state?singleton=eq.true&select=version&limit=1") as Promise<Array<{ version: number }>>,
-      databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity,product_image_url:data->>productImageUrl,product_image_urls:data->productImageUrls,is_common_container:data->isCommonContainer,common_container_product:data->>commonContainerProduct,shipping_product_names:data->shippingProductNames"),
-      databaseRows("dev_inbounds?select=management_id,product_id,qr_generated_count:data->>qrGeneratedCount")
-    ]);
-    const products = productRows.map((row) => ({
-      productId: row.product_id,
-      isCommonContainer: row.is_common_container ?? row.common_container_product,
-      shippingProductNames: row.shipping_product_names,
-      trayQuantity: row.tray_quantity,
-      boxQuantity: row.box_quantity,
-      productImageUrl: row.product_image_url,
-      productImageUrls: Array.isArray(row.product_image_urls) ? row.product_image_urls : []
-    }));
-    const records = Array.isArray(state.recordRows)
-      ? mapInventoryRecordRows(state.recordRows)
-      : state.records || [];
-    const boxes = Array.isArray(state.boxRows)
-      ? mapInventoryBoxRows(state.boxRows)
-      : state.boxes || [];
-    const dashboard = {
-      ...(buildInventoryDashboard(records, boxes, products, new Date(), qrInboundRows.map((row) => ({
-        managementId: row.management_id,
+    const version = await readCanonicalAction("getInventoryVersion", {});
+    const dateKey = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const key = JSON.stringify([version.stateVersion, version.qrStatusVersion, dateKey]);
+    const dashboard = await readInventorySnapshotCached(key, async () => {
+      const [state, productRows, qrInboundRows] = await Promise.all([
+        databaseRequest("rpc/read_dev_inventory_snapshot", {
+          method: "POST",
+          body: "{}"
+        }) as Promise<{
+          records?: JsonRecord[];
+          boxes?: JsonRecord[];
+          recordRows?: JsonRecord[];
+          boxRows?: JsonRecord[];
+        }>,
+        databaseRows("dev_products?select=product_id,tray_quantity:data->>trayQuantity,box_quantity:data->>boxQuantity,product_image_url:data->>productImageUrl,product_image_urls:data->productImageUrls,is_common_container:data->isCommonContainer,common_container_product:data->>commonContainerProduct,shipping_product_names:data->shippingProductNames"),
+        databaseRows("dev_inbounds?select=management_id,product_id,qr_generated_count:data->>qrGeneratedCount")
+      ]);
+      const products = productRows.map((row) => ({
         productId: row.product_id,
-        qrGeneratedCount: row.qr_generated_count
-      }))) as JsonRecord),
-      stateVersion: Number(stateRows?.[0]?.version) || null
-    };
+        isCommonContainer: row.is_common_container ?? row.common_container_product,
+        shippingProductNames: row.shipping_product_names,
+        trayQuantity: row.tray_quantity,
+        boxQuantity: row.box_quantity,
+        productImageUrl: row.product_image_url,
+        productImageUrls: Array.isArray(row.product_image_urls) ? row.product_image_urls : []
+      }));
+      const records = Array.isArray(state.recordRows)
+        ? mapInventoryRecordRows(state.recordRows)
+        : state.records || [];
+      const boxes = Array.isArray(state.boxRows)
+        ? mapInventoryBoxRows(state.boxRows)
+        : state.boxes || [];
+      return {
+        ...(buildInventoryDashboard(records, boxes, products, new Date(), qrInboundRows.map((row) => ({
+          managementId: row.management_id,
+          productId: row.product_id,
+          qrGeneratedCount: row.qr_generated_count
+        }))) as JsonRecord),
+        stateVersion: version.stateVersion
+      };
+    });
     return payload.responseFormat === "mobile-box-table-v1" ? compactMobileDashboard(dashboard) : dashboard;
   }
   if (action === "getInventoryVersion") {

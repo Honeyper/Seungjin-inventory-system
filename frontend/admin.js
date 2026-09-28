@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-28", title: "재고 조회 및 초기 로딩 속도 개선", items: ["서버의 재고 조회 지연을 줄이고, 같은 재고를 중복 조회하던 동작과 화면 시작 시 불필요한 조회를 정리했습니다."] },
   { date: "2026-09-28", title: "모바일 새로고침 속도 개선", items: ["재고 조회의 중복 전송과 전체 박스 반복 가공을 줄이고, 대용량 재고를 비동기로 저장하도록 개선했습니다."] },
   { date: "2026-09-28", title: "알림 읽음 표시 개선", items: ["확인한 알림의 빨간 숫자가 사라지고 새 알림만 표시되도록 읽음 처리를 보완했습니다."] },
   { date: "2026-09-23", title: "공용용기 출고 오류 수정", items: ["모바일에서 공용용기를 출고할 때 제품 선택창을 불러오지 못하던 서버 오류를 수정했습니다."] },
@@ -2583,7 +2584,6 @@ loadPurchaseOrders();
 loadTodayInbounds();
 setCurrentInboundTime();
 setActiveView(getCurrentView());
-scheduleInventoryDashboardWarmup();
 updateInboundSummary();
 updateShippingSettlementSummary();
 renderInboundDefectReasons();
@@ -2617,7 +2617,6 @@ function initializeProductionPlan() {
   state.productionPlanFactory = productionPlanFactory?.value || "1공장";
   if (productionPlanDate) productionPlanDate.value = state.productionPlanDate;
   loadProductionPlanDraft();
-  loadProductionPlanReferenceRows();
 }
 
 function getProductionPlanStorageKey() {
@@ -3371,24 +3370,6 @@ function getCurrentView() {
   return ["inbound", "purchase-orders", "inventory", "shipping", "products", "production-plan", "work-status"].includes(view) ? view : "inbound";
 }
 
-function scheduleInventoryDashboardWarmup() {
-  if (getCurrentView() === "inventory" || state.inventoryLoaded || state.inventoryLoadPromise) {
-    return;
-  }
-
-  const warmup = () => {
-    if (!state.inventoryLoaded && !state.inventoryLoadPromise) {
-      loadInventoryDashboard(false);
-    }
-  };
-
-  if (typeof window.requestIdleCallback === "function") {
-    window.requestIdleCallback(warmup, { timeout: 1500 });
-  } else {
-    window.setTimeout(warmup, 750);
-  }
-}
-
 function setWorkMenuExpanded(expanded) {
   if (!workMenuButton || !workSubmenu) return;
   workMenuButton.setAttribute("aria-expanded", String(expanded));
@@ -3428,6 +3409,7 @@ function setActiveView(view) {
 
   if (view === "production-plan" && typeof loadProductionPlanDraft === "function") {
     loadProductionPlanDraft();
+    loadProductionPlanReferenceRows();
   }
 
   if (view === "shipping") {
