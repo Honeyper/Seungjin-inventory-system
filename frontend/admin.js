@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-28", title: "알림 읽음 표시 개선", items: ["확인한 알림의 빨간 숫자가 사라지고 새 알림만 표시되도록 읽음 처리를 보완했습니다."] },
   { date: "2026-09-23", title: "공용용기 출고 오류 수정", items: ["모바일에서 공용용기를 출고할 때 제품 선택창을 불러오지 못하던 서버 오류를 수정했습니다."] },
   { date: "2026-09-22", title: "공정별 시간당 생산량 입력", items: ["제품 등록·수정에서 각 공정의 시간당 생산량을 입력하고 상세보기에서 확인할 수 있습니다. 동시 작업 공정은 하나로 묶어 관리합니다."] },
   { date: "2026-09-22", title: "공용용기 출고 제품 종류 확대", items: ["출고 시 제품 종류를 최대 20개까지 선택하고 등록할 수 있도록 확대했습니다."] },
@@ -1207,20 +1208,32 @@ document.addEventListener("keydown", (event) => {
   adminUserMenuButton?.focus();
 });
 
+const backupNotificationReadSignatures = new Set();
+
+function getBackupNotificationSignature(notification) {
+  return notification.signature || JSON.stringify([
+    notification.businessDate, notification.status, notification.totalCount,
+    notification.syncedCount, notification.issueCount, notification.completedAt
+  ]);
+}
+
 function readBackupNotificationSignatures() {
-  try {
-    const signatures = JSON.parse(localStorage.getItem(BACKUP_NOTIFICATION_READ_KEY) || "[]");
-    return new Set(Array.isArray(signatures) ? signatures.filter(Boolean) : []);
-  } catch (error) {
-    return new Set();
+  for (const storageName of ["localStorage", "sessionStorage"]) {
+    try {
+      const signatures = JSON.parse(window[storageName].getItem(BACKUP_NOTIFICATION_READ_KEY) || "[]");
+      if (Array.isArray(signatures)) signatures.filter(Boolean).forEach(value => backupNotificationReadSignatures.add(value));
+    } catch (error) {
+      // Keep the current page's read state even when browser storage is unavailable.
+    }
   }
+  return new Set(backupNotificationReadSignatures);
 }
 
 function writeBackupNotificationSignatures(signatures) {
-  try {
-    localStorage.setItem(BACKUP_NOTIFICATION_READ_KEY, JSON.stringify([...signatures].slice(-100)));
-  } catch (error) {
-    // Browser storage failures must not block backup status checks.
+  signatures.forEach(value => backupNotificationReadSignatures.add(value));
+  const serialized = JSON.stringify([...backupNotificationReadSignatures].slice(-100));
+  for (const storageName of ["localStorage", "sessionStorage"]) {
+    try { window[storageName].setItem(BACKUP_NOTIFICATION_READ_KEY, serialized); } catch (error) {}
   }
 }
 
@@ -1230,7 +1243,7 @@ function getFinalBackupNotifications() {
 
 function markBackupNotificationsRead() {
   const signatures = readBackupNotificationSignatures();
-  getFinalBackupNotifications().forEach((notification) => signatures.add(notification.signature));
+  getFinalBackupNotifications().forEach((notification) => signatures.add(getBackupNotificationSignature(notification)));
   writeBackupNotificationSignatures(signatures);
   updateBackupNotificationBadge();
 }
@@ -1239,7 +1252,7 @@ function updateBackupNotificationBadge() {
   if (!backupNotificationBadge) return;
   const readSignatures = readBackupNotificationSignatures();
   const unreadCount = getFinalBackupNotifications()
-    .filter((notification) => !readSignatures.has(notification.signature))
+    .filter((notification) => !readSignatures.has(getBackupNotificationSignature(notification)))
     .length;
   backupNotificationBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
   backupNotificationBadge.hidden = unreadCount === 0;
