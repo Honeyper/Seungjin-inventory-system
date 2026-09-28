@@ -16,7 +16,7 @@ export function loadFunctions(source, names, globals = {}) {
 }
 
 export function createMobileDashboardRuntime(requestApi, overrides = {}) {
-  return loadFunctions(mobileSource, ["loadShippingDashboard", "getDashboardStateVersion", "ensureDashboardLoaded"], {
+  return loadFunctions(mobileSource, ["loadShippingDashboard", "expandMobileDashboard", "getDashboardStateVersion", "ensureDashboardLoaded"], {
     state: { user: {}, dashboard: [], dashboardLoadedAt: 0, dashboardStateVersion: null, scannedShippingRows: [] },
     window: { SeungjinDataGateway: { canRead: () => true } },
     Date,

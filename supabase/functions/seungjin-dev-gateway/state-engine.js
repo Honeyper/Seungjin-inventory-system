@@ -1426,3 +1426,22 @@ export function buildInventoryDashboard(records, boxes, products = [], now = new
     rows
   };
 }
+
+// Mobile transports each canonical box once instead of repeating it in every
+// inbound's all/active/shipped lists. Keep every field and all historical boxes.
+export function compactMobileDashboard(dashboard) {
+  const boxTable = [];
+  const indexes = new Map();
+  const rows = dashboard.rows.map(source => {
+    const row = {...source};
+    for (const field of ['allShippingBoxes', 'activeShippingBoxes', 'shippedShippingBoxes']) {
+      if (!Array.isArray(source[field])) continue;
+      row[field] = source[field].map(box => {
+        if (!indexes.has(box)) { indexes.set(box, boxTable.length); boxTable.push(box); }
+        return indexes.get(box);
+      });
+    }
+    return row;
+  });
+  return {format: 'mobile-box-table-v1', rows, boxTable, stateVersion: dashboard.stateVersion};
+}

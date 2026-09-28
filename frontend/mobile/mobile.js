@@ -345,7 +345,7 @@ const elements = {
 
 initializeMobileApp();
 
-function initializeMobileApp() {
+async function initializeMobileApp() {
   renderShippingSortMenu();
   renderMobileTransferReturnStorageOptions();
   bindEvents();
@@ -359,7 +359,8 @@ function initializeMobileApp() {
     state.user = savedSession;
     state.scannedShippingRows = readSavedScannedRows();
     state.scannedMoveRows = readSavedMoveRows();
-    restoreCachedDashboard();
+    await restoreCachedDashboard();
+    if (state.user !== savedSession) return;
     restoreSavedRoute();
     return;
   }
@@ -1096,7 +1097,9 @@ async function attemptAdminLogin() {
     if (!state.scannedMoveRows.length) {
       state.scannedMoveRows = readSavedMoveRows();
     }
-    restoreCachedDashboard();
+    const loggedInUser = state.user;
+    await restoreCachedDashboard();
+    if (state.user !== loggedInUser) return;
     showHome();
   } catch (error) {
     setLoginMessage(error.message || "로그인 서버에 연결할 수 없습니다.");
@@ -1351,10 +1354,10 @@ async function loadShippingDashboard(options = {}) {
         }
       }
 
-      const data = await requestApi("getInventoryDashboard", { knownStateVersion: checkedVersion });
+      const data = await requestApi("getInventoryDashboard", { knownStateVersion: checkedVersion, responseFormat: "mobile-box-table-v1" });
       if (state.user !== currentUser) return false;
       if (loadRevision !== (state.shippingMutationRevision || 0)) return false;
-      state.dashboard = Array.isArray(data?.rows) ? data.rows : [];
+      state.dashboard = expandMobileDashboard(data);
       state.dashboardLoadedAt = Date.now();
       // Use the version read before the rows so a concurrent write cannot mark old rows as current.
       state.dashboardStateVersion = checkedVersion;
@@ -1362,7 +1365,7 @@ async function loadShippingDashboard(options = {}) {
       syncPendingShippingRowsFromDashboard();
       syncScannedMoveRowsFromDashboard();
       applyShippingFilters();
-      saveDashboardCache();
+      saveDashboardCache(data);
       return true;
     } catch (error) {
       if (state.user !== currentUser) return false;
@@ -6651,11 +6654,18 @@ function syncPendingShippingRowsFromDashboard() {
       }));
   });
   // Refresh every saved scan, including boxes completed from another device.
-  const currentByKey = new Map(state.dashboard.flatMap((record) => getKnownBoxes(record)
-    .map((box) => buildScannedBoxItem(record, box, {
-      boxId: normalizeScanValue(box?.boxId),
-      boxNumber: String(box?.number || box?.sequence || "").trim()
-    }, box?.boxId || ""))).map((row) => [getShippingCompositeBoxKey(row), row]));
+  const savedKeys = new Set(state.scannedShippingRows.map(getShippingCompositeBoxKey));
+  const currentByKey = new Map();
+  for (const record of state.dashboard) {
+    for (const box of getKnownBoxes(record)) {
+      const key = getBoxPickerBoxKey(box, record);
+      if (!savedKeys.has(key)) continue;
+      currentByKey.set(key, buildScannedBoxItem(record, box, {
+        boxId: normalizeScanValue(box?.boxId),
+        boxNumber: String(box?.number || box?.sequence || "").trim()
+      }, box?.boxId || ""));
+    }
+  }
   const pendingByKey = new Map(pendingRows.map((row) => [getShippingCompositeBoxKey(row), row]));
   const mergedRows = [];
   const mergedKeys = new Set();
@@ -7520,25 +7530,46 @@ function saveLoginPreferences(credentials = null) {
   }
 }
 
+function expandMobileDashboard(data) {
+  if (!Array.isArray(data?.rows)) return [];
+  if (data.format !== "mobile-box-table-v1") return data.rows;
+  if (!Array.isArray(data.boxTable)) throw new Error("재고 응답을 다시 확인해주세요.");
+  return data.rows.map(source => {
+    const row = {...source};
+    for (const field of ["allShippingBoxes", "activeShippingBoxes", "shippedShippingBoxes"]) {
+      if (!Array.isArray(source[field])) continue;
+      row[field] = source[field].map(index => {
+        if (!Number.isInteger(index) || index < 0 || !data.boxTable[index]) throw new Error("재고 응답을 다시 확인해주세요.");
+        return data.boxTable[index];
+      });
+    }
+    return row;
+  });
+}
+
 function getMobileCacheUserKey() {
   return String(state.user?.accountId || state.user?.name || "").trim();
 }
 
-function restoreCachedDashboard() {
+async function restoreCachedDashboard() {
+  const currentUser = state.user;
+  const revision = state.shippingMutationRevision || 0;
+  const loadedAt = state.dashboardLoadedAt;
   try {
-    const cached = JSON.parse(localStorage.getItem(DASHBOARD_CACHE_KEY) || "null");
+    const cached = await globalThis.SeungjinMobileCache?.read(`${DASHBOARD_CACHE_KEY}:${getMobileCacheUserKey()}`);
+    if (state.user !== currentUser || revision !== (state.shippingMutationRevision || 0) || loadedAt !== state.dashboardLoadedAt) return false;
     const currentUserKey = getMobileCacheUserKey();
     const savedAt = Number(cached?.savedAt) || 0;
     const isExpired = !savedAt || Date.now() - savedAt > DASHBOARD_CACHE_MAX_AGE_MS;
     const isDifferentUser = cached?.userKey && currentUserKey && cached.userKey !== currentUserKey;
-    if (!Array.isArray(cached?.rows) || isExpired || isDifferentUser) {
+    if (!Array.isArray(cached?.dashboard?.rows) || isExpired || isDifferentUser) {
       if (cached) {
-        localStorage.removeItem(DASHBOARD_CACHE_KEY);
+        void globalThis.SeungjinMobileCache?.remove(`${DASHBOARD_CACHE_KEY}:${getMobileCacheUserKey()}`);
       }
       return false;
     }
 
-    state.dashboard = cached.rows;
+    state.dashboard = expandMobileDashboard(cached.dashboard);
     state.dashboardLoadedAt = savedAt;
     state.dashboardStateVersion = getDashboardStateVersion(cached.stateVersion);
     dashboardQrIndex = null;
@@ -7556,20 +7587,20 @@ function getDashboardStateVersion(value) {
   return Number.isSafeInteger(version) && version >= 0 ? version : null;
 }
 
-function saveDashboardCache() {
-  try {
-    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({
-      userKey: getMobileCacheUserKey(),
-      savedAt: state.dashboardLoadedAt || Date.now(),
-      stateVersion: state.dashboardStateVersion,
-      rows: state.dashboard
-    }));
-  } catch (error) {
-    // Storage limits or private browsing must not block the live dashboard.
-  }
+function saveDashboardCache(dashboard) {
+  if (!dashboard) return;
+  void globalThis.SeungjinMobileCache?.write(`${DASHBOARD_CACHE_KEY}:${getMobileCacheUserKey()}`, {
+    userKey: getMobileCacheUserKey(),
+    savedAt: state.dashboardLoadedAt || Date.now(),
+    stateVersion: state.dashboardStateVersion,
+    dashboard
+  });
+  // Remove snapshots left by older versions after the new read succeeds.
+  try { localStorage.removeItem(DASHBOARD_CACHE_KEY); } catch (error) {}
 }
 
 function clearPersistentMobileData() {
+  void globalThis.SeungjinMobileCache?.remove(`${DASHBOARD_CACHE_KEY}:${getMobileCacheUserKey()}`);
   try {
     localStorage.removeItem(PERSISTENT_MOVE_ROWS_KEY);
   } catch (error) {

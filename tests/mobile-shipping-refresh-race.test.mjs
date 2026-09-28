@@ -10,7 +10,7 @@ const item = (id, status = "출고대기") => ({ id, scannedBox: { boxId: id, st
 function setup() {
   const reads = [];
   const app = { state: { user: {}, scannedShippingRows: [item("A")], dashboard: [], dashboardLoadPromise: null }, window: {}, dashboardQrIndex: null, requestApi: () => new Promise((resolve, reject) => reads.push({ resolve, reject })), syncPendingShippingRowsFromDashboard() { app.syncs++; }, syncScannedMoveRowsFromDashboard() {}, applyShippingFilters() {}, saveDashboardCache() {}, showToast() { app.toasts++; }, renderShippingError() { app.toasts++; }, renderShippingLoading() {}, syncs: 0, toasts: 0, getShippingKey: row => row.id, getScannedBox: row => row.scannedBox };
-  vm.runInNewContext(loader + updates, app);
+  vm.runInNewContext(source.match(/^function expandMobileDashboard\([^]*?\n}/m)[0] + loader + updates, app);
   return { app, reads };
 }
 

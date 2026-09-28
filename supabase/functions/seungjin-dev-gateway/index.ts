@@ -1,3 +1,4 @@
+import { compactMobileDashboard } from "./state-engine.js";
 import { commonContainerInfo } from "./common-container-shipping.js";
 import { readRequestBody, publicError } from "./request-errors.js";
 import {
@@ -511,7 +512,7 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
     const boxes = Array.isArray(state.boxRows)
       ? mapInventoryBoxRows(state.boxRows)
       : state.boxes || [];
-    return {
+    const dashboard = {
       ...(buildInventoryDashboard(records, boxes, products, new Date(), qrInboundRows.map((row) => ({
         managementId: row.management_id,
         productId: row.product_id,
@@ -519,6 +520,7 @@ async function readCanonicalAction(action: string, payload: JsonRecord) {
       }))) as JsonRecord),
       stateVersion: Number(stateRows?.[0]?.version) || null
     };
+    return payload.responseFormat === "mobile-box-table-v1" ? compactMobileDashboard(dashboard) : dashboard;
   }
   if (action === "getInventoryVersion") {
     const [stateRows, qrRows] = await Promise.all([
