@@ -15200,3 +15200,18 @@ small, em {
 }
 
 #inboundDetailDescription:empty, .inventory-detail-layout [data-inventory-audit-message]:empty { display: none; }
+
+
+.inventory-list-header:has(.inventory-completed-toggle) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+.inventory-completed-toggle { min-height: 2.5rem; font-weight: 500; }
+.inventory-completed-toggle[aria-pressed="true"] {
+  background: #eaf2ff;
+  border-color: #88aee3;
+  color: #164d92;
+}

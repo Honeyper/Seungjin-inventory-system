@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-30", title: "재고 목록 출고완료 항목 보기", items: ["재고 목록에서 출고완료 항목도 보기 버튼을 켜면 출고완료 입고 건을 함께 검색하고 상세보기로 확인할 수 있습니다. 현재 재고 수량 합계는 유지합니다."] },
   { date: "2026-09-30", title: "자리이동 재고조사 반영", items: ["선택 박스 이동 시 등록한 박스는 실물 확인하며, 같은 입고 건의 미등록 박스는 미확인·위치 미지정으로 변경합니다. 같은 조사에서 먼저 이동한 박스는 유지합니다."] },
   { date: "2026-09-30", title: "모바일 개별·일괄 자리이동", items: ["이동 위치를 한 번 지정해 스캔한 박스를 일괄 이동할 수 있습니다. 선택 박스만 이동하거나 같은 입고 건의 이동 가능한 박스 전량을 이동할 수 있습니다."] },
   { date: "2026-09-30", title: "입고 시 실물 확인 자동 처리", items: ["입고 박스는 입고 시각을 기준으로 자동 확인 완료 처리하고 한 달 뒤 재확인 대상으로 표시합니다. 기존 입고분에도 적용하며, 이후 직접 확인한 기록은 유지합니다."] },
@@ -560,6 +561,7 @@ const state = {
   todayInbounds: [],
   inventoryRows: [],
   filteredInventoryRows: [],
+  showCompletedInventory: false,
   inventoryLocationBoxStats: [],
   inventoryLocationQuantityStats: [],
   inventoryLoadPromise: null,
@@ -961,6 +963,7 @@ const inventoryUnspecifiedStorage = document.querySelector("#inventoryUnspecifie
 const inventoryLongStorage = document.querySelector("#inventoryLongStorage");
 const inventoryHoldDiscard = document.querySelector("#inventoryHoldDiscard");
 const inventorySearch = document.querySelector("#inventorySearch");
+const toggleInventoryCompletedButton = document.querySelector("#toggleInventoryCompletedButton");
 const inventoryClientFilter = document.querySelector("#inventoryClientFilter");
 const inventoryStorageFilter = document.querySelector("#inventoryStorageFilter");
 const inventoryStockFilter = document.querySelector("#inventoryStockFilter");
@@ -1794,6 +1797,7 @@ inventorySearch?.addEventListener("input", (event) => {
   });
 });
 refreshInventoryButton?.addEventListener("click", refreshInventoryDashboard);
+toggleInventoryCompletedButton?.addEventListener("click", toggleInventoryCompleted);
 inventoryAttentionButtons.forEach((button) => {
   button.addEventListener("click", () => openInventoryAttentionModal(button.dataset.inventoryAttention));
 });
@@ -10121,6 +10125,18 @@ function projectInventoryRowForCategory(item, category) {
   };
 }
 
+function toggleInventoryCompleted() {
+  state.showCompletedInventory = !state.showCompletedInventory;
+  toggleInventoryCompletedButton?.setAttribute("aria-pressed", String(state.showCompletedInventory));
+  state.inventoryPage = 1;
+  applyInventoryFilters();
+}
+
+function isCompletedInventoryRow(item) {
+  return normalizeInventoryStockStatus(item?.stockStatus).includes("출고완료")
+    || normalizeInventoryStockStatus(item?.processStatus).includes("출고완료");
+}
+
 function applyInventoryFilters() {
   syncInventoryFilterState();
   const filters = state.inventoryFilters;
@@ -10129,7 +10145,8 @@ function applyInventoryFilters() {
   );
 
   state.filteredInventoryRows = state.inventoryRows.filter((item) => {
-    if (item.countsAsInventory === false && !isInventoryCategoryFilter) {
+    if (item.countsAsInventory === false && !isInventoryCategoryFilter
+      && !(state.showCompletedInventory && isCompletedInventoryRow(item))) {
       return false;
     }
 
