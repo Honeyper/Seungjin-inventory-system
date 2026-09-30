@@ -8,7 +8,7 @@ const policy = globalThis.SeungjinInventoryConfirmation;
 const at = value => new Date(value);
 const record = { managementId: 'MONTHLY', productId: 'P1', productName: '월간 확인', storage: 'A' };
 const box = (number, overrides = {}) => ({ ...record, boxId: `B${number}`, number, quantity: 100, status: '보관', lastInventoryCheckedAt: '2026-08-18 14:20:30', ...overrides });
-const expiry = at('2026-09-18T05:20:30Z');
+const expiry = at('2026-08-29T15:00:00Z');
 const runtime = (overrides = {}) => loadFunctions(adminSource, [
   'normalizeInventoryStockStatus', 'getInventoryAuditEligibleBoxes', 'getInventoryPhysicalConfirmationBoxes',
   'getInventoryAuditTargetBoxes', 'isInventoryBoxConfirmed', 'normalizeInventoryRows', 'refreshInventoryConfirmationStatus'
@@ -26,13 +26,18 @@ test('browser and Edge use identical monthly rules and load them before the appl
 });
 
 for (const [checked, expected] of [
-  ['2026-08-18 14:20:30', '2026-09-18T05:20:30Z'],
-  ['2026-01-31 23:59:59', '2026-02-28T14:59:59Z'],
+  ['2026-08-18 14:20:30', '2026-08-29T15:00:00Z'],
+  ['2026-08-29 23:59:59', '2026-08-29T15:00:00Z'],
+  ['2026-08-30 00:00:00', '2026-09-29T15:00:00Z'],
+  ['2026-08-31 12:00:00', '2026-09-29T15:00:00Z'],
+  ['2026-01-31 23:59:59', '2026-02-27T15:00:00Z'],
+  ['2026-02-28 00:00:00', '2026-03-29T15:00:00Z'],
   ['2028-01-31 00:00:00', '2028-02-28T15:00:00Z'],
-  ['2026-12-31', '2027-01-30T15:00:00Z'],
-  ['2026-08-17T15:30:00Z', '2026-09-17T15:30:00Z'],
-  ['2026-08-18T00:30:00+09:00', '2026-09-17T15:30:00Z']
-]) test(`Korean calendar month, including month end: ${checked}`, () => {
+  ['2028-02-29 00:00:00', '2028-03-29T15:00:00Z'],
+  ['2026-12-31', '2027-01-29T15:00:00Z'],
+  ['2026-08-17T15:30:00Z', '2026-08-29T15:00:00Z'],
+  ['2026-08-18T00:30:00+09:00', '2026-08-29T15:00:00Z']
+]) test(`Shared monthly boundary in Korean time: ${checked}`, () => {
   assert.equal(policy.expiresAt(checked), at(expected).getTime());
   const item = box(1, { lastInventoryCheckedAt: checked });
   assert.equal(policy.isConfirmed(item, at(expected).getTime() - 1), true);
@@ -45,13 +50,45 @@ test('missing, invalid and future confirmations remain unconfirmed', () => {
   }
 });
 
-test('expiry is per box: a newer sibling or row timestamp cannot hide an overdue box', () => {
-  const boxes = [box(1), box(2, { lastInventoryCheckedAt: '2026-09-17 14:20:30' }), box(3, { lastInventoryCheckedAt: '' })];
-  const source = { ...record, lastInventoryCheckedAt: '2026-09-17 14:20:30' };
+test('different inbound dates expire together and remain missing until checked again', () => {
+  const boxes = ['2026-09-01', '2026-09-18', '2026-09-29'].map((inboundDate, index) =>
+    policy.withInboundConfirmation(box(index + 1, { lastInventoryCheckedAt: '' }), { inboundDate }));
+  const boundary = at('2026-09-29T15:00:00Z');
+  const original = structuredClone(boxes);
+  for (const item of boxes) {
+    assert.equal(policy.isConfirmed(item, +boundary - 1), true);
+    assert.equal(policy.isConfirmed(item, boundary), false);
+    assert.equal(policy.isConfirmed(item, at('2027-01-01T00:00:00Z')), false);
+  }
+  assert.deepEqual(boxes, original);
+});
+
+test('mobile reloads at the Korean date boundary even when the data version has not changed', async () => {
+  const now = +at('2026-09-29T15:00:00Z');
+  const calls = [];
+  const state = { user: {}, scannedShippingRows: [], dashboardStateVersion: 7, dashboardLoadedAt: now - 1 };
+  const app = loadFunctions(mobileSource, ['loadShippingDashboard', 'getDashboardStateVersion'], {
+    state, Date: class extends Date { static now() { return now; } },
+    window: { SeungjinDataGateway: { canRead: () => true } }, dashboardQrIndex: null,
+    requestApi: async action => { calls.push(action); return { stateVersion: 7, rows: [] }; },
+    expandMobileDashboard: data => data.rows, syncPendingShippingRowsFromDashboard() {},
+    syncScannedMoveRowsFromDashboard() {}, applyShippingFilters() {}, saveDashboardCache() {},
+    showToast(message) { throw Error(message); }
+  });
+  assert.equal(await app.loadShippingDashboard({ silent: true }), true);
+  assert.deepEqual(calls, ['getInventoryVersion', 'getInventoryDashboard']);
+  calls.length = 0;
+  assert.equal(await app.loadShippingDashboard({ silent: true }), true);
+  assert.deepEqual(calls, ['getInventoryVersion']);
+});
+
+test('a check in the new survey cycle cannot hide an unconfirmed sibling', () => {
+  const boxes = [box(1), box(2, { lastInventoryCheckedAt: '2026-08-30 00:00:00' }), box(3, { lastInventoryCheckedAt: '' })];
+  const source = { ...record, lastInventoryCheckedAt: '2026-08-30 00:00:00' };
   const before = structuredClone(boxes);
   const early = buildInventoryDashboard([source], boxes, [], new Date(+expiry - 1));
   const due = buildInventoryDashboard([source], boxes, [], expiry);
-  assert.equal(early.attention.physicalMissingCount, 1);
+  assert.equal(early.attention.physicalMissingCount, 2); // A future check is not confirmed yet.
   assert.equal(due.attention.physicalMissingCount, 2);
   assert.equal(due.rows[0].inventoryConfirmedBoxCount, 1);
   const cached = runtime().normalizeInventoryRows(early.rows, expiry)[0];
@@ -71,7 +108,7 @@ test('PC and server exclude waiting, shipped, held and discarded boxes; cleanup 
   assert.equal(policy.isEligible(box(10, { status: '보관', rawStatus: '출고대기' })), false);
 });
 
-test('reconfirmation starts another month and rejects concurrently shipped boxes atomically', () => {
+test('reconfirmation stays valid until the next shared boundary and rejects shipped boxes atomically', () => {
   const boxes = [box(1), box(2, { status: '출고대기' }), box(3, { status: '출고완료' }), box(4, { status: '보류' }), box(5, { status: '폐기' })];
   const original = structuredClone(boxes);
   const state = { products: [], orders: [], inbounds: [], records: [record], boxes };
@@ -82,10 +119,10 @@ test('reconfirmation starts another month and rejects concurrently shipped boxes
     confirmedBoxes: [{ ...record, selectedBoxes: [1] }] }, state, expiry);
   assert.equal(result.result.confirmedBoxRows, 1);
   assert.equal(result.result.updatedBoxRows, 0);
-  assert.equal(result.state.boxes[0].lastInventoryCheckedAt, '2026-09-18 14:20:30');
+  assert.equal(result.state.boxes[0].lastInventoryCheckedAt, '2026-08-30 00:00:00');
   assert.deepEqual(result.state.boxes.slice(1), original.slice(1));
   assert.equal(buildInventoryDashboard(result.state.records, result.state.boxes, [], expiry).attention.physicalMissingCount, 0);
-  assert.equal(buildInventoryDashboard(result.state.records, result.state.boxes, [], at('2026-10-18T05:20:30Z')).attention.physicalMissingCount, 1);
+  assert.equal(buildInventoryDashboard(result.state.records, result.state.boxes, [], at('2026-09-29T15:00:00Z')).attention.physicalMissingCount, 1);
   assert.deepEqual(boxes, original);
 });
 

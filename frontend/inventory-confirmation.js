@@ -22,12 +22,15 @@
     const timestamp = checkedTime(value);
     if (!Number.isFinite(timestamp)) return NaN;
     const date = new Date(timestamp + KST_OFFSET);
-    const day = date.getUTCDate();
-    date.setUTCDate(1);
-    date.setUTCMonth(date.getUTCMonth() + 1);
-    const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
-    date.setUTCDate(Math.min(day, lastDay));
-    return date.getTime() - KST_OFFSET;
+    // One shared survey boundary: the 30th at 00:00 KST, or February's last day.
+    const boundary = (year, month) => {
+      const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      return Date.UTC(year, month, Math.min(30, lastDay)) - KST_OFFSET;
+    };
+    const currentBoundary = boundary(date.getUTCFullYear(), date.getUTCMonth());
+    return timestamp < currentBoundary
+      ? currentBoundary
+      : boundary(date.getUTCFullYear(), date.getUTCMonth() + 1);
   }
 
   function isEligible(box) {

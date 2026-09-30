@@ -8,7 +8,7 @@ const PERSISTENT_SCANNED_ROWS_KEY = "seungjinMobilePersistentScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
 const PERSISTENT_MOVE_ROWS_KEY = `seungjinMobilePersistentMoveRows:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const SCANNER_MODE_KEY = "seungjinMobileScannerMode";
-const DASHBOARD_CACHE_KEY = `seungjinMobileDashboardCache:v4:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const DASHBOARD_CACHE_KEY = `seungjinMobileDashboardCache:v5:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const DASHBOARD_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const DASHBOARD_BACKGROUND_REFRESH_MS = 45 * 1000;
 const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
@@ -1358,7 +1358,10 @@ async function loadShippingDashboard(options = {}) {
         if (state.user !== currentUser) return false;
         if (loadRevision !== (state.shippingMutationRevision || 0)) return false;
         checkedVersion = getDashboardStateVersion(version?.stateVersion);
-        if (checkedVersion !== null && checkedVersion === state.dashboardStateVersion) {
+        // Confirmation counts can change at midnight without an inventory write.
+        const koreanDay = timestamp => new Date(timestamp + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const sameDay = koreanDay(state.dashboardLoadedAt || 0) === koreanDay(Date.now());
+        if (checkedVersion !== null && checkedVersion === state.dashboardStateVersion && sameDay) {
           state.dashboardLoadedAt = Date.now();
           applyShippingFilters();
           return true;

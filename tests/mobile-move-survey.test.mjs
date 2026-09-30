@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyMutation, buildInventoryDashboard } from '../supabase/functions/seungjin-dev-gateway/state-engine.js';
 const policy=globalThis.SeungjinInventoryConfirmation;
-const now=new Date('2026-09-30T01:00:00Z');
+const now=new Date('2026-09-29T04:00:00Z');
 const record={managementId:'IN-A',productId:'P1',productName:'조사 제품',storage:'A-1',inboundDate:'2026-09-29',inboundTime:'12:00'};
 const box=(number,extra={})=>({...record,boxId:`IN-A-B${number}`,number,quantity:100,status:'보관',lastInventoryCheckedAt:'2026-09-29 12:00',inventoryConfirmationSource:'inbound',...extra});
 const initial=()=>({products:[],orders:[],inbounds:[],records:[record],boxes:[box(1),box(2),box(3)]});

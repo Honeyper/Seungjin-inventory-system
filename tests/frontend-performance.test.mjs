@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { adminSource, mobileSource, loadFunctions, createMobileDashboardRuntime, createQrRuntime, inventoryFixture } from "./helpers/frontend-runtime.mjs";
 
-test("unchanged mobile inventory only requests its version, including an empty inventory", async () => {
+test("unchanged mobile inventory on the same day only requests its version, including an empty inventory", async () => {
   for (const rows of [[], inventoryFixture(1, 1)]) {
     const calls = [];
     const app = createMobileDashboardRuntime(async (action) => {
@@ -12,6 +12,7 @@ test("unchanged mobile inventory only requests its version, including an empty i
     });
     app.state.dashboard = rows;
     app.state.dashboardStateVersion = 7;
+    app.state.dashboardLoadedAt = Date.now();
     assert.equal(await app.loadShippingDashboard(), true);
     assert.deepEqual(calls, ["getInventoryVersion"]);
     assert.equal(app.state.dashboard, rows);
