@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-30", title: "자리이동 재고조사 반영", items: ["선택 박스 이동 시 등록한 박스는 실물 확인하며, 같은 입고 건의 미등록 박스는 미확인·위치 미지정으로 변경합니다. 같은 조사에서 먼저 이동한 박스는 유지합니다."] },
   { date: "2026-09-30", title: "모바일 개별·일괄 자리이동", items: ["이동 위치를 한 번 지정해 스캔한 박스를 일괄 이동할 수 있습니다. 선택 박스만 이동하거나 같은 입고 건의 이동 가능한 박스 전량을 이동할 수 있습니다."] },
   { date: "2026-09-30", title: "입고 시 실물 확인 자동 처리", items: ["입고 박스는 입고 시각을 기준으로 자동 확인 완료 처리하고 한 달 뒤 재확인 대상으로 표시합니다. 기존 입고분에도 적용하며, 이후 직접 확인한 기록은 유지합니다."] },
   { date: "2026-09-29", title: "매일 자동 DB 관리", items: ["매일 오전 6시 30분에 만료된 임시 인증 정보를 정리하고, 6시 35분에 DB 내부 정리와 조회 통계 갱신을 자동 실행합니다. 재고·출고 이력과 백업 기록은 유지합니다."] },
@@ -9925,7 +9926,10 @@ function isInventoryCompletedWithoutStorage(item) {
 }
 
 function isInventoryUnspecifiedStorageTarget(item) {
-  return isUnspecifiedInventoryStorage(item?.storage) && !isInventoryCompletedWithoutStorage(item);
+  if (isInventoryCompletedWithoutStorage(item)) return false;
+  return isUnspecifiedInventoryStorage(item?.storage) || (item?.activeShippingBoxes || []).some((box) =>
+    parseShippingSettlementNumber(box.quantity) > 0 && isUnspecifiedInventoryStorage(box.storage)
+  );
 }
 
 function renderInventoryFilterOptions(filters) {

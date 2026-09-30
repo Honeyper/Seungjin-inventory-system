@@ -39,11 +39,13 @@
   function isConfirmed(box, now = Date.now()) {
     const checked = checkedTime(box?.lastInventoryCheckedAt);
     const current = Number(now);
-    return isEligible(box) && Number.isFinite(checked) && checked <= current
+    return box?.inventoryConfirmationSource !== "survey-unconfirmed"
+      && isEligible(box) && Number.isFinite(checked) && checked <= current
       && current < expiresAt(box.lastInventoryCheckedAt);
   }
 
   function withInboundConfirmation(box, inbound) {
+    if (box?.inventoryConfirmationSource === "survey-unconfirmed") return box;
     const existing = String(box?.lastInventoryCheckedAt ?? "").trim();
     // A later physical check, including an expired one, always takes precedence.
     if (existing && existing !== "-") return box;

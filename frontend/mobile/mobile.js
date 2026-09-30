@@ -8,7 +8,7 @@ const PERSISTENT_SCANNED_ROWS_KEY = "seungjinMobilePersistentScannedRows";
 const MOVE_ROWS_KEY = "seungjinMobileMoveRows";
 const PERSISTENT_MOVE_ROWS_KEY = `seungjinMobilePersistentMoveRows:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const SCANNER_MODE_KEY = "seungjinMobileScannerMode";
-const DASHBOARD_CACHE_KEY = `seungjinMobileDashboardCache:v3:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+const DASHBOARD_CACHE_KEY = `seungjinMobileDashboardCache:v4:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const DASHBOARD_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const DASHBOARD_BACKGROUND_REFRESH_MS = 45 * 1000;
 const SCANNER_DEVICE_CORES = Number(navigator.hardwareConcurrency) || 8;
@@ -158,6 +158,7 @@ const state = {
   inventoryMoveBoxScopes: {},
   inventoryMoveDestinationMode: "individual",
   inventoryMoveBulkStorage: "",
+  inventoryMoveSurveyId: "",
   selectedInventoryAuditScope: "management",
   selectedInventoryAuditAnchor: null,
   selectedConfirmMode: "item",
@@ -1189,6 +1190,7 @@ function logout() {
   state.filteredRows = [];
   state.scannedShippingRows = [];
   state.scannedMoveRows = [];
+  state.inventoryMoveSurveyId = "";
   if (elements.autoLogin) {
     elements.autoLogin.checked = false;
     saveLoginPreferences();
@@ -3046,7 +3048,7 @@ async function handleInventoryMoveCardAction(item, mode = "single") {
     title: `${actionLabel} 확인`,
     message: isInjectionAction
       ? "선택한 박스를 사출재고로 구분합니다. 현재 수량과 보관 위치는 유지됩니다."
-      : "선택한 박스의 보관 위치를 변경합니다.",
+      : mode === "single" ? "등록한 박스는 실물 확인하고 이동합니다. 같은 입고 건의 미등록 박스는 미확인·위치 미지정으로 변경합니다." : "선택한 박스의 보관 위치를 변경합니다.",
     subject: normalizeDisplay(item.productName),
     subjectLabel: "선택 제품",
     meta: isInjectionAction
@@ -4781,7 +4783,7 @@ function openScannedInventoryMoveConfirmModal(mode = "single") {
       ? "QR로 스캔한 박스만 사출재고로 등록합니다. 수량과 보관 위치는 유지됩니다."
       : mode === "all"
         ? (state.inventoryMoveDestinationMode === "bulk" ? "같은 입고 건의 이동 가능한 박스를 모두 이동합니다. 이미 목적지에 있는 박스와 출고대기·보류·출고완료·폐기 박스는 제외합니다." : "현재 위치에 있는 같은 제품의 전체 박스를 이동합니다.")
-        : "QR로 스캔한 박스만 이동합니다.";
+        : "등록한 박스는 실물 확인하고 이동합니다. 같은 입고 건의 미등록 박스는 미확인·위치 미지정으로 변경합니다.";
   }
   const inboundCount = new Set(items.map((item) => item.managementId)).size;
   elements.confirmProductName.textContent = `${formatNumber(moveBoxCount)}개 박스 · ${formatNumber(inboundCount)}개 입고 건`;
@@ -4926,6 +4928,23 @@ async function completeInventoryMoveItems(items, mode = "single") {
   return { completedCount, failedItems };
 }
 
+function getInventoryMoveSurveyPayload(item, selectedBoxes, mode) {
+  if (mode !== "single") return {};
+  if (!state.inventoryMoveSurveyId) {
+    state.inventoryMoveSurveyId = state.scannedMoveRows.find((row) => row.inventorySurveyId)?.inventorySurveyId
+      || globalThis.crypto.randomUUID();
+  }
+  state.scannedMoveRows.forEach((row) => { row.inventorySurveyId = state.inventoryMoveSurveyId; });
+  saveScannedMoveRows();
+  return {
+    inventorySurveyId: state.inventoryMoveSurveyId,
+    surveyRegisteredBoxes: [...new Set([
+      ...selectedBoxes,
+      ...state.scannedMoveRows.filter((row) => row.managementId === item.managementId).flatMap(getSelectedBoxNumbers)
+    ])]
+  };
+}
+
 async function completeInventoryMoveItem(item, selectedBoxes, mode = "single") {
   const currentStorage = getInventoryMoveCurrentStorage(item);
   const targetStorage = item.targetStorageConfirmed === true ? normalizeDisplay(item.targetStorage) : "-";
@@ -4949,7 +4968,8 @@ async function completeInventoryMoveItem(item, selectedBoxes, mode = "single") {
     status: isInjectionAction ? "사출재고" : "보관",
     userName: state.user?.name || "Admin",
     selectedBoxes,
-    moveAllBoxes: mode === "all" && !item.explicitMoveSelection
+    moveAllBoxes: mode === "all" && !item.explicitMoveSelection,
+    ...getInventoryMoveSurveyPayload(item, selectedBoxes, mode)
   });
 }
 
@@ -5218,6 +5238,19 @@ function applyInventoryMoveResultLocally(item, selectedBoxes, targetStorage, mod
       if (selectedBoxNumbers.has(boxNumber)) {
         box.storage = targetStorage;
         box.storageLocation = targetStorage;
+        if (result.inventorySurveyId) {
+          box.lastInventoryCheckedAt = result.inventoryCheckedAt;
+          box.inventoryConfirmationSource = "manual";
+          box.inventorySurveyId = result.inventorySurveyId;
+        }
+      }
+      const reset = (result.surveyUnconfirmedBoxes || []).find((entry) => String(entry.number) === boxNumber);
+      if (reset) {
+        box.storage = "미지정";
+        box.storageLocation = "미지정";
+        box.inventoryConfirmationSource = "survey-unconfirmed";
+        box.inventoryUnconfirmedAt = result.inventoryCheckedAt;
+        box.inventoryLastKnownStorage = reset.inventoryLastKnownStorage;
       }
     });
 
@@ -7818,6 +7851,7 @@ function compactInventoryMoveRow(row) {
 
   return {
     ...compactRow,
+    inventorySurveyId: row?.inventorySurveyId || "",
     moveCurrentStorage: row?.moveCurrentStorage || scannedBox.storage || row?.storage || "미지정",
     targetStorage: row?.targetStorageConfirmed === true ? row.targetStorage : "",
     targetStorageConfirmed: row?.targetStorageConfirmed === true

@@ -10,6 +10,7 @@ const lot = (managementId, boxes) => ({ managementId, productId: 'P1', productNa
 function runtime() {
   const requests = [];
   const app = vm.createContext({
+    crypto: {randomUUID:()=> 'survey-test-runtime'},
     state: { inventoryMoveDestinationMode: 'bulk', inventoryMoveBulkStorage: 'C-1', scannedMoveRows: [], dashboard: [], user: {name:'테스트'} },
     requestApi: async (action, payload) => { requests.push(plain(payload)); return { updatedBoxRows: payload.selectedBoxes.length }; },
     applyInventoryMoveResultLocally() {}, applyInventoryStockResultLocally() {},
@@ -21,7 +22,7 @@ function runtime() {
     'buildInventoryMoveItem','buildScannedBoxItem','getInventoryMoveCurrentStorage','getInventoryMoveProductGroupKey',
     'getKnownBoxes','getMovableBoxes','getBoxCurrentQuantity','getScannedBox','getSelectedBoxNumbers',
     'normalizeScanValue','normalizeDisplay','normalizeText','parseNumber','isInventoryMoveTargetReady',
-    'getInventoryMoveAllBoxNumbers','completeInventoryMoveItem','completeInventoryMoveItems','handleCompleteScannedInventoryMove']) {
+    'getInventoryMoveAllBoxNumbers','getInventoryMoveSurveyPayload','completeInventoryMoveItem','completeInventoryMoveItems','handleCompleteScannedInventoryMove']) {
     const fn = source.match(new RegExp(`^(?:async )?function ${name}\\([^]*?\\n\\}`, 'm'));
     assert.ok(fn, name);
     vm.runInContext(fn[0], app);

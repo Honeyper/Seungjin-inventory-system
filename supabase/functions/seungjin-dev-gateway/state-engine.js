@@ -1162,6 +1162,21 @@ function mutateInventory(action, payload, state, changes, now) {
     const injection = text(payload.inventoryAction) === "setInjectionStock";
     const targetStorage = text(payload.targetStorage);
     if (!injection && !targetStorage) throw new ValidationError("이동할 보관 위치를 선택해주세요.");
+    const surveyId = text(payload.inventorySurveyId);
+    const survey = !injection && Boolean(surveyId);
+    if (survey && (!/^[a-zA-Z0-9_-]{8,100}$/.test(surveyId) || payload.moveAllBoxes === true)) {
+      throw new ValidationError("재고조사 이동 정보를 다시 확인해주세요.");
+    }
+    const registered = new Set([
+      ...(Array.isArray(payload.surveyRegisteredBoxes) ? payload.surveyRegisteredBoxes : []),
+      ...boxes.map((box) => box.number)
+    ].map((value) => integer(value)));
+    const unconfirmed = survey ? state.boxes.filter((box) =>
+      text(box.managementId) === text(payload.managementId)
+      && inventoryConfirmation.isEligible(box)
+      && !registered.has(integer(box.number))
+      && text(box.inventorySurveyId) !== surveyId
+    ) : [];
     boxes.forEach((box) => {
       const status = normalizeStatus(box.rawStatus || box.status);
       if (/출고완료|폐기|출고대기|보류/.test(status) || number(box.quantity) <= 0) throw new ValidationError(`${box.number}번 박스는 현재 변경할 수 없는 상태입니다.`);
@@ -1172,12 +1187,24 @@ function mutateInventory(action, payload, state, changes, now) {
       } else {
         box.storage = targetStorage;
       }
+      if (survey) {
+        box.lastInventoryCheckedAt = parts.timestamp;
+        box.inventoryConfirmationSource = "manual";
+        box.inventorySurveyId = surveyId;
+      }
       box.inventoryMovedAt = parts.timestamp;
       box.inventoryMover = text(payload.userName || "Admin");
     });
-    upsertBoxes(boxes, changes);
+    unconfirmed.forEach((box) => {
+      if (text(box.storage) && text(box.storage) !== "미지정") box.inventoryLastKnownStorage = box.storage;
+      box.storage = "미지정";
+      box.inventoryConfirmationSource = "survey-unconfirmed";
+      box.inventoryUnconfirmedAt = parts.timestamp;
+      box.inventoryUnconfirmedBy = text(payload.userName || "Admin");
+    });
+    upsertBoxes([...boxes, ...unconfirmed], changes);
     touchInventoryRecords(state, boxes.map((box) => box.managementId), changes);
-    return { managementId: text(payload.managementId), inventoryAction: injection ? "setInjectionStock" : "move", updatedBoxRows: boxes.length, targetStorage: injection ? text(payload.currentStorage || payload.storage) : targetStorage, remainingSourceActiveRows: state.boxes.filter((box) => text(box.managementId) === text(payload.managementId) && text(box.storage) === text(payload.currentStorage || payload.storage) && number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))).length };
+    return { inventorySurveyId: surveyId, inventoryCheckedAt: survey ? parts.timestamp : "", surveyUnconfirmedBoxes: unconfirmed.map((box) => ({ boxId: box.boxId, number: box.number, inventoryLastKnownStorage: box.inventoryLastKnownStorage })), managementId: text(payload.managementId), inventoryAction: injection ? "setInjectionStock" : "move", updatedBoxRows: boxes.length, targetStorage: injection ? text(payload.currentStorage || payload.storage) : targetStorage, remainingSourceActiveRows: state.boxes.filter((box) => text(box.managementId) === text(payload.managementId) && text(box.storage) === text(payload.currentStorage || payload.storage) && number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))).length };
   }
 
   throw new ValidationError(`지원하지 않는 재고 작업입니다: ${action}`);
@@ -1428,7 +1455,7 @@ export function buildInventoryDashboard(records, boxes, products = [], now = new
     locationQuantityStats,
     attention: {
       physicalMissingCount: rows.reduce((sum, row) => sum + number(row.inventoryUnconfirmedBoxCount), 0),
-      unspecifiedStorageCount: activeRows.filter((row) => !text(row.storage) || text(row.storage) === "미지정").length,
+      unspecifiedStorageCount: activeRows.filter((row) => row.activeShippingBoxes.some((box) => !text(box.storage) || text(box.storage) === "미지정")).length,
       holdOrDiscardCount: rows.filter((row) => /보류|폐기/.test(text(row.stockStatus))).length
     },
     rows
