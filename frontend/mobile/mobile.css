@@ -8399,7 +8399,7 @@ body {
 
 .scanner-list-panel {
   display: grid;
-  grid-template-rows: 20px auto auto minmax(0, 1fr) auto;
+  grid-template-rows: 20px auto auto auto minmax(0, 1fr) auto;
   overflow: hidden;
   border-radius: 22px 22px 0 0;
   background: var(--mobile-page);
@@ -8436,7 +8436,7 @@ body {
 }
 
 .scanner-list-panel .scanner-scanned-list {
-  grid-row: 4;
+  grid-row: 5;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -8448,7 +8448,7 @@ body {
 }
 
 .scanner-list-panel .scanner-bottom {
-  grid-row: 5;
+  grid-row: 6;
   align-self: end;
   width: 100%;
 }
@@ -12003,3 +12003,26 @@ button.shipping-product-visual.has-photo:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* One destination for the scanned selection, with explicit inbound-lot scope. */
+.move-controls { padding: 12px; border: 1px solid #dce4f0; border-radius: 14px; background: #f7f9fc; margin: 0 0 12px; }
+.move-controls[hidden], .inventory-move-primary-actions[hidden] { display: none; }
+.move-destination-modes { display: flex; gap: 8px; }
+.move-destination-modes label { flex: 1; position: relative; }
+.move-destination-modes input { position: absolute; opacity: 0; }
+.move-destination-modes span { display: block; padding: 11px 8px; text-align: center; border: 1px solid #dce4f0; border-radius: 10px; background: white; font-size: 14px; font-weight: 500; }
+.move-destination-modes input:checked + span { background: #12366a; border-color: #12366a; color: white; }
+.move-destination-modes input:focus-visible + span { outline: 2px solid #3486ed; outline-offset: 2px; }
+.move-destination-modes input:disabled + span { opacity: .6; }
+.move-bulk-destination { display: grid; gap: 8px; margin-top: 12px; font-size: 14px; font-weight: 500; }
+.move-bulk-destination select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #cbd7e8; border-radius: 10px; background: white; color: #12366a; font: inherit; }
+.move-bulk-actions { display: flex; gap: 8px; margin-top: 12px; }
+.move-bulk-actions button { flex: 1; min-height: 46px; border: 1px solid #cbd7e8; border-radius: 10px; background: white; color: #12366a; font: inherit; font-size: 13px; font-weight: 500; }
+.move-bulk-actions button:last-child { background: #12366a; color: white; }
+.move-bulk-actions button:disabled { opacity: .5; }
+
+.scanner-list-panel > .move-controls { grid-row: 4; margin: 4px 12px 8px; padding: 8px; }
+.inventory-move-controls > .move-controls { width: 100%; margin: 0; }
+
+#scannerScreen.inventory-move-workflow { --scanner-panel-height: clamp(400px, 58svh, 490px); }

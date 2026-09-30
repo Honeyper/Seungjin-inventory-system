@@ -36,7 +36,7 @@ function scannerRuntime(t, workflow = "shipping") {
     "isHardwareScannerBusy", "finishHardwareScannerInput",
     "scheduleHardwareScannerView", "flushHardwareScannerView", "waitForScannerProcessingToFinish",
     "processHardwareScannerQueue", "drainHardwareScannerQueue", "handleQrValue", "closeScanner",
-    "releaseScannerStream", "handleScannerPendingAction", "handleScannerDoneAction"
+    "releaseScannerStream", "handleScannerPendingAction", "handleScannerDoneAction", "applyInventoryMoveBulkStorage"
   ], {
     state, elements: { scannerScreen: { hidden: false } },
     window: { setTimeout: schedule, clearTimeout }, clearTimeout, HTMLElement: class {},
