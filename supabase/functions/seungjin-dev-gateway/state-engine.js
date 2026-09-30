@@ -757,7 +757,7 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
           }
           return existingBox;
         }
-        const replacement = {
+        const replacement = inventoryConfirmation.withInboundConfirmation({
           boxId,
           managementId,
           number,
@@ -779,8 +779,10 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
           shippingTime: "",
           shippingType: "",
           transferCompany: "",
-          shipper: ""
-        };
+          shipper: "",
+          lastInventoryCheckedAt: existingBox?.lastInventoryCheckedAt,
+          inventoryConfirmationSource: existingBox?.inventoryConfirmationSource
+        }, inbound);
         changedBoxes.push(replacement);
         return replacement;
       });
@@ -824,7 +826,8 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
   // Processed boxes save the final inventory summary through touchInventoryRecords above.
   changes.inventoryRecords.upserts.push({ record_key: recordKey, management_id: managementId, product_id: productId, storage: inbound.storage, data: record });
   state.boxes = state.boxes.filter((box) => !previousBoxes.includes(box));
-  const boxes = nextQuantities.map((quantity, index) => ({
+  const previousConfirmations = new Map(previousBoxes.map(box => [integer(box.number), box]));
+  const boxes = nextQuantities.map((quantity, index) => inventoryConfirmation.withInboundConfirmation({
     boxId: `${managementId}-B${String(index + 1).padStart(3, "0")}`,
     managementId,
     number: index + 1,
@@ -846,8 +849,10 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     shippingTime: "",
     shippingType: "",
     transferCompany: "",
-    shipper: ""
-  }));
+    shipper: "",
+    lastInventoryCheckedAt: previousConfirmations.get(index + 1)?.lastInventoryCheckedAt,
+    inventoryConfirmationSource: previousConfirmations.get(index + 1)?.inventoryConfirmationSource
+  }, inbound));
   const nextBoxIds = new Set(boxes.map((box) => box.boxId));
   previousBoxes
     .filter((box) => !nextBoxIds.has(box.boxId))
@@ -1189,6 +1194,7 @@ function adjustMissingInventory(payload, state, changes, now) {
         throw new ValidationError(`${box.number}번 박스는 현재 실물 확인 대상이 아닙니다. 출고대기·출고완료·보류·폐기 상태와 현재 수량을 확인해주세요.`);
       }
       box.lastInventoryCheckedAt = parts.timestamp;
+      box.inventoryConfirmationSource = "manual";
       changes.inventoryBoxes.upserts.push({ box_id: box.boxId, management_id: box.managementId, product_id: box.productId, storage: box.storage, box_number: integer(box.number), data: box });
       confirmedBoxRows += 1;
     });
@@ -1347,7 +1353,9 @@ export function buildInventoryDashboard(records, boxes, products = [], now = new
       row.productImageUrls = stringList(product.productImageUrls, product.productImageUrl);
     }
     const relatedKey = `${text(row.managementId)}\u0000${text(row.productId)}`;
-    const all = boxesByInbound.get(relatedKey) || [];
+    const all = (boxesByInbound.get(relatedKey) || []).map(box => inventoryConfirmation.withInboundConfirmation(box, row));
+    const checkedBoxes = all.filter(box => box.lastInventoryCheckedAt && box.lastInventoryCheckedAt !== "-");
+    row.lastInventoryCheckedAt = checkedBoxes.map(box => text(box.lastInventoryCheckedAt)).sort().at(-1) || row.lastInventoryCheckedAt || "";
     const active = all.filter((box) => number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status)));
     const shipped = all.filter((box) => /출고완료/.test(normalizeStatus(box.rawStatus || box.status)));
     const transfer = shipped.filter((box) => text(box.shippingType).startsWith("이관"));

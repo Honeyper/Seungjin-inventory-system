@@ -43,5 +43,36 @@
       && current < expiresAt(box.lastInventoryCheckedAt);
   }
 
-  root.SeungjinInventoryConfirmation = Object.freeze({ expiresAt, isEligible, isConfirmed });
+  function withInboundConfirmation(box, inbound) {
+    const existing = String(box?.lastInventoryCheckedAt ?? "").trim();
+    // A later physical check, including an expired one, always takes precedence.
+    if (existing && existing !== "-") return box;
+    const date = String(inbound?.inboundDate ?? "").trim();
+    const time = String(inbound?.inboundTime ?? "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return box;
+    const timestamp = `${date} ${!time || time === "-" ? "00:00:00" : time}`;
+    if (!Number.isFinite(checkedTime(timestamp))) return box;
+    return { ...box, lastInventoryCheckedAt: timestamp, inventoryConfirmationSource: "inbound" };
+  }
+
+  function withInboundConfirmationRow(source) {
+    if (!source?.inboundDate) return source;
+    const row = { ...source };
+    const resolved = new Map();
+    for (const field of ["allShippingBoxes", "activeShippingBoxes", "shippedShippingBoxes"]) {
+      if (!Array.isArray(source[field])) continue;
+      row[field] = source[field].map(box => {
+        if (!resolved.has(box)) resolved.set(box, withInboundConfirmation(box, source));
+        return resolved.get(box);
+      });
+    }
+    const times = [...resolved.values()].map(box => box.lastInventoryCheckedAt)
+      .filter(value => Number.isFinite(checkedTime(value)));
+    if (times.length) row.lastInventoryCheckedAt = times.reduce((latest, value) =>
+      checkedTime(value) > checkedTime(latest) ? value : latest);
+    return row;
+  }
+
+  root.SeungjinInventoryConfirmation = Object.freeze({ expiresAt, isEligible, isConfirmed,
+    withInboundConfirmation, withInboundConfirmationRow });
 })(globalThis);

@@ -46,7 +46,7 @@ test('canonical confirmation only preserves quantities and shipping status, even
  const state={products:[],orders:[],inbounds:[],records:[{managementId:'IN-TEST',productId:'P1',storage:'A'}],boxes};
  const mutation=applyMutation('adjustMissingInventory',{confirmationOnly:true,confirmedBoxes:[{managementId:'IN-TEST',productId:'P1',selectedBoxes:[1]}],adjustments:[{managementId:'IN-TEST',productId:'P1',selectedBoxes:[3]}]},state,new Date('2026-09-16T01:00:00Z'));
  assert.equal(mutation.result.confirmedBoxRows,1);assert.equal(mutation.result.updatedBoxRows,0);
- for(const box of mutation.state.boxes){const original=before.find(b=>b.boxId===box.boxId);const {lastInventoryCheckedAt,...rest}=box;assert.deepEqual(rest,original);assert.equal(Boolean(lastInventoryCheckedAt),box.number===1);}
+ for(const box of mutation.state.boxes){const original=before.find(b=>b.boxId===box.boxId);const {lastInventoryCheckedAt,inventoryConfirmationSource,...rest}=box;assert.equal(inventoryConfirmationSource,box.number===1?"manual":undefined);assert.deepEqual(rest,original);assert.equal(Boolean(lastInventoryCheckedAt),box.number===1);}
  const dashboard=buildInventoryDashboard(mutation.state.records,mutation.state.boxes,[],new Date("2026-09-16T01:00:00Z"));
  assert.equal(dashboard.rows[0].inventoryConfirmedBoxCount,1);assert.equal(dashboard.rows[0].inventoryUnconfirmedBoxCount,1);
 });

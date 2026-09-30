@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-09-30", title: "입고 시 실물 확인 자동 처리", items: ["입고 박스는 입고 시각을 기준으로 자동 확인 완료 처리하고 한 달 뒤 재확인 대상으로 표시합니다. 기존 입고분에도 적용하며, 이후 직접 확인한 기록은 유지합니다."] },
   { date: "2026-09-29", title: "매일 자동 DB 관리", items: ["매일 오전 6시 30분에 만료된 임시 인증 정보를 정리하고, 6시 35분에 DB 내부 정리와 조회 통계 갱신을 자동 실행합니다. 재고·출고 이력과 백업 기록은 유지합니다."] },
   { date: "2026-09-28", title: "재고 조회 및 초기 로딩 속도 개선", items: ["서버의 재고 조회 지연을 줄이고, 같은 재고를 중복 조회하던 동작과 화면 시작 시 불필요한 조회를 정리했습니다."] },
   { date: "2026-09-28", title: "모바일 새로고침 속도 개선", items: ["재고 조회의 중복 전송과 전체 박스 반복 가공을 줄이고, 대용량 재고를 비동기로 저장하도록 개선했습니다."] },
@@ -9176,12 +9177,12 @@ function renderInventorySummary(summary, attention) {
 function normalizeInventoryRows(rows, now = Date.now()) {
   return rows.map((item) => {
     const stockStatus = normalizeInventoryStockStatus(item.stockStatus);
-    const row = mergeShippingBoxDraft({
+    const row = window.SeungjinInventoryConfirmation.withInboundConfirmationRow(mergeShippingBoxDraft({
       ...item,
       stockStatus,
       process: item.process || item.finalProcess || "",
       processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
-    });
+    }));
     if (Array.isArray(row.activeShippingBoxes) || Array.isArray(row.allShippingBoxes)) {
       const auditBoxes = getInventoryPhysicalConfirmationBoxes(row);
       row.inventoryAuditTargetBoxCount = getInventoryAuditEligibleBoxes(row).length;
