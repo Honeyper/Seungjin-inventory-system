@@ -35,3 +35,11 @@ test('완료 건을 표시해도 현재 박스 수와 수량 합계에 출고 �
  app.toggleInventoryCompleted();const after=app.buildInventoryAggregateStats(app.state.filteredInventoryRows);
  assert.equal(after.totalRows,3);assert.equal(after.totalBoxes,before.totalBoxes);assert.equal(after.totalQuantity,before.totalQuantity);
 });
+test('대표 위치가 아닌 개별 박스 위치로도 재고를 찾을 수 있다',()=>{
+ const app=makeRuntime();
+ app.state.inventoryRows[0].storage='H-1';
+ app.state.inventoryRows[0].storageGroups=[{storage:'H-1'},{storage:'A-1'}];
+ app.state.inventoryFilters.storage='A-1';
+ app.applyInventoryFilters();
+ assert.deepEqual(Array.from(app.state.filteredInventoryRows,x=>x.managementId),['ACTIVE']);
+});

@@ -19,7 +19,7 @@ test('inventory detail routing keeps audit, attachments, image handlers, and all
  getInboundRecordRemainderQuantities:()=>[30,45],formatInventoryStorageDays:()=> '1일',formatDetailMetric:(v,u)=>`${v} ${u}`,
  renderInventoryAuditBoxStatus:()=>'<section data-inventory-audit-drop>실물 확인</section>',renderAttachmentViewCard:(title)=>`<div class="attachment-card">${title}<a href="https://example.com/${title === "거래명세서" ? "invoice" : "defect"}">파일 보기</a></div>`,
  openProductImageGallery:(urls,name,index)=>{app.opened={urls,name,index};}});
- for(const name of ['escapeHtml','escapeAttribute','normalizeDisplayValue','renderInventoryDetailLayout','renderInboundDetail'])vm.runInContext(extract(name),app);
+ for(const name of ['escapeHtml','escapeAttribute','normalizeDisplayValue','getInventoryStorageGroups','renderInventoryStorageDetails','renderInventoryDetailLayout','renderInboundDetail'])vm.runInContext(extract(name),app);
  const data={managementId:'IN-1',productId:'P-1',productName:'<긴 제품명>',clientName:'거래처',process:'3도',stockStatus:'출고대기',inboundDate:'2026-09-17',dueDate:'2026-09-25',currentTotalQuantity:75,currentBoxCount:2,storage:'A',inboundType:'정상입고',inboundTime:'17:19',purchaseOrderRound:'09/17 발주',purchaseOrderId:'PO-1',batch:'2차',inboundTotalQuantity:1000,boxQuantity:500,inboundBoxCount:1,remainQuantity:75,boxTotalCount:3,inspectionQuantity:10,defectQuantity:2,defectRate:'0.2%',defectReason:'스크래치',registrant:'담당자',lastInventoryCheckedAt:'2026-09-18 08:47:01',note:'메모'};
  app.renderInboundDetail(data);
  const html=app.inboundDetailContent.innerHTML;

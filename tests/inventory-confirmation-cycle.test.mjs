@@ -11,7 +11,7 @@ const box = (number, overrides = {}) => ({ ...record, boxId: `B${number}`, numbe
 const expiry = at('2026-08-29T15:00:00Z');
 const runtime = (overrides = {}) => loadFunctions(adminSource, [
   'normalizeInventoryStockStatus', 'getInventoryAuditEligibleBoxes', 'getInventoryPhysicalConfirmationBoxes',
-  'getInventoryAuditTargetBoxes', 'isInventoryBoxConfirmed', 'normalizeInventoryRows', 'refreshInventoryConfirmationStatus'
+  'getInventoryAuditTargetBoxes', 'isInventoryBoxConfirmed', 'getInventoryStorageGroups', 'normalizeInventoryRows', 'refreshInventoryConfirmationStatus'
 ], { window: { SeungjinInventoryConfirmation: policy }, normalizeSearchText: value => String(value).replace(/\s/g, ''),
   parseShippingSettlementNumber: Number, mergeShippingBoxDraft: value => value, normalizeInventoryProcessStatus: value => value, ...overrides });
 

@@ -10,7 +10,7 @@ const normalize = value => String(value ?? '').replace(/\s+/g, '').toLowerCase()
 function ui() {
   const context = vm.createContext({ window: { SeungjinInventoryConfirmation: globalThis.SeungjinInventoryConfirmation }, normalizeSearchText: normalize, normalizeScanValue: normalize,
     parseShippingSettlementNumber: Number, mergeShippingBoxDraft: x => x, normalizeInventoryProcessStatus: x => x });
-  for (const name of ['isInventoryBoxConfirmed', 'normalizeInventoryStockStatus', 'isProtectedInventoryAuditBox', 'getInventoryPhysicalConfirmationBoxes','getInventoryAuditEligibleBoxes', 'getInventoryAuditTargetBoxes', 'normalizeInventoryRows']) vm.runInContext(extract(admin, name), context);
+  for (const name of ['isInventoryBoxConfirmed', 'normalizeInventoryStockStatus', 'isProtectedInventoryAuditBox', 'getInventoryPhysicalConfirmationBoxes','getInventoryAuditEligibleBoxes', 'getInventoryAuditTargetBoxes', 'getInventoryStorageGroups', 'normalizeInventoryRows']) vm.runInContext(extract(admin, name), context);
   vm.runInContext(extract(mobile, 'isProtectedInventoryAdjustmentBox'), context);
   return context;
 }

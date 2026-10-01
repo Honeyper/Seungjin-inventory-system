@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-01", title: "대표 보관 위치와 박스별 위치 조회", items: ["가장 많은 박스가 보관된 위치를 대표 위치로 표시합니다. 재고 상세의 박스별 보관 위치에서 위치별 박스 수와 각 박스의 위치를 확인할 수 있습니다."] },
   { date: "2026-10-01", title: "월간 실물 확인 기준일 통일", items: ["매월 30일 0시(한국 시간)에 재확인 대상으로 전환합니다. 2월은 마지막 날을 적용하며, 전환 이후 확인한 박스는 다음 주기까지 확인 완료로 유지합니다. 출고대기·출고완료·보류·폐기는 제외합니다."] },
   { date: "2026-09-30", title: "재고 목록 출고완료 항목 보기", items: ["재고 목록에서 출고완료 항목도 보기 버튼을 켜면 출고완료 입고 건을 함께 검색하고 상세보기로 확인할 수 있습니다. 현재 재고 수량 합계는 유지합니다."] },
   { date: "2026-09-30", title: "자리이동 재고조사 반영", items: ["선택 박스 이동 시 등록한 박스는 실물 확인하며, 같은 입고 건의 미등록 박스는 미확인·위치 미지정으로 변경합니다. 같은 조사에서 먼저 이동한 박스는 유지합니다."] },
@@ -9181,6 +9182,25 @@ function renderInventorySummary(summary, attention) {
   }
 }
 
+function getInventoryStorageGroups(item) {
+  const groups = new Map();
+  const boxes = Array.isArray(item.allShippingBoxes) ? item.allShippingBoxes : (item.activeShippingBoxes || []);
+  for (const box of boxes) {
+    const quantity = parseFloat(String(box.quantity ?? "").replace(/,/g, ""));
+    const status = String(box.rawStatus || box.status || "").replace(/\s/g, "");
+    const transfer = String(box.shippingType || "").startsWith("이관");
+    if (!(quantity > 0) || /폐기/.test(status) || (/출고완료/.test(status) && !transfer)) continue;
+    const value = String(box.storage || "").trim();
+    const storage = !value || value === "-" ? "미지정" : value;
+    if (!groups.has(storage)) groups.set(storage, { storage, boxes: [], quantity: 0 });
+    const group = groups.get(storage);
+    group.boxes.push(box);
+    group.quantity += quantity;
+  }
+  return [...groups.values()].sort((a, b) => b.boxes.length - a.boxes.length
+    || a.storage.localeCompare(b.storage, "ko", { numeric: true }));
+}
+
 function normalizeInventoryRows(rows, now = Date.now()) {
   return rows.map((item) => {
     const stockStatus = normalizeInventoryStockStatus(item.stockStatus);
@@ -9190,6 +9210,8 @@ function normalizeInventoryRows(rows, now = Date.now()) {
       process: item.process || item.finalProcess || "",
       processStatus: normalizeInventoryProcessStatus(item.processStatus, stockStatus)
     }));
+    row.storageGroups = getInventoryStorageGroups(row);
+    row.storage = row.storageGroups[0]?.storage || row.storage;
     if (Array.isArray(row.activeShippingBoxes) || Array.isArray(row.allShippingBoxes)) {
       const auditBoxes = getInventoryPhysicalConfirmationBoxes(row);
       row.inventoryAuditTargetBoxCount = getInventoryAuditEligibleBoxes(row).length;
@@ -9446,7 +9468,9 @@ function normalizeInventoryProcessStatus(value, fallback = "보관") {
 function buildInventoryFilterOptions(rows, fallback = {}) {
   return {
     clients: fallback.clients || uniqueValuesFromRows(rows, "clientName"),
-    storages: fallback.storages || uniqueValuesFromRows(rows, "storage"),
+    storages: [...new Set(rows.flatMap(row => row.storageGroups?.length
+      ? row.storageGroups.map(group => group.storage) : [row.storage]).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "ko", { numeric: true })),
     stockStatuses: uniqueValuesFromRows(rows, "stockStatus"),
     processStatuses: uniqueValuesFromRows(rows, "processStatus")
   };
@@ -10155,7 +10179,8 @@ function applyInventoryFilters() {
       return false;
     }
 
-    if (filters.storage && item.storage !== filters.storage) {
+    if (filters.storage && item.storage !== filters.storage
+      && !item.storageGroups?.some(group => group.storage === filters.storage)) {
       return false;
     }
 
@@ -11918,6 +11943,7 @@ function formatInventoryStorageDays(value, now = new Date()) {
 }
 
 function renderInventoryDetailLayout(inbound, productImageUrls, remainderDetail) {
+  const storageGroups = getInventoryStorageGroups(inbound);
   const field = (label, value) => `<div class="product-fact"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(normalizeDisplayValue(value))}</dd></div>`;
   const section = (title, fields, attachment = "") => `<section class="product-detail-section"><h3>${title}</h3><dl class="product-facts">${fields.join("")}</dl>${attachment}</section>`;
   return `<div class="inventory-detail-layout">
@@ -11945,8 +11971,9 @@ function renderInventoryDetailLayout(inbound, productImageUrls, remainderDetail)
       <dl class="product-metrics">
         <div><dt>현재 수량</dt><dd>${escapeHtml(formatDetailMetric(inbound.currentTotalQuantity, "ea"))}</dd></div>
         <div><dt>현재 박스 수</dt><dd>${escapeHtml(formatDetailMetric(inbound.currentBoxCount, "box"))}</dd></div>
-        <div><dt>보관 위치</dt><dd>${escapeHtml(normalizeDisplayValue(inbound.storage))}</dd></div>
+        <div><dt>대표 보관 위치</dt><dd>${escapeHtml(normalizeDisplayValue(storageGroups[0]?.storage || inbound.storage))}</dd>${storageGroups.length ? `<span>${formatNumber(storageGroups[0].boxes.length)} box${storageGroups.length > 1 ? ` · 외 ${formatNumber(storageGroups.length - 1)}곳` : ""}</span>` : ""}</div>
       </dl>
+      ${renderInventoryStorageDetails(storageGroups)}
       <dl class="inventory-storage-facts">
         ${field("입고일", inbound.inboundDate)}${field("보관기간 (입고일 기준)", formatInventoryStorageDays(inbound.inboundDate))}${field("납기일", inbound.dueDate)}
       </dl>
@@ -12154,6 +12181,21 @@ async function confirmInventoryPhysicalBoxes(boxNumbers) {
     state.isSavingInventoryConfirmation = false;
     updateInventoryAuditConfirmControls();
   }
+}
+
+function renderInventoryStorageDetails(groups) {
+  if (!groups.length) return "";
+  return `<details class="inventory-storage-details">
+    <summary>박스별 보관 위치 <span>${formatNumber(groups.length)}곳</span></summary>
+    <div class="inventory-storage-groups">${groups.map((group, index) => `
+      <section class="inventory-storage-group">
+        <h4>${escapeHtml(group.storage)}${index === 0 ? '<span class="inventory-storage-primary">대표</span>' : ""}<span>${formatNumber(group.boxes.length)} box · ${formatNumber(group.quantity)} ea</span></h4>
+        <table><thead><tr><th scope="col">박스</th><th scope="col">수량</th><th scope="col">상태</th></tr></thead>
+        <tbody>${[...group.boxes].sort((a, b) => Number(a.number) - Number(b.number)).map(box => `<tr>
+          <th scope="row">${escapeHtml(String(box.number))}번 박스</th><td>${formatNumber(parseFloat(String(box.quantity).replace(/,/g, "")))} ea</td><td>${escapeHtml(normalizeDisplayValue(box.rawStatus || box.status))}</td>
+        </tr>`).join("")}</tbody></table>
+      </section>`).join("")}</div>
+  </details>`;
 }
 
 function renderInventoryAuditBoxStatus(inbound) {

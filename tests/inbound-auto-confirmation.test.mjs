@@ -63,7 +63,7 @@ test('existing recent inbounds resolve without changing stored boxes, and later 
 test('old PC cache uses the same inbound rule and does not need a stock mutation to refresh counts', () => {
   const box = { number: 1, quantity: 100, status: '보관' };
   const row = { ...payload, activeShippingBoxes: [box], allShippingBoxes: [box], inventoryUnconfirmedBoxCount: 1 };
-  const app = loadFunctions(adminSource, ['normalizeInventoryRows'], {
+  const app = loadFunctions(adminSource, ['getInventoryStorageGroups', 'normalizeInventoryRows'], {
     window: { SeungjinInventoryConfirmation: policy }, normalizeInventoryStockStatus: value => value,
     normalizeInventoryProcessStatus: value => value, mergeShippingBoxDraft: value => value,
     getInventoryPhysicalConfirmationBoxes: item => item.activeShippingBoxes.filter(policy.isEligible),
