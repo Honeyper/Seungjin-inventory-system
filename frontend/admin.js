@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-01", title: "여러 입고 건 QR 일괄 인쇄", items: ["입고 목록에서 여러 건을 선택해 QR을 한 장에 이어서 인쇄할 수 있습니다. 제품별 박스 번호와 공정 정보를 유지하며, 기본 레이아웃은 A4당 10개, 레이아웃 2는 20개를 배치합니다."] },
   { date: "2026-10-01", title: "대표 보관 위치와 박스별 위치 조회", items: ["가장 많은 박스가 보관된 위치를 대표 위치로 표시합니다. 재고 상세의 박스별 보관 위치에서 위치별 박스 수와 각 박스의 위치를 확인할 수 있습니다."] },
   { date: "2026-10-01", title: "월간 실물 확인 기준일 통일", items: ["매월 30일 0시(한국 시간)에 재확인 대상으로 전환합니다. 2월은 마지막 날을 적용하며, 전환 이후 확인한 박스는 다음 주기까지 확인 완료로 유지합니다. 출고대기·출고완료·보류·폐기는 제외합니다."] },
   { date: "2026-09-30", title: "재고 목록 출고완료 항목 보기", items: ["재고 목록에서 출고완료 항목도 보기 버튼을 켜면 출고완료 입고 건을 함께 검색하고 상세보기로 확인할 수 있습니다. 현재 재고 수량 합계는 유지합니다."] },
@@ -597,6 +598,8 @@ const state = {
   shippingListPeriodOnly: false,
   inboundPage: 1,
   inboundPageSize: 10,
+  inboundQrSelection: new Set(),
+  activeQrGroups: [],
   query: "",
   clientFilter: "",
   productSort: "client",
@@ -800,6 +803,11 @@ const inboundQrLayoutButtons = document.querySelectorAll("[data-qr-layout]");
 const inboundQrImageCache = new Map();
 const INBOUND_QR_RENDER_BATCH_SIZE = 8;
 let inboundQrRenderToken = 0;
+let inboundQrLoadToken = 0;
+const selectAllInboundQrs = document.querySelector("#selectAllInboundQrs");
+const inboundQrSelectionCount = document.querySelector("#inboundQrSelectionCount");
+const clearInboundQrSelectionButton = document.querySelector("#clearInboundQrSelectionButton");
+const printSelectedInboundQrsButton = document.querySelector("#printSelectedInboundQrsButton");
 const inboundTime = document.querySelector("#inboundTime");
 const setCurrentInboundTimeButton = document.querySelector("#setCurrentInboundTimeButton");
 const inboundDate = document.querySelector("#inboundDate");
@@ -2293,6 +2301,15 @@ inboundDetailContent?.addEventListener("click", (event) => {
 });
 closeInboundQrModalButton?.addEventListener("click", closeInboundQrModal);
 closeInboundQrButton?.addEventListener("click", closeInboundQrModal);
+selectAllInboundQrs?.addEventListener("change", () => {
+  state.inboundQrSelection = new Set(selectAllInboundQrs.checked ? getFilteredInbounds().map(getInboundQrSelectionKey) : []);
+  renderTodayInbounds();
+});
+clearInboundQrSelectionButton?.addEventListener("click", () => {
+  state.inboundQrSelection.clear();
+  renderTodayInbounds();
+});
+printSelectedInboundQrsButton?.addEventListener("click", openSelectedInboundQrModal);
 printInboundQrButton?.addEventListener("click", () => {
   if (!printInboundQrButton.disabled) {
     document.body.classList.remove("printing-production-plan");
@@ -2309,6 +2326,10 @@ inboundQrLayoutButtons.forEach((button) => {
 
     state.inboundQrLayout = layout;
     updateInboundQrLayoutButtons();
+    if (state.activeQrGroups.length) {
+      renderInboundQrGroups(state.activeQrGroups);
+      return;
+    }
     renderInboundQrSheet(
       findInboundRecordByManagementId(state.activeQrInboundId, state.activeQrInboundProductId),
       state.activeQrBoxes,
@@ -7784,6 +7805,7 @@ function renderTodayInbounds(message = "") {
 
   const sourceCount = state.todayInbounds.length;
   const inbounds = getFilteredInbounds();
+  updateInboundQrSelection(inbounds);
   const pageSize = Number(inboundPageSizeSelect?.value) || state.inboundPageSize || 10;
   const pageCount = Math.max(1, Math.ceil(inbounds.length / pageSize));
   state.inboundPageSize = pageSize;
@@ -7806,7 +7828,7 @@ function renderTodayInbounds(message = "") {
   } else {
     inboundTableBody.innerHTML = visibleInbounds.map((item) => `
       <tr>
-        <td>${renderQrActionButton(item, "inbound")}</td>
+        <td><div class="inbound-qr-select-cell"><input type="checkbox" data-inbound-qr-select="${escapeAttribute(getInboundQrSelectionKey(item))}" aria-label="${escapeAttribute(item.productName)} ${escapeAttribute(item.managementId)} QR 인쇄 선택" ${state.inboundQrSelection.has(getInboundQrSelectionKey(item)) ? "checked" : ""}>${renderQrActionButton(item, "inbound")}</div></td>
         <td>${escapeHtml(formatInboundDateTime(item.inboundDate, item.inboundTime))}</td>
         <td>${escapeHtml(item.clientName)}</td>
         <td>${escapeHtml(item.inboundType)}</td>
@@ -7836,6 +7858,14 @@ function renderTodayInbounds(message = "") {
     `).join("");
   }
 
+  inboundTableBody.querySelectorAll("[data-inbound-qr-select]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const key = input.dataset.inboundQrSelect;
+      if (input.checked) state.inboundQrSelection.add(key);
+      else state.inboundQrSelection.delete(key);
+      updateInboundQrSelection(getFilteredInbounds());
+    });
+  });
   inboundTableBody.querySelectorAll("[data-inbound-record]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -11143,6 +11173,93 @@ function closeInboundDetailModal() {
   }
 }
 
+function getInboundQrSelectionKey(item) {
+  return JSON.stringify([String(item.managementId || ""), String(item.productId || "")]);
+}
+
+function updateInboundQrSelection(rows) {
+  const visible = new Set(rows.map(getInboundQrSelectionKey));
+  state.inboundQrSelection = new Set([...state.inboundQrSelection].filter(key => visible.has(key)));
+  const count = state.inboundQrSelection.size;
+  if (selectAllInboundQrs) {
+    selectAllInboundQrs.disabled = !visible.size;
+    selectAllInboundQrs.checked = visible.size > 0 && count === visible.size;
+    selectAllInboundQrs.indeterminate = count > 0 && count < visible.size;
+  }
+  if (inboundQrSelectionCount) inboundQrSelectionCount.textContent = `${count.toLocaleString("ko-KR")}건 선택`;
+  if (clearInboundQrSelectionButton) clearInboundQrSelectionButton.disabled = !count;
+  if (printSelectedInboundQrsButton) printSelectedInboundQrsButton.disabled = !count || state.isLoadingInboundQrs;
+}
+
+async function openSelectedInboundQrModal() {
+  if (state.isLoadingInboundQrs || !inboundQrModal) return;
+  const seen = new Set();
+  const selected = getFilteredInbounds().filter(item => {
+    const key = getInboundQrSelectionKey(item);
+    if (!state.inboundQrSelection.has(key) || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (!selected.length) return;
+  const loadToken = ++inboundQrLoadToken;
+  state.isLoadingInboundQrs = true;
+  state.activeQrGroups = [];
+  state.activeQrBoxes = [];
+  state.activeQrInboundId = "";
+  state.activeQrInboundProductId = "";
+  state.activeQrProductProcessInfo = null;
+  state.inboundQrLayout = "standard";
+  updateInboundQrLayoutButtons();
+  updateInboundQrSelection(getFilteredInbounds());
+  inboundQrTitle.textContent = "QR 일괄 인쇄";
+  inboundQrSubtitle.textContent = `${selected.length}건 · QR 준비 중`;
+  inboundQrSheet.innerHTML = '<p class="qr-loading">선택한 입고 건의 QR을 불러오는 중입니다.</p>';
+  setInboundQrPrintLoading(true);
+  inboundQrModal.hidden = false;
+  resetModalScrollPosition(inboundQrModal);
+  document.body.classList.add("modal-open");
+  const groups = new Array(selected.length);
+  let cursor = 0;
+  let completed = 0;
+  let failure = null;
+  const loadNext = async () => {
+    while (cursor < selected.length && !failure && loadToken === inboundQrLoadToken) {
+      const index = cursor++;
+      const inbound = selected[index];
+      try {
+        const result = await requestApi("getInboundBoxQrs", { managementId: inbound.managementId, productId: inbound.productId || "" });
+        if (loadToken !== inboundQrLoadToken) return;
+        const boxes = Array.isArray(result.boxes) ? result.boxes : [];
+        if (!boxes.length) throw new Error("출력할 박스 QR이 없습니다.");
+        groups[index] = { inbound, boxes, productProcessInfo: result.productProcessInfo || null };
+        completed++;
+        inboundQrSubtitle.textContent = `${selected.length}건 · ${completed}/${selected.length} 준비 완료`;
+        markInboundQrGenerated(inbound.managementId, inbound.productId, boxes.length);
+      } catch (error) {
+        failure = `${inbound.productName || inbound.managementId}: ${error.message || "QR을 불러오지 못했습니다."}`;
+      }
+    }
+  };
+  try {
+    await Promise.all([loadNext(), loadNext()]);
+    if (loadToken !== inboundQrLoadToken) return;
+    if (failure) throw new Error(failure);
+    state.activeQrGroups = groups;
+    renderInboundQrGroups(groups);
+  } catch (error) {
+    if (loadToken !== inboundQrLoadToken) return;
+    inboundQrSheet.innerHTML = `<p class="qr-error qr-loading">${escapeHtml(error.message)} 선택을 유지했습니다. 닫은 뒤 다시 시도해주세요.</p>`;
+    inboundQrSubtitle.textContent = "QR 준비 실패 · 인쇄할 수 없습니다.";
+    setInboundQrPrintLoading(true);
+    if (printInboundQrButton) printInboundQrButton.textContent = "인쇄 불가";
+  } finally {
+    if (loadToken === inboundQrLoadToken) {
+      state.isLoadingInboundQrs = false;
+      updateInboundQrSelection(getFilteredInbounds());
+    }
+  }
+}
+
 async function openInboundQrModal(managementId, productId = "") {
   if (!managementId || !inboundQrModal || state.isLoadingInboundQrs) {
     return;
@@ -11155,6 +11272,8 @@ async function openInboundQrModal(managementId, productId = "") {
     return;
   }
 
+  const loadToken = ++inboundQrLoadToken;
+  state.activeQrGroups = [];
   state.activeQrInboundId = managementId;
   state.activeQrInboundProductId = inbound.productId || productId || "";
   state.activeQrBoxes = [];
@@ -11174,6 +11293,7 @@ async function openInboundQrModal(managementId, productId = "") {
 
   try {
     const result = await requestApi("getInboundBoxQrs", { managementId, productId: state.activeQrInboundProductId });
+    if (loadToken !== inboundQrLoadToken) return;
     const boxes = Array.isArray(result.boxes) ? result.boxes : [];
     const productProcessInfo = result.productProcessInfo || null;
     const loadedProcessText = getInboundQrProcessData(inbound, boxes, productProcessInfo).summary;
@@ -11183,11 +11303,15 @@ async function openInboundQrModal(managementId, productId = "") {
     markInboundQrGenerated(managementId, state.activeQrInboundProductId, boxes.length);
     renderInboundQrSheet(inbound, boxes, productProcessInfo);
   } catch (error) {
+    if (loadToken !== inboundQrLoadToken) return;
     inboundQrSheet.innerHTML = `<p class="qr-loading qr-error">${escapeHtml(error.message || "QR 데이터를 불러오지 못했습니다.")}</p>`;
     setInboundQrPrintLoading(true);
     showToast(error.message || "QR 데이터를 불러오지 못했습니다.");
   } finally {
-    state.isLoadingInboundQrs = false;
+    if (loadToken === inboundQrLoadToken) {
+      state.isLoadingInboundQrs = false;
+      updateInboundQrSelection(getFilteredInbounds());
+    }
   }
 }
 
@@ -11275,6 +11399,10 @@ function closeInboundQrModal() {
   }
 
   inboundQrModal.hidden = true;
+  inboundQrLoadToken += 1;
+  state.isLoadingInboundQrs = false;
+  state.activeQrGroups = [];
+  updateInboundQrSelection(getFilteredInbounds());
   inboundQrSheet.innerHTML = "";
   state.activeQrInboundId = "";
   state.activeQrInboundProductId = "";
@@ -11290,6 +11418,10 @@ function closeInboundQrModal() {
 }
 
 function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
+  renderInboundQrGroups([{ inbound, boxes, productProcessInfo }]);
+}
+
+function renderInboundQrGroups(groups) {
   if (!inboundQrSheet) {
     return;
   }
@@ -11299,35 +11431,42 @@ function renderInboundQrSheet(inbound, boxes, productProcessInfo = null) {
   document.documentElement.classList.toggle("qr-print-work-layout", isWorkLayout);
   document.body.classList.toggle("qr-print-work-layout", isWorkLayout);
 
-  if (!boxes.length) {
+  const totalLabels = groups.reduce((sum, group) => sum + group.boxes.length, 0);
+  if (!totalLabels) {
     inboundQrSheet.innerHTML = '<p class="qr-loading">출력할 박스 QR이 없습니다.</p>';
     setInboundQrPrintLoading(true);
     return;
   }
 
-  const total = boxes.length;
-  const processData = getInboundQrProcessData(inbound, boxes, productProcessInfo);
-  const productName = inbound.productName || boxes[0]?.productName || "-";
-  const batchText = formatInboundQrBatch(inbound.batch || boxes[0]?.batch);
-  const inboundDate = formatInboundQrDate(inbound.inboundDate || boxes[0]?.inboundDate);
+  if (state.activeQrGroups.length) {
+    const perPage = isWorkLayout ? 20 : 10;
+    inboundQrSubtitle.textContent = `${groups.length}건 · QR ${totalLabels}개 · A4 ${Math.ceil(totalLabels / perPage)}장`;
+  }
+  inboundQrSheet.innerHTML = groups.map(({ inbound, boxes, productProcessInfo }) => {
+    const total = boxes.length;
+    const processData = getInboundQrProcessData(inbound, boxes, productProcessInfo);
+    const productName = inbound.productName || boxes[0]?.productName || "-";
+    const batchText = formatInboundQrBatch(inbound.batch || boxes[0]?.batch);
+    const inboundDate = formatInboundQrDate(inbound.inboundDate || boxes[0]?.inboundDate);
 
-  inboundQrSheet.innerHTML = boxes.map((box) => {
-    const sequence = Number(box.sequence) || 0;
-    const qrData = box.boxId
-      ? (globalThis.SeungjinQrPayload?.create?.(box.boxId) || box.boxId)
-      : (box.qrData || "");
-    return renderInboundQrReferenceLabel({
-      box,
-      inbound,
-      sequence,
-      total,
-      qrData,
-      processData,
-      productName,
-      batchText,
-      inboundDate,
-      variantClass: isWorkLayout ? "box-qr-label-layout-two" : ""
-    });
+    return boxes.map((box) => {
+      const sequence = Number(box.sequence) || 0;
+      const qrData = box.boxId
+        ? (globalThis.SeungjinQrPayload?.create?.(box.boxId) || box.boxId)
+        : (box.qrData || "");
+      return renderInboundQrReferenceLabel({
+        box,
+        inbound,
+        sequence,
+        total,
+        qrData,
+        processData,
+        productName,
+        batchText,
+        inboundDate,
+        variantClass: isWorkLayout ? "box-qr-label-layout-two" : ""
+      });
+    }).join("");
   }).join("");
   const renderToken = ++inboundQrRenderToken;
   setInboundQrPrintLoading(true);
@@ -11373,7 +11512,7 @@ function renderInboundQrReferenceLabel({
         <span class="box-qr-reference-quantity-value${quantityData.isRemainder ? " is-remainder" : ""}">${escapeHtml(formatNumber(quantityData.quantity))}ea</span>
         <strong class="box-qr-reference-batch-value${batchText ? " has-value" : ""}">${escapeHtml(batchText || "-")}</strong>
         <strong>입고일</strong>
-        <span class="box-qr-reference-date-value">${escapeHtml(inboundDate)}</span>
+        <span class="box-qr-reference-date-value">${variantClass ? escapeHtml(inboundDate).replace(/^(\d{4})\./, "$1.<wbr>") : escapeHtml(inboundDate)}</span>
       </div>
       <div class="box-qr-reference-main">
         <div class="box-qr-reference-product">
@@ -11482,12 +11621,19 @@ function setInboundQrPrintLoading(isLoading) {
 }
 
 function waitForQrImage(image) {
-  if (image.complete && image.naturalWidth > 0) {
+  if (image.complete) {
     return Promise.resolve();
   }
   return new Promise((resolve) => {
-    image.addEventListener("load", resolve, { once: true });
-    image.addEventListener("error", resolve, { once: true });
+    const finish = () => {
+      clearTimeout(timer);
+      image.removeEventListener("load", finish);
+      image.removeEventListener("error", finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, 15000);
+    image.addEventListener("load", finish, { once: true });
+    image.addEventListener("error", finish, { once: true });
   });
 }
 
@@ -11506,7 +11652,12 @@ async function hydrateInboundQrImages(renderToken) {
   }
   await Promise.all(images.map(waitForQrImage));
   if (renderToken === inboundQrRenderToken) {
-    setInboundQrPrintLoading(false);
+    const failed = images.filter(image => !image.complete || image.naturalWidth <= 0).length;
+    setInboundQrPrintLoading(failed > 0);
+    if (failed) {
+      inboundQrSubtitle.textContent = `QR 이미지 ${failed}개를 준비하지 못했습니다. 닫은 뒤 다시 시도해주세요.`;
+      if (printInboundQrButton) printInboundQrButton.textContent = "인쇄 불가";
+    }
   }
 }
 

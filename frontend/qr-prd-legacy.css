@@ -265,6 +265,13 @@
   font-size: 9.2pt;
 }
 
+.qr-sheet-work .box-qr-reference-date-value {
+  white-space: normal;
+  overflow-wrap: normal;
+  line-height: 1.05;
+  text-align: center;
+}
+
 .qr-sheet-work .box-qr-reference-row strong,
 .qr-sheet-work .box-qr-reference-manager {
   font-size: 7.2pt;
@@ -282,11 +289,14 @@
     min-height: 0;
   }
 
-  .qr-sheet {
+  .qr-sheet,
+  .qr-sheet.qr-sheet-work {
     grid-auto-rows: 57.4mm;
   }
 
   .box-qr-label-reference {
+    break-inside: avoid;
+    page-break-inside: avoid;
     grid-template-rows: 5.2mm 5.2mm 15.8mm 5.6mm repeat(3, 6.2mm) 7mm;
     height: 57.4mm;
   }

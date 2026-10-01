@@ -169,7 +169,8 @@ test("PRD 기본 QR은 A4 한 장에 2열 5행으로 출력한다", async () => 
   const printRules = css.slice(css.indexOf("@media print"));
 
   assert.match(css, /\.qr-sheet\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, 1fr\);[\s\S]*?grid-auto-rows:\s*59\.4mm;/);
-  assert.match(printRules, /\.qr-sheet\s*\{[\s\S]*?grid-auto-rows:\s*57\.4mm;/);
+  assert.match(printRules, /\.qr-sheet,\s*\.qr-sheet\.qr-sheet-work\s*\{\s*grid-auto-rows:\s*57\.4mm;/);
+  assert.match(css, /\.qr-sheet\.qr-sheet-work\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, 1fr\);/);
   assert.match(printRules, /\.box-qr-label-reference\s*\{[\s\S]*?height:\s*57\.4mm;/);
   assert.match(css, /grid-template-rows:\s*5\.4mm 5\.4mm 16\.4mm 5\.8mm repeat\(3, 6\.4mm\) 7\.2mm;/);
   assert.match(css, /\.box-qr-reference-table-head\s*\{[\s\S]*?font-size:\s*8\.5pt;/);
