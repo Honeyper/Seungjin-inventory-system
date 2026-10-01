@@ -51,3 +51,34 @@ test('기존 이동 및 전량 이동 요청에는 조사 초기화를 적용하
  const result=move(initial(),{...legacy,moveAllBoxes:true});
  assert.equal(result.state.boxes[1].storage,'A-1');assert.equal(policy.isConfirmed(result.state.boxes[1],now),true);
 });
+
+
+test('동일 위치로 지정해도 스캔 박스는 확인되고 미등록 박스는 미지정 처리된다',()=>{
+ const result=move(initial(),{...payload,targetStorage:'A-1'});
+ assert.equal(result.state.boxes[0].storage,'A-1');
+ assert.equal(result.state.boxes[0].lastInventoryCheckedAt,'2026-09-29 13:00:00');
+ assert.equal(result.state.boxes[1].storage,'미지정');
+});
+test('실물 확인에서 위치를 지정하면 선택 박스만 위치와 확인일시를 저장한다',()=>{
+ const result=applyMutation('adjustMissingInventory',{
+  confirmationOnly:true,targetStorage:'H-1',confirmedBoxes:[{managementId:'IN-A',productId:'P1',selectedBoxes:['1']}]
+ },initial(),now);
+ assert.equal(result.result.confirmedBoxRows,1);
+ assert.equal(result.state.boxes[0].storage,'H-1');
+ assert.equal(result.state.boxes[0].lastInventoryCheckedAt,'2026-09-29 13:00:00');
+ assert.equal(result.state.boxes[1].storage,'A-1');
+ assert.equal(result.state.boxes[1].lastInventoryCheckedAt,'2026-09-29 12:00');
+ assert.equal(result.state.boxes[0].quantity,100);
+});
+test('실물 확인에서 위치 미선택과 동일 위치는 기존 위치를 유지하며 확인한다',()=>{
+ for(const targetStorage of ['', 'A-1']) {
+  const result=applyMutation('adjustMissingInventory',{confirmationOnly:true,targetStorage,confirmedBoxes:[{managementId:'IN-A',productId:'P1',selectedBoxes:['1']}]},initial(),now);
+  assert.equal(result.state.boxes[0].storage,'A-1');
+  assert.equal(result.state.boxes[0].inventoryConfirmationSource,'manual');
+ }
+});
+test('실물 확인 위치 지정에서도 출고대기 박스는 변경하지 않는다',()=>{
+ const state=initial();state.boxes[0].status='출고대기';const before=structuredClone(state);
+ assert.throws(()=>applyMutation('adjustMissingInventory',{confirmationOnly:true,targetStorage:'H-1',confirmedBoxes:[{managementId:'IN-A',productId:'P1',selectedBoxes:['1']}]},state,now),/실물 확인 대상/);
+ assert.deepEqual(state,before);
+});

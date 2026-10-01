@@ -1212,6 +1212,8 @@ function mutateInventory(action, payload, state, changes, now) {
 
 function adjustMissingInventory(payload, state, changes, now) {
   const parts = dateParts(now);
+  const targetStorage = text(payload.targetStorage);
+  if (targetStorage === "-") throw new ValidationError("유효한 보관 위치를 선택해주세요.");
   const confirmations = Array.isArray(payload.confirmedBoxes) ? payload.confirmedBoxes : [];
   let confirmedBoxRows = 0;
   confirmations.forEach((group) => {
@@ -1222,6 +1224,7 @@ function adjustMissingInventory(payload, state, changes, now) {
       }
       box.lastInventoryCheckedAt = parts.timestamp;
       box.inventoryConfirmationSource = "manual";
+      if (targetStorage) box.storage = targetStorage;
       changes.inventoryBoxes.upserts.push({ box_id: box.boxId, management_id: box.managementId, product_id: box.productId, storage: box.storage, box_number: integer(box.number), data: box });
       confirmedBoxRows += 1;
     });

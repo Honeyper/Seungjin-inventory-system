@@ -99,9 +99,14 @@ test('확인창에서 검토한 박스만 제출하고 부분 실패한 다른 �
   assert.deepEqual(plain(app.state.scannedMoveRows.map(row=>row.scannedBox.number)),[2]);
 });
 
-test('일괄 목적지가 현재 위치와 같으면 서버 요청 대상이 비어 있다', () => {
-  const {app}=runtime();
+test('같은 위치 지정은 선택 박스 조사에 포함하고 전량 이동에서는 제외한다', async () => {
+  const {app,requests}=runtime();
   const a=lot('IN-1',[box(1,'C-1')]); app.state.dashboard=[a]; scan(app,a,1);
-  assert.equal(app.getInventoryMoveBatchItems('single').length,0);
+  const items=app.getInventoryMoveBatchItems('single');
+  assert.equal(items.length,1);
+  await app.completeInventoryMoveItems(items,'single');
+  assert.equal(requests[0].targetStorage,'C-1');
+  assert.equal(requests[0].currentStorage,'C-1');
+  assert.ok(requests[0].inventorySurveyId);
   assert.equal(app.getInventoryMoveBatchItems('all').length,0);
 });

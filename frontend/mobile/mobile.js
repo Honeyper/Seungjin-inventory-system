@@ -159,7 +159,7 @@ const state = {
   inventoryMoveDestinationMode: "individual",
   inventoryMoveBulkStorage: "",
   inventoryMoveSurveyId: "",
-  selectedInventoryAuditScope: "management",
+  selectedInventoryAuditScope: "scannedProducts",
   selectedInventoryAuditAnchor: null,
   selectedConfirmMode: "item",
   selectedConfirmCallback: null,
@@ -309,6 +309,7 @@ const elements = {
   confirmMetaList: document.querySelector("#confirmMetaList"),
   mobileInventoryAuditScopeControls: document.querySelector("#mobileInventoryAuditScopeControls"),
   mobileInventoryAuditScopeList: document.querySelector("#mobileInventoryAuditScopeList"),
+  mobileInventoryAuditStorage: document.querySelector("#mobileInventoryAuditStorage"),
   mobileTransferReturnControls: document.querySelector("#mobileTransferReturnControls"),
   mobileTransferReturnHeading: document.querySelector("#mobileTransferReturnHeading"),
   mobileTransferReturnBoxList: document.querySelector("#mobileTransferReturnBoxList"),
@@ -2791,7 +2792,7 @@ function getInventoryMoveBatchItems(mode) {
     });
   }
   const target = normalizeScanValue(state.inventoryMoveBulkStorage);
-  return groupScannedInventoryMoveRows(rows.filter((row) => !target || normalizeScanValue(getInventoryMoveCurrentStorage(row)) !== target))
+  return groupScannedInventoryMoveRows(rows.filter((row) => mode === "single" || !target || normalizeScanValue(getInventoryMoveCurrentStorage(row)) !== target))
     .map((item) => ({ ...item, explicitMoveSelection: true }));
 }
 
@@ -2947,7 +2948,8 @@ function renderInventoryMoveItem(item) {
 function renderStorageOptions(selectedStorage, currentStorage = "") {
   const selected = normalizeDisplay(selectedStorage) === "-" ? "" : normalizeDisplay(selectedStorage);
   const current = normalizeDisplay(currentStorage);
-  const availableOptions = INVENTORY_STORAGE_OPTIONS.filter((storage) => storage !== current);
+  const availableOptions = [...INVENTORY_STORAGE_OPTIONS];
+  if (current && current !== "-" && !availableOptions.includes(current)) availableOptions.unshift(current);
   const options = !selected || availableOptions.includes(selected) ? availableOptions : [selected, ...availableOptions];
   return `
     <option value="" ${selected ? "" : "selected"} disabled>이동 장소 선택</option>
@@ -3024,7 +3026,7 @@ function handleInventoryMoveListChange(event) {
 
 async function handleInventoryMoveCardAction(item, mode = "single") {
   if (mode === "audit") {
-    openMissingInventoryAdjustmentScopePicker(item, getInventoryMoveBoxScope(item));
+    openMissingInventoryAdjustmentScopePicker(item);
     return;
   }
 
@@ -3999,7 +4001,7 @@ function handleScannerInventoryAuditAction() {
   }
 
   const anchorItem = getInventoryAuditAnchorItem();
-  openMissingInventoryAdjustmentScopePicker(anchorItem, getInventoryMoveBoxScope(anchorItem));
+  openMissingInventoryAdjustmentScopePicker(anchorItem);
 }
 
 async function completeShippingItems(items, action = "complete") {
@@ -4590,7 +4592,7 @@ function renderInventoryAuditScopeOptions(anchorItem, preparedPlans = null) {
   return availablePlans;
 }
 
-function openMissingInventoryAdjustmentScopePicker(selectedItem = null, preferredScope = "management") {
+function openMissingInventoryAdjustmentScopePicker(selectedItem = null, preferredScope = "scannedProducts") {
   if (state.isCompletingShipping) {
     return;
   }
@@ -4602,7 +4604,7 @@ function openMissingInventoryAdjustmentScopePicker(selectedItem = null, preferre
 
   const anchorItem = getInventoryAuditAnchorItem(selectedItem);
   state.selectedInventoryAuditAnchor = anchorItem;
-  state.selectedInventoryAuditScope = normalizeInventoryMoveBoxScope(preferredScope);
+  state.selectedInventoryAuditScope = normalizeInventoryAuditScope(preferredScope);
   const previewPlans = INVENTORY_AUDIT_SCOPE_DEFINITIONS.map((option) => ({
     ...option,
     plan: buildMissingInventoryAdjustmentPlan({ scope: option.value, selectedItem: anchorItem })
@@ -4627,14 +4629,19 @@ function openMissingInventoryAdjustmentScopePicker(selectedItem = null, preferre
     acceptLabel: "확인 대상 보기",
     onConfirm: () => openMissingInventoryAdjustmentConfirm({
       scope: state.selectedInventoryAuditScope,
-      selectedItem: state.selectedInventoryAuditAnchor
+      selectedItem: state.selectedInventoryAuditAnchor,
+      targetStorage: elements.mobileInventoryAuditStorage?.value || ""
     })
   });
   renderInventoryAuditScopeOptions(anchorItem, previewPlans);
+  if (elements.mobileInventoryAuditStorage) {
+    elements.mobileInventoryAuditStorage.innerHTML = `<option value="">기존 위치 유지</option>${INVENTORY_STORAGE_OPTIONS.map((storage) => `<option value="${escapeHtml(storage)}">${escapeHtml(storage)}</option>`).join("")}`;
+  }
 }
 
-function openMissingInventoryAdjustmentConfirm({ scope = "management", selectedItem = null } = {}) {
+function openMissingInventoryAdjustmentConfirm({ scope = "scannedProducts", selectedItem = null, targetStorage = "" } = {}) {
   const plan = buildMissingInventoryAdjustmentPlan({ scope, selectedItem });
+  plan.targetStorage = targetStorage;
   if (plan.invalidBoxCount > 0) {
     showToast("박스 번호를 확인할 수 없는 전산 재고가 있어 조정을 중단했습니다.");
     return;
@@ -4660,6 +4667,7 @@ function openMissingInventoryAdjustmentConfirm({ scope = "management", selectedI
     subject: `${plan.scopeLabel} · 실물 확인 ${formatNumber(plan.confirmedBoxCount)}박스 · 미스캔 ${formatNumber(plan.unscannedBoxCount)}박스 유지`,
     subjectLabel: "확인 결과",
     meta: [
+      `보관 위치: ${targetStorage ? targetStorage : "기존 위치 유지"}`,
       ...visibleProducts.map((summary) => (
         `${summary.productName} · 실물 확인 ${formatNumber(summary.scannedBoxCount)}박스 · 미스캔 ${formatNumber(summary.unscannedBoxCount)}박스 유지`
       )),
@@ -4695,6 +4703,7 @@ async function completeMissingInventoryAdjustment(plan) {
       adjustments: [],
       confirmedBoxes: plan.confirmedBoxes,
       confirmationOnly: true,
+      targetStorage: plan.targetStorage || "",
       userName: state.user?.name || "Admin"
     });
     const confirmedBoxCount = parseNumber(result?.confirmedBoxRows);
@@ -4710,7 +4719,7 @@ async function completeMissingInventoryAdjustment(plan) {
     renderInventoryMoveList();
     renderScannerScannedList();
     triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
-    showToast(`${formatNumber(confirmedBoxCount)}개 스캔 박스의 실물 재고 확인일시를 저장했습니다.`);
+    showToast(`${formatNumber(confirmedBoxCount)}개 스캔 박스의 실물 확인${plan.targetStorage ? " 및 보관 위치" : ""}을 저장했습니다.`);
     if (!state.scannedMoveRows.length && !elements.scannerScreen?.hidden) {
       closeScanner();
     }
@@ -7922,11 +7931,10 @@ function syncScannedMoveRowsFromDashboard() {
       productId: normalizeScanValue(match.row.productId),
       boxNumber: String(match.box?.number || match.box?.sequence || savedRow.scannedBoxNumber || "").trim()
     }, savedRow.scannedQrValue || "");
-    const currentStorage = getInventoryMoveCurrentStorage(refreshedRow);
     const savedTarget = savedRow.targetStorageConfirmed === true
       ? normalizeDisplay(savedRow.targetStorage || "")
       : "-";
-    refreshedRow.targetStorage = savedTarget !== "-" && savedTarget !== currentStorage ? savedTarget : "";
+    refreshedRow.targetStorage = savedTarget !== "-" ? savedTarget : "";
     refreshedRow.targetStorageConfirmed = Boolean(refreshedRow.targetStorage);
     return refreshedRow;
   });
@@ -8394,9 +8402,8 @@ function getInventoryMoveCurrentStorage(item) {
 }
 
 function isInventoryMoveTargetReady(item) {
-  const currentStorage = getInventoryMoveCurrentStorage(item);
   const targetStorage = item?.targetStorageConfirmed === true ? normalizeDisplay(item.targetStorage) : "-";
-  return Boolean(targetStorage && targetStorage !== "-" && targetStorage !== currentStorage);
+  return Boolean(targetStorage && targetStorage !== "-");
 }
 
 function getInventoryMoveAllBoxNumbers(item) {
