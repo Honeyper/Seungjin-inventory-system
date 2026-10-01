@@ -85,7 +85,7 @@ test("focus and exposure adjustments preserve the enabled torch and original vid
   const off = calls.at(-1);
   assert.equal(off.advanced.some((entry) => entry.torch === false), true);
   assert.equal(off.advanced.some((entry) => entry.torch === true), false);
-  assert.equal(off.advanced.some((entry) => entry.focusMode === "single-shot"), true);
+  assert.equal(off.focusMode?.exact || off.advanced.find((entry) => entry.focusMode)?.focusMode, "single-shot");
   for (let i = 0; i < 10; i += 1) {
     await app.applyScannerTrackControls(track, { focusMode: "continuous" });
   }

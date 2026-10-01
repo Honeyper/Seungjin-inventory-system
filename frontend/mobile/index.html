@@ -20,7 +20,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./mobile.css?v=20260910-product-image-track-prd-type-r10-bulk-move-r33-survey-r34" />
+    <link rel="stylesheet" href="./mobile.css?v=20260910-product-image-track-prd-type-r10-bulk-move-r33-survey-r34-camera-focus-r42" />
     <link rel="stylesheet" href="../common-container-shipping.css?v=20260922-common-shipping-v1">
   </head>
   <body>
@@ -566,9 +566,12 @@
             <svg viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"></path></svg>
           </button>
           <h2 id="scannerTitle">QR 스캔</h2>
-          <button class="scanner-flash" id="toggleFlashButton" type="button" aria-label="플래시 켜기" aria-pressed="false" disabled>
-            <i class="ti ti-bolt" aria-hidden="true"></i><span>OFF</span>
-          </button>
+          <div class="scanner-camera-actions">
+            <button class="scanner-camera-switch" id="scannerCameraSwitchButton" type="button" aria-label="후면 카메라 변경" title="카메라 변경" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z"></path><path d="M9 12a4 4 0 0 1 6 0l1 1m0-3v3h-3M15 16a4 4 0 0 1-6 0l-1-1m0 3v-3h3"></path></svg></button>
+            <button class="scanner-flash" id="toggleFlashButton" type="button" aria-label="플래시 켜기" aria-pressed="false" disabled>
+              <i class="ti ti-bolt" aria-hidden="true"></i><span>OFF</span>
+            </button>
+          </div>
         </header>
         <p class="scanner-tip" id="scannerTip">제품 박스의 QR 코드를 스캔해 주세요.</p>
         <p class="scanner-help" id="scannerHelpText">카메라 또는 외부 스캐너로 QR을 읽어주세요.</p>
@@ -671,6 +674,6 @@
     <script src="../qr-payload.js?v=20260904-box-checksum-prd"></script>
     <script src="../common-container-shipping.js?v=20260922-common-shipping-v1"></script>
     <script src="./dashboard-cache.js?v=20260928-refresh-v2"></script>
-    <script src="./mobile.js?v=20260917-audit-eligible-status-v1-prd-audit-category-r15-reliability-r20-monthly-r21-common-shipping-r23-inbound-confirmation-r32-bulk-move-r33-survey-r34-monthly-day30-r36-scan-label-r40-audit-storage-r41"></script>
+    <script src="./mobile.js?v=20260917-audit-eligible-status-v1-prd-audit-category-r15-reliability-r20-monthly-r21-common-shipping-r23-inbound-confirmation-r32-bulk-move-r33-survey-r34-monthly-day30-r36-scan-label-r40-audit-storage-r41-camera-focus-r42"></script>
   </body>
 </html>
