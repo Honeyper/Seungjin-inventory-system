@@ -4335,9 +4335,9 @@ function isProtectedInventoryAdjustmentBox(item, box) {
 }
 
 const INVENTORY_AUDIT_SCOPE_DEFINITIONS = [
+  { value: "scannedProducts", label: "스캔한 박스" },
   { value: "management", label: "현재 입고 건만" },
   { value: "product", label: "이 제품 전체" },
-  { value: "scannedProducts", label: "스캔한 모든 제품" },
   { value: "allInventory", label: "전체 재고" }
 ];
 
@@ -4543,7 +4543,7 @@ function getInventoryAuditScopeDescription(scope, plan) {
     return "현재 제품에서 스캔한 박스만 실물확인 처리합니다.";
   }
   if (scope === "scannedProducts") {
-    return "이번에 스캔한 모든 제품의 박스만 실물확인 처리합니다.";
+    return "이번에 스캔한 박스만 실물확인 처리합니다.";
   }
   return "이번 조사에서 스캔한 모든 박스만 실물확인 처리합니다.";
 }
