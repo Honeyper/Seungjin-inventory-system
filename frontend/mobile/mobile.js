@@ -4048,12 +4048,13 @@ async function completeShippingItems(items, action = "complete") {
   }, { completedCount: 0, failedItems: [], errors: [] });
 }
 
-function invalidateShippingDashboardRead() {
+function invalidateShippingDashboardRead({ retainLoadedSnapshot = false } = {}) {
   // A response started before this successful write must never restore old pending boxes.
   state.shippingMutationRevision = (state.shippingMutationRevision || 0) + 1;
   state.dashboardLoadPromise = null;
   state.dashboardStateVersion = null;
-  state.dashboardLoadedAt = 0;
+  if (!retainLoadedSnapshot) state.dashboardLoadedAt = 0;
+  dashboardQrIndex = null;
 }
 
 function getSuccessfulShippingRows(items, failedItems) {
@@ -6774,10 +6775,15 @@ async function reopenCompletedShippingScan(item) {
     boxQuantities: { [box.number]: quantity }, userName: user?.name || "Admin"
   });
   if (parseNumber(result?.updatedBoxRows) !== 1) throw new Error("출고대기로 변경된 박스를 확인하지 못했습니다.");
-  invalidateShippingDashboardRead();
-  if (user !== state.user || workflow !== state.activeWorkflow || session !== state.hardwareScannerSession) return null;
+  if (user !== state.user) return null;
   const pendingBox = { ...box, quantity, currentQuantity: quantity, status: "출고대기", rawStatus: "출고대기",
-    shippingDate: "", shippingTime: "", shippingType: "", transferCompany: "", shipper: "" };
+    shippingDate: "", shippingTime: "", shippingType: "", transferCompany: "", shipper: "",
+    inspectionDate: "", inspectionTime: "", inspector: "", inspectionQuantity: 0,
+    defectQuantity: 0, defectRate: 0, defectReason: "", defectPhotoFolderUrl: "", defectPhotoCount: 0 };
+  const retained = patchReopenedShippingDashboard(item, pendingBox);
+  invalidateShippingDashboardRead({ retainLoadedSnapshot: retained });
+  if (retained) saveDashboardCache({ rows: state.dashboard });
+  if (workflow !== state.activeWorkflow || session !== state.hardwareScannerSession) return null;
   const reopened = { ...item, scannedBox: pendingBox, stockStatus: "출고대기", processStatus: "출고대기",
     shippedShippingBoxes: (item.shippedShippingBoxes || []).filter((entry) => String(entry.number) !== String(box.number)),
     scannedQuantityEdited: false };
@@ -6785,6 +6791,40 @@ async function reopenCompletedShippingScan(item) {
   state.scannedShippingRows = state.scannedShippingRows.map((row) => getShippingKey(row) === key ? reopened : row);
   state.scannerSessionShippingKeys = state.scannerSessionShippingKeys.filter((entry) => entry !== key);
   return reopened;
+}
+
+function patchReopenedShippingDashboard(item, pendingBox) {
+  // Apply only the acknowledged box change. Do not label the whole snapshot as
+  // the server's new version: other users may have changed unrelated inventory.
+  const matchesBox = entry => pendingBox.boxId
+    ? String(entry?.boxId || "") === String(pendingBox.boxId)
+    : String(entry?.number || "") === String(pendingBox.number);
+  let patched = false;
+  const patchRow = row => {
+    if (String(row.managementId) !== String(item.managementId)
+      || String(row.productId) !== String(item.productId)) return row;
+    const known = Array.isArray(row.allShippingBoxes) && row.allShippingBoxes.length
+      ? row.allShippingBoxes : getKnownBoxes(row);
+    if (!known.some(matchesBox)) return row;
+    const all = known.map(entry => matchesBox(entry) ? pendingBox : entry);
+    const active = all.filter(entry => parseNumber(entry.quantity) > 0 && !/출고완료|폐기/.test(entry.rawStatus || entry.status));
+    const shipped = all.filter(entry => /출고완료/.test(entry.rawStatus || entry.status));
+    const counted = [...active, ...shipped.filter(entry => String(entry.shippingType || "").startsWith("이관"))];
+    const status = shipped.length ? "일부 출고" : active[0]?.rawStatus || active[0]?.status || "출고대기";
+    return { ...row, allShippingBoxes: all, activeShippingBoxes: active, shippedShippingBoxes: shipped,
+      ...(Array.isArray(row.boxes) ? { boxes: row.boxes.map(entry => matchesBox(entry) ? pendingBox : entry) } : {}),
+      stockStatus: status, processStatus: status, completedShippingType: "", countsAsInventory: true,
+      currentBoxCount: `${formatNumber(counted.length)} box`, boxTotalCount: `${formatNumber(counted.length)} box`,
+      currentTotalQuantity: `${formatNumber(counted.reduce((sum, entry) => sum + parseNumber(entry.quantity), 0))} ea` };
+  };
+  state.dashboard = state.dashboard.map(row => {
+    const updated = patchRow(row);
+    if (updated !== row) patched = true;
+    return updated;
+  });
+  state.scannedShippingRows = state.scannedShippingRows.map(patchRow);
+  Object.assign(item, patchRow(item));
+  return patched;
 }
 
 function restoreHardwareScannerQrValue(rawValue) {

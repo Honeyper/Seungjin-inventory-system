@@ -32,9 +32,9 @@ test('zero-quantity adjustments require actual quantity; positive shipped quanti
 });
 function clientRuntime(answer,{quantity=320,fail=false}={}){
  let db=fixture(quantity);const item={...db.records[0],productName:'제품',scannedBox:db.boxes[0],scannedBoxId:db.boxes[0].boxId,shippedShippingBoxes:db.boxes};let requests=0;
- const h=vm.createContext({state:{user:{name:'테스터'},activeWorkflow:'shipping',hardwareScannerSession:3,scannedShippingRows:[item],scannerSessionShippingKeys:[item.scannedBoxId]},getScannedBox:i=>i.scannedBox,parseNumber:Number,getShippingKey:i=>i.scannedBoxId,setScannerHelp(){},invalidateShippingDashboardRead(){},confirmCompletedShippingScan:()=>answer,
+ const h=vm.createContext({state:{user:{name:'테스터'},activeWorkflow:'shipping',hardwareScannerSession:3,dashboard:[],scannedShippingRows:[item],scannerSessionShippingKeys:[item.scannedBoxId]},getScannedBox:i=>i.scannedBox,parseNumber:Number,formatNumber:String,getKnownBoxes:r=>r.allShippingBoxes||r.shippedShippingBoxes||[],getShippingKey:i=>i.scannedBoxId,setScannerHelp(){},invalidateShippingDashboardRead(){},saveDashboardCache(){},confirmCompletedShippingScan:()=>answer,
  requestApi:async(action,p)=>{requests++;if(fail)throw Error('network');const r=applyMutation(action,JSON.parse(JSON.stringify(p)),db);db=r.state;return r.result;}});
- vm.runInContext(extract('reopenCompletedShippingScan'),h);return {h,item,requests:()=>requests,db:()=>db};
+ vm.runInContext(extract('patchReopenedShippingDashboard')+extract('reopenCompletedShippingScan'),h);return {h,item,requests:()=>requests,db:()=>db};
 }
 test('canceling confirmation performs no write and leaves the scanned list unchanged',async()=>{
  const h=clientRuntime(null);assert.equal(await h.h.reopenCompletedShippingScan(h.item),null);assert.equal(h.requests(),0);assert.equal(h.h.state.scannedShippingRows[0].scannedBox.status,'출고완료');
@@ -46,6 +46,71 @@ test('confirmation is awaited and successful pending scan replaces old completed
 test('failed request and changed user during confirmation do not locally reopen the box',async()=>{
  const h=clientRuntime(320,{fail:true});await assert.rejects(h.h.reopenCompletedShippingScan(h.item),/network/);assert.equal(h.h.state.scannedShippingRows[0].scannedBox.status,'출고완료');
  let resolve;const stale=clientRuntime(new Promise(r=>resolve=r));const p=stale.h.reopenCompletedShippingScan(stale.item);stale.h.state.user={name:'other'};resolve(320);assert.equal(await p,null);assert.equal(stale.requests(),0);
+});
+test('acknowledged reopening keeps the next scan local even if a dashboard read would remain pending',async()=>{
+ const runtime=clientRuntime(320);const h=runtime.h;
+ h.state.dashboard=[{...runtime.item,allShippingBoxes:runtime.db().boxes,activeShippingBoxes:[]}];
+ h.state.dashboardLoadedAt=Date.now();h.state.dashboardStateVersion=100;
+ h.dashboardQrIndex={rows:h.state.dashboard};
+ let reads=0;h.loadShippingDashboard=()=>{reads++;return new Promise(()=>{});};
+ vm.runInContext(extract('invalidateShippingDashboardRead')+extract('ensureDashboardLoaded'),h);
+ const reopened=await h.reopenCompletedShippingScan(runtime.item);
+ await h.ensureDashboardLoaded();
+ assert.equal(reads,0);assert.ok(h.state.dashboardLoadedAt>0);assert.equal(h.state.dashboardStateVersion,null);
+ assert.equal(h.state.shippingMutationRevision,1);assert.equal(h.dashboardQrIndex,null);
+ const row=h.state.dashboard[0];assert.equal(row.activeShippingBoxes.length,1);assert.equal(row.shippedShippingBoxes.length,1);
+ assert.equal(row.allShippingBoxes[0].status,'출고대기');assert.equal(row.allShippingBoxes[1].status,'출고완료');
+ assert.equal(row.currentTotalQuantity,'320 ea');assert.equal(row.currentBoxCount,'1 box');
+ assert.equal(reopened.allShippingBoxes[0].status,'출고대기');assert.equal(reopened.scannedBox.inspectionQuantity,0);
+ assert.equal(reopened.scannedBox.defectPhotoFolderUrl,'');
+});
+test('reopening invalidates an older dashboard response and refresh still fetches unrelated server changes',async()=>{
+ const runtime=clientRuntime(320);const h=runtime.h;
+ h.state.dashboard=[{...runtime.item,allShippingBoxes:runtime.db().boxes,activeShippingBoxes:[]}];
+ h.state.dashboardLoadedAt=Date.now();h.state.dashboardStateVersion=100;
+ h.window={SeungjinDataGateway:{canRead:()=>true}};h.dashboardQrIndex=null;
+ const reads=[];const mutation=h.requestApi;
+ h.requestApi=(action,p)=>action==='updateShippingStatus'?mutation(action,p):new Promise(resolve=>reads.push({action,resolve}));
+ h.getDashboardStateVersion=v=>Number(v);h.applyShippingFilters=()=>{};h.expandMobileDashboard=d=>d.rows;
+ h.syncPendingShippingRowsFromDashboard=()=>{};h.syncScannedMoveRowsFromDashboard=()=>{};
+ vm.runInContext(extract('loadShippingDashboard')+extract('invalidateShippingDashboardRead'),h);
+ const old=h.loadShippingDashboard({silent:true});reads[0].resolve({stateVersion:101});
+ await new Promise(setImmediate);assert.equal(reads[1].action,'getInventoryDashboard');
+ await h.reopenCompletedShippingScan(runtime.item);
+ reads[1].resolve({rows:[{...runtime.item,allShippingBoxes:runtime.db().boxes.map(b=>({...b,status:'출고완료'}))}]});
+ assert.equal(await old,false);assert.equal(h.state.dashboard[0].allShippingBoxes[0].status,'출고대기');
+ const refreshed=h.loadShippingDashboard({silent:true});reads[2].resolve({stateVersion:102});
+ await new Promise(setImmediate);assert.equal(reads[3].action,'getInventoryDashboard');
+ reads[3].resolve({rows:[{managementId:'OTHER',currentTotalQuantity:'999 ea'}]});
+ assert.equal(await refreshed,true);assert.equal(h.state.dashboard[0].managementId,'OTHER');
+});
+test('same box number in another inbound stays unchanged and zero stock can reopen with actual quantity',async()=>{
+ const runtime=clientRuntime(57,{quantity:0});const h=runtime.h;
+ const other={...runtime.item,managementId:'OTHER',allShippingBoxes:[{...runtime.db().boxes[0],boxId:'OTHER-B001',managementId:'OTHER'}]};
+ h.state.dashboard=[{...runtime.item,allShippingBoxes:runtime.db().boxes,activeShippingBoxes:[]},other];
+ await h.reopenCompletedShippingScan(runtime.item);
+ assert.equal(h.state.dashboard[0].currentTotalQuantity,'57 ea');assert.equal(h.state.dashboard[0].activeShippingBoxes[0].quantity,57);
+ assert.equal(h.state.dashboard[1],other);assert.equal(other.allShippingBoxes[0].status,'출고완료');
+});
+test('changing users during the save does not patch the next user dashboard',async()=>{
+ const runtime=clientRuntime(320);const h=runtime.h;
+ const dashboard=[{...runtime.item,allShippingBoxes:runtime.db().boxes,activeShippingBoxes:[]}];
+ h.state.dashboard=dashboard;let resolve;
+ h.requestApi=()=>new Promise(r=>resolve=r);
+ const pending=h.reopenCompletedShippingScan(runtime.item);await new Promise(setImmediate);
+ h.state.user={name:'다른 사용자'};resolve({updatedBoxRows:1});
+ assert.equal(await pending,null);assert.equal(h.state.dashboard,dashboard);
+ assert.equal(h.state.dashboard[0].allShippingBoxes[0].status,'출고완료');
+});
+test('navigation during an acknowledged save patches inventory without appending a scan to the new workflow',async()=>{
+ const runtime=clientRuntime(320);const h=runtime.h;
+ h.state.dashboard=[{...runtime.item,allShippingBoxes:runtime.db().boxes,activeShippingBoxes:[]}];let resolve;
+ h.requestApi=()=>new Promise(r=>resolve=r);
+ const pending=h.reopenCompletedShippingScan(runtime.item);await new Promise(setImmediate);
+ h.state.activeWorkflow='inventoryMove';h.state.hardwareScannerSession++;
+ resolve({updatedBoxRows:1});assert.equal(await pending,null);
+ assert.equal(h.state.dashboard[0].allShippingBoxes[0].status,'출고대기');
+ assert.equal(h.state.scannerSessionShippingKeys.length,1);
 });
 test('close-button event and Escape resolve popup as cancellation, never as quantity',()=>{
  for(const closeValue of [undefined,{type:'click'},320]){
