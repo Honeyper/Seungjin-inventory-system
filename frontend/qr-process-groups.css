@@ -1,10 +1,34 @@
-/* Keep the existing label size and QR area when a route needs extra passes. */
+/* Extra passes share the space reclaimed from headings and manager closeout. */
 .box-qr-label-reference.has-expanded-processes {
-  grid-template-rows: 5.4mm 5.4mm 16.4mm 5.8mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 7.2mm;
+  --qr-process-area-height: 27.2mm;
+  grid-template-rows: 4mm 4.2mm 16.4mm 3.6mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 4mm;
 }
 
 .qr-sheet-work .box-qr-label-reference.has-expanded-processes {
-  grid-template-rows: 5.4mm 5.4mm 18.4mm 5.4mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 6.8mm;
+  --qr-process-area-height: 24.8mm;
+  grid-template-rows: 3.6mm 5.2mm 18.4mm 3.6mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 3.8mm;
+}
+
+.box-qr-label-reference.has-expanded-processes .box-qr-reference-title > * {
+  font-size: 9.2pt;
+}
+
+.box-qr-label-reference.has-expanded-processes .box-qr-reference-table-head,
+.box-qr-label-reference.has-expanded-processes .box-qr-reference-manager > strong {
+  font-size: 8pt;
+}
+
+.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-final-process {
+  font-size: 8.2pt;
+}
+
+.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-box-count,
+.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-table-head {
+  font-size: 7pt;
+}
+
+.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-manager > strong {
+  font-size: 7.2pt;
 }
 
 .box-qr-label-reference .box-qr-reference-row.is-combined strong {
@@ -24,16 +48,21 @@
 
 .box-qr-label-reference.has-expanded-processes .box-qr-reference-row:not(.box-qr-reference-manager),
 .box-qr-label-reference.has-expanded-processes .box-qr-reference-row:not(.box-qr-reference-manager) * {
-  font-size: 6.5pt;
-  line-height: 1;
   min-height: 0;
+}
+
+/* Narrow work labels can wrap a combined pass onto two lines. */
+.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-row.is-combined strong {
+  font-size: min(7.2pt, calc(var(--qr-process-area-height) / var(--qr-process-row-count) / 2.2));
 }
 
 @media print {
   .box-qr-label-reference.has-expanded-processes {
-    grid-template-rows: 5.2mm 5.2mm 15.8mm 5.6mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 7mm;
+    --qr-process-area-height: 26.6mm;
+    grid-template-rows: 3.8mm 4mm 15.8mm 3.4mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 3.8mm;
   }
   .qr-sheet-work .box-qr-label-reference.has-expanded-processes {
-    grid-template-rows: 5.2mm 5.2mm 17.8mm 5.2mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 6.6mm;
+    --qr-process-area-height: 24mm;
+    grid-template-rows: 3.4mm 5.2mm 17.8mm 3.4mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 3.6mm;
   }
 }
