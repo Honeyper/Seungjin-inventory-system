@@ -1,34 +1,47 @@
-/* Extra passes share the space reclaimed from headings and manager closeout. */
-.box-qr-label-reference.has-expanded-processes {
-  --qr-process-area-height: 27.2mm;
-  grid-template-rows: 4mm 4.2mm 16.4mm 3.6mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 4mm;
+/* Every information, process, and manager row shares the available height. */
+.box-qr-label-reference {
+  --qr-label-height: 59.4mm;
+  --qr-main-height: 16.4mm;
+  --qr-equal-row-height: calc((var(--qr-label-height) - var(--qr-main-height)) / (var(--qr-process-row-count, 3) + 4));
+  --qr-title-size: 10.2pt;
+  --qr-box-count-size: 9.8pt;
+  --qr-heading-size: 8.5pt;
+  --qr-manager-size: 9pt;
 }
 
-.qr-sheet-work .box-qr-label-reference.has-expanded-processes {
-  --qr-process-area-height: 24.8mm;
-  grid-template-rows: 3.6mm 5.2mm 18.4mm 3.6mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 3.8mm;
+.qr-sheet-work .box-qr-label-reference {
+  --qr-main-height: 18.4mm;
+  --qr-title-size: 8.2pt;
+  --qr-box-count-size: 7pt;
+  --qr-heading-size: 7pt;
+  --qr-manager-size: 7.2pt;
 }
 
-.box-qr-label-reference.has-expanded-processes .box-qr-reference-title > * {
-  font-size: 9.2pt;
+.box-qr-label-reference,
+.qr-sheet-work .box-qr-label-reference {
+  grid-template-rows: repeat(2, minmax(0, 1fr)) var(--qr-main-height) minmax(0, 1fr) repeat(var(--qr-process-row-count, 3), minmax(0, 1fr)) minmax(0, 1fr);
 }
 
-.box-qr-label-reference.has-expanded-processes .box-qr-reference-table-head,
-.box-qr-label-reference.has-expanded-processes .box-qr-reference-manager > strong {
-  font-size: 8pt;
+.box-qr-label-reference .box-qr-reference-final-process {
+  font-size: min(var(--qr-title-size), calc((var(--qr-equal-row-height) - 0.4mm) / 1.1));
 }
 
-.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-final-process {
-  font-size: 8.2pt;
+.box-qr-label-reference .box-qr-reference-box-count {
+  font-size: min(var(--qr-box-count-size), calc((var(--qr-equal-row-height) - 0.4mm) / 1.1));
 }
 
-.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-box-count,
-.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-table-head {
-  font-size: 7pt;
+.box-qr-label-reference .box-qr-reference-table-head {
+  font-size: min(var(--qr-heading-size), calc((var(--qr-equal-row-height) - 0.4mm) / 1.1));
 }
 
-.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-manager > strong {
-  font-size: 7.2pt;
+.box-qr-label-reference .box-qr-reference-manager > strong {
+  font-size: min(var(--qr-manager-size), calc((var(--qr-equal-row-height) - 0.4mm) / 1.1));
+}
+
+/* The date spans two lines in the narrow four-column label. */
+.qr-sheet-work .box-qr-label-reference .box-qr-reference-date-value {
+  font-size: min(7pt, calc((var(--qr-equal-row-height) - 0.4mm) / 2.1));
+  line-height: 1;
 }
 
 .box-qr-label-reference .box-qr-reference-row.is-combined strong {
@@ -51,18 +64,16 @@
   min-height: 0;
 }
 
-/* Narrow work labels can wrap a combined pass onto two lines. */
-.qr-sheet-work .box-qr-label-reference.has-expanded-processes .box-qr-reference-row.is-combined strong {
-  font-size: min(7.2pt, calc(var(--qr-process-area-height) / var(--qr-process-row-count) / 2.2));
+.qr-sheet-work .box-qr-label-reference .box-qr-reference-row.is-combined strong {
+  font-size: min(7.2pt, calc((var(--qr-equal-row-height) - 0.4mm) / 2.1));
 }
 
 @media print {
-  .box-qr-label-reference.has-expanded-processes {
-    --qr-process-area-height: 26.6mm;
-    grid-template-rows: 3.8mm 4mm 15.8mm 3.4mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 3.8mm;
+  .box-qr-label-reference {
+    --qr-label-height: 57.4mm;
+    --qr-main-height: 15.8mm;
   }
-  .qr-sheet-work .box-qr-label-reference.has-expanded-processes {
-    --qr-process-area-height: 24mm;
-    grid-template-rows: 3.4mm 5.2mm 17.8mm 3.4mm repeat(var(--qr-process-row-count), minmax(0, 1fr)) 3.6mm;
+  .qr-sheet-work .box-qr-label-reference {
+    --qr-main-height: 17.8mm;
   }
 }
