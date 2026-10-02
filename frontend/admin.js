@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-02", title: "PC 출고관리 화면 및 검색 속도 개선", items: ["출고 목록과 요약의 중복 집계를 줄이고 정렬 계산을 한 번씩 수행하도록 개선했습니다. 검색은 마지막 입력을 기준으로 갱신하며, 한글 조합 중 반복 계산을 멈춰 입력 지연을 줄였습니다."] },
   { date: "2026-10-02", title: "모바일 출고완료 박스 재등록 지연 개선", items: ["출고완료 박스를 출고대기로 재등록하면 저장된 박스 상태를 모바일 목록에 바로 반영합니다. 다음 QR 스캔을 위해 전체 재고를 다시 불러오던 대기를 제거했습니다."] },
   { date: "2026-10-02", title: "기존 QR 공정 표시 및 백업 보완", items: ["제품을 다시 저장하지 않아도 사용하지 않는 QR 공정 칸은 대시로 표시합니다. 현재 제품의 최종공정을 우선 적용하고, 시트 백업 시 필요한 행·열을 자동 확장합니다."] },
   { date: "2026-10-02", title: "출고량 기준 발주 자동 완료", items: ["정상 출고량이 총 발주량의 100% 이상이면 자동 발주완료로 분류합니다. 완료 항목은 기본 숨김이며 보기 버튼으로 확인할 수 있습니다. 출고 취소 시 실제 출고량에 따라 자동 완료를 해제합니다."] },
@@ -1020,6 +1021,8 @@ const shippingPageSizeSelect = document.querySelector("#shippingPageSizeSelect")
 const shippingSummaryCards = document.querySelectorAll(".shipping-summary-card");
 const shippingFilterPanel = document.querySelector(".shipping-list-filter");
 const shippingSearchInput = shippingFilterPanel?.querySelector(".shipping-search-field input") || null;
+let shippingSearchRenderTimer = null;
+let shippingSearchComposing = false;
 const shippingFilterSelects = shippingFilterPanel?.querySelectorAll(".shipping-filter-field select") || [];
 const shippingClientFilter = shippingFilterSelects[0] || null;
 const shippingStorageFilter = shippingFilterSelects[1] || null;
@@ -1925,14 +1928,10 @@ transferReturnSelectAll?.addEventListener("change", () => {
 transferReturnBoxList?.addEventListener("change", syncTransferReturnBoxState);
 shippingSettlementStartDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("start");
-  updateShippingSummaryCards(getShippingSettlementBoxItems());
-  updateShippingSettlementSummary();
   refreshShippingListForSettlementPeriod();
 });
 shippingSettlementEndDate?.addEventListener("change", () => {
   normalizeShippingSettlementDateRange("end");
-  updateShippingSummaryCards(getShippingSettlementBoxItems());
-  updateShippingSettlementSummary();
   refreshShippingListForSettlementPeriod();
 });
 shippingSettlementTodayButton?.addEventListener("click", () => {
@@ -1943,8 +1942,6 @@ shippingSettlementTodayButton?.addEventListener("click", () => {
   if (shippingSettlementEndDate) {
     shippingSettlementEndDate.value = today;
   }
-  updateShippingSummaryCards(getShippingSettlementBoxItems());
-  updateShippingSettlementSummary();
   refreshShippingListForSettlementPeriod();
 });
 shippingPeriodListOnly?.addEventListener("change", () => {
@@ -2241,10 +2238,19 @@ shippingPageSizeSelect?.addEventListener("change", (event) => {
   state.shippingPage = 1;
   renderShippingTable();
 });
+shippingSearchInput?.addEventListener("compositionstart", () => {
+  shippingSearchComposing = true;
+  window.clearTimeout(shippingSearchRenderTimer);
+  shippingSearchRenderTimer = null;
+});
+shippingSearchInput?.addEventListener("compositionend", () => {
+  shippingSearchComposing = false;
+  scheduleShippingSearchRender();
+});
 shippingSearchInput?.addEventListener("input", (event) => {
-  state.shippingFilters.query = normalizeSearchText(event.target.value);
-  state.shippingPage = 1;
-  renderShippingTable();
+  if (!event.isComposing && !shippingSearchComposing) {
+    scheduleShippingSearchRender();
+  }
 });
 [shippingClientFilter, shippingStorageFilter, shippingInspectionFilter, shippingStatusFilter].forEach((select) => {
   select?.addEventListener("change", () => {
@@ -3465,7 +3471,6 @@ function setActiveView(view) {
       loadInventoryDashboard(false);
     } else {
       renderShippingTable();
-      updateShippingSettlementSummary();
       loadInventoryDashboard(false);
     }
   }
@@ -5783,7 +5788,18 @@ function renderShippingLoading() {
   renderShippingPagination(1);
 }
 
+function scheduleShippingSearchRender() {
+  window.clearTimeout(shippingSearchRenderTimer);
+  shippingSearchRenderTimer = window.setTimeout(() => {
+    shippingSearchRenderTimer = null;
+    state.shippingPage = 1;
+    renderShippingTable();
+  }, 120);
+}
+
 function renderShippingTable(message = "") {
+  window.clearTimeout(shippingSearchRenderTimer);
+  shippingSearchRenderTimer = null;
   if (!shippingTableBody) {
     return;
   }
@@ -5791,6 +5807,10 @@ function renderShippingTable(message = "") {
   const sourceRows = getShippingSourceRows();
   renderShippingFilterOptions(sourceRows);
   const rows = getShippingRows(sourceRows);
+  // Reuse the filtered rows and per-box settlement across the list and both summaries.
+  const settlementBoxItems = getShippingSettlementBoxItems(rows);
+  updateShippingSummaryCards(settlementBoxItems);
+  updateShippingSettlementSummary(rows, settlementBoxItems);
 
   if (message || !rows.length) {
     shippingTableBody.innerHTML = `
@@ -5798,8 +5818,6 @@ function renderShippingTable(message = "") {
         <td colspan="16" class="empty-cell">${escapeHtml(message || "출고 목록이 없습니다.")}</td>
       </tr>
     `;
-    updateShippingSummaryCards(getShippingSettlementBoxItems());
-    updateShippingSettlementSummary();
     if (shippingCountLabel) {
       shippingCountLabel.textContent = "전체 0건";
     }
@@ -5871,9 +5889,6 @@ function renderShippingTable(message = "") {
     `;
   }).join("");
 
-  updateShippingSummaryCards(getShippingSettlementBoxItems());
-  updateShippingSettlementSummary();
-
   if (shippingCountLabel) {
     shippingCountLabel.textContent = `전체 ${rows.length.toLocaleString("ko-KR")}건`;
   }
@@ -5923,10 +5938,9 @@ function getShippingSourceRows() {
 function getShippingRows(sourceRows = getShippingSourceRows()) {
   syncShippingFilterState();
   const filters = state.shippingFilters;
+  const query = normalizeSearchText(filters.query);
 
   const filteredRows = sourceRows.filter((item) => {
-    const effectiveStatus = getEffectiveShippingStatus(item);
-
     if (state.shippingListPeriodOnly && !isShippingSettlementDateMatch(item)) {
       return false;
     }
@@ -5968,26 +5982,33 @@ function getShippingRows(sourceRows = getShippingSourceRows()) {
       item.storage,
       item.currentBoxCount,
       item.currentTotalQuantity,
-      renderPlainShippingStatus(effectiveStatus),
+      renderPlainShippingStatus(getEffectiveShippingStatus(item)),
       isShippingInspected(item) ? SHIPPING_READY_STATUS_LABEL : "검수 전"
-    ].some((value) => normalizeSearchText(value).includes(normalizeSearchText(filters.query)));
+    ].some((value) => normalizeSearchText(value).includes(query));
   });
 
-  const shippingDrafts = readShippingBoxDrafts();
-  return filteredRows.sort((left, right) => compareShippingRows(left, right, shippingDrafts));
+  const key = state.shippingSort.key || "recent";
+  const shippingDrafts = key === "recent" ? readShippingBoxDrafts() : {};
+  const sortValues = new Map();
+  if (["recent", "inboundDate"].includes(key)) {
+    filteredRows.forEach((item) => sortValues.set(item, key === "recent"
+      ? getShippingRecentActivityTimestamp(item, shippingDrafts)
+      : getShippingDateTimeTimestamp(item.inboundDate, item.inboundTime)));
+  }
+  return filteredRows.sort((left, right) => compareShippingRows(left, right, shippingDrafts, sortValues));
 }
 
-function compareShippingRows(left, right, shippingDrafts = {}) {
+function compareShippingRows(left, right, shippingDrafts = {}, sortValues = new Map()) {
   const key = state.shippingSort.key || "recent";
   const direction = state.shippingSort.direction === "asc" ? 1 : -1;
   let result = 0;
 
   if (key === "recent") {
-    result = getShippingRecentActivityTimestamp(left, shippingDrafts)
-      - getShippingRecentActivityTimestamp(right, shippingDrafts);
+    result = (sortValues.get(left) ?? getShippingRecentActivityTimestamp(left, shippingDrafts))
+      - (sortValues.get(right) ?? getShippingRecentActivityTimestamp(right, shippingDrafts));
   } else if (key === "inboundDate") {
-    result = getShippingDateTimeTimestamp(left.inboundDate, left.inboundTime)
-      - getShippingDateTimeTimestamp(right.inboundDate, right.inboundTime);
+    result = (sortValues.get(left) ?? getShippingDateTimeTimestamp(left.inboundDate, left.inboundTime))
+      - (sortValues.get(right) ?? getShippingDateTimeTimestamp(right.inboundDate, right.inboundTime));
   } else {
     result = String(left[key] || "").localeCompare(String(right[key] || ""), "ko-KR", {
       numeric: true,
@@ -6109,12 +6130,15 @@ function resetShippingFilters() {
 }
 
 function refreshShippingListForSettlementPeriod() {
-  if (!state.shippingListPeriodOnly) {
+  if (state.shippingListPeriodOnly) {
+    state.shippingPage = 1;
+    renderShippingTable();
     return;
   }
-
-  state.shippingPage = 1;
-  renderShippingTable();
+  const rows = getShippingSettlementSourceRows();
+  const boxItems = getShippingSettlementBoxItems(rows);
+  updateShippingSummaryCards(boxItems);
+  updateShippingSettlementSummary(rows, boxItems);
 }
 
 function getShippingInspectionFilterValue(item) {
@@ -6690,8 +6714,9 @@ function getShippingSettlementSourceRows() {
   return getShippingRows();
 }
 
-function getShippingSettlementBoxItems() {
-  return getShippingSettlementSourceRows().flatMap((item) => {
+function getShippingSettlementBoxItems(sourceRows = getShippingSettlementSourceRows()) {
+  return sourceRows.flatMap((item) => {
+    const trayQuantity = parseShippingSettlementNumber(getShippingInspectionTrayQuantityFromItem(item));
     const boxes = [
       ...(Array.isArray(item.activeShippingBoxes) ? item.activeShippingBoxes : []),
       ...(Array.isArray(item.shippedShippingBoxes) ? item.shippedShippingBoxes : [])
@@ -6703,7 +6728,6 @@ function getShippingSettlementBoxItems() {
       }
       const status = getEffectiveShippingStatus(item);
       const date = getShippingSettlementItemDate(item);
-      const trayQuantity = parseShippingSettlementNumber(getShippingInspectionTrayQuantityFromItem(item));
 
       if (!isShippingSettlementDateInRange(date)) {
         return [];
@@ -6730,7 +6754,6 @@ function getShippingSettlementBoxItems() {
       const status = rawStatus === "검수완료" ? "출고대기" : rawStatus;
       const date = getShippingSettlementBoxDate(box, item);
       const quantity = getShippingSettlementBoxQuantity(box);
-      const trayQuantity = parseShippingSettlementNumber(getShippingInspectionTrayQuantityFromItem(item));
       const boxInspectionQuantity = parseShippingSettlementNumber(box.inspectionQuantity || "");
 
       return {
@@ -6807,13 +6830,14 @@ function setShippingSettlementText(key, value) {
   }
 }
 
-function updateShippingSettlementSummary() {
+function updateShippingSettlementSummary(sourceRows = null, settlementBoxItems = null) {
   if (!shippingSettlementFields.totalQuantity) {
     return;
   }
 
-  const rows = getShippingSettlementItems();
-  const boxItems = getShippingSettlementBoxItems();
+  const filteredRows = sourceRows ?? getShippingSettlementSourceRows();
+  const rows = filteredRows.filter(isShippingSettlementDateMatch);
+  const boxItems = settlementBoxItems ?? getShippingSettlementBoxItems(filteredRows);
   const completedBoxItems = boxItems.filter((item) => item.status === "출고완료");
   let totalQuantity = 0;
   let totalBoxes = 0;
@@ -9187,7 +9211,6 @@ function applyInventoryDashboardResult(result) {
   renderInventoryBars(inventoryLocationQuantityBars, state.inventoryLocationQuantityStats, "ea");
   applyInventoryFilters();
   renderShippingTable();
-  updateShippingSettlementSummary();
   refreshOpenInventoryAttentionList();
 }
 
@@ -10033,10 +10056,13 @@ function renderSelectOptions(select, values = [], defaultLabel = "전체") {
   }
 
   const currentValue = select.value;
-  select.innerHTML = [
+  const optionsHtml = [
     `<option value="">${escapeHtml(defaultLabel)}</option>`,
     ...values.map((value) => `<option value="${escapeAttribute(value)}">${escapeHtml(value)}</option>`)
   ].join("");
+  if (select.innerHTML !== optionsHtml) {
+    select.innerHTML = optionsHtml;
+  }
 
   if (values.includes(currentValue)) {
     select.value = currentValue;
