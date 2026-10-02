@@ -28,20 +28,20 @@ test("입고 100% 경계와 출고 우선 상태를 필터 및 요약에도 동�
     { totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400, accumulatedShippingQuantity: 1400 },
     { status: "취소", totalOrderQuantity: 1000, accumulatedInboundQuantity: 1400 },
   ];
-  const context = { purchaseOrderColumnSort: null, state: { purchaseOrders: fixtures, purchaseOrderQuery: "", purchaseOrderStatusFilter: "" }, closePurchaseOrderActionMenu() {}, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, purchaseOrderTotal: {}, purchaseOrderActive: {}, purchaseOrderCompleted: {}, purchaseOrderRemaining: {}, escapeHtml: String, escapeAttribute: String };
+  const context = { toggleCompletedPurchaseOrdersButton: null, purchaseOrderColumnSort: null, state: { purchaseOrders: fixtures, purchaseOrderQuery: "", purchaseOrderStatusFilter: "" }, closePurchaseOrderActionMenu() {}, purchaseOrderTableBody: {}, purchaseOrderListStatus: null, purchaseOrderCountLabel: null, purchaseOrderTotal: {}, purchaseOrderActive: {}, purchaseOrderCompleted: {}, purchaseOrderRemaining: {}, escapeHtml: String, escapeAttribute: String };
   vm.runInNewContext(functions + "\napplyPurchaseOrderFilters();", context);
   const statuses = fixtures.map((order) => context.getPurchaseOrderDisplayStatus(order));
-  assert.deepEqual(statuses, ["입고중", "입고중", "입고완료", "입고완료", "작업중", "작업완료", "작업완료", "취소"]);
+  assert.deepEqual(statuses, ["입고중", "입고중", "입고완료", "입고완료", "작업중", "발주완료", "발주완료", "취소"]);
   assert.equal(context.purchaseOrderActive.innerHTML, "3 <em>건</em>");
   assert.equal(context.purchaseOrderCompleted.innerHTML, "4 <em>건</em>");
   context.state.purchaseOrderStatusFilter = "작업중";
   vm.runInNewContext("applyPurchaseOrderFilters();", context);
   assert.equal(context.state.filteredPurchaseOrders.length, 1);
   assert.match(context.purchaseOrderTableBody.innerHTML, /data-status="작업중"/);
-  context.state.purchaseOrderStatusFilter = "작업완료";
+  context.state.purchaseOrderStatusFilter = "발주완료";
   vm.runInNewContext("applyPurchaseOrderFilters();", context);
   assert.equal(context.state.filteredPurchaseOrders.length, 2);
-  assert.match(context.purchaseOrderTableBody.innerHTML, /data-status="작업완료"/);
+  assert.match(context.purchaseOrderTableBody.innerHTML, /data-status="발주완료"/);
   assert.equal(context.getPurchaseOrderDisplayStatus({ ...fixtures[4], accumulatedShippingQuantity: 0 }), "입고중");
   assert.equal(context.getPurchaseOrderDisplayStatus({ totalOrderQuantity: 0, accumulatedShippingQuantity: 1 }), "작업중");
 });

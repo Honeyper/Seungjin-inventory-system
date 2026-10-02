@@ -10056,7 +10056,8 @@ small, em {
   background: #e8f1ff;
 }
 
-.purchase-order-status-badge[data-status="작업완료"] {
+.purchase-order-status-badge[data-status="작업완료"],
+.purchase-order-status-badge[data-status="발주완료"] {
   color: #5b3a9d;
   background: #f0ebff;
 }
@@ -15236,3 +15237,5 @@ small, em {
   border-color: #88aee3;
   color: #164d92;
 }
+
+.purchase-order-auto-completed { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 0 10px; border-radius: 8px; color: #08733f; background: #e6f7ee; font-size: 12px; font-weight: 500; white-space: nowrap; }

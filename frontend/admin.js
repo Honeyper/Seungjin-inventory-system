@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-02", title: "출고량 기준 발주 자동 완료", items: ["정상 출고량이 총 발주량의 100% 이상이면 자동 발주완료로 분류합니다. 완료 항목은 기본 숨김이며 보기 버튼으로 확인할 수 있습니다. 출고 취소 시 실제 출고량에 따라 자동 완료를 해제합니다."] },
   { date: "2026-10-01", title: "모바일 QR 카메라 초점 개선", items: ["기본 후면 카메라를 우선 선택하고 브라우저별 자동 초점 설정을 보완했습니다. 여러 후면 카메라를 사용할 수 있는 기기에는 카메라 변경 버튼을 추가했습니다."] },
   { date: "2026-10-01", title: "모바일 실물 확인 및 보관 위치 지정", items: ["같은 위치를 다시 지정해도 선택 박스의 실물 확인이 저장됩니다. 실물 확인은 스캔한 박스를 기본 선택하며 보관 위치를 함께 지정할 수 있습니다."] },
   { date: "2026-10-01", title: "여러 입고 건 QR 일괄 인쇄", items: ["입고 목록에서 여러 건을 선택해 QR을 한 장에 이어서 인쇄할 수 있습니다. 제품별 박스 번호와 공정 정보를 유지하며, 기본 레이아웃은 A4당 10개, 레이아웃 2는 20개를 배치합니다."] },
@@ -559,6 +560,7 @@ const state = {
   purchaseOrdersLoaded: false,
   purchaseOrderQuery: "",
   purchaseOrderStatusFilter: "",
+  showCompletedPurchaseOrders: false,
   purchaseOrderFormMode: "create",
   editingPurchaseOrderId: "",
   isSavingPurchaseOrder: false,
@@ -923,6 +925,7 @@ const purchaseOrderRemaining = document.querySelector("#purchaseOrderRemaining")
 const purchaseOrderSearch = document.querySelector("#purchaseOrderSearch");
 const purchaseOrderStatusFilter = document.querySelector("#purchaseOrderStatusFilter");
 const refreshPurchaseOrdersButton = document.querySelector("#refreshPurchaseOrdersButton");
+const toggleCompletedPurchaseOrdersButton = document.querySelector("#toggleCompletedPurchaseOrdersButton");
 const purchaseOrderTableBody = document.querySelector("#purchaseOrderTableBody");
 const resetPurchaseOrderFiltersButton = document.querySelector("#resetPurchaseOrderFiltersButton");
 const purchaseOrderColumnSort = window.PurchaseOrderSort?.create(document.querySelector(".purchase-order-table"), {
@@ -934,6 +937,7 @@ resetPurchaseOrderFiltersButton?.addEventListener("click", () => {
   purchaseOrderStatusFilter.value = "";
   state.purchaseOrderQuery = "";
   state.purchaseOrderStatusFilter = "";
+  state.showCompletedPurchaseOrders = false;
   purchaseOrderColumnSort?.reset();
   applyPurchaseOrderFilters();
 });
@@ -1592,6 +1596,15 @@ purchaseOrderSearch?.addEventListener("input", (event) => {
 });
 purchaseOrderStatusFilter?.addEventListener("change", (event) => {
   state.purchaseOrderStatusFilter = event.target.value;
+  if (["발주완료", "임의 완료"].includes(event.target.value)) state.showCompletedPurchaseOrders = true;
+  applyPurchaseOrderFilters();
+});
+toggleCompletedPurchaseOrdersButton?.addEventListener("click", () => {
+  state.showCompletedPurchaseOrders = !state.showCompletedPurchaseOrders;
+  if (!state.showCompletedPurchaseOrders && ["발주완료", "임의 완료"].includes(state.purchaseOrderStatusFilter)) {
+    state.purchaseOrderStatusFilter = "";
+    purchaseOrderStatusFilter.value = "";
+  }
   applyPurchaseOrderFilters();
 });
 refreshPurchaseOrdersButton?.addEventListener("click", async () => {
@@ -2669,7 +2682,7 @@ function createProductionPlanEmptyJob(process) {
 function ensureProductionPlanRows(jobs) {
   const seen = new Set();
   const rows = jobs.filter((job) => PRODUCTION_PROCESS_ORDER.includes(job.process)
-    && ![state.purchaseOrders?.find(order => order.purchaseOrderId === job.purchaseOrderId)?.status, state.purchaseOrders?.find(order => order.purchaseOrderId === job.purchaseOrderId)?.storedStatus].includes("임의 완료")).map((job) => {
+    && ![state.purchaseOrders?.find(order => order.purchaseOrderId === job.purchaseOrderId)?.status, state.purchaseOrders?.find(order => order.purchaseOrderId === job.purchaseOrderId)?.storedStatus].some(status => ["임의 완료", "발주완료"].includes(status))).map((job) => {
     let planRowId = job.planRowId || job.purchaseOrderId;
     if (!planRowId || seen.has(planRowId)) planRowId = `plan-${crypto.randomUUID()}`;
     seen.add(planRowId);
@@ -2864,7 +2877,7 @@ function getProductionPlanBalance(order) {
 
 function getProductionPlanOpenOrders() {
   return state.purchaseOrders
-    .filter((order) => ![order.status, order.storedStatus].some(status => ["취소", "임의 완료"].includes(status)) && getProductionPlanBalance(order) > 0)
+    .filter((order) => ![order.status, order.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status)) && getProductionPlanBalance(order) > 0)
     .sort((a, b) => {
       const dueCompare = String(a.endDate || "9999-12-31").localeCompare(String(b.endDate || "9999-12-31"));
       if (dueCompare) return dueCompare;
@@ -3436,7 +3449,7 @@ function setActiveView(view) {
     loadInventoryDashboard(!state.inventoryLoaded);
   }
 
-  if (view === "purchase-orders" && !state.purchaseOrdersLoaded) {
+  if (view === "purchase-orders") {
     loadPurchaseOrders();
   }
 
@@ -8631,7 +8644,10 @@ function applyPurchaseOrderFilters() {
   const query = state.purchaseOrderQuery;
   const status = state.purchaseOrderStatusFilter;
   state.filteredPurchaseOrders = state.purchaseOrders.filter((order) => {
-    if (status && getPurchaseOrderDisplayStatus(order) !== status) return false;
+    const displayStatus = getPurchaseOrderDisplayStatus(order);
+    const completed = ["발주완료", "임의 완료"].includes(displayStatus);
+    if (!state.showCompletedPurchaseOrders && completed && !["발주완료", "임의 완료"].includes(status)) return false;
+    if (status === "발주완료" ? !completed : status && displayStatus !== status) return false;
     if (!query) return true;
     return [
       order.purchaseOrderId,
@@ -8642,6 +8658,11 @@ function applyPurchaseOrderFilters() {
     ].some((value) => normalizeSearchText(value).includes(query));
   });
   if (purchaseOrderColumnSort) state.filteredPurchaseOrders = purchaseOrderColumnSort.sort(state.filteredPurchaseOrders);
+  if (toggleCompletedPurchaseOrdersButton) {
+    const shown = state.showCompletedPurchaseOrders || ["발주완료", "임의 완료"].includes(status);
+    toggleCompletedPurchaseOrdersButton.textContent = shown ? "발주완료 항목 숨기기" : "발주완료 항목 보기";
+    toggleCompletedPurchaseOrdersButton.setAttribute("aria-pressed", String(Boolean(shown)));
+  }
   renderPurchaseOrderSummary();
   renderPurchaseOrders();
 }
@@ -8649,9 +8670,9 @@ function applyPurchaseOrderFilters() {
 function renderPurchaseOrderSummary() {
   const orders = state.purchaseOrders;
   const activeCount = orders.filter((order) => ["입고중", "작업중"].includes(getPurchaseOrderDisplayStatus(order))).length;
-  const completedCount = orders.filter((order) => ["입고완료", "작업완료", "임의 완료"].includes(getPurchaseOrderDisplayStatus(order))).length;
+  const completedCount = orders.filter((order) => ["입고완료", "발주완료", "임의 완료"].includes(getPurchaseOrderDisplayStatus(order))).length;
   const remaining = orders
-    .filter((order) => !["취소", "임의 완료"].includes(getPurchaseOrderDisplayStatus(order)))
+    .filter((order) => !["취소", "임의 완료", "발주완료"].includes(getPurchaseOrderDisplayStatus(order)))
     .reduce((sum, order) => sum + Number(order.remainingQuantity || 0), 0);
   if (purchaseOrderTotal) purchaseOrderTotal.innerHTML = `${orders.length.toLocaleString("ko-KR")} <em>건</em>`;
   if (purchaseOrderActive) purchaseOrderActive.innerHTML = `${activeCount.toLocaleString("ko-KR")} <em>건</em>`;
@@ -8708,7 +8729,7 @@ function renderPurchaseOrders(message = "") {
         <td><span class="purchase-order-status-badge" data-status="${getPurchaseOrderDisplayStatus(order)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "발주 완료" : getPurchaseOrderDisplayStatus(order)}</span></td>
         <td>
           <span class="purchase-order-actions">
-            ${order.status !== "취소" ? `<button type="button" data-purchase-order-action="complete" data-completed="${getPurchaseOrderDisplayStatus(order) === "임의 완료"}" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "완료 취소" : "발주 완료"}</button>` : ""}
+            ${getPurchaseOrderDisplayStatus(order) === "발주완료" ? `<span class="purchase-order-auto-completed">자동 완료</span>` : order.status !== "취소" ? `<button type="button" data-purchase-order-action="complete" data-completed="${getPurchaseOrderDisplayStatus(order) === "임의 완료"}" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}">${getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "완료 취소" : "발주 완료"}</button>` : ""}
             <button class="purchase-order-more" type="button" data-purchase-order-action="menu" data-purchase-order-id="${escapeAttribute(order.purchaseOrderId)}" aria-label="${escapeAttribute(order.orderRound || "발주")} 관리 메뉴" aria-haspopup="menu" aria-expanded="false" aria-controls="purchaseOrderActionMenu"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
           </span>
         </td>
@@ -8719,10 +8740,10 @@ function renderPurchaseOrders(message = "") {
 
 function getPurchaseOrderDisplayStatus(order) {
   if ([order.status, order.storedStatus].includes("임의 완료")) return "임의 완료";
-  if (order.status === "취소") return "취소";
+  if ([order.status, order.storedStatus].includes("취소")) return "취소";
   const total = Number(order.totalOrderQuantity);
   const shipped = Number(order.accumulatedShippingQuantity);
-  if (total > 0 && Number.isFinite(shipped) && shipped >= total) return "작업완료";
+  if (total > 0 && Number.isFinite(shipped) && shipped >= total) return "발주완료";
   if (shipped > 0) return "작업중";
   const inbound = Number(order.accumulatedInboundQuantity);
   const rate = total > 0 && Number.isFinite(inbound) ? inbound / total : Number(order.inboundRate || 0);
@@ -8887,7 +8908,7 @@ async function togglePurchaseOrderCompletion(order, button) {
   if (button.disabled) return;
   const closed = getPurchaseOrderDisplayStatus(order) === "임의 완료";
   const message = closed
-    ? `${order.productName} ${order.orderRound || ""}의 발주 완료를 취소하고 다시 진행하시겠습니까?`
+    ? `${order.productName} ${order.orderRound || ""}의 수동 완료를 취소하시겠습니까?${Number(order.totalOrderQuantity) > 0 && Number(order.accumulatedShippingQuantity) >= Number(order.totalOrderQuantity) ? " 출고량이 100% 이상이므로 자동 발주완료는 유지됩니다." : " 다시 진행 상태로 돌아갑니다."}`
     : `${order.productName} ${order.orderRound || ""}를 발주 완료 처리하시겠습니까?\n실제 입고·출고 수량과 비율은 그대로 유지됩니다.`;
   if (!window.confirm(message)) return;
   button.disabled = true;
@@ -8923,7 +8944,7 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
   const previousValue = preferredOrderId || inboundPurchaseOrder.value;
   const orders = state.purchaseOrders.filter((order) => (
     order.productId === productId
-    && !["취소", "임의 완료"].includes(getPurchaseOrderDisplayStatus(order))
+    && !["취소", "임의 완료", "발주완료"].includes(getPurchaseOrderDisplayStatus(order))
   ));
   if (!productId) {
     inboundPurchaseOrder.innerHTML = '<option value="">제품을 먼저 선택해주세요.</option>';
@@ -12694,7 +12715,7 @@ function renderInboundEditForm(inbound) {
   const currentPurchaseOrderId = String(inbound.purchaseOrderId || "").trim();
   const editablePurchaseOrders = state.purchaseOrders.filter((order) => (
     order.productId === inbound.productId
-    && (order.purchaseOrderId === currentPurchaseOrderId || !["취소", "임의 완료"].includes(getPurchaseOrderDisplayStatus(order)))
+    && (order.purchaseOrderId === currentPurchaseOrderId || !["취소", "임의 완료", "발주완료"].includes(getPurchaseOrderDisplayStatus(order)))
   ));
   if (currentPurchaseOrderId && !editablePurchaseOrders.some((order) => order.purchaseOrderId === currentPurchaseOrderId)) {
     editablePurchaseOrders.unshift({

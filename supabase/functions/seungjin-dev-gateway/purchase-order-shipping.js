@@ -34,8 +34,16 @@ export function summarizePurchaseOrderShipping(orders, links, boxes) {
   return orders.map((order) => {
     const shipped = totals.get(order.purchaseOrderId) || 0;
     const total = quantity(order.totalOrderQuantity);
+    const manualCompleted = [order.status, order.storedStatus].includes("임의 완료");
+    const cancelled = [order.status, order.storedStatus].includes("취소");
+    const automaticallyCompleted = !manualCompleted && !cancelled && total > 0 && shipped >= total;
+    const baselineStatus = order.status === "발주완료"
+      ? (quantity(order.accumulatedInboundQuantity) >= total && total > 0 ? "입고완료" : "진행 중")
+      : order.status;
     return {
       ...order,
+      status: cancelled ? "취소" : manualCompleted ? "임의 완료" : automaticallyCompleted ? "발주완료" : baselineStatus,
+      automaticallyCompleted,
       accumulatedShippingQuantity: shipped,
       shippingRate: total > 0 ? shipped / total : null,
       remainingShippingQuantity: Math.max(0, total - shipped),

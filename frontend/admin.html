@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260918-audit-bulk-v1-prd-invoice-preview-r18-completed-r35-storage-r37-qr-bulk-r38-checkbox-r39" />
+    <link rel="stylesheet" href="./styles.css?v=20260918-audit-bulk-v1-prd-invoice-preview-r18-completed-r35-storage-r37-qr-bulk-r38-checkbox-r39-auto-order-r43" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260909-qr-worker-hint-prd-qr-bulk-r38" />
     <link rel="stylesheet" href="./qr-process-groups.css?v=20260918-process-font-r19" />
     <link rel="stylesheet" href="./common-container-shipping.css?v=20260922-common-shipping-v1">
@@ -1004,7 +1004,7 @@
           <section class="purchase-order-summary-grid" aria-label="발주 현황 요약">
             <article><span>전체 발주</span><strong id="purchaseOrderTotal">0 <em>건</em></strong></article>
             <article><span>입고중 · 작업중</span><strong id="purchaseOrderActive">0 <em>건</em></strong></article>
-            <article><span>입고완료 · 작업완료</span><strong id="purchaseOrderCompleted">0 <em>건</em></strong></article>
+            <article><span>입고완료 · 발주완료</span><strong id="purchaseOrderCompleted">0 <em>건</em></strong></article>
             <article><span>미입고 수량</span><strong id="purchaseOrderRemaining">0 <em>ea</em></strong></article>
           </section>
 
@@ -1020,11 +1020,12 @@
                 <option>입고중</option>
                 <option>입고완료</option>
                 <option>작업중</option>
-                <option>작업완료</option>
+                <option value="발주완료">발주완료</option>
                 <option>취소</option>
-                <option value="임의 완료">발주 완료</option>
+                <option value="임의 완료">발주완료(수동)</option>
               </select>
             </label>
+            <button class="secondary-action" type="button" id="toggleCompletedPurchaseOrdersButton" aria-pressed="false">발주완료 항목 보기</button>
             <button class="secondary-action" type="button" id="resetPurchaseOrderFiltersButton">검색·정렬 초기화</button>
             <button class="secondary-action" type="button" id="refreshPurchaseOrdersButton">
               <i class="ti ti-refresh" aria-hidden="true"></i>
@@ -3184,7 +3185,7 @@
                 <select id="purchaseOrderFormStatus">
                   <option value="">자동 계산</option>
                   <option value="취소">취소</option>
-                  <option value="임의 완료">발주 완료</option>
+                  <option value="임의 완료">발주완료(수동)</option>
                 </select>
               </label>
               <label class="form-field full-span">
@@ -3313,6 +3314,6 @@
     <script src="./inventory-list-sort.js?v=20260917-inventory-list-sort-v1"></script>
     <script src="./inventory-audit-cards.js?v=20260917-audit-card-drag-v1"></script>
     <script src="./common-container-shipping.js?v=20260922-common-shipping-v1"></script>
-    <script src="./admin.js?v=20260918-audit-bulk-v1-prd-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-count20-r24-process-rates-r25-shipping-fix-r26-notification-read-r27-inbound-confirmation-r32-bulk-move-r33-survey-r34-completed-r35-monthly-day30-r36-storage-r37-qr-bulk-r38-audit-storage-r41-camera-focus-r42"></script>
+    <script src="./admin.js?v=20260918-audit-bulk-v1-prd-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-count20-r24-process-rates-r25-shipping-fix-r26-notification-read-r27-inbound-confirmation-r32-bulk-move-r33-survey-r34-completed-r35-monthly-day30-r36-storage-r37-qr-bulk-r38-audit-storage-r41-camera-focus-r42-auto-order-r43"></script>
   </body>
 </html>
