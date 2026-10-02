@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-02", title: "입고·재고 목록의 긴 제품명 표시 개선", items: ["긴 제품명은 칸 너비에 맞춰 글자 크기를 자동 조절하여 한 줄로 표시합니다. 짧은 이름은 기존 크기를 유지하고, 마우스를 올리면 전체 제품명을 확인할 수 있습니다."] },
   { date: "2026-10-02", title: "PC 출고관리 화면 및 검색 속도 개선", items: ["출고 목록과 요약의 중복 집계를 줄이고 정렬 계산을 한 번씩 수행하도록 개선했습니다. 검색은 마지막 입력을 기준으로 갱신하며, 한글 조합 중 반복 계산을 멈춰 입력 지연을 줄였습니다."] },
   { date: "2026-10-02", title: "모바일 출고완료 박스 재등록 지연 개선", items: ["출고완료 박스를 출고대기로 재등록하면 저장된 박스 상태를 모바일 목록에 바로 반영합니다. 다음 QR 스캔을 위해 전체 재고를 다시 불러오던 대기를 제거했습니다."] },
   { date: "2026-10-02", title: "기존 QR 공정 표시 및 백업 보완", items: ["제품을 다시 저장하지 않아도 사용하지 않는 QR 공정 칸은 대시로 표시합니다. 현재 제품의 최종공정을 우선 적용하고, 시트 백업 시 필요한 행·열을 자동 확장합니다."] },
@@ -988,6 +989,13 @@ const inventoryStorageFilter = document.querySelector("#inventoryStorageFilter")
 const inventoryStockFilter = document.querySelector("#inventoryStockFilter");
 const inventoryProcessFilter = document.querySelector("#inventoryProcessFilter");
 const inventoryTableBody = document.querySelector("#inventoryTableBody");
+let tableProductNameFitFrame = null;
+const tableProductNameResizeObserver = typeof ResizeObserver === "function"
+  ? new ResizeObserver(() => scheduleTableProductNameFit()) : null;
+[inboundTableBody, inventoryTableBody].forEach((body) => {
+  if (body) tableProductNameResizeObserver?.observe(body.closest("table"));
+});
+document.fonts?.ready.then(() => scheduleTableProductNameFit());
 const inventoryColumnSort = window.InventoryListSort?.create(inventoryTableBody?.closest("table"), {
   hint: document.querySelector("#inventorySortHint"),
   onChange: () => {
@@ -2611,6 +2619,7 @@ shippingRowActionMenu?.addEventListener("click", (event) => {
 });
 
 window.addEventListener("resize", () => {
+  scheduleTableProductNameFit();
   syncProductTableColumnWidths();
   closeRowActionMenu();
   closeInboundRowActionMenu();
@@ -3474,6 +3483,39 @@ function setActiveView(view) {
       loadInventoryDashboard(false);
     }
   }
+  if (["inbound", "inventory"].includes(view)) scheduleTableProductNameFit();
+}
+
+function renderTableProductName(value) {
+  const name = String(value || "");
+  return `<span class="table-product-name" title="${escapeAttribute(name)}"><span class="table-product-name-text">${escapeHtml(name)}</span></span>`;
+}
+
+function scheduleTableProductNameFit() {
+  if (tableProductNameFitFrame !== null) return;
+  tableProductNameFitFrame = window.requestAnimationFrame(() => {
+    tableProductNameFitFrame = null;
+    fitTableProductNames();
+  });
+}
+
+function fitTableProductNames() {
+  const names = [...document.querySelectorAll(".table-product-name")]
+    .filter((container) => container.getClientRects().length && container.clientWidth > 0)
+    .map((container) => ({ container, text: container.querySelector(".table-product-name-text") }))
+    .filter(({ text }) => text);
+  // Reset together, then measure together to avoid a layout pass for every row.
+  names.forEach(({ text }) => { text.style.fontSize = ""; });
+  const sizes = names.map(({ container, text }) => {
+    const availableWidth = container.getBoundingClientRect().width;
+    const textWidth = text.getBoundingClientRect().width;
+    const baseSize = Number.parseFloat(window.getComputedStyle(container).fontSize);
+    return { text, fontSize: textWidth > availableWidth && baseSize > 0
+      ? Math.floor(baseSize * (availableWidth / textWidth) * 100) / 100 : null };
+  });
+  sizes.forEach(({ text, fontSize }) => {
+    if (fontSize !== null) text.style.fontSize = `${fontSize}px`;
+  });
 }
 
 async function openShippingInspectionModal(row) {
@@ -7873,7 +7915,7 @@ function renderTodayInbounds(message = "") {
         <td>${escapeHtml(formatInboundDateTime(item.inboundDate, item.inboundTime))}</td>
         <td>${escapeHtml(item.clientName)}</td>
         <td>${escapeHtml(item.inboundType)}</td>
-        <td>${escapeHtml(item.productName)}</td>
+        <td>${renderTableProductName(item.productName)}</td>
         <td>${escapeHtml(item.batch)}</td>
         <td>${escapeHtml(item.purchaseOrderRound || "-")}</td>
         <td>${escapeHtml(item.process)}</td>
@@ -7930,6 +7972,7 @@ function renderTodayInbounds(message = "") {
     state.inboundSort.direction
   );
   renderInboundPagination(pageCount);
+  scheduleTableProductNameFit();
 }
 
 function renderInboundPagination(pageCount) {
@@ -10386,7 +10429,7 @@ function renderInventoryTable(message = "") {
         <td>${escapeHtml(item.inboundDate)}</td>
         <td><strong>${escapeHtml(item.managementId)}</strong></td>
         <td>${escapeHtml(item.clientName)}</td>
-        <td>${escapeHtml(item.productName)}</td>
+        <td>${renderTableProductName(item.productName)}</td>
         <td>${escapeHtml(item.batch)}</td>
         <td>${escapeHtml(item.purchaseOrderRound || "-")}</td>
         <td>${escapeHtml(item.finalProcess)}</td>
@@ -10432,6 +10475,7 @@ function renderInventoryTable(message = "") {
     : `전체 ${state.inventoryRows.length.toLocaleString("ko-KR")}건`;
 
   renderInventoryPagination(pageCount);
+  scheduleTableProductNameFit();
 }
 
 function renderInventoryPagination(pageCount) {

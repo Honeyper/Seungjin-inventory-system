@@ -3282,6 +3282,23 @@ small, em {
   font-size: 0.84rem;
 }
 
+.table-product-name {
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.table-product-name-text {
+  display: inline-block;
+  max-width: none;
+  line-height: inherit;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .inventory-total-row {
   background: #f7fbff;
   box-shadow: inset 0 -1px 0 #dbe7f5;
