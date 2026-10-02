@@ -20,7 +20,7 @@ for (const [type,label] of [['coating','코팅'],['label','라벨']]) {
  test(`${label} QR uses named first row and disables second/third for all treatment settings`,()=>{
   for(const flame of ['무','유']) for(const dust of ['무','유']) {
    const data={finalProcess:label,flameTreatmentStatus:flame,dustRemovalStatus:dust};
-   assert.deepEqual(getProcessRows(data),[{label,disabled:false,treatment:false},{label:'2도',disabled:true,treatment:false},{label:'3도',disabled:true,treatment:false}]);
+   assert.deepEqual(getProcessRows(data),[{label,disabled:false,treatment:false},{label:'---',disabled:true,treatment:false},{label:'---',disabled:true,treatment:false}]);
    assert.equal(getProcessSummary(data),label);
   }
  });

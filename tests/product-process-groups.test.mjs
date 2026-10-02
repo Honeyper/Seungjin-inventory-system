@@ -76,3 +76,14 @@ test('QR uses the current saved SKU groups and final degree instead of an older 
   assert.equal(result.finalProcess,'6도');assert.equal(result.summary,'6도');
   assert.deepEqual(Array.from(result.processRows,r=>r.label),['1도+2도','3도+4도','5도+6도']);
 });
+test('기존 제품도 재저장 없이 현재 최종공정을 우선하고 미사용 공정명을 대시로 출력한다',()=>{
+  for(const degree of [1,2,3]){
+    const p={productId:'P1',finalProcess:`${degree}도`};
+    const c=vm.createContext({SeungjinQrLabel:qr,findInboundQrProduct:()=>p});
+    vm.runInContext(extract('getInboundQrProcessData'),c);
+    const result=c.getInboundQrProcessData({process:'3도'},[],p);
+    assert.equal(result.finalProcess,p.finalProcess);
+    assert.deepEqual(Array.from(result.processRows,r=>r.label),Array.from({length:3},(_,i)=>i<degree?`${i+1}도`:'---'));
+    assert.deepEqual(qr.getProcessRows(p).map(r=>r.label),qr.getProcessRows({...p,processGroups:Array.from({length:degree},(_,i)=>[i+1])}).map(r=>r.label));
+  }
+});

@@ -73,8 +73,8 @@
     if (["코팅", "라벨"].includes(singleProcess)) {
       return [
         { label: singleProcess, disabled: false, treatment: false },
-        { label: "2도", disabled: true, treatment: false },
-        { label: "3도", disabled: true, treatment: false }
+        { label: "---", disabled: true, treatment: false },
+        { label: "---", disabled: true, treatment: false }
       ];
     }
     const hasFlameTreatment = isEnabled(flameTreatmentStatus);
@@ -100,7 +100,7 @@
     return labels.map((label) => {
       const step = getProcessStep(label);
       return {
-        label,
+        label: step && finalStep && step > finalStep ? "---" : label,
         disabled: Boolean(step && finalStep && step > finalStep),
         treatment: !step
       };

@@ -193,7 +193,9 @@ function getApiRoutes_() {
     updateInbound,
     deleteInbound,
     formatProductRows,
-    applySupabaseOutbox
+    applySupabaseOutbox,
+    readSheetBackupRows,
+    applySheetBackupRows
   };
 }
 
@@ -1514,6 +1516,7 @@ function ensureProductCommonContainerHeaders_(sheet) {
 
   const startColumn = Math.max(sheet.getLastColumn(), headerInfo.headers.length) + 1;
   const headerRowNumber = headerInfo.rowIndex + 1;
+  ensureSheetWriteCapacity_(sheet, headerRowNumber, startColumn + missingHeaders.length - 1);
   sheet.getRange(headerRowNumber, startColumn, 1, missingHeaders.length).setValues([missingHeaders]);
   sheet.setColumnWidths(startColumn, missingHeaders.length, 130);
 
@@ -3057,6 +3060,7 @@ function updateInbound(payload) {
 }
 
 function applyProductRowTemplate_(sheet, templateRowNumber, targetRowNumber, columnCount) {
+  ensureSheetWriteCapacity_(sheet, targetRowNumber, columnCount);
   if (targetRowNumber === templateRowNumber || templateRowNumber > sheet.getLastRow()) {
     return;
   }
@@ -3080,6 +3084,7 @@ function appendStyledRangeRows_(sheet, startColumn, rows, templateRowNumber) {
 
   const targetStartRow = Math.max(sheet.getLastRow() + 1, templateRowNumber);
   const columnCount = rows[0].length;
+  ensureSheetWriteCapacity_(sheet, targetStartRow + rows.length - 1, startColumn + columnCount - 1);
   const templateRange = sheet.getRange(templateRowNumber, startColumn, 1, columnCount);
   const targetRange = sheet.getRange(targetStartRow, startColumn, rows.length, columnCount);
   const targetEndRow = targetStartRow + rows.length - 1;

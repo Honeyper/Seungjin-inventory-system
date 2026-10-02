@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-02", title: "기존 QR 공정 표시 및 백업 보완", items: ["제품을 다시 저장하지 않아도 사용하지 않는 QR 공정 칸은 대시로 표시합니다. 현재 제품의 최종공정을 우선 적용하고, 시트 백업 시 필요한 행·열을 자동 확장합니다."] },
   { date: "2026-10-02", title: "출고량 기준 발주 자동 완료", items: ["정상 출고량이 총 발주량의 100% 이상이면 자동 발주완료로 분류합니다. 완료 항목은 기본 숨김이며 보기 버튼으로 확인할 수 있습니다. 출고 취소 시 실제 출고량에 따라 자동 완료를 해제합니다."] },
   { date: "2026-10-01", title: "모바일 QR 카메라 초점 개선", items: ["기본 후면 카메라를 우선 선택하고 브라우저별 자동 초점 설정을 보완했습니다. 여러 후면 카메라를 사용할 수 있는 기기에는 카메라 변경 버튼을 추가했습니다."] },
   { date: "2026-10-01", title: "모바일 실물 확인 및 보관 위치 지정", items: ["같은 위치를 다시 지정해도 선택 박스의 실물 확인이 저장됩니다. 실물 확인은 스캔한 박스를 기본 선택하며 보관 위치를 함께 지정할 수 있습니다."] },
@@ -11365,7 +11366,7 @@ function findInboundQrProduct(inbound, boxes = []) {
   const productId = String(inbound?.productId || firstBox?.productId || "").trim();
 
   if (productId) {
-    const productById = state.products.find((product) => String(product.productCode || "").trim() === productId);
+    const productById = state.products.find((product) => String(product.productId || product.productCode || "").trim() === productId);
     if (productById) {
       return productById;
     }
@@ -11390,7 +11391,7 @@ function getInboundQrProcessData(inbound, boxes = [], productProcessInfo = null)
   const treatmentSource = productProcessInfo || product || {};
   const inboundProcess = [inbound?.process, inbound?.finalProcess, inbound?.processStatus]
     .find((value) => String(value || "").trim());
-  const finalProcess = String((Array.isArray(treatmentSource.processGroups) ? treatmentSource.finalProcess : "") || inboundProcess || treatmentSource.finalProcess || "-")
+  const finalProcess = String(treatmentSource.finalProcess || inboundProcess || "-")
     .split("|")[0]
     .trim();
   const flameTreatmentStatus = treatmentSource.flameTreatmentStatus || "무";

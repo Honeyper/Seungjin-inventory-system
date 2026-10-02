@@ -28,7 +28,7 @@ test("기본 공정은 1도, 2도, 3도 순서를 유지한다", () => {
   assert.deepEqual(getProcessRows({ finalProcess: "2도" }), [
     { label: "1도", disabled: false, treatment: false },
     { label: "2도", disabled: false, treatment: false },
-    { label: "3도", disabled: true, treatment: false }
+    { label: "---", disabled: true, treatment: false }
   ]);
 });
 
@@ -36,7 +36,7 @@ test("화염은 첫 칸에 놓고 1도와 2도를 뒤로 이동한다", () => {
   assert.deepEqual(getProcessRows({ finalProcess: "1도", flameTreatmentStatus: "유" }), [
     { label: "화염", disabled: false, treatment: true },
     { label: "1도", disabled: false, treatment: false },
-    { label: "2도", disabled: true, treatment: false }
+    { label: "---", disabled: true, treatment: false }
   ]);
 });
 
