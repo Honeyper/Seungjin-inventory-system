@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-06", title: "입고 목록 합계 표시", items: ["입고 목록에 총 입고 건수·박스 수·수량을 표시합니다. 선택한 조회 기간과 검색 결과 전체를 합산하며, 잔량 박스도 포함합니다."] },
   { date: "2026-10-06", title: "제품 선택 목록의 복사 등록", items: ["제품 선택 목록의 수정 옆에 복사 버튼을 추가했습니다. 기존 제품 정보를 새 등록 화면에 채워 필요한 내용을 수정한 뒤 새 제품코드로 저장할 수 있습니다."] },
   { date: "2026-10-06", title: "모바일 검색 결과 일괄 출고", items: ["모바일 출고관리에서 검색 결과에 등록된 출고 가능한 박스를 한 번에 출고할 수 있습니다. 제품·박스 수와 수량을 확인한 뒤 처리하며, 공용용기 제품 지정과 실패한 박스 재시도를 지원합니다. 일괄 출고 영역의 위아래 여백을 줄였습니다."] },
   { date: "2026-10-02", title: "QR 정보·공정·관리자 행 높이 통일", items: ["QR과 제품명 영역을 제외한 상단 정보·표 머리글·공정·관리자 행의 높이를 동일하게 맞췄습니다. 기본형과 레이아웃 2 모두 화면·인쇄에 적용합니다."] },
@@ -865,6 +866,7 @@ const inboundDefectQty = document.querySelector("#inboundDefectQty");
 const inboundSubmitButton = document.querySelector("#inboundSubmitButton");
 const inboundTableBody = document.querySelector("#inboundTableBody");
 const inboundCountLabel = document.querySelector("#inboundCountLabel");
+const inboundListTotals = document.querySelector("#inboundListTotals");
 const inboundPagination = document.querySelector("#inboundPagination");
 const inboundPageSizeSelect = document.querySelector("#inboundPageSizeSelect");
 const refreshInboundListButton = document.querySelector("#refreshInboundListButton");
@@ -7883,6 +7885,20 @@ function renderQrActionButton(item, context) {
   `;
 }
 
+function renderInboundListTotals(inbounds) {
+  if (!inboundListTotals) return;
+  const totals = inbounds.reduce((sum, item) => {
+    sum.boxes += parseShippingSettlementNumber(item.boxTotalCount);
+    sum.quantity += parseShippingSettlementNumber(item.inboundTotalQuantity);
+    return sum;
+  }, {boxes: 0, quantity: 0});
+  inboundListTotals.innerHTML = `
+    <div class="inventory-total-chip primary"><span>총 입고 건수</span><strong>${formatNumber(inbounds.length)}건</strong></div>
+    <div class="inventory-total-chip"><span>총 입고 박스 수</span><strong>${formatNumber(totals.boxes)} box</strong></div>
+    <div class="inventory-total-chip"><span>총 입고 수량</span><strong>${formatNumber(totals.quantity)} ea</strong></div>
+  `;
+}
+
 function renderTodayInbounds(message = "") {
   if (!inboundTableBody || !inboundCountLabel) {
     return;
@@ -7892,6 +7908,7 @@ function renderTodayInbounds(message = "") {
 
   const sourceCount = state.todayInbounds.length;
   const inbounds = getFilteredInbounds();
+  renderInboundListTotals(inbounds);
   updateInboundQrSelection(inbounds);
   const pageSize = Number(inboundPageSizeSelect?.value) || state.inboundPageSize || 10;
   const pageCount = Math.max(1, Math.ceil(inbounds.length / pageSize));

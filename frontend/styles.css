@@ -11850,6 +11850,8 @@ small, em {
 }
 
 .inbound-qr-bulk-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: .8rem; padding: .75rem .7rem; border-top: 1px solid #e0e6ee; background: #f8fafc; color: #102f5d; font-size: .8rem; }
+.inventory-list-totals.inbound-list-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: .55rem .7rem; }
+@media (max-width: 720px) { .inventory-list-totals.inbound-list-totals { grid-template-columns: minmax(0, 1fr); } }
 .inbound-qr-bulk-toolbar label { display: grid; grid-template-columns: 2rem auto; align-items: center; gap: .5rem; cursor: pointer; font-weight: 500; }
 .inbound-qr-bulk-toolbar > span { color: #65758d; }
 .inbound-qr-bulk-toolbar .primary-modal-action { margin-left: auto; min-width: 0; padding: .55rem .85rem; font-size: .8rem; }
