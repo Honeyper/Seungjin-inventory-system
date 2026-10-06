@@ -7341,7 +7341,7 @@ small, em {
 
 .picker-product-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: stretch;
   gap: 0.48rem;
 }

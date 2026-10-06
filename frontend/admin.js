@@ -96,6 +96,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-06", title: "제품 선택 목록의 복사 등록", items: ["제품 선택 목록의 수정 옆에 복사 버튼을 추가했습니다. 기존 제품 정보를 새 등록 화면에 채워 필요한 내용을 수정한 뒤 새 제품코드로 저장할 수 있습니다."] },
   { date: "2026-10-06", title: "모바일 검색 결과 일괄 출고", items: ["모바일 출고관리에서 검색 결과에 등록된 출고 가능한 박스를 한 번에 출고할 수 있습니다. 제품·박스 수와 수량을 확인한 뒤 처리하며, 공용용기 제품 지정과 실패한 박스 재시도를 지원합니다. 일괄 출고 영역의 위아래 여백을 줄였습니다."] },
   { date: "2026-10-02", title: "QR 정보·공정·관리자 행 높이 통일", items: ["QR과 제품명 영역을 제외한 상단 정보·표 머리글·공정·관리자 행의 높이를 동일하게 맞췄습니다. 기본형과 레이아웃 2 모두 화면·인쇄에 적용합니다."] },
   { date: "2026-10-02", title: "QR 다공정 작성 칸 확대", items: ["화염을 포함해 4개 이상의 공정이 표시되는 QR은 상단 정보·표 머리글·관리자 칸을 줄이고 공정별 작성 칸을 넓혔습니다. 기본형과 레이아웃 2의 화면·인쇄에 적용합니다."] },
@@ -8245,6 +8246,15 @@ function renderInboundProductPicker() {
         <i class="ti ti-pencil" aria-hidden="true"></i>
         <span>수정</span>
       </button>
+      <button
+        class="picker-product-edit picker-product-copy"
+        type="button"
+        data-copy-picker-product="${escapeHtml(product.productCode)}"
+        aria-label="${escapeHtml(product.productName)} 복사"
+      >
+        <i class="ti ti-copy" aria-hidden="true"></i>
+        <span>복사</span>
+      </button>
     </div>
   `).join("");
 
@@ -8283,6 +8293,19 @@ function renderInboundProductPicker() {
       state.productFormReturnTarget = state.inboundProductPickerTarget;
       inboundProductPickerModal.hidden = true;
       openProductModal("edit", product);
+    });
+  });
+
+  inboundProductPickerList.querySelectorAll("[data-copy-picker-product]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const product = getProductByCode(button.dataset.copyPickerProduct);
+      if (!product) {
+        showToast("복사할 제품 정보를 찾을 수 없습니다.");
+        return;
+      }
+      state.productFormReturnTarget = state.inboundProductPickerTarget;
+      inboundProductPickerModal.hidden = true;
+      openProductModal("copy", product);
     });
   });
 }
@@ -13606,7 +13629,7 @@ function openProductModal(mode = "create", product = null) {
   state.productFormMode = mode;
   state.editingProductCode = mode === "edit" ? product?.productCode || "" : "";
   revokeProductImagePreviewUrls();
-  state.productImageUrls = mode === "edit" ? getProductImageUrls(product) : [];
+  state.productImageUrls = mode === "edit" || mode === "copy" ? getProductImageUrls(product) : [];
 
   productForm.reset();
   ensureCommonContainerCountOption(1);
@@ -13614,17 +13637,18 @@ function openProductModal(mode = "create", product = null) {
   syncCommonContainerFields();
   productFormMessage.textContent = "";
   productFormMessage.classList.remove("success");
-  productModalTitle.textContent = mode === "edit" ? "제품 정보 수정" : "신규 제품 등록";
+  productModalTitle.textContent = mode === "edit" ? "제품 정보 수정" : mode === "copy" ? "제품 복사 등록" : "신규 제품 등록";
   productModalDescription.textContent = mode === "edit"
     ? "제품코드를 제외한 제품 정보를 수정할 수 있습니다."
+    : mode === "copy" ? "복사한 제품 정보를 확인하고 저장해주세요. 새 제품코드가 자동 생성됩니다."
     : "신규 제품 정보를 입력해주세요. * 표시는 필수 입력입니다.";
   saveProductButton.textContent = mode === "edit" ? "수정 저장" : "저장";
   productCodePreview.placeholder = mode === "edit" ? "제품코드는 수정할 수 없습니다." : "자동 생성됩니다.";
   renderClientOptions();
   setProductProcessForm(product);
 
-  if (mode === "edit" && product) {
-    productCodePreview.value = product.productCode || "";
+  if ((mode === "edit" || mode === "copy") && product) {
+    productCodePreview.value = mode === "edit" ? product.productCode || "" : "";
     setSelectValue(productClientName, product.clientName);
     productNameInput.value = normalizeEditableValue(product.productName);
     productColor.value = normalizeEditableValue(product.color);
@@ -13892,6 +13916,8 @@ async function saveProduct() {
         }
       } else if (returnTarget === "purchaseOrder") {
         selectPurchaseOrderProduct(createdProduct);
+      } else if (returnTarget === "productionPlan") {
+        selectProductionPlanProduct(createdProduct);
       } else {
         selectInboundProduct(createdProduct);
       }
