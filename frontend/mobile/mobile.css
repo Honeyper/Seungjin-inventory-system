@@ -8990,6 +8990,34 @@ body {
   align-items: center;
 }
 
+.shipping-search-batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--operations-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.shipping-search-batch p {
+  margin: 0;
+  color: var(--operations-ink);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.shipping-search-batch .primary-action {
+  width: auto;
+  margin: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .inventory-move-controls .shipping-action-row {
   grid-template-columns: 1fr auto;
   padding-bottom: 4px;

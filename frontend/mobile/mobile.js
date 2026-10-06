@@ -245,6 +245,9 @@ const elements = {
   logoutButton: document.querySelector("#mobileLogoutButton"),
   mobileUserName: document.querySelector("#mobileUserName"),
   shippingSearchInput: document.querySelector("#shippingSearchInput"),
+  shippingSearchBatch: document.querySelector("#shippingSearchBatch"),
+  shippingSearchBatchSummary: document.querySelector("#shippingSearchBatchSummary"),
+  completeShippingSearchButton: document.querySelector("#completeShippingSearchButton"),
   shippingLiveDate: document.querySelector("#shippingLiveDate"),
   shippingLiveTime: document.querySelector("#shippingLiveTime"),
   mobileShippingCount: document.querySelector("#mobileShippingCount"),
@@ -396,6 +399,7 @@ function bindEvents() {
   elements.autoLogin?.addEventListener("change", handleLoginPreferenceChange);
   elements.logoutButton?.addEventListener("click", logout);
   elements.refreshShippingButton?.addEventListener("click", handleRefreshShipping);
+  elements.completeShippingSearchButton?.addEventListener("click", openSearchShippingConfirmModal);
   elements.showCompletedShippingToggle?.addEventListener("click", toggleCompletedShippingBoxes);
   elements.filterShippingButton?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -2153,6 +2157,7 @@ function getShippingStatusTone(status) {
 function renderShippingList(rows) {
   elements.mobileShippingCount.textContent = String(rows.length);
   renderShippingListTotals(rows);
+  renderSearchShippingAction();
 
   if (!rows.length) {
     const hasHiddenCompletedBoxes = !state.showCompletedShippingBoxes
@@ -3386,6 +3391,7 @@ function renderShippingItem(item) {
 }
 
 function renderShippingLoading() {
+  if (elements.shippingSearchBatch) elements.shippingSearchBatch.hidden = true;
   elements.mobileShippingCount.textContent = "0";
   if (elements.mobileShippingBoxTotal) elements.mobileShippingBoxTotal.textContent = "-";
   if (elements.mobileShippingQuantityTotal) elements.mobileShippingQuantityTotal.textContent = "-";
@@ -3403,6 +3409,7 @@ function renderShippingLoading() {
 }
 
 function renderShippingError(message) {
+  if (elements.shippingSearchBatch) elements.shippingSearchBatch.hidden = true;
   elements.mobileShippingCount.textContent = "0";
   if (elements.mobileShippingBoxTotal) elements.mobileShippingBoxTotal.textContent = "-";
   if (elements.mobileShippingQuantityTotal) elements.mobileShippingQuantityTotal.textContent = "-";
@@ -3562,6 +3569,48 @@ function openConfirmModal(item, action = "complete") {
     elements.mobileTransferReturnControls.hidden = !isInventoryReturnAction;
   }
   showConfirmDialog();
+}
+
+function getSearchShippingItems() {
+  if (!normalizeSearchText(state.query)) return [];
+  const seen = new Set();
+  return state.filteredRows.flatMap((row) => row.scannedItems || [row]).filter((item) => {
+    const box = getScannedBox(item);
+    const boxKey = getScannedBoxKey(item);
+    if (!box || !boxKey || isCompletedShippingItem(item) || !isManualShippingBoxAvailable(box, item)) return false;
+    const key = [item.managementId, item.productId, boxKey].map(normalizeScanValue).join("__");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function renderSearchShippingAction() {
+  if (!elements.shippingSearchBatch) return;
+  elements.shippingSearchBatch.hidden = !normalizeSearchText(state.query);
+  const items = getSearchShippingItems();
+  const quantity = items.reduce((sum, item) => sum + getBoxCurrentQuantity(getScannedBox(item), item), 0);
+  elements.shippingSearchBatchSummary.textContent = `출고 가능 ${formatNumber(items.length)}박스 · ${formatNumber(quantity)} ea`;
+  elements.completeShippingSearchButton.disabled = state.isCompletingShipping || !items.length;
+}
+
+function openSearchShippingConfirmModal() {
+  if (state.isCompletingShipping) return;
+  const items = getSearchShippingItems();
+  if (!items.length) {
+    showToast("검색 결과에 출고 가능한 등록 박스가 없습니다.");
+    return;
+  }
+  const productCount = new Set(items.map(getShippingDisplayGroupKey)).size;
+  const quantity = items.reduce((sum, item) => sum + getBoxCurrentQuantity(getScannedBox(item), item), 0);
+  // Capture exactly the filtered boxes; the existing batch handler groups writes by inbound.
+  openConfirmModal({ scannedItems: items, scannedBoxCount: items.length, productName: "검색 결과" }, "complete");
+  syncClientToneClass(elements.confirmModal, "", { clear: true });
+  elements.confirmTitle.textContent = "검색 결과 일괄 출고";
+  elements.confirmMessage.textContent = "검색 결과에 등록된 출고 가능한 박스만 출고합니다.";
+  elements.confirmProductName.textContent = `검색어: ${elements.shippingSearchInput.value.trim()}`;
+  elements.acceptConfirmButton.textContent = "일괄 출고";
+  renderConfirmMeta([`${formatNumber(productCount)}개 제품`, `${formatNumber(items.length)}박스`, `${formatNumber(quantity)} ea`]);
 }
 
 function openScannedShippingConfirmModal(action = "complete") {
@@ -3875,6 +3924,7 @@ async function handleConfirmShipping() {
   }
 
   state.isCompletingShipping = true;
+  renderSearchShippingAction();
   elements.acceptConfirmButton.disabled = true;
   elements.acceptConfirmButton.textContent = "처리 중";
 
@@ -3907,6 +3957,7 @@ async function handleConfirmShipping() {
     showToast(error.message || (action === "cancelCompleted" ? "출고 취소 중 문제가 발생했습니다." : action === "cancelPending" ? "출고대기 취소 중 문제가 발생했습니다." : action === "pending" ? "출고대기 등록 중 문제가 발생했습니다." : "출고 처리 중 문제가 발생했습니다."));
   } finally {
     state.isCompletingShipping = false;
+    renderSearchShippingAction();
     elements.acceptConfirmButton.disabled = false;
     elements.acceptConfirmButton.textContent = "확인";
   }
