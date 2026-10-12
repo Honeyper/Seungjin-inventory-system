@@ -14950,3 +14950,5 @@ small, em {
 }
 
 #inboundDetailDescription:empty, .inventory-detail-layout [data-inventory-audit-message]:empty { display: none; }
+
+#createProductFromPickerButton[hidden] { display: none; }
