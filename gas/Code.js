@@ -2701,6 +2701,20 @@ function ensureInventoryAuditColumns() {
   };
 }
 
+// Append new fields after existing operator columns, including backup metadata.
+function ensurePurchaseOrderDeliveryHeaders_(sheet) {
+  const info = findHeaderRow_(sheet.getDataRange().getDisplayValues(), ['발주ID', '제품ID', '제품명']);
+  if (!info) throw new Error('발주 시트의 헤더를 찾을 수 없습니다.');
+  const headers = [...info.headers];
+  for (const name of ['납기유형', '일 최소 생산량']) {
+    if (findHeaderIndex_(indexHeaders_(headers), [name]) >= 0) continue;
+    headers.push(name);
+    if (sheet.getMaxColumns() < headers.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+    sheet.getRange(info.rowIndex + 1, headers.length).setValue(name);
+  }
+  return headers;
+}
+
 function getPurchaseOrderHeaders_() {
   return [
     '발주ID',
@@ -2885,7 +2899,7 @@ function ensurePurchaseOrderSheet_(ss) {
   return {
     sheet,
     headerRow,
-    headers,
+    headers: ensurePurchaseOrderDeliveryHeaders_(sheet),
     referenceHeaderStyleColumn: styleColumn
   };
 }
@@ -2998,10 +3012,18 @@ function updatePurchaseOrder(payload) {
 
   try {
     const sheet = getSheet_(CONFIG.SHEETS.PURCHASE_ORDERS);
+    ensurePurchaseOrderDeliveryHeaders_(sheet);
     const stockSheet = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
     const result = readPurchaseOrders_(sheet, stockSheet, false);
     const current = result.orders.find((order) => order.purchaseOrderId === purchaseOrderId);
     if (!current) throw new Error('수정할 발주를 찾을 수 없습니다.');
+    if (payload.deliveryType == null && payload['납기유형'] == null) {
+      data.deliveryType = current.deliveryType;
+      data.dailyMinimumQuantity = current.deliveryType === 'daily'
+        ? Number(payload.dailyMinimumQuantity ?? current.dailyMinimumQuantity) : null;
+      if (data.deliveryType === 'daily') data.endDate = '';
+      validatePurchaseOrderPayload_(data);
+    }
     if (current.accumulatedInboundQuantity > 0 && current.productId !== data.productId) {
       throw new Error('입고가 연결된 발주는 제품을 변경할 수 없습니다.');
     }
@@ -3034,6 +3056,9 @@ function updatePurchaseOrder(payload) {
       updatedAt
     };
     const row = buildPurchaseOrderRow_(result.headers, next);
+    const existingRow = sheet.getRange(current.sheetRowNumber, 1, 1, result.headers.length).getValues()[0];
+    const managedHeaders = new Set([...getPurchaseOrderHeaders_(), '발주 종료일', '납기유형', '일 최소 생산량']);
+    result.headers.forEach((header, index) => { if (!managedHeaders.has(header)) row[index] = existingRow[index]; });
     sheet.getRange(current.sheetRowNumber, 1, 1, result.headers.length).setValues([row]);
     return { purchaseOrderId, updatedAt };
   } finally {
@@ -3064,13 +3089,18 @@ function deletePurchaseOrder(payload) {
 }
 
 function normalizePurchaseOrderPayload_(payload) {
+  const rawType = String(payload.deliveryType ?? payload['납기유형'] ?? 'date').trim();
+  const deliveryType = ['daily', '매일생산', '매일 생산·납기'].includes(rawType) ? 'daily'
+    : ['date', '지정 납기일'].includes(rawType) ? 'date' : rawType;
   return {
+    deliveryType,
+    dailyMinimumQuantity: deliveryType === 'daily' ? Number(String(payload.dailyMinimumQuantity ?? payload['일 최소 생산량'] ?? '').replace(/,/g, '')) : null,
     productId: String(payload.productId || payload['제품ID'] || payload['제품 ID'] || '').trim(),
     clientName: String(payload.clientName || payload['업체명'] || payload['거래처명'] || '').trim(),
     productName: String(payload.productName || payload['제품명'] || '').trim(),
     orderRound: String(payload.orderRound || payload.purchaseOrderRound || payload['발주 차수'] || '').trim(),
     startDate: normalizeDateKey_(payload.startDate || payload['발주 시작일']),
-    endDate: normalizeDateKey_(payload.endDate || payload.dueDate || payload['납기일'] || payload['발주 종료일']),
+    endDate: deliveryType === 'daily' ? '' : normalizeDateKey_(payload.endDate || payload.dueDate || payload['납기일'] || payload['발주 종료일']),
     totalOrderQuantity: displayQuantityToNumber_(payload.totalOrderQuantity || payload['총 발주량']),
     status: String(payload.status || payload['상태'] || '').trim(),
     note: String(payload.note || payload['비고'] || '').trim(),
@@ -3079,6 +3109,10 @@ function normalizePurchaseOrderPayload_(payload) {
 }
 
 function validatePurchaseOrderPayload_(data) {
+  if (!['date', 'daily'].includes(data.deliveryType)) throw new Error('납기 방식을 확인해주세요.');
+  if (data.deliveryType === 'daily' && (!Number.isSafeInteger(data.dailyMinimumQuantity) || data.dailyMinimumQuantity <= 0)) {
+    throw new Error('일 최소 생산량은 1 이상의 정수로 입력해주세요.');
+  }
   const required = [
     ['productId', '제품'],
     ['clientName', '거래처명'],
@@ -3112,14 +3146,17 @@ function readPurchaseOrders_(sheet, stockSheet, writeProgress) {
     const accumulatedInboundQuantity = inboundMap[purchaseOrderId] || 0;
     const remainingQuantity = Math.max(totalOrderQuantity - accumulatedInboundQuantity, 0);
     const inboundRate = totalOrderQuantity > 0 ? accumulatedInboundQuantity / totalOrderQuantity : 0;
+    const deliveryType = ['daily', '매일생산', '매일 생산·납기'].includes(String(pickCell_(row, indexes, ['납기유형']) || '').trim()) ? 'daily' : 'date';
     const base = {
+      deliveryType,
+      dailyMinimumQuantity: deliveryType === 'daily' ? displayQuantityToNumber_(pickCell_(row, indexes, ['일 최소 생산량'])) : null,
       purchaseOrderId,
       productId: pickCell_(row, indexes, ['제품ID', '제품 ID']),
       clientName: pickCell_(row, indexes, ['업체명', '거래처명']),
       productName: pickCell_(row, indexes, ['제품명']),
       orderRound: pickCell_(row, indexes, ['발주 차수']),
       startDate: normalizeDateKey_(pickCell_(row, indexes, ['발주 시작일'])),
-      endDate: normalizeDateKey_(pickCell_(row, indexes, ['납기일', '발주 종료일'])),
+      endDate: deliveryType === 'daily' ? '' : normalizeDateKey_(pickCell_(row, indexes, ['납기일', '발주 종료일'])),
       totalOrderQuantity,
       accumulatedInboundQuantity,
       remainingQuantity,
@@ -3172,7 +3209,9 @@ function buildPurchaseOrderRow_(headers, order) {
   setRowValue_(row, indexes, ['제품명'], order.productName);
   setRowValue_(row, indexes, ['발주 차수'], order.orderRound);
   setRowValue_(row, indexes, ['발주 시작일'], order.startDate);
-  setRowValue_(row, indexes, ['납기일', '발주 종료일'], order.endDate);
+  setRowValue_(row, indexes, ['납기일', '발주 종료일'], order.deliveryType === 'daily' ? '' : order.endDate);
+  setRowValue_(row, indexes, ['납기유형'], order.deliveryType || 'date');
+  setRowValue_(row, indexes, ['일 최소 생산량'], order.deliveryType === 'daily' ? order.dailyMinimumQuantity : '');
   setRowValue_(row, indexes, ['총 발주량'], order.totalOrderQuantity);
   setRowValue_(row, indexes, ['누적 입고량'], order.accumulatedInboundQuantity);
   setRowValue_(row, indexes, ['미입고 수량'], order.remainingQuantity);

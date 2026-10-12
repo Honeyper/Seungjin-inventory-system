@@ -24,6 +24,8 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8766"
 ]);
 const CLIENT_SAFE_ERROR_MESSAGES = new Map([
+  ["납기 방식을 확인해주세요.", "납기 방식을 확인해주세요."],
+  ["일 최소 생산량은 1 이상의 정수로 입력해주세요.", "일 최소 생산량은 1 이상의 정수로 입력해주세요."],
   [INVENTORY_ADJUSTMENT_CONFLICT, INVENTORY_ADJUSTMENT_CONFLICT],
   [
     "동일 제품과 발주 차수가 이미 등록되어 있습니다.",

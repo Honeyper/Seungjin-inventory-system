@@ -14952,3 +14952,12 @@ small, em {
 #inboundDetailDescription:empty, .inventory-detail-layout [data-inventory-audit-message]:empty { display: none; }
 
 #createProductFromPickerButton[hidden] { display: none; }
+
+#purchaseOrderEndDateField[hidden],
+#purchaseOrderDailyMinimumField[hidden] {
+  display: none;
+}
+
+#purchaseOrderDailyMinimumField .unit-input input {
+  padding-right: 110px;
+}
