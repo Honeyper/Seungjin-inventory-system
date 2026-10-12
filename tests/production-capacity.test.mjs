@@ -51,3 +51,44 @@ test('이미 완료한 작업과 소량 잔량은 초과 생산하지 않는다'
  assert.equal(run([{...base,remaining:0}]).entries.length,0);
  const r=run([{...base,remaining:11}]);assert.equal(r.entries[0].quantity,11);assert.ok(r.entries[0].hours<8);
 });
+
+const stages = (overrides = {}) => [
+ {...base,id:'stage1',group:'order|1',stage:1,dueDate:'2026-10-12',remaining:4000,machine:'1호기',worker:'1도 작업자'},
+ {...base,id:'stage2',group:'order|2',stage:2,dueDate:'2026-10-12',remaining:4000,machine:'2호기',worker:'2도 작업자',
+   upstreamGroup:'order|1',inputQuantity:0,...overrides}
+];
+test('2도는 다른 기계에서도 1도 배치가 끝난 뒤에 작업하고 수량을 공정별로 계산한다',()=>{
+ const r=run(stages(),'2026-10-12');
+ assert.equal(r.complete,true);
+ const [first,second]=r.entries;
+ assert.equal(first.quantity,4000);assert.equal(second.quantity,4000);
+ assert.ok(second.startHour>=first.startHour+first.hours-1e-7);
+ assert.equal(r.mode.hours,8);
+});
+test('같은 기계의 1도·2도 시간도 겹치지 않는다',()=>{
+ const r=run(stages({machine:'1호기'}),'2026-10-12');
+ assert.equal(r.complete,true);assert.equal(r.entries[1].startHour,4);
+});
+test('이미 끝난 1도 물량은 사용할 수 있지만 남은 2도 작업을 과다 배정하지 않는다',()=>{
+ const jobs=stages({remaining:9000,inputQuantity:2000});jobs[0].remaining=0;
+ const r=run(jobs,'2026-10-12');
+ assert.equal(r.entries.length,1);assert.equal(r.entries[0].quantity,2000);
+ assert.equal(r.remaining.get('order|2'),7000);assert.equal(r.complete,false);
+});
+test('이전 공정 실적이 없으면 2도 생산 가능량을 가정하지 않는다',()=>{
+ const r=run(stages({inputQuantity:null}),'2026-10-12');
+ assert.equal(r.unknown.find(row=>row.id==='stage2').reason,'이전 공정 실적 확인 필요');
+ assert.ok(!r.entries.some(row=>row.id==='stage2'));
+});
+test('날짜가 바뀌어도 1도 생산분을 2도에 중복 사용하지 않는다',()=>{
+ const jobs=stages({remaining:9000,machine:'1호기',dueDate:'2026-10-13'});
+ Object.assign(jobs[0],{remaining:9000,dueDate:'2026-10-13'});
+ const r=run(jobs,'2026-10-12');
+ assert.equal(r.complete,true);
+ for(const id of ['stage1','stage2'])assert.equal(r.entries.filter(row=>row.id===id).reduce((sum,row)=>sum+row.quantity,0),9000);
+ for(const entry of r.entries.filter(row=>row.id==='stage2')) {
+  const upstream=r.entries.filter(row=>row.id==='stage1' && (row.date<entry.date || row.date===entry.date && row.startHour+row.hours<=entry.startHour+1e-7)).reduce((sum,row)=>sum+row.quantity,0);
+  const consumed=r.entries.filter(row=>row.id==='stage2' && (row.date<entry.date || row.date===entry.date && row.startHour<=entry.startHour)).reduce((sum,row)=>sum+row.quantity,0);
+  assert.ok(consumed<=upstream);
+ }
+});

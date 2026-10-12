@@ -75,7 +75,8 @@ const SERVER_USAGE_POLL_MS = 30 * 1000;
 const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
 const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const PRODUCTION_PROCESS_ORDER = ["실크 인쇄"];
-const PRODUCTION_PLAN_PRODUCT_ID = "KR-0024";
+const PRODUCTION_PLAN_PRODUCT_ID = "NP-0001";
+const PRODUCTION_PLAN_STAGES = [1, 2];
 const PRODUCTION_MACHINE_OPTIONS = {
   "실크 인쇄": Array.from({ length: 12 }, (_, index) => `${index + 1}호기`)
 };
@@ -94,6 +95,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-12", title: "오브제 외용기 2도 생산계획 샘플", items: ["생산계획 샘플을 오브제 파운데이션 외용기로 변경했습니다. 1도·2도 실크 인쇄를 각각 배정하고 공정별 기계·작업자·실적을 저장합니다. 2도는 1도 생산분을 기준으로 배정하며 완제품 목표는 2도 수량으로 표시합니다."] },
   { date: "2026-10-12", title: "발주 납기 방식 및 일 최소 생산량", items: ["발주 등록·수정에서 지정 납기일 또는 매일 생산·납기를 선택합니다. 매일 생산은 일 최소 생산량을 저장하고 목록에 일 ○○개 이상으로 표시하며, 생산계획에도 일 최소량을 적용합니다. 기존 발주는 날짜 납기 방식을 유지합니다."] },
   { date: "2026-10-12", title: "메디큐브 단일 제품 계획 및 기계 선택", items: ["생산계획의 대상 제품을 메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g로 변경했습니다. 실크 인쇄 한 행을 유지하고 기계는 1호기부터 12호기까지 선택할 수 있습니다."] },
   { date: "2026-10-12", title: "라카 단일 제품 생산계획", items: ["기존 생산계획표에 실크 인쇄 한 행만 표시하고 라카 매직립픽서만 선택할 수 있도록 제한했습니다. 다른 공정과 행 추가·삭제를 제거했으며, 저장·발주 동기화·계획 생성 후에도 한 행을 유지합니다."] },
@@ -2697,37 +2699,52 @@ function initializeProductionPlan() {
 }
 
 function getProductionPlanStorageKey() {
-  return `${PRODUCTION_PLAN_STORAGE_PREFIX}:product:KR-0024:${state.productionPlanFactory}:${state.productionPlanDate}`;
+  return `${PRODUCTION_PLAN_STORAGE_PREFIX}:product:${PRODUCTION_PLAN_PRODUCT_ID}:${state.productionPlanFactory}:${state.productionPlanDate}`;
 }
 
-function createProductionPlanEmptyJob() {
+function createProductionPlanEmptyJob(stage = 1) {
   return {
-    planRowId: `plan-${crypto.randomUUID()}`,
+    planRowId: `plan-${crypto.randomUUID()}`, stage,
     productionMetricsVersion: 2,
-    purchaseOrderId: "", productId: PRODUCTION_PLAN_PRODUCT_ID, productName: "메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g", clientName: "(주)케이알", orderRound: "",
+    purchaseOrderId: "", productId: PRODUCTION_PLAN_PRODUCT_ID, productName: "오브제 파운데이션 외용기", clientName: "뉴파트너스", orderRound: "",
     process: "실크 인쇄", machine: "", worker: "", note: "", targetQuantity: 0, balance: 0,
     dueDate: "", hours: PRODUCTION_STANDARD_WORK_HOURS, manualProcess: true
   };
 }
 
+function getProductionPlanGroup(job) {
+  return `${job.purchaseOrderId}|${job.process}|${job.stage || 1}`;
+}
+
 function ensureProductionPlanRows(jobs) {
-  const job = jobs.find(item => {
+  const valid = jobs.filter(item => {
     const order = state.purchaseOrders?.find(order => order.purchaseOrderId === item.purchaseOrderId);
     return (order?.productId || item.productId) === PRODUCTION_PLAN_PRODUCT_ID
       && ![order?.status, order?.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status));
   });
-  if (!job) return [createProductionPlanEmptyJob()];
-  const legacyMetrics = job.productionMetricsVersion === 2 ? {} : {
-    productionMetricsVersion: 2, cumulativeProduction: null, loss: null, workDays: null,
-    cumulativeHours: Number(job.cumulativeHours) > 0 ? Number(job.cumulativeHours) : null,
-    actualProduction: Number(job.actualProduction) > 0 ? Number(job.actualProduction) : null
-  };
-  return [{ ...job, ...legacyMetrics, productId: PRODUCTION_PLAN_PRODUCT_ID, process: "실크 인쇄",
-    planRowId: job.planRowId || job.purchaseOrderId || `plan-${crypto.randomUUID()}` }];
+  const selected = valid.find(item => item.purchaseOrderId) || valid[0];
+  const order = state.purchaseOrders?.find(order => order.purchaseOrderId === selected?.purchaseOrderId);
+  return PRODUCTION_PLAN_STAGES.map(stage => {
+    const row = valid.find(item => item.purchaseOrderId === selected?.purchaseOrderId && Number(item.stage || 1) === stage);
+    const base = createProductionPlanEmptyJob(stage);
+    const legacyMetrics = row && (row.productionMetricsVersion !== 2 || !row.stage) ? {
+      productionMetricsVersion: 2, cumulativeProduction: null, loss: null, workDays: null,
+      cumulativeHours: row.stage && Number(row.cumulativeHours) > 0 ? Number(row.cumulativeHours) : null,
+      actualProduction: row.stage && Number(row.actualProduction) > 0 ? Number(row.actualProduction) : null
+    } : {};
+    return { ...base,
+      ...(order ? {purchaseOrderId: order.purchaseOrderId, productName: order.productName, clientName: order.clientName,
+        orderRound: order.orderRound, dueDate: order.endDate || "", balance: getProductionPlanBalance(order),
+        deliveryType: order.deliveryType || "date", dailyMinimumQuantity: order.dailyMinimumQuantity || null,
+        orderQuantity: Number(order.totalOrderQuantity)} : {}),
+      ...row, ...legacyMetrics, stage, productId: PRODUCTION_PLAN_PRODUCT_ID, process: "실크 인쇄",
+      planRowId: row?.planRowId || (order ? `${order.purchaseOrderId}:stage${stage}` : base.planRowId)
+    };
+  });
 }
 
 function getProductionPlanActiveJobs() {
-  return state.productionPlanJobs.filter((job) => job.productId === PRODUCTION_PLAN_PRODUCT_ID && Boolean(job.purchaseOrderId)).slice(0, 1);
+  return state.productionPlanJobs.filter(job => job.productId === PRODUCTION_PLAN_PRODUCT_ID && Boolean(job.purchaseOrderId)).slice(0, 2);
 }
 
 function getProductionPlanWorkingDays(startValue, endValue) {
@@ -2738,7 +2755,7 @@ function getProductionPlanWorkingDays(startValue, endValue) {
 function getProductionPlanCalculations(job) {
   const order = state.purchaseOrders.find((item) => item.purchaseOrderId === job?.purchaseOrderId);
   const source = getProductionPlanReference(job);
-  const sameOrder = Boolean(source && source.orderQuantity === Number(order?.totalOrderQuantity)
+  const sameOrder = Boolean(source && getProductionPlanReferenceStage(source) === job.stage && source.orderQuantity === Number(order?.totalOrderQuantity)
     && source.dueDate && source.dueDate === order?.endDate && source.sourceDate <= state.productionPlanDate
     && state.purchaseOrders.filter(item => item.productId === job.productId && item.endDate === order.endDate
       && Number(item.totalOrderQuantity) === Number(order.totalOrderQuantity)).length === 1);
@@ -2782,22 +2799,30 @@ function getProductionPlanReference(job) {
   let selected = job.productionReferenceId;
   if (!selected) {
     try {
-      selected = JSON.parse(localStorage.getItem(`${PRODUCTION_PLAN_STORAGE_PREFIX}:sources`) || "{}")[`${state.productionPlanFactory}|${job.productId}|${job.process}`];
+      selected = JSON.parse(localStorage.getItem(`${PRODUCTION_PLAN_STORAGE_PREFIX}:sources`) || "{}")[`${state.productionPlanFactory}|${job.productId}|${job.process}|${job.stage}`];
     } catch (error) { /* The current plan remains usable if local storage is unavailable. */ }
   }
   if (selected) return rows.find(row => row.id === selected) || null;
   const normalize = value => String(value || "").replace(/\s/g, "").toLowerCase();
-  const matches = rows.filter(row => normalize(row.productName) === normalize(job.productName));
+  const matches = rows.filter(row => getProductionPlanReferenceStage(row) === job.stage
+    && normalize(row.productName).replace(/[12]도$/, "") === normalize(job.productName));
   return matches.length === 1 ? matches[0] : matches.find(row => row.machine === job.machine) || null;
+}
+
+function getProductionPlanReferenceStage(row) {
+  const explicit = Number(row?.stage);
+  if (PRODUCTION_PLAN_STAGES.includes(explicit)) return explicit;
+  return Number(String(row?.productName || "").match(/([12])도\s*$/)?.[1]) || null;
 }
 
 function getProductionPlanReferenceCandidates() {
   return (state.productionPlanReferenceRows || []).filter(row =>
-    ["메디큐브이지에프", "메디큐브egf", "메디큐브이지에프엔에이디퍼밍멀티밤10g"].includes(String(row.productName || "").replace(/\s/g, "").toLowerCase()));
+    ["오브제외용기", "오브제파운데이션외용기"].includes(String(row.productName || "").replace(/\s/g, "").replace(/[12]도$/, "")));
 }
 
 function updateProductionPlanTargets(jobs) {
   const active = jobs.filter(job => job.purchaseOrderId && PRODUCTION_PROCESS_ORDER.includes(job.process));
+  const calculations = new Map(active.map(job => [job.planRowId, getProductionPlanCalculations(job)]));
   const inputs = active.map(job => {
     const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
     if (order) {
@@ -2805,9 +2830,14 @@ function updateProductionPlanTargets(jobs) {
       job.deliveryType = order.deliveryType || "date";
       job.dailyMinimumQuantity = order.dailyMinimumQuantity || null;
     }
-    const values = getProductionPlanCalculations(job);
+    const values = calculations.get(job.planRowId);
+    const upstream = active.find(row => row.purchaseOrderId === job.purchaseOrderId && row.stage === job.stage - 1);
+    const upstreamValues = upstream ? calculations.get(upstream.planRowId) : null;
     job.productionRemaining = values.remaining;
-    return { id: job.planRowId, group: `${job.purchaseOrderId}|${job.process}`, process: job.process,
+    return { id: job.planRowId, group: getProductionPlanGroup(job), process: job.process, stage: job.stage,
+      upstreamGroup: upstream ? getProductionPlanGroup(upstream) : "",
+      inputQuantity: upstream ? (upstreamValues.cumulativeProduction === null || values.cumulativeProduction === null
+        ? null : Math.max(0, upstreamValues.cumulativeProduction - (upstreamValues.loss || 0) - values.cumulativeProduction)) : null,
       machine: job.machine, worker: job.worker,
       dueDate: job.deliveryType === "daily" ? state.productionPlanDate : job.dueDate,
       remaining: job.deliveryType === "daily" && values.remaining !== null
@@ -2826,7 +2856,7 @@ function updateProductionPlanTargets(jobs) {
     job.scheduleStartHour = today?.startHour || 0;
     // An automatic machine choice is part of this draft, not a permanent user constraint.
     job.scheduledMachine = today?.machine || "";
-    const left = result.remaining.get(`${job.purchaseOrderId}|${job.process}`) || 0;
+    const left = result.remaining.get(getProductionPlanGroup(job)) || 0;
     job.planMessage = missing?.reason || (left > 0 ? `${job.deliveryType === "daily" ? "일 최소 생산량" : "납기 내"} ${formatNumber(left)}ea 부족 · 배정 조정 필요`
       : today?.holiday ? "휴일 8시간 배정" : today?.shiftHours > 8 ? `납기상 ${today.shiftHours}시간 필요`
       : !today && job.productionRemaining > 0 ? "다른 날짜 배정 · 상세 확인" : "");
@@ -2869,45 +2899,24 @@ function getProductionPlanOpenOrders() {
 function buildProductionPlanJobs({ autoAssign = false, preserve = [] } = {}) {
   const orders = getProductionPlanOpenOrders();
   const selectedOrder = orders.find(order => preserve.some(job => job.purchaseOrderId === order.purchaseOrderId)) || orders[0];
-  const jobs = (selectedOrder ? [selectedOrder] : []).flatMap((order) => {
-    const previousRows = preserve.filter((job) => job.purchaseOrderId === order.purchaseOrderId);
-    return (previousRows.length ? previousRows : [null]).map((previous) => {
-      const process = "실크 인쇄";
-      const machines = PRODUCTION_MACHINE_OPTIONS[process] || [];
-      const machine = machines.includes(previous?.machine) ? previous.machine : "";
-      const balance = getProductionPlanBalance(order);
-      const orderQuantity = Math.max(0, Number(order?.totalOrderQuantity || previous?.orderQuantity || 0));
-      const cumulativeProduction = previous?.productionMetricsVersion === 2 ? previous.cumulativeProduction : null;
-      return {
-        planRowId: previous?.planRowId || order.purchaseOrderId,
-        manualProcess: Boolean(previous?.manualProcess),
-        purchaseOrderId: order.purchaseOrderId,
-        productId: order.productId || "",
-        orderRound: order.orderRound || "",
-        clientName: order.clientName || "",
-        productName: order.productName || "",
-        process,
-        machine,
-        targetQuantity: 0,
-        balance,
-        dueDate: order.endDate || "",
-        deliveryType: order.deliveryType || "date",
-        dailyMinimumQuantity: order.dailyMinimumQuantity || null,
-        worker: previous?.worker || "",
-        hours: Number(previous?.hours) > 0 ? Math.min(PRODUCTION_MAX_WORK_HOURS, Number(previous.hours)) : PRODUCTION_STANDARD_WORK_HOURS,
-        note: previous?.note || order.note || "",
-        orderQuantity,
-        workDays: previous?.productionMetricsVersion === 2 ? previous.workDays : null,
-        productionMetricsVersion: 2,
-        productionReferenceId: previous?.productionReferenceId || "",
-        loss: previous?.productionMetricsVersion === 2 ? previous.loss : null,
-        cumulativeProduction,
-        cumulativeHours: Number(previous?.cumulativeHours) > 0 ? Number(previous.cumulativeHours) : null,
-        actualProduction: Number(previous?.actualProduction) > 0 ? Number(previous.actualProduction) : null
-      };
-    });
+  const jobs = PRODUCTION_PLAN_STAGES.map(stage => {
+    const previous = preserve.find(job => job.purchaseOrderId === selectedOrder?.purchaseOrderId && Number(job.stage || 1) === stage);
+    const base = createProductionPlanEmptyJob(stage);
+    if (!selectedOrder) return {...base, ...preserve.find(job => !job.purchaseOrderId && Number(job.stage || 1) === stage), stage};
+    return { ...base, ...previous, stage,
+      planRowId: previous?.planRowId || `${selectedOrder.purchaseOrderId}:stage${stage}`,
+      purchaseOrderId: selectedOrder.purchaseOrderId, productId: selectedOrder.productId,
+      orderRound: selectedOrder.orderRound || "", clientName: selectedOrder.clientName || "",
+      productName: selectedOrder.productName || "", process: "실크 인쇄",
+      machine: PRODUCTION_MACHINE_OPTIONS["실크 인쇄"].includes(previous?.machine) ? previous.machine : "",
+      balance: getProductionPlanBalance(selectedOrder), dueDate: selectedOrder.endDate || "",
+      deliveryType: selectedOrder.deliveryType || "date", dailyMinimumQuantity: selectedOrder.dailyMinimumQuantity || null,
+      note: previous?.note || selectedOrder.note || "", orderQuantity: Number(selectedOrder.totalOrderQuantity || 0),
+      productionMetricsVersion: 2,
+      ...(!previous || previous.productionMetricsVersion === 2 && previous.stage ? {} : {cumulativeProduction:null,cumulativeHours:null,actualProduction:null,loss:null,workDays:null})
+    };
   });
-  const scoped = ensureProductionPlanRows([...jobs, ...preserve.filter((job) => !job.purchaseOrderId)]);
+  const scoped = ensureProductionPlanRows(jobs);
   return autoAssign ? applyProductionPlanRules(scoped) : scoped;
 }
 
@@ -2979,6 +2988,8 @@ function getProductionPlanFilteredJobs() {
     if (processCompare) return processCompare;
     if (Boolean(a.purchaseOrderId) !== Boolean(b.purchaseOrderId)) return a.purchaseOrderId ? -1 : 1;
     if (!a.purchaseOrderId && !b.purchaseOrderId) return 0;
+    const stageCompare = (a.stage || 1) - (b.stage || 1);
+    if (stageCompare) return stageCompare;
     const machineCompare = String(a.machine || "zz").localeCompare(String(b.machine || "zz"), "ko", { numeric: true });
     if (machineCompare) return machineCompare;
     return String(a.dueDate || "9999-12-31").localeCompare(String(b.dueDate || "9999-12-31"));
@@ -3053,7 +3064,7 @@ function renderProductionPlanTable() {
         <td>${escapeHtml(job.clientName || "-")}</td>
         <td class="production-plan-product">
           <button class="production-plan-product-trigger" type="button" data-plan-product-picker aria-label="${escapeAttribute(rowLabel)} ${empty ? "제품 선택" : "변경"}">
-            <span><strong>${escapeHtml(job.productName || "제품 선택")}</strong><small>${escapeHtml(job.orderRound || job.productId || (empty ? "제품을 선택해 계획을 입력하세요" : "-"))}</small></span>
+            <span><strong>${escapeHtml(job.productName || "제품 선택")}</strong><small>${job.stage}도 · ${escapeHtml(job.orderRound || job.productId || (empty ? "제품을 선택해 계획을 입력하세요" : "-"))}</small></span>
             <i class="ti ti-search" aria-hidden="true"></i>
           </button>
         </td>
@@ -3120,7 +3131,7 @@ function renderProductionPlanDetail() {
   if (!(v.sameOrder && v.sourceDate === state.productionPlanDate && v.source.actualProduction != null)) manual.push(input("금일 생산량", "actualProduction", v.actualProduction, "ea"));
   const days = (state.productionPlanSchedule?.entries || []).filter(entry => entry.id === job.planRowId);
   productionPlanDetailBody.innerHTML = `
-    <section class="production-plan-detail-product"><strong>${escapeHtml(job.productName)}</strong><small>${escapeHtml(job.clientName)} · ${escapeHtml(job.process)}</small></section>
+    <section class="production-plan-detail-product"><strong>${escapeHtml(job.productName)}</strong><small>${escapeHtml(job.clientName)} · ${escapeHtml(job.process)} ${job.stage}도</small></section>
     <section class="production-plan-policy"><div><strong>근무 원칙</strong><span>평일 8시간 → 9시간 → 10시간. 휴일이 불가피하면 전체 8시간부터 검토합니다.</span></div></section>
     <section class="production-plan-detail-section"><header><h3>참고 생산실적</h3></header>
       <select data-plan-reference aria-label="참고 생산실적"><option value="">참고 실적 선택 (선택사항)</option>${options}</select>
@@ -3152,7 +3163,7 @@ function handleProductionPlanDetailChange(event) {
     const job = state.productionPlanJobs.find(item => item.planRowId === state.productionPlanSelectedJobId);
     if (job) {
       job.productionReferenceId = reference.value || "manual";
-      const key = `${state.productionPlanFactory}|${job.productId}|${job.process}`;
+      const key = `${state.productionPlanFactory}|${job.productId}|${job.process}|${job.stage}`;
       try {
         const saved = JSON.parse(localStorage.getItem(`${PRODUCTION_PLAN_STORAGE_PREFIX}:sources`) || "{}");
         saved[key] = job.productionReferenceId;
@@ -3184,7 +3195,7 @@ function handleProductionPlanTableClick(event) {
 
 function renderProductionPlanSummary() {
   const jobs = getProductionPlanActiveJobs();
-  const totalTarget = jobs.reduce((sum, job) => sum + Number(job.targetQuantity || 0), 0);
+  const totalTarget = jobs.filter(job => job.stage === 2).reduce((sum, job) => sum + Number(job.targetQuantity || 0), 0);
   const dueSoon = jobs.filter(isProductionPlanUrgent).length;
   const unassigned = jobs.filter((job) => !(job.scheduledMachine || job.machine) || !job.worker).length;
   if (productionPlanJobCount) productionPlanJobCount.innerHTML = `${formatNumber(jobs.length)} <em>건</em>`;
@@ -3226,7 +3237,7 @@ function renderMachineScheduleBoard() {
         const width = Math.min(100 - left, Math.max(7, (duration / 10) * 100));
         cursor += duration;
         return `<article class="machine-schedule-task ${isProductionPlanUrgent(job) ? "urgent" : ""}" style="left:${left}%;width:${width}%" title="${escapeAttribute(job.productName)} · ${escapeAttribute(job.worker || "작업자 미배정")}">
-          <strong>${escapeHtml(job.productName)}</strong>
+          <strong>${escapeHtml(job.productName)} · ${job.stage}도</strong>
           <span>${escapeHtml(job.worker || "작업자 미배정")} · ${formatNumber(job.targetQuantity)}ea · ${duration}시간</span>
         </article>`;
       }).join("");
@@ -3264,7 +3275,7 @@ function renderProductionPlan() {
   renderProductionPlanDetail();
   if (state.productionPlanActiveTab === "board") renderMachineScheduleBoard();
   const caption = document.querySelector("#productionPlanTableCaption");
-  if (caption) caption.textContent = `${state.productionPlanDate || "오늘"} · ${state.productionPlanFactory} · 실크 인쇄 · 메디큐브 이지에프 한 제품만 계획합니다.`;
+  if (caption) caption.textContent = `${state.productionPlanDate || "오늘"} · ${state.productionPlanFactory} · 실크 인쇄 · 오브제 외용기 · 1도 → 2도 실크 인쇄를 계획합니다.`;
 }
 
 function handleProductionPlanFieldChange(event) {
@@ -3296,7 +3307,7 @@ async function handleProductionPlanProductPickerOpen(event) {
 
 function selectProductionPlanProduct(product) {
   if ((product.productCode || product.productId) !== PRODUCTION_PLAN_PRODUCT_ID) {
-    showToast("현재 생산계획에서는 메디큐브 이지에프만 선택할 수 있습니다.");
+    showToast("현재 생산계획에서는 오브제 외용기만 선택할 수 있습니다.");
     return;
   }
   const job = state.productionPlanJobs.find((item) => item.planRowId === state.productionPlanPickerJobId);
@@ -3315,7 +3326,9 @@ function selectProductionPlanProduct(product) {
   const currentOrder = matchingOrders.find((order) => order.purchaseOrderId === job.purchaseOrderId);
   const unusedOrder = matchingOrders.find((order) => !state.productionPlanJobs.some((item) => item !== job && item.purchaseOrderId === order.purchaseOrderId));
   const selectedOrder = currentOrder || unusedOrder || matchingOrders[0];
-  if (job.purchaseOrderId !== selectedOrder.purchaseOrderId) replaceProductionPlanJobOrder(job, selectedOrder.purchaseOrderId);
+  if (job.purchaseOrderId !== selectedOrder.purchaseOrderId) {
+    state.productionPlanJobs.forEach(row => replaceProductionPlanJobOrder(row, selectedOrder.purchaseOrderId));
+  }
   state.productionPlanJobs = ensureProductionPlanRows(state.productionPlanJobs);
   state.productionPlanPickerJobId = job.planRowId;
   state.productionPlanSelectedJobId = job.planRowId;
@@ -8117,7 +8130,7 @@ function openInboundProductPicker(target = "inbound") {
   const isProductionPlanTarget = target === "productionPlan";
   document.querySelector("#inboundProductPickerTitle").textContent = "제품 선택";
   document.querySelector("#inboundProductPickerTitle").nextElementSibling.textContent = isProductionPlanTarget
-    ? "현재 생산계획에서는 메디큐브 이지에프만 선택할 수 있습니다."
+    ? "현재 생산계획에서는 오브제 외용기만 선택할 수 있습니다."
     : isPurchaseOrderTarget
     ? "제품관리에 등록된 제품 목록에서 발주할 제품을 선택하세요."
     : isExistingStockTarget
