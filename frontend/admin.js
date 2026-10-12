@@ -77,6 +77,10 @@ const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNG
 const PRODUCTION_PROCESS_ORDER = ["실크 인쇄"];
 const PRODUCTION_PLAN_PRODUCT_ID = "NP-0001";
 const PRODUCTION_PLAN_STAGES = [1, 2];
+const PRODUCTION_PLAN_STAFF = {
+  worker: [{ name: "유순희", type: "employee", label: "직원" }],
+  packagingWorker: [{ name: "수쿠마", type: "outsourcing", label: "아웃소싱" }]
+};
 const PRODUCTION_MACHINE_OPTIONS = {
   "실크 인쇄": Array.from({ length: 12 }, (_, index) => `${index + 1}호기`)
 };
@@ -95,6 +99,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-12", title: "생산계획 인쇄·포장 작업자 선택", items: ["인쇄 작업자는 유순희(직원), 포장 작업자는 수쿠마(아웃소싱)를 선택합니다. 인쇄와 포장 담당자 및 인력 구분을 공정별 계획에 각각 저장하고 표시합니다."] },
   { date: "2026-10-12", title: "오브제 외용기 2도 생산계획 샘플", items: ["생산계획 샘플을 오브제 파운데이션 외용기로 변경했습니다. 1도·2도 실크 인쇄를 각각 배정하고 공정별 기계·작업자·실적을 저장합니다. 2도는 1도 생산분을 기준으로 배정하며 완제품 목표는 2도 수량으로 표시합니다."] },
   { date: "2026-10-12", title: "발주 납기 방식 및 일 최소 생산량", items: ["발주 등록·수정에서 지정 납기일 또는 매일 생산·납기를 선택합니다. 매일 생산은 일 최소 생산량을 저장하고 목록에 일 ○○개 이상으로 표시하며, 생산계획에도 일 최소량을 적용합니다. 기존 발주는 날짜 납기 방식을 유지합니다."] },
   { date: "2026-10-12", title: "메디큐브 단일 제품 계획 및 기계 선택", items: ["생산계획의 대상 제품을 메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g로 변경했습니다. 실크 인쇄 한 행을 유지하고 기계는 1호기부터 12호기까지 선택할 수 있습니다."] },
@@ -2707,9 +2712,34 @@ function createProductionPlanEmptyJob(stage = 1) {
     planRowId: `plan-${crypto.randomUUID()}`, stage,
     productionMetricsVersion: 2,
     purchaseOrderId: "", productId: PRODUCTION_PLAN_PRODUCT_ID, productName: "오브제 파운데이션 외용기", clientName: "뉴파트너스", orderRound: "",
-    process: "실크 인쇄", machine: "", worker: "", note: "", targetQuantity: 0, balance: 0,
+    process: "실크 인쇄", machine: "", worker: "유순희", workerType: "employee",
+    packagingWorker: "수쿠마", packagingWorkerType: "outsourcing", note: "", targetQuantity: 0, balance: 0,
     dueDate: "", hours: PRODUCTION_STANDARD_WORK_HOURS, manualProcess: true
   };
+}
+
+function getProductionPlanStaffAssignments(job) {
+  const worker = job?.worker === "" && !Object.prototype.hasOwnProperty.call(job, "workerType") ? "유순희" : job?.worker ?? "유순희";
+  const packagingWorker = job?.packagingWorker ?? "수쿠마";
+  return { worker, packagingWorker,
+    workerType: PRODUCTION_PLAN_STAFF.worker.find(person => person.name === worker)?.type || "",
+    packagingWorkerType: PRODUCTION_PLAN_STAFF.packagingWorker.find(person => person.name === packagingWorker)?.type || ""
+  };
+}
+
+function getProductionPlanStaffLabel(job, role) {
+  const name = job?.[role] || "";
+  const person = PRODUCTION_PLAN_STAFF[role].find(person => person.name === name);
+  return person ? `${person.name} (${person.label})` : name ? `${name} (기존 입력)` : "미지정";
+}
+
+function renderProductionPlanStaffOptions(job, role) {
+  const value = job[role] || "";
+  const people = PRODUCTION_PLAN_STAFF[role];
+  const legacy = value && !people.some(person => person.name === value)
+    ? `<option value="${escapeAttribute(value)}" selected disabled>기존 입력: ${escapeHtml(value)}</option>` : "";
+  return `<option value="" ${!value ? "selected" : ""}>미지정</option>${legacy}`
+    + people.map(person => `<option value="${escapeAttribute(person.name)}" ${value === person.name ? "selected" : ""}>${escapeHtml(person.name)} (${person.label})</option>`).join("");
 }
 
 function getProductionPlanGroup(job) {
@@ -2737,7 +2767,7 @@ function ensureProductionPlanRows(jobs) {
         orderRound: order.orderRound, dueDate: order.endDate || "", balance: getProductionPlanBalance(order),
         deliveryType: order.deliveryType || "date", dailyMinimumQuantity: order.dailyMinimumQuantity || null,
         orderQuantity: Number(order.totalOrderQuantity)} : {}),
-      ...row, ...legacyMetrics, stage, productId: PRODUCTION_PLAN_PRODUCT_ID, process: "실크 인쇄",
+      ...row, ...legacyMetrics, ...getProductionPlanStaffAssignments(row || base), stage, productId: PRODUCTION_PLAN_PRODUCT_ID, process: "실크 인쇄",
       planRowId: row?.planRowId || (order ? `${order.purchaseOrderId}:stage${stage}` : base.planRowId)
     };
   });
@@ -3071,7 +3101,10 @@ function renderProductionPlanTable() {
         <td class="production-plan-auto"><strong>${empty ? "—" : job.planMissing ? "자료 필요" : `${formatNumber(job.targetQuantity)} ea`}</strong>${!empty && job.planMessage ? `<small>${escapeHtml(job.planMessage)}</small>` : ""}</td>
         <td class="production-plan-balance">${empty ? "-" : job.productionRemaining === null ? "자료 필요" : `${formatNumber(job.productionRemaining)} ea`}</td>
         <td><span class="production-plan-due ${urgent ? "urgent" : ""}">${urgent ? '<i class="ti ti-clock-exclamation" aria-hidden="true"></i>' : ""}${escapeHtml(job.deliveryType === "daily" ? getPurchaseOrderDeliveryLabel(job) : job.dueDate || (empty ? "-" : "미정"))}</span></td>
-        <td><input data-plan-field="worker" type="text" value="${escapeAttribute(job.worker)}" placeholder="작업자" aria-label="${escapeAttribute(rowLabel)} 작업자" /></td>
+        <td class="production-plan-staff-cell"><div class="production-plan-staff-fields">
+          <label><span>인쇄</span><select data-plan-field="worker" aria-label="${escapeAttribute(rowLabel)} ${job.stage}도 인쇄 작업자">${renderProductionPlanStaffOptions(job, "worker")}</select></label>
+          <label><span>포장</span><select data-plan-field="packagingWorker" aria-label="${escapeAttribute(rowLabel)} ${job.stage}도 포장 작업자">${renderProductionPlanStaffOptions(job, "packagingWorker")}</select></label>
+        </div></td>
         <td class="production-plan-auto">${empty ? "—" : job.planMissing ? "자료 필요" : job.targetQuantity > 0 ? `${job.shiftHours || 8}시간` : "작업 없음"}</td>
         <td><div class="production-plan-note-controls">
           <input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(rowLabel)} 특이사항" />
@@ -3132,6 +3165,7 @@ function renderProductionPlanDetail() {
   const days = (state.productionPlanSchedule?.entries || []).filter(entry => entry.id === job.planRowId);
   productionPlanDetailBody.innerHTML = `
     <section class="production-plan-detail-product"><strong>${escapeHtml(job.productName)}</strong><small>${escapeHtml(job.clientName)} · ${escapeHtml(job.process)} ${job.stage}도</small></section>
+    <p class="production-plan-staff-summary">인쇄 · ${escapeHtml(getProductionPlanStaffLabel(job, "worker"))}<br>포장 · ${escapeHtml(getProductionPlanStaffLabel(job, "packagingWorker"))}</p>
     <section class="production-plan-policy"><div><strong>근무 원칙</strong><span>평일 8시간 → 9시간 → 10시간. 휴일이 불가피하면 전체 8시간부터 검토합니다.</span></div></section>
     <section class="production-plan-detail-section"><header><h3>참고 생산실적</h3></header>
       <select data-plan-reference aria-label="참고 생산실적"><option value="">참고 실적 선택 (선택사항)</option>${options}</select>
@@ -3236,9 +3270,10 @@ function renderMachineScheduleBoard() {
         const left = Math.min(100, ((job.scheduleStartHour ?? cursor) / 10) * 100);
         const width = Math.min(100 - left, Math.max(7, (duration / 10) * 100));
         cursor += duration;
-        return `<article class="machine-schedule-task ${isProductionPlanUrgent(job) ? "urgent" : ""}" style="left:${left}%;width:${width}%" title="${escapeAttribute(job.productName)} · ${escapeAttribute(job.worker || "작업자 미배정")}">
+        return `<article class="machine-schedule-task ${isProductionPlanUrgent(job) ? "urgent" : ""}" style="left:${left}%;width:${width}%" title="${escapeAttribute(job.productName)} · ${escapeAttribute(getProductionPlanStaffLabel(job, "worker"))}">
           <strong>${escapeHtml(job.productName)} · ${job.stage}도</strong>
-          <span>${escapeHtml(job.worker || "작업자 미배정")} · ${formatNumber(job.targetQuantity)}ea · ${duration}시간</span>
+          <span>인쇄 · ${escapeHtml(getProductionPlanStaffLabel(job, "worker"))} · ${formatNumber(job.targetQuantity)}ea · ${duration}시간</span>
+          <span>포장 · ${escapeHtml(getProductionPlanStaffLabel(job, "packagingWorker"))}</span>
         </article>`;
       }).join("");
     return `<div class="machine-schedule-row">
@@ -3281,13 +3316,20 @@ function renderProductionPlan() {
 function handleProductionPlanFieldChange(event) {
   const field = event.target.closest("[data-plan-field]");
   const row = event.target.closest("[data-plan-row-id]");
-  if (!field || !row || !["machine", "worker", "note"].includes(field.dataset.planField)) return;
+  if (!field || !row || !["machine", "worker", "packagingWorker", "note"].includes(field.dataset.planField)) return;
   const job = state.productionPlanJobs.find((item) => item.planRowId === row.dataset.planRowId);
   if (!job) return;
   const key = field.dataset.planField;
-  job[key] = field.value;
+  if (PRODUCTION_PLAN_STAFF[key]) {
+    if (field.value && !PRODUCTION_PLAN_STAFF[key].some(person => person.name === field.value)) {
+      field.value = job[key] || "";
+      return;
+    }
+    job[key] = field.value;
+    Object.assign(job, getProductionPlanStaffAssignments(job));
+  } else job[key] = field.value;
   // Keep the clicked product button in place when a text input loses focus.
-  if (event.type === "change" && key === "machine") renderProductionPlan();
+  if (event.type === "change" && ["machine", "worker", "packagingWorker"].includes(key)) renderProductionPlan();
   else if (event.type === "change" && state.productionPlanActiveTab === "board") renderMachineScheduleBoard();
   renderProductionPlanSummary();
   if (productionPlanStatus) {
