@@ -37,6 +37,7 @@
     for (const job of jobs) {
       if (job.remaining === 0) continue;
       const problem = job.remaining === null ? "생산량·LOSS 확인 필요"
+        : job.upstreamGroup && job.inputQuantity === null ? "이전 공정 실적 확인 필요"
         : !(job.hourlyRate > 0) ? "생산량·작업시간 필요"
         : !job.dueDate ? "납기일 필요"
         : job.dueDate < startDate ? "납기 경과"
@@ -44,7 +45,7 @@
       if (problem) unknown.push({ id: job.id, reason: problem });
       else ready.push(job);
     }
-    ready.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id));
+    ready.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || (a.stage || 0) - (b.stage || 0) || a.id.localeCompare(b.id));
     const lastDate = ready.reduce((last, job) => job.dueDate > last ? job.dueDate : last, startDate);
     const days = datesBetween(startDate, lastDate, holidays);
     // Weekend work is a last resort. If needed, try 8 hours on every workday first.
@@ -74,8 +75,20 @@
             }
             if (cursor < limit) gaps.push([cursor, limit]);
             for (const gap of gaps) {
-              const quantity = Math.min(remaining.get(job.group), Math.floor((gap[1] - gap[0]) * job.hourlyRate + 1e-7));
-              if (quantity > 0 && (!best || quantity > best.quantity)) best = { machine, resources, startHour: gap[0], quantity };
+              // A later stage can use stock already printed, or a batch after its previous stage ends.
+              const upstream = job.upstreamGroup ? entries.filter(entry => entry.group === job.upstreamGroup) : [];
+              const starts = new Set([gap[0], ...upstream.filter(entry => entry.date === day.date)
+                .map(entry => entry.startHour + entry.hours).filter(hour => hour >= gap[0] && hour < gap[1])]);
+              for (const startHour of starts) {
+                const consumed = entries.filter(entry => entry.group === job.group).reduce((sum, entry) => sum + entry.quantity, 0);
+                const available = job.upstreamGroup ? Math.max(0, job.inputQuantity + upstream
+                  .filter(entry => entry.date < day.date || (entry.date === day.date && entry.startHour + entry.hours <= startHour + 1e-7))
+                  .reduce((sum, entry) => sum + entry.quantity, 0) - consumed) : Infinity;
+                const quantity = Math.min(remaining.get(job.group), available, Math.floor((gap[1] - startHour) * job.hourlyRate + 1e-7));
+                if (quantity > 0 && (!best || quantity > best.quantity || (quantity === best.quantity && startHour < best.startHour))) {
+                  best = { machine, resources, startHour, quantity };
+                }
+              }
             }
           }
           if (!best) continue;

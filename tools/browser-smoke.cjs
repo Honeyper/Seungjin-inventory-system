@@ -101,53 +101,59 @@ async function verifyAdminViews(page) {
 
 async function verifyProductionPlanPilot(page, fixture) {
   fixture.mockProducts = [
-    { productId: 'KR-0024', productCode: 'KR-0024', productName: '메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g', clientName: '(주)케이알',
-      processStage1: '실크', finalProcess: '1도', processRoute: '1도 실크', processGroups: [[1]], boxQuantity: '567 ea', trayQuantity: '80 ea' },
+    { productId: 'NP-0001', productCode: 'NP-0001', productName: '오브제 파운데이션 외용기', clientName: '뉴파트너스',
+      processStage1: '실크', processStage2: '실크', finalProcess: '2도', processRoute: '1도 실크 → 2도 실크', processGroups: [[1],[2]], boxQuantity: '567 ea', trayQuantity: '80 ea' },
     { productId: 'OTHER', productCode: 'OTHER', productName: '다른 제품', clientName: '다른 업체', finalProcess: '2도' }
   ];
   fixture.mockOrders = [
-    {purchaseOrderId:'PO-MEDICUBE-1',productId:'KR-0024',productName:'메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g',clientName:'(주)케이알',
+    {purchaseOrderId:'PO-OBJET-1',productId:'NP-0001',productName:'오브제 파운데이션 외용기',clientName:'뉴파트너스',
       totalOrderQuantity:10000,remainingShippingQuantity:10000,status:'작업중',endDate:'2026-10-14'},
-    {purchaseOrderId:'PO-MEDICUBE-2',productId:'KR-0024',productName:'메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g',totalOrderQuantity:20000,status:'작업중'},
+    {purchaseOrderId:'PO-OBJET-2',productId:'NP-0001',productName:'오브제 파운데이션 외용기',totalOrderQuantity:20000,status:'작업중'},
     {purchaseOrderId:'PO-OTHER',productId:'OTHER',productName:'다른 제품',totalOrderQuantity:30000,status:'작업중'}
   ];
   await page.goto(origin + '/admin.html#production-plan');
   await page.reload();
   await page.waitForFunction(() => typeof applyProductsResult === 'function' && state.purchaseOrdersLoaded && !state.productsLoadPromise);
   const rows = page.locator('#productionPlanTableBody [data-plan-row-id]');
-  assert.equal(await rows.count(), 1);
-  assert.match(await rows.textContent(), /실크 인쇄.*메디큐브 이지에프/s);
+  assert.equal(await rows.count(), 2);
+  assert.match((await rows.allTextContents()).join(' '), /실크 인쇄.*오브제.*외용기/s);
   assert.equal(await page.locator('[data-plan-add-process], [data-plan-delete-row], #singleProductionPlan, #productionPlanProcessFilter').count(), 0);
-  assert.match(await page.locator('#productionPlanJobCount').textContent(), /1/);
-  const machine = rows.locator('[data-plan-field=machine]');
+  assert.match(await page.locator('#productionPlanJobCount').textContent(), /2/);
+  const machine = rows.first().locator('[data-plan-field=machine]');
   assert.deepEqual(await machine.locator('option').evaluateAll(opts => opts.map(o => o.value)), ['', ...Array.from({length:12}, (_,i) => (i+1)+'호기')]);
   await machine.selectOption('1호기');
   await machine.selectOption('12호기');
-  await rows.locator('[data-plan-field=worker]').fill('입력 유지');
-  await rows.locator('[data-plan-product-picker]').click();
+  await rows.first().locator('[data-plan-field=worker]').fill('입력 유지');
+  await rows.nth(1).locator('[data-plan-field=machine]').selectOption('2호기');
+  await rows.nth(1).locator('[data-plan-field=worker]').fill('2도 작업자');
+  await rows.first().locator('[data-plan-product-picker]').click();
   await page.waitForFunction(() => !document.querySelector('#inboundProductPickerModal').hidden);
   assert.equal(await page.locator('#inboundProductPickerList .picker-product').count(), 1);
-  assert.equal(await page.locator('#inboundProductPickerList .picker-product').getAttribute('data-product'), 'KR-0024');
+  assert.equal(await page.locator('#inboundProductPickerList .picker-product').getAttribute('data-product'), 'NP-0001');
   assert.equal(await page.locator('#createProductFromPickerButton').isVisible(), false);
   assert.equal(await page.locator('#inboundProductPickerList [data-copy-picker-product], #inboundProductPickerList [data-edit-picker-product]').count(), 0);
   await page.locator('#inboundProductPickerList .picker-product').click();
-  assert.equal(await rows.locator('[data-plan-field=worker]').inputValue(), '입력 유지');
+  assert.equal(await rows.first().locator('[data-plan-field=worker]').inputValue(), '입력 유지');
   const actionCount = fixture.actions.length;
   await page.locator('#saveProductionPlanButton').click();
   assert.equal(fixture.actions.slice(actionCount).some(a => /^(create|update|delete|save)/.test(a)), false);
   await page.reload();
   await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
-  assert.equal(await rows.count(), 1);
-  assert.equal(await rows.locator('[data-plan-field=worker]').inputValue(), '입력 유지');
-  assert.equal(await rows.locator('[data-plan-field=machine]').inputValue(), '12호기');
+  assert.equal(await rows.count(), 2);
+  assert.equal(await rows.first().locator('[data-plan-field=worker]').inputValue(), '입력 유지');
+  assert.equal(await rows.first().locator('[data-plan-field=machine]').inputValue(), '12호기');
+  assert.equal(await rows.nth(1).locator('[data-plan-field=machine]').inputValue(), '2호기');
+  assert.equal(await rows.nth(1).locator('[data-plan-field=worker]').inputValue(), '2도 작업자');
+  assert.match(await rows.first().textContent(), /1도/);
+  assert.match(await rows.nth(1).textContent(), /2도/);
   await page.locator('#syncProductionPlanButton').click();
   await page.waitForFunction(() => !document.querySelector('#syncProductionPlanButton').disabled);
   await page.locator('#generateProductionPlanButton').click();
   await page.waitForFunction(() => !document.querySelector('#generateProductionPlanButton').disabled);
-  assert.equal(await rows.count(), 1);
-  await page.screenshot({path:'/private/tmp/seungjin-medicube-one-row.png',fullPage:true});
+  assert.equal(await rows.count(), 2);
+  await page.screenshot({path:'/private/tmp/seungjin-objet-two-stage.png',fullPage:true});
   await page.evaluate(() => { selectProductionPlanProduct({productCode:'OTHER'}); });
-  assert.match(await rows.textContent(), /메디큐브 이지에프/);
+  assert.match((await rows.allTextContents()).join(' '), /오브제.*외용기/);
   await page.evaluate(() => openInboundProductPicker('inbound'));
   assert.equal(await page.locator('#inboundProductPickerList .picker-product').count(), 2);
   assert.equal(await page.locator('#createProductFromPickerButton').isVisible(), true);
@@ -163,7 +169,7 @@ async function verifyPurchaseOrderDelivery(page, fixture) {
   assert.equal(await page.locator('#purchaseOrderEndDateField').isVisible(), true);
   assert.equal(await page.locator('#purchaseOrderDailyMinimumField').isVisible(), false);
   await page.locator('#purchaseOrderProductSearchButton').click();
-  await page.locator('#inboundProductPickerList .picker-product[data-product="KR-0024"]').click();
+  await page.locator('#inboundProductPickerList .picker-product[data-product="NP-0001"]').click();
   // The picker deliberately focuses the order name on its next event turn.
   await page.waitForFunction(() => document.activeElement === document.querySelector('#purchaseOrderRound'));
   await page.locator('#purchaseOrderRound').fill('일 생산 테스트');
@@ -173,7 +179,7 @@ async function verifyPurchaseOrderDelivery(page, fixture) {
   assert.equal(await page.locator('#purchaseOrderDailyMinimumField').isVisible(), true);
   await page.locator('#purchaseOrderDailyMinimumQuantity').fill('0');
   const prepared = await page.evaluate(() => getPurchaseOrderPayload());
-  assert.equal(prepared.productId, 'KR-0024');
+  assert.equal(prepared.productId, 'NP-0001');
   assert.equal(prepared.totalOrderQuantity, 100000);
   assert.match(prepared.startDate, /^\d{4}-\d{2}-\d{2}$/);
   const writes = fixture.actions.filter(a => a === 'createPurchaseOrder').length;
@@ -204,7 +210,8 @@ async function verifyPurchaseOrderDelivery(page, fixture) {
   await page.evaluate(id => {
     const job = state.productionPlanJobs[0];
     changeProductionPlanOrder(job, id);
-    job.cumulativeProduction = 20000; job.cumulativeHours = 10; job.loss = 0;
+    renderProductionPlan();
+    state.productionPlanJobs.forEach(row => { row.cumulativeProduction = 20000; row.cumulativeHours = 5; row.loss = 0; });
     renderProductionPlan();
   }, row.purchaseOrderId);
   assert.match(await page.locator('#productionPlanTableBody').textContent(), /일 12,000개 이상/);
