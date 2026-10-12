@@ -7,8 +7,8 @@ import test from "node:test";
 const source = fs.readFileSync(new URL("../frontend/admin.js", import.meta.url), "utf8");
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const order = {
-  purchaseOrderId: "PO-ROW-CHECK", productId: "IRP-0002", productName: "라카 매직립픽서 용기",
-  clientName: "이루팩", orderRound: "08/03", totalOrderQuantity: 10000,
+  purchaseOrderId: "PO-ROW-CHECK", productId: "KR-0024", productName: "메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g",
+  clientName: "(주)케이알", orderRound: "08/03", totalOrderQuantity: 10000,
   accumulatedInboundQuantity: 10700, accumulatedShippingQuantity: 0, endDate: "2026-09-30"
 };
 
@@ -43,11 +43,11 @@ function setup() {
   return context;
 }
 
-test("빈 계획도 실크 인쇄·라카 한 행만 표시하고 반복 보정에 입력을 유지한다", () => {
+test("빈 계획도 실크 인쇄·메디큐브 이지에프 한 행만 표시하고 반복 보정에 입력을 유지한다", () => {
   const c = setup(), rows = c.ensureProductionPlanRows([]);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].process, "실크 인쇄");
-  assert.equal(rows[0].productId, "IRP-0002");
+  assert.equal(rows[0].productId, "KR-0024");
   rows[0].worker = "입력 유지";
   assert.deepEqual(plain(c.ensureProductionPlanRows(rows)), plain(rows));
   c.state.productionPlanJobs = rows;
@@ -56,11 +56,11 @@ test("빈 계획도 실크 인쇄·라카 한 행만 표시하고 반복 보정�
   assert.doesNotMatch(c.productionPlanTableBody.innerHTML, /data-plan-add-process|data-plan-delete-row|박 인쇄|자동화/);
 });
 
-test("다른 제품과 중복 라카 행을 제외해도 전달받은 원본은 변경하지 않는다", () => {
+test("다른 제품과 중복 메디큐브 이지에프 행을 제외해도 전달받은 원본은 변경하지 않는다", () => {
   const c = setup();
   const jobs = [{productId:"OTHER",process:"박 인쇄",worker:"다른 제품"},
-    {productId:"IRP-0002",purchaseOrderId:order.purchaseOrderId,process:"박 인쇄",worker:"유지"},
-    {productId:"IRP-0002",process:"실크 인쇄",worker:"중복"}];
+    {productId:"KR-0024",purchaseOrderId:order.purchaseOrderId,process:"박 인쇄",worker:"유지"},
+    {productId:"KR-0024",process:"실크 인쇄",worker:"중복"}];
   const original = plain(jobs), rows = c.ensureProductionPlanRows(jobs);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].worker, "유지");
@@ -68,15 +68,15 @@ test("다른 제품과 중복 라카 행을 제외해도 전달받은 원본은 
   assert.deepEqual(plain(jobs), original);
 });
 
-test("라카 발주가 여러 개라도 선택한 발주 한 행만 동기화한다", async () => {
+test("메디큐브 이지에프 발주가 여러 개라도 선택한 발주 한 행만 동기화한다", async () => {
   const c = setup();
-  c.state.purchaseOrders.push({...order,purchaseOrderId:"PO-LAKA-2"}, {...order,productId:"OTHER",purchaseOrderId:"PO-OTHER"});
-  const selected = {...c.buildProductionPlanJobs()[0],purchaseOrderId:"PO-LAKA-2",worker:"선택 작업자",note:"입력 메모"};
+  c.state.purchaseOrders.push({...order,purchaseOrderId:"PO-MEDICUBE-2"}, {...order,productId:"OTHER",purchaseOrderId:"PO-OTHER"});
+  const selected = {...c.buildProductionPlanJobs()[0],purchaseOrderId:"PO-MEDICUBE-2",worker:"선택 작업자",note:"입력 메모"};
   c.state.productionPlanJobs = [selected];
   await c.syncProductionPlanOrders();
   await c.generateProductionPlanDraft();
   assert.equal(c.state.productionPlanJobs.length, 1);
-  assert.equal(c.state.productionPlanJobs[0].purchaseOrderId, "PO-LAKA-2");
+  assert.equal(c.state.productionPlanJobs[0].purchaseOrderId, "PO-MEDICUBE-2");
   assert.equal(c.state.productionPlanJobs[0].worker, "선택 작업자");
   assert.equal(c.state.productionPlanJobs[0].note, "입력 메모");
   assert.equal(c.getProductionPlanOpenOrders().length, 2);
@@ -93,30 +93,30 @@ test("선택 함수를 직접 호출해도 다른 제품이나 발주로 바꿀 
   assert.deepEqual(plain(job), before);
 });
 
-test("같은 라카를 재선택해도 입력한 작업자와 생산실적을 초기화하지 않는다", () => {
+test("같은 메디큐브 이지에프를 재선택해도 입력한 작업자와 생산실적을 초기화하지 않는다", () => {
   const c = setup();
   c.state.productionPlanJobs = c.buildProductionPlanJobs();
   const job = c.state.productionPlanJobs[0];
   Object.assign(job,{worker:"유지 작업자",cumulativeProduction:1000,cumulativeHours:1,loss:0});
   c.state.productionPlanPickerJobId = job.planRowId;
-  c.selectProductionPlanProduct({productCode:"IRP-0002"});
+  c.selectProductionPlanProduct({productCode:"KR-0024"});
   assert.equal(c.state.productionPlanJobs.length, 1);
   assert.equal(c.state.productionPlanJobs[0].worker, "유지 작업자");
   assert.equal(c.state.productionPlanJobs[0].cumulativeProduction, 1000);
 });
 
-test("기존 전체 계획 저장본은 그대로 두고 라카만 별도 범위로 저장한다", () => {
+test("기존 전체 계획 저장본은 그대로 두고 메디큐브 이지에프만 별도 범위로 저장한다", () => {
   const c = setup();
   const legacyKey = "rows-test:1공장:2026-09-11";
   const legacy = JSON.stringify({jobs:[{productId:"OTHER",process:"박 인쇄"},
-    {...c.buildProductionPlanJobs()[0],worker:"예전 라카 입력"}]});
+    {...c.buildProductionPlanJobs()[0],worker:"예전 메디큐브 이지에프 입력"}]});
   c.testStorage.set(legacyKey, legacy);
   c.loadProductionPlanDraft();
   assert.equal(c.state.productionPlanJobs.length, 1);
-  assert.equal(c.state.productionPlanJobs[0].worker,"예전 라카 입력");
+  assert.equal(c.state.productionPlanJobs[0].worker,"예전 메디큐브 이지에프 입력");
   c.saveProductionPlanDraft();
   assert.equal(c.testStorage.get(legacyKey), legacy);
-  assert.ok(c.testStorage.has("rows-test:laka:1공장:2026-09-11"));
+  assert.ok(c.testStorage.has("rows-test:product:KR-0024:1공장:2026-09-11"));
   c.state.productionPlanDate = "2026-09-12";
   assert.equal(c.readProductionPlanDraft(), null);
   c.state.productionPlanDate = "2026-09-11";
@@ -135,10 +135,10 @@ test("완료되거나 취소된 발주는 한 행 계획에 연결하지 않는�
   }
 });
 
-test("참고 실적도 라카 매직립픽서만 선택하고 다른 라카 제품은 제외한다", () => {
+test("참고 실적도 메디큐브 이지에프만 선택하고 다른 메디큐브 이지에프 제품은 제외한다", () => {
   const c = setup();
-  c.state.productionPlanReferenceRows = [{productName:"라카"},{productName:"라카 매직립픽서 용기"},
-    {productName:"투쿨포스쿨"},{productName:"라카 프루티 글램 틴트"}];
+  c.state.productionPlanReferenceRows = [{productName:"메디큐브 이지에프"},{productName:"메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g"},
+    {productName:"투쿨포스쿨"},{productName:"메디큐브 피디알엔 오버캡"}];
   assert.equal(c.getProductionPlanReferenceCandidates().length, 2);
 });
 

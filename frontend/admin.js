@@ -75,9 +75,9 @@ const SERVER_USAGE_POLL_MS = 30 * 1000;
 const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
 const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const PRODUCTION_PROCESS_ORDER = ["실크 인쇄"];
-const PRODUCTION_PLAN_PRODUCT_ID = "IRP-0002";
+const PRODUCTION_PLAN_PRODUCT_ID = "KR-0024";
 const PRODUCTION_MACHINE_OPTIONS = {
-  "실크 인쇄": ["2호기", "3호기", "4호기", "5호기", "6호기", "7호기", "8호기", "9호기", "10호기", "11호기", "12호기"]
+  "실크 인쇄": Array.from({ length: 12 }, (_, index) => `${index + 1}호기`)
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const PRODUCTION_DISCOURAGED_WORK_HOURS = 9;
@@ -94,6 +94,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-12", title: "메디큐브 단일 제품 계획 및 기계 선택", items: ["생산계획의 대상 제품을 메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g로 변경했습니다. 실크 인쇄 한 행을 유지하고 기계는 1호기부터 12호기까지 선택할 수 있습니다."] },
   { date: "2026-10-12", title: "라카 단일 제품 생산계획", items: ["기존 생산계획표에 실크 인쇄 한 행만 표시하고 라카 매직립픽서만 선택할 수 있도록 제한했습니다. 다른 공정과 행 추가·삭제를 제거했으며, 저장·발주 동기화·계획 생성 후에도 한 행을 유지합니다."] },
   { date: "2026-10-06", title: "입고 목록 합계 표시", items: ["입고 목록에 총 입고 건수·박스 수·수량을 표시합니다. 선택한 조회 기간과 검색 결과 전체를 합산하며, 잔량 박스도 포함합니다. QR 일괄 인쇄는 선택 해제 바로 오른쪽에 배치하고 합계도 같은 줄에 표시하며, 아래 컬럼 제목과 가로 구분선으로 나눕니다."] },
   { date: "2026-10-06", title: "제품 선택 목록의 복사 등록", items: ["제품 선택 목록의 수정 옆에 복사 버튼을 추가했습니다. 기존 제품 정보를 새 등록 화면에 채워 필요한 내용을 수정한 뒤 새 제품코드로 저장할 수 있습니다."] },
@@ -2689,14 +2690,14 @@ function initializeProductionPlan() {
 }
 
 function getProductionPlanStorageKey() {
-  return `${PRODUCTION_PLAN_STORAGE_PREFIX}:laka:${state.productionPlanFactory}:${state.productionPlanDate}`;
+  return `${PRODUCTION_PLAN_STORAGE_PREFIX}:product:KR-0024:${state.productionPlanFactory}:${state.productionPlanDate}`;
 }
 
 function createProductionPlanEmptyJob() {
   return {
     planRowId: `plan-${crypto.randomUUID()}`,
     productionMetricsVersion: 2,
-    purchaseOrderId: "", productId: PRODUCTION_PLAN_PRODUCT_ID, productName: "라카 매직립픽서 용기", clientName: "이루팩", orderRound: "",
+    purchaseOrderId: "", productId: PRODUCTION_PLAN_PRODUCT_ID, productName: "메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g", clientName: "(주)케이알", orderRound: "",
     process: "실크 인쇄", machine: "", worker: "", note: "", targetQuantity: 0, balance: 0,
     dueDate: "", hours: PRODUCTION_STANDARD_WORK_HOURS, manualProcess: true
   };
@@ -2784,7 +2785,7 @@ function getProductionPlanReference(job) {
 
 function getProductionPlanReferenceCandidates() {
   return (state.productionPlanReferenceRows || []).filter(row =>
-    ["라카", "라카매직립픽서", "라카매직립픽서용기"].includes(String(row.productName || "").replace(/\s/g, "")));
+    ["메디큐브이지에프", "메디큐브egf", "메디큐브이지에프엔에이디퍼밍멀티밤10g"].includes(String(row.productName || "").replace(/\s/g, "").toLowerCase()));
 }
 
 function updateProductionPlanTargets(jobs) {
@@ -3244,7 +3245,7 @@ function renderProductionPlan() {
   renderProductionPlanDetail();
   if (state.productionPlanActiveTab === "board") renderMachineScheduleBoard();
   const caption = document.querySelector("#productionPlanTableCaption");
-  if (caption) caption.textContent = `${state.productionPlanDate || "오늘"} · ${state.productionPlanFactory} · 실크 인쇄 · 라카 매직립픽서 한 제품만 계획합니다.`;
+  if (caption) caption.textContent = `${state.productionPlanDate || "오늘"} · ${state.productionPlanFactory} · 실크 인쇄 · 메디큐브 이지에프 한 제품만 계획합니다.`;
 }
 
 function handleProductionPlanFieldChange(event) {
@@ -3276,7 +3277,7 @@ async function handleProductionPlanProductPickerOpen(event) {
 
 function selectProductionPlanProduct(product) {
   if ((product.productCode || product.productId) !== PRODUCTION_PLAN_PRODUCT_ID) {
-    showToast("현재 생산계획에서는 라카 매직립픽서만 선택할 수 있습니다.");
+    showToast("현재 생산계획에서는 메디큐브 이지에프만 선택할 수 있습니다.");
     return;
   }
   const job = state.productionPlanJobs.find((item) => item.planRowId === state.productionPlanPickerJobId);
@@ -8097,7 +8098,7 @@ function openInboundProductPicker(target = "inbound") {
   const isProductionPlanTarget = target === "productionPlan";
   document.querySelector("#inboundProductPickerTitle").textContent = "제품 선택";
   document.querySelector("#inboundProductPickerTitle").nextElementSibling.textContent = isProductionPlanTarget
-    ? "현재 생산계획에서는 라카 매직립픽서만 선택할 수 있습니다."
+    ? "현재 생산계획에서는 메디큐브 이지에프만 선택할 수 있습니다."
     : isPurchaseOrderTarget
     ? "제품관리에 등록된 제품 목록에서 발주할 제품을 선택하세요."
     : isExistingStockTarget
