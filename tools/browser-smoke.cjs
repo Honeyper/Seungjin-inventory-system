@@ -17,6 +17,7 @@ async function installFixtures(context, state) {
     if (url.origin !== origin) return route.abort();
     if (url.pathname.startsWith('/api/')) {
       const { action, payload } = route.request().postDataJSON();
+      (state.actions ||= []).push(action);
       if (state.inventory && ['getInventoryDashboard', 'getInventoryVersion', 'adjustMissingInventory'].includes(action)) {
         const engine = await import('../supabase/functions/seungjin-dev-gateway/state-engine.js');
         let data;
@@ -45,7 +46,7 @@ async function installFixtures(context, state) {
         }
         return route.fulfill({ json: { ok: true, data: { imageUrl: `${origin}/image/${payload.imageFile.name}` } } });
       }
-      const data = { products: [], purchaseOrders: [], inbounds: [], rows: [], notifications: [], stateVersion: 1, source: 'test' };
+      const data = { products: state.mockProducts || [], purchaseOrders: state.mockOrders || [], inbounds: [], rows: [], notifications: [], stateVersion: 1, source: 'test' };
       return route.fulfill({ json: { ok: true, data } });
     }
     if (url.pathname.endsWith('/config.js')) {
@@ -92,6 +93,56 @@ async function verifyAdminViews(page) {
   }
 }
 
+async function verifyLakaProductionRow(page, fixture) {
+  fixture.mockProducts = [
+    { productId: 'IRP-0002', productCode: 'IRP-0002', productName: '라카 매직립픽서 용기', clientName: '이루팩',
+      processStage1: '실크', finalProcess: '1도', processRoute: '1도 실크', processGroups: [[1]], boxQuantity: '567 ea', trayQuantity: '80 ea' },
+    { productId: 'OTHER', productCode: 'OTHER', productName: '다른 제품', clientName: '다른 업체', finalProcess: '2도' }
+  ];
+  fixture.mockOrders = [
+    {purchaseOrderId:'PO-LAKA-1',productId:'IRP-0002',productName:'라카 매직립픽서 용기',clientName:'이루팩',
+      totalOrderQuantity:10000,remainingShippingQuantity:10000,status:'작업중',endDate:'2026-10-14'},
+    {purchaseOrderId:'PO-LAKA-2',productId:'IRP-0002',productName:'라카 매직립픽서 용기',totalOrderQuantity:20000,status:'작업중'},
+    {purchaseOrderId:'PO-OTHER',productId:'OTHER',productName:'다른 제품',totalOrderQuantity:30000,status:'작업중'}
+  ];
+  await page.goto(origin + '/admin.html#production-plan');
+  await page.reload();
+  await page.waitForFunction(() => typeof applyProductsResult === 'function' && state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  const rows = page.locator('#productionPlanTableBody [data-plan-row-id]');
+  assert.equal(await rows.count(), 1);
+  assert.match(await rows.textContent(), /실크 인쇄.*라카 매직립픽서/s);
+  assert.equal(await page.locator('[data-plan-add-process], [data-plan-delete-row], #singleProductionPlan, #productionPlanProcessFilter').count(), 0);
+  assert.match(await page.locator('#productionPlanJobCount').textContent(), /1/);
+  await rows.locator('[data-plan-field=worker]').fill('입력 유지');
+  await rows.locator('[data-plan-product-picker]').click();
+  await page.waitForFunction(() => !document.querySelector('#inboundProductPickerModal').hidden);
+  assert.equal(await page.locator('#inboundProductPickerList .picker-product').count(), 1);
+  assert.equal(await page.locator('#inboundProductPickerList .picker-product').getAttribute('data-product'), 'IRP-0002');
+  assert.equal(await page.locator('#createProductFromPickerButton').isVisible(), false);
+  assert.equal(await page.locator('#inboundProductPickerList [data-copy-picker-product], #inboundProductPickerList [data-edit-picker-product]').count(), 0);
+  await page.locator('#inboundProductPickerList .picker-product').click();
+  assert.equal(await rows.locator('[data-plan-field=worker]').inputValue(), '입력 유지');
+  const actionCount = fixture.actions.length;
+  await page.locator('#saveProductionPlanButton').click();
+  assert.equal(fixture.actions.slice(actionCount).some(a => /^(create|update|delete|save)/.test(a)), false);
+  await page.reload();
+  await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  assert.equal(await rows.count(), 1);
+  assert.equal(await rows.locator('[data-plan-field=worker]').inputValue(), '입력 유지');
+  await page.locator('#syncProductionPlanButton').click();
+  await page.waitForFunction(() => !document.querySelector('#syncProductionPlanButton').disabled);
+  await page.locator('#generateProductionPlanButton').click();
+  await page.waitForFunction(() => !document.querySelector('#generateProductionPlanButton').disabled);
+  assert.equal(await rows.count(), 1);
+  await page.screenshot({path:'/private/tmp/seungjin-laka-one-row.png',fullPage:true});
+  await page.evaluate(() => { selectProductionPlanProduct({productCode:'OTHER'}); });
+  assert.match(await rows.textContent(), /라카 매직립픽서/);
+  await page.evaluate(() => openInboundProductPicker('inbound'));
+  assert.equal(await page.locator('#inboundProductPickerList .picker-product').count(), 2);
+  assert.equal(await page.locator('#createProductFromPickerButton').isVisible(), true);
+  await page.locator('#closeInboundProductPicker').click();
+}
+
 async function verifyPartialUpload(page, fixture) {
   // Actual FileReader, image preparation, requestApi and product upload helper.
   const firstError = await page.evaluate(async () => {
@@ -120,13 +171,13 @@ async function verifyPartialUpload(page, fixture) {
 }
 
 async function verifyMonthlyConfirmation(page, fixture) {
-  const record = { managementId: 'MONTHLY-UI', productId: 'P1', productName: '월간 확인 테스트', clientName: 'Fixture', storage: 'A', inboundDate: '2026-08-18' };
+  const record = { managementId: 'MONTHLY-UI', productId: 'P1', productName: '월간 확인 테스트', clientName: 'Fixture', storage: 'A', inboundDate: '2026-10-01' };
   fixture.inventory = { products: [], orders: [], inbounds: [], records: [record], boxes: [
-    { ...record, boxId: 'B1', number: 1, quantity: 100, status: '보관', lastInventoryCheckedAt: '2026-08-18 14:20:30' },
+    { ...record, boxId: 'B1', number: 1, quantity: 100, status: '보관', lastInventoryCheckedAt: '2026-10-01 14:20:30' },
     { ...record, boxId: 'B2', number: 2, quantity: 100, status: '출고대기' },
     { ...record, boxId: 'B3', number: 3, quantity: 100, status: '출고완료' }
   ] };
-  fixture.now = new Date('2026-09-18T05:20:29Z');
+  fixture.now = new Date('2026-10-29T14:59:29Z');
   fixture.version = 12;
   fixture.inventoryReads = 0;
   fixture.confirmations = [];
@@ -134,10 +185,14 @@ async function verifyMonthlyConfirmation(page, fixture) {
   await page.goto(`${origin}/admin.html#inventory`);
   await page.waitForFunction(() => state.inventoryRows.some(row => row.managementId === 'MONTHLY-UI'));
   assert.equal((await page.locator('#inventoryPhysicalMissing').textContent()).trim(), '0');
+  await page.evaluate(() => setActiveView('shipping'));
+  assert.equal(await page.locator('#shippingView').isVisible(), true);
+  assert.ok((await page.locator('#shippingView tbody').textContent()).includes('MONTHLY-UI'));
+  await page.evaluate(() => setActiveView('inventory'));
   await page.locator('[data-inventory-detail="MONTHLY-UI"]').click();
   assert.equal(await page.locator('.inventory-audit-box-card.confirmed').count(), 1);
   assert.equal(await page.locator('.inventory-audit-box-card.unconfirmed').count(), 0);
-  fixture.now = new Date('2026-09-18T05:21:31Z');
+  fixture.now = new Date('2026-10-29T15:00:31Z');
   const reads = fixture.inventoryReads;
   await page.clock.runFor(62000);
   assert.equal((await page.locator('#inventoryPhysicalMissing').textContent()).trim(), '1');
@@ -147,6 +202,10 @@ async function verifyMonthlyConfirmation(page, fixture) {
   await page.locator('[data-inventory-audit-confirm-all]').click();
   await page.waitForFunction(() => !state.isSavingInventoryConfirmation && document.querySelectorAll('.inventory-audit-box-card.confirmed').length === 1);
   assert.equal((await page.locator('#inventoryPhysicalMissing').textContent()).trim(), '0');
+  await page.evaluate(() => setActiveView('shipping'));
+  assert.equal(await page.locator('#shippingView').isVisible(), true);
+  assert.ok((await page.locator('#shippingView tbody').textContent()).includes('MONTHLY-UI'));
+  await page.evaluate(() => setActiveView('inventory'));
   assert.deepEqual(fixture.confirmations[0].confirmedBoxes[0].selectedBoxes, [1]);
   assert.deepEqual(fixture.inventory.boxes.map(box => [box.status, box.quantity]), [['보관', 100], ['출고대기', 100], ['출고완료', 100]]);
 }
@@ -178,6 +237,7 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    await verifyLakaProductionRow(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
     await verifyPartialUpload(page, fixture);
     const timing = await measureBatch(page);
@@ -192,7 +252,7 @@ async function main() {
     assert.equal(fixture.loginCalls, 2);
     await page.setViewportSize({ width: 390, height: 844 });
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
+    console.log(JSON.stringify({ passed: true, lakaProductionRow: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
   } finally {
     await browser.close();
   }
