@@ -49,6 +49,7 @@ test("빈 계획도 실크 인쇄·오브제 외용기 두 공정만 표시하�
   assert.equal(rows[0].process, "실크 인쇄");
   assert.equal(rows[0].productId, "NP-0001");
   rows[0].worker = "입력 유지";
+  rows[0].workerType = "";
   assert.deepEqual(plain(c.ensureProductionPlanRows(rows)), plain(rows));
   c.state.productionPlanJobs = rows;
   c.renderProductionPlanTable();
@@ -192,4 +193,42 @@ test("공정 구분이 없던 예전 계획의 실적을 1도 생산분으로 �
     assert.equal(c.getProductionPlanCalculations(rows[1]).cumulativeProduction,null);
   }
   assert.equal(previous.cumulativeProduction,9000);
+});
+
+test("인쇄 직원과 포장 아웃소싱을 공정별 별도 항목으로 저장하고 다시 불러온다", () => {
+  const c = setup();
+  c.state.productionPlanJobs = c.buildProductionPlanJobs();
+  for (const row of c.state.productionPlanJobs) {
+    assert.equal(row.worker,"유순희");assert.equal(row.workerType,"employee");
+    assert.equal(row.packagingWorker,"수쿠마");assert.equal(row.packagingWorkerType,"outsourcing");
+  }
+  c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+  assert.deepEqual(plain(c.state.productionPlanJobs.map(row=>[row.worker,row.workerType,row.packagingWorker,row.packagingWorkerType])),
+    [["유순희","employee","수쿠마","outsourcing"],["유순희","employee","수쿠마","outsourcing"]]);
+  const html=c.renderProductionPlanStaffOptions(c.state.productionPlanJobs[0],"worker");
+  assert.match(html,/유순희.*직원/);assert.doesNotMatch(html,/수쿠마/);
+  assert.match(c.renderProductionPlanStaffOptions(c.state.productionPlanJobs[0],"packagingWorker"),/수쿠마.*아웃소싱/);
+});
+
+test("인쇄 담당자로 포장 아웃소싱을 지정할 수 없고 미지정 선택도 저장된다", () => {
+  const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+  const job=c.state.productionPlanJobs[0];
+  const change=(key,value)=>{
+    const field={value,dataset:{planField:key}};
+    const event={type:"change",target:{closest:selector=>selector==="[data-plan-field]"?field:{dataset:{planRowId:job.planRowId}}}};
+    c.handleProductionPlanFieldChange(event);
+  };
+  change("worker","수쿠마");assert.equal(job.worker,"유순희");assert.equal(job.workerType,"employee");
+  change("packagingWorker","");
+  assert.equal(c.state.productionPlanJobs[0].packagingWorker,"");
+  assert.equal(c.state.productionPlanJobs[0].packagingWorkerType,"");
+  c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+  assert.equal(c.state.productionPlanJobs[0].packagingWorker,"");
+});
+
+test("기존 직접 입력한 작업자는 보존하되 직원이나 아웃소싱으로 임의 분류하지 않는다", () => {
+  const c=setup();
+  const rows=c.ensureProductionPlanRows([{...order,stage:1,productionMetricsVersion:2,worker:"기존 작업자",workerType:"employee"}]);
+  assert.equal(rows[0].worker,"기존 작업자");assert.equal(rows[0].workerType,"");
+  assert.match(c.renderProductionPlanStaffOptions(rows[0],"worker"),/selected disabled>기존 입력: 기존 작업자/);
 });
