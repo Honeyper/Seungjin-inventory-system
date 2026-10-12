@@ -158,18 +158,24 @@ async function verifyPurchaseOrderDelivery(page, fixture) {
   await page.goto(origin + '/admin.html#purchase-orders');
   await page.reload();
   await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
-  await page.evaluate(() => openPurchaseOrderModal());
+  await page.locator('#newPurchaseOrderButton').click();
   assert.equal(await page.locator('#purchaseOrderDeliveryType').inputValue(), 'date');
   assert.equal(await page.locator('#purchaseOrderEndDateField').isVisible(), true);
   assert.equal(await page.locator('#purchaseOrderDailyMinimumField').isVisible(), false);
   await page.locator('#purchaseOrderProductSearchButton').click();
   await page.locator('#inboundProductPickerList .picker-product[data-product="KR-0024"]').click();
+  // The picker deliberately focuses the order name on its next event turn.
+  await page.waitForFunction(() => document.activeElement === document.querySelector('#purchaseOrderRound'));
   await page.locator('#purchaseOrderRound').fill('일 생산 테스트');
   await page.locator('#purchaseOrderQuantity').fill('100000');
   await page.locator('#purchaseOrderDeliveryType').selectOption('daily');
   assert.equal(await page.locator('#purchaseOrderEndDateField').isVisible(), false);
   assert.equal(await page.locator('#purchaseOrderDailyMinimumField').isVisible(), true);
   await page.locator('#purchaseOrderDailyMinimumQuantity').fill('0');
+  const prepared = await page.evaluate(() => getPurchaseOrderPayload());
+  assert.equal(prepared.productId, 'KR-0024');
+  assert.equal(prepared.totalOrderQuantity, 100000);
+  assert.match(prepared.startDate, /^\d{4}-\d{2}-\d{2}$/);
   const writes = fixture.actions.filter(a => a === 'createPurchaseOrder').length;
   await page.evaluate(() => savePurchaseOrder());
   assert.match(await page.locator('#purchaseOrderFormMessage').textContent(), /1 이상의 정수/);
