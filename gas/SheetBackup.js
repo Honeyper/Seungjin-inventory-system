@@ -27,6 +27,7 @@ function sheetBackupDefinition_(dataset) {
     } },
     orders: { sheet: CONFIG.SHEETS.PURCHASE_ORDERS, scope: 'purchaseOrderId', identity: ['purchaseOrderId'], required: ['발주ID', '제품ID', '제품명'], fields: {
       ...common, orderRound: ['발주 차수'], startDate: ['발주 시작일'], endDate: ['납기일', '발주 종료일'],
+      deliveryType: ['납기유형'], dailyMinimumQuantity: ['일 최소 생산량'],
       totalOrderQuantity: ['총 발주량'], accumulatedInboundQuantity: ['누적 입고량'], remainingQuantity: ['미입고 수량'],
       inboundRate: ['입고율'], registrant: ['등록자'], registeredAt: ['등록일시'], updatedAt: ['수정일시']
     } },
@@ -115,6 +116,10 @@ function applySheetBackupRows(payload) {
     let context = sheetBackupContext_(payload.dataset, payload.keys);
     // Validate every row before changing the sheet, including before adding metadata columns.
     planSheetBackupRows_(context, payload.records);
+    if (payload.dataset === 'orders') {
+      ensurePurchaseOrderDeliveryHeaders_(context.sheet);
+      context = sheetBackupContext_(payload.dataset, payload.keys);
+    }
     if (findHeaderIndex_(context.indexes, ['Supabase 원본(JSON)']) < 0) {
       const column = context.header.headers.length + 1;
       ensureSheetWriteCapacity_(context.sheet, context.header.rowIndex + 1, column);

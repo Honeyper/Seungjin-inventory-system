@@ -33,6 +33,12 @@ async function installFixtures(context, state) {
         } else data = {};
         return route.fulfill({ json: { ok: true, data: { ...data, stateVersion: state.version } } });
       }
+      if (['createPurchaseOrder', 'updatePurchaseOrder'].includes(action)) {
+        const engine = await import('../supabase/functions/seungjin-dev-gateway/state-engine.js');
+        const mutation = engine.applyMutation(action, payload, {products: state.mockProducts || [], orders: state.mockOrders || [], records: [], boxes: [], inbounds: []}, new Date('2026-10-12T05:00:00Z'));
+        state.mockOrders = mutation.state.orders;
+        return route.fulfill({json: {ok:true,data:{...mutation.result,stateVersion:1}}});
+      }
       if (action === 'login') {
         state.loginCalls++;
         await new Promise(resolve => setTimeout(resolve, 30));
@@ -148,6 +154,72 @@ async function verifyProductionPlanPilot(page, fixture) {
   await page.locator('#closeInboundProductPicker').click();
 }
 
+async function verifyPurchaseOrderDelivery(page, fixture) {
+  await page.goto(origin + '/admin.html#purchase-orders');
+  await page.reload();
+  await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  await page.evaluate(() => openPurchaseOrderModal());
+  assert.equal(await page.locator('#purchaseOrderDeliveryType').inputValue(), 'date');
+  assert.equal(await page.locator('#purchaseOrderEndDateField').isVisible(), true);
+  assert.equal(await page.locator('#purchaseOrderDailyMinimumField').isVisible(), false);
+  await page.locator('#purchaseOrderProductSearchButton').click();
+  await page.locator('#inboundProductPickerList .picker-product[data-product="KR-0024"]').click();
+  await page.locator('#purchaseOrderRound').fill('일 생산 테스트');
+  await page.locator('#purchaseOrderQuantity').fill('100000');
+  await page.locator('#purchaseOrderDeliveryType').selectOption('daily');
+  assert.equal(await page.locator('#purchaseOrderEndDateField').isVisible(), false);
+  assert.equal(await page.locator('#purchaseOrderDailyMinimumField').isVisible(), true);
+  await page.locator('#purchaseOrderDailyMinimumQuantity').fill('0');
+  const writes = fixture.actions.filter(a => a === 'createPurchaseOrder').length;
+  await page.evaluate(() => savePurchaseOrder());
+  assert.match(await page.locator('#purchaseOrderFormMessage').textContent(), /1 이상의 정수/);
+  assert.equal(fixture.actions.filter(a => a === 'createPurchaseOrder').length, writes);
+  await page.locator('#purchaseOrderDailyMinimumQuantity').fill('10000');
+  await page.locator('#savePurchaseOrderButton').click();
+  await page.waitForFunction(() => document.querySelector('#purchaseOrderModal').hidden);
+  const row = fixture.mockOrders.find(o => o.orderRound === '일 생산 테스트');
+  assert.equal(row.deliveryType, 'daily');
+  assert.equal(row.dailyMinimumQuantity, 10000);
+  assert.equal(row.endDate, '');
+  assert.match(await page.locator('#purchaseOrderTableBody').textContent(), /일 10,000개 이상/);
+  await page.reload();
+  await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  await page.evaluate(id => openPurchaseOrderModal(getPurchaseOrderById(id)), row.purchaseOrderId);
+  assert.equal(await page.locator('#purchaseOrderDeliveryType').inputValue(), 'daily');
+  assert.equal(await page.locator('#purchaseOrderDailyMinimumQuantity').inputValue(), '10,000');
+  await page.locator('#purchaseOrderDailyMinimumQuantity').fill('12000');
+  await page.locator('#savePurchaseOrderButton').click();
+  await page.waitForFunction(() => document.querySelector('#purchaseOrderModal').hidden);
+  assert.equal(fixture.mockOrders.find(o => o.purchaseOrderId === row.purchaseOrderId).dailyMinimumQuantity, 12000);
+  await page.evaluate(id => openPurchaseOrderModal(getPurchaseOrderById(id)), row.purchaseOrderId);
+  await page.screenshot({path:'/private/tmp/seungjin-daily-delivery-form.png',fullPage:true});
+  await page.evaluate(() => closePurchaseOrderModal());
+  await page.goto(origin + '/admin.html#production-plan');
+  await page.evaluate(id => {
+    const job = state.productionPlanJobs[0];
+    changeProductionPlanOrder(job, id);
+    job.cumulativeProduction = 20000; job.cumulativeHours = 10; job.loss = 0;
+    renderProductionPlan();
+  }, row.purchaseOrderId);
+  assert.match(await page.locator('#productionPlanTableBody').textContent(), /일 12,000개 이상/);
+  const scheduled = await page.evaluate(() => ({target:state.productionPlanJobs[0].targetQuantity,missing:state.productionPlanJobs[0].planMissing}));
+  assert.equal(scheduled.missing, false);
+  assert.equal(scheduled.target, 12000);
+  await page.goto(origin + '/admin.html#purchase-orders');
+  await page.evaluate(id => openPurchaseOrderModal(getPurchaseOrderById(id)), row.purchaseOrderId);
+  await page.locator('#purchaseOrderDeliveryType').selectOption('date');
+  assert.equal(await page.locator('#purchaseOrderDailyMinimumField').isVisible(), false);
+  assert.equal(await page.locator('#purchaseOrderDailyMinimumQuantity').isDisabled(), true);
+  await page.evaluate(() => purchaseOrderEndDateControl.setValue('2026-10-30'));
+  await page.locator('#savePurchaseOrderButton').click();
+  await page.waitForFunction(() => document.querySelector('#purchaseOrderModal').hidden);
+  const dated = fixture.mockOrders.find(o => o.purchaseOrderId === row.purchaseOrderId);
+  assert.equal(dated.deliveryType, 'date');
+  assert.equal(dated.dailyMinimumQuantity, null);
+  assert.equal(dated.endDate, '2026-10-30');
+  assert.match(await page.locator('#purchaseOrderTableBody').textContent(), /납기 2026-10-30/);
+}
+
 async function verifyPartialUpload(page, fixture) {
   // Actual FileReader, image preparation, requestApi and product upload helper.
   const firstError = await page.evaluate(async () => {
@@ -243,6 +315,7 @@ async function main() {
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
     await verifyProductionPlanPilot(page, fixture);
+    await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
     await verifyPartialUpload(page, fixture);
     const timing = await measureBatch(page);
@@ -257,7 +330,7 @@ async function main() {
     assert.equal(fixture.loginCalls, 2);
     await page.setViewportSize({ width: 390, height: 844 });
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, productionPlanPilot: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
+    console.log(JSON.stringify({ passed: true, purchaseOrderDelivery: true, productionPlanPilot: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
   } finally {
     await browser.close();
   }

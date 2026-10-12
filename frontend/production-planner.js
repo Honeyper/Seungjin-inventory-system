@@ -15,16 +15,17 @@
     }
     return dates;
   }
-  function calculate({ orderQuantity, cumulativeProduction, cumulativeHours, loss, actualProduction, workDays, referenceRate }) {
+  function calculate({ orderQuantity, cumulativeProduction, cumulativeHours, loss, actualProduction, workDays, referenceRate, dailyMinimumQuantity }) {
     const order = number(orderQuantity), produced = number(cumulativeProduction), lost = number(loss);
     const hours = number(cumulativeHours), days = number(workDays), actual = number(actualProduction);
     const remaining = order !== null && produced !== null && lost !== null ? Math.max(0, order - produced + lost) : null;
     const hourlyRate = produced > 0 && hours > 0 ? produced / hours : number(referenceRate);
-    const dailyRequired = order !== null && days > 0 ? order / days : null;
+    const dailyMinimum = number(dailyMinimumQuantity);
+    const dailyRequired = dailyMinimum > 0 ? dailyMinimum : order !== null && days > 0 ? order / days : null;
     // Original sheet G = MIN(H, W*2 - V*8). A negative formula result is shown as-is;
     // the actual schedule below uses nonnegative capacity and the user's working-hour policy.
     const formulaTarget = remaining !== null && dailyRequired !== null && hourlyRate > 0
-      ? Math.min(remaining, dailyRequired * 2 - hourlyRate * 8) : null;
+      ? Math.min(remaining, dailyMinimum > 0 ? dailyMinimum : dailyRequired * 2 - hourlyRate * 8) : null;
     return { orderQuantity: order, cumulativeProduction: produced, cumulativeHours: hours, loss: lost,
       actualProduction: actual, workDays: days, remaining, hourlyRate, dailyRequired, formulaTarget,
       dailyTargetHours: formulaTarget !== null && formulaTarget >= 0 ? Math.ceil(formulaTarget / hourlyRate * 2) / 2 : null,

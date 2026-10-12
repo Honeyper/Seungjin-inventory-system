@@ -15260,3 +15260,12 @@ small, em {
 .purchase-order-auto-completed { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 0 10px; border-radius: 8px; color: #08733f; background: #e6f7ee; font-size: 12px; font-weight: 500; white-space: nowrap; }
 
 #createProductFromPickerButton[hidden] { display: none; }
+
+#purchaseOrderEndDateField[hidden],
+#purchaseOrderDailyMinimumField[hidden] {
+  display: none;
+}
+
+#purchaseOrderDailyMinimumField .unit-input input {
+  padding-right: 110px;
+}

@@ -520,7 +520,13 @@ function createOrUpdatePurchaseOrder(action, payload, state, changes, now) {
   const productId = text(payload.productId || current?.productId);
   const total = integer(payload.totalOrderQuantity ?? current?.totalOrderQuantity);
   const startDate = text(payload.startDate || current?.startDate);
-  const endDate = text(payload.endDate ?? current?.endDate);
+  const deliveryType = text(payload.deliveryType ?? current?.deliveryType ?? "date");
+  if (!["date", "daily"].includes(deliveryType)) throw new ValidationError("납기 방식을 확인해주세요.");
+  const dailyMinimumQuantity = deliveryType === "daily" ? Number(payload.dailyMinimumQuantity ?? current?.dailyMinimumQuantity) : null;
+  if (deliveryType === "daily" && (!Number.isSafeInteger(dailyMinimumQuantity) || dailyMinimumQuantity <= 0)) {
+    throw new ValidationError("일 최소 생산량은 1 이상의 정수로 입력해주세요.");
+  }
+  const endDate = deliveryType === "daily" ? "" : text(payload.endDate ?? current?.endDate);
   if (!productId || !text(payload.clientName || current?.clientName) || !text(payload.productName || current?.productName) || !startDate || total <= 0) throw new ValidationError("발주 필수값을 확인해주세요.");
   if (endDate && startDate > endDate) throw new ValidationError("납기일은 발주 시작일보다 빠를 수 없습니다.");
   const currentTotal = integer(current?.totalOrderQuantity);
@@ -539,6 +545,8 @@ function createOrUpdatePurchaseOrder(action, payload, state, changes, now) {
     orderRound,
     startDate,
     endDate,
+    deliveryType,
+    dailyMinimumQuantity,
     totalOrderQuantity: total,
     accumulatedInboundQuantity: accumulatedInbound,
     remainingQuantity: Math.max(total - accumulatedInbound, 0),

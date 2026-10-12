@@ -94,6 +94,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-12", title: "발주 납기 방식 및 일 최소 생산량", items: ["발주 등록·수정에서 지정 납기일 또는 매일 생산·납기를 선택합니다. 매일 생산은 일 최소 생산량을 저장하고 목록에 일 ○○개 이상으로 표시하며, 생산계획에도 일 최소량을 적용합니다. 기존 발주는 날짜 납기 방식을 유지합니다."] },
   { date: "2026-10-12", title: "메디큐브 단일 제품 계획 및 기계 선택", items: ["생산계획의 대상 제품을 메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g로 변경했습니다. 실크 인쇄 한 행을 유지하고 기계는 1호기부터 12호기까지 선택할 수 있습니다."] },
   { date: "2026-10-12", title: "라카 단일 제품 생산계획", items: ["기존 생산계획표에 실크 인쇄 한 행만 표시하고 라카 매직립픽서만 선택할 수 있도록 제한했습니다. 다른 공정과 행 추가·삭제를 제거했으며, 저장·발주 동기화·계획 생성 후에도 한 행을 유지합니다."] },
   { date: "2026-10-06", title: "입고 목록 합계 표시", items: ["입고 목록에 총 입고 건수·박스 수·수량을 표시합니다. 선택한 조회 기간과 검색 결과 전체를 합산하며, 잔량 박스도 포함합니다. QR 일괄 인쇄는 선택 해제 바로 오른쪽에 배치하고 합계도 같은 줄에 표시하며, 아래 컬럼 제목과 가로 구분선으로 나눕니다."] },
@@ -967,6 +968,12 @@ const purchaseOrderQuantity = document.querySelector("#purchaseOrderQuantity");
 purchaseOrderQuantity?.addEventListener("input", () => formatPurchaseOrderQuantityField(purchaseOrderQuantity));
 const purchaseOrderStartDate = document.querySelector("#purchaseOrderStartDate");
 const purchaseOrderEndDate = document.querySelector("#purchaseOrderEndDate");
+const purchaseOrderDeliveryType = document.querySelector("#purchaseOrderDeliveryType");
+const purchaseOrderEndDateField = document.querySelector("#purchaseOrderEndDateField");
+const purchaseOrderDailyMinimumField = document.querySelector("#purchaseOrderDailyMinimumField");
+const purchaseOrderDailyMinimumQuantity = document.querySelector("#purchaseOrderDailyMinimumQuantity");
+purchaseOrderDeliveryType?.addEventListener("change", syncPurchaseOrderDeliveryFields);
+purchaseOrderDailyMinimumQuantity?.addEventListener("input", () => formatPurchaseOrderQuantityField(purchaseOrderDailyMinimumQuantity));
 const purchaseOrderStartDateControl = window.SeungjinSegmentedDate?.createController(
   document.querySelector('[data-segmented-date="purchaseOrderStartDate"]'),
   purchaseOrderStartDate
@@ -2744,7 +2751,8 @@ function getProductionPlanCalculations(job) {
     orderQuantity: order?.totalOrderQuantity, cumulativeProduction: value("cumulativeProduction"),
     cumulativeHours: value("cumulativeHours"), loss: value("loss") ?? 0,
     actualProduction: sameOrder && source.sourceDate === state.productionPlanDate ? source.actualProduction : current ? job?.actualProduction : null,
-    workDays, referenceRate: source?.cumulativeProduction > 0 && source?.cumulativeHours > 0
+    workDays, dailyMinimumQuantity: order?.deliveryType === "daily" ? order.dailyMinimumQuantity : null,
+    referenceRate: source?.cumulativeProduction > 0 && source?.cumulativeHours > 0
       ? source.cumulativeProduction / source.cumulativeHours : null
   });
   return { ...values, source, sameOrder, sourceDate: source?.sourceDate || "" };
@@ -2792,11 +2800,18 @@ function updateProductionPlanTargets(jobs) {
   const active = jobs.filter(job => job.purchaseOrderId && PRODUCTION_PROCESS_ORDER.includes(job.process));
   const inputs = active.map(job => {
     const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
-    if (order) job.dueDate = order.endDate || "";
+    if (order) {
+      job.dueDate = order.endDate || "";
+      job.deliveryType = order.deliveryType || "date";
+      job.dailyMinimumQuantity = order.dailyMinimumQuantity || null;
+    }
     const values = getProductionPlanCalculations(job);
     job.productionRemaining = values.remaining;
     return { id: job.planRowId, group: `${job.purchaseOrderId}|${job.process}`, process: job.process,
-      machine: job.machine, worker: job.worker, dueDate: job.dueDate, remaining: values.remaining, hourlyRate: values.hourlyRate };
+      machine: job.machine, worker: job.worker,
+      dueDate: job.deliveryType === "daily" ? state.productionPlanDate : job.dueDate,
+      remaining: job.deliveryType === "daily" && values.remaining !== null
+        ? Math.min(values.remaining, job.dailyMinimumQuantity) : values.remaining, hourlyRate: values.hourlyRate };
   });
   const result = window.SeungjinProductionPlanner.schedule({ jobs: inputs, startDate: state.productionPlanDate,
     holidays: PRODUCTION_NON_WORKING_DATES, machines: PRODUCTION_MACHINE_OPTIONS });
@@ -2812,7 +2827,7 @@ function updateProductionPlanTargets(jobs) {
     // An automatic machine choice is part of this draft, not a permanent user constraint.
     job.scheduledMachine = today?.machine || "";
     const left = result.remaining.get(`${job.purchaseOrderId}|${job.process}`) || 0;
-    job.planMessage = missing?.reason || (left > 0 ? `납기 내 ${formatNumber(left)}ea 부족 · 배정 조정 필요`
+    job.planMessage = missing?.reason || (left > 0 ? `${job.deliveryType === "daily" ? "일 최소 생산량" : "납기 내"} ${formatNumber(left)}ea 부족 · 배정 조정 필요`
       : today?.holiday ? "휴일 8시간 배정" : today?.shiftHours > 8 ? `납기상 ${today.shiftHours}시간 필요`
       : !today && job.productionRemaining > 0 ? "다른 날짜 배정 · 상세 확인" : "");
   }
@@ -2876,6 +2891,8 @@ function buildProductionPlanJobs({ autoAssign = false, preserve = [] } = {}) {
         targetQuantity: 0,
         balance,
         dueDate: order.endDate || "",
+        deliveryType: order.deliveryType || "date",
+        dailyMinimumQuantity: order.dailyMinimumQuantity || null,
         worker: previous?.worker || "",
         hours: Number(previous?.hours) > 0 ? Math.min(PRODUCTION_MAX_WORK_HOURS, Number(previous.hours)) : PRODUCTION_STANDARD_WORK_HOURS,
         note: previous?.note || order.note || "",
@@ -2992,6 +3009,8 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
   job.targetQuantity = 0;
   job.balance = balance;
   job.dueDate = order.endDate || "";
+  job.deliveryType = order.deliveryType || "date";
+  job.dailyMinimumQuantity = order.dailyMinimumQuantity || null;
   job.productionMetricsVersion = 2;
   job.productionReferenceId = "";
   job.workDays = null;
@@ -3040,7 +3059,7 @@ function renderProductionPlanTable() {
         </td>
         <td class="production-plan-auto"><strong>${empty ? "—" : job.planMissing ? "자료 필요" : `${formatNumber(job.targetQuantity)} ea`}</strong>${!empty && job.planMessage ? `<small>${escapeHtml(job.planMessage)}</small>` : ""}</td>
         <td class="production-plan-balance">${empty ? "-" : job.productionRemaining === null ? "자료 필요" : `${formatNumber(job.productionRemaining)} ea`}</td>
-        <td><span class="production-plan-due ${urgent ? "urgent" : ""}">${urgent ? '<i class="ti ti-clock-exclamation" aria-hidden="true"></i>' : ""}${escapeHtml(job.dueDate || (empty ? "-" : "미정"))}</span></td>
+        <td><span class="production-plan-due ${urgent ? "urgent" : ""}">${urgent ? '<i class="ti ti-clock-exclamation" aria-hidden="true"></i>' : ""}${escapeHtml(job.deliveryType === "daily" ? getPurchaseOrderDeliveryLabel(job) : job.dueDate || (empty ? "-" : "미정"))}</span></td>
         <td><input data-plan-field="worker" type="text" value="${escapeAttribute(job.worker)}" placeholder="작업자" aria-label="${escapeAttribute(rowLabel)} 작업자" /></td>
         <td class="production-plan-auto">${empty ? "—" : job.planMissing ? "자료 필요" : job.targetQuantity > 0 ? `${job.shiftHours || 8}시간` : "작업 없음"}</td>
         <td><div class="production-plan-note-controls">
@@ -3108,7 +3127,7 @@ function renderProductionPlanDetail() {
       <p>${escapeHtml(state.productionPlanReferenceError || (v.source ? `${v.sourceDate} 실적 기준 · ${v.sameOrder ? "발주량·납기 일치, 생산 실적 연결" : "다른 발주 실적: 시간당 생산량만 참고"}` : "같은 제품·공정의 이전 실적을 선택하면 생산 속도를 참고할 수 있습니다."))}</p>
     </section>
     <section class="production-plan-detail-section"><header><h3>발주 및 작업 정보</h3></header><div class="production-plan-detail-grid system-values">
-      ${metric("발주량", v.orderQuantity)}<article><span>납기일</span><strong>${escapeHtml(job.dueDate || "미정")}</strong></article>
+      ${metric("발주량", v.orderQuantity)}<article><span>납기일</span><strong>${escapeHtml(job.deliveryType === "daily" ? getPurchaseOrderDeliveryLabel(job) : job.dueDate || "미정")}</strong></article>
       ${v.sameOrder ? metric("누적 생산량", v.cumulativeProduction) + metric("누적 작업시간", v.cumulativeHours, "시간") + metric("생산 손실량", v.loss) : ""}
       ${metric("평일 작업일", getProductionPlanWorkingDays(state.productionPlanDate, job.dueDate), "일")}
     </div></section>
@@ -8760,7 +8779,7 @@ function renderPurchaseOrders(message = "") {
         <td><strong>${escapeHtml(order.orderRound || "발주명 미정")}</strong><br><small>${escapeHtml(order.productId || "-")}</small></td>
         <td>${escapeHtml(order.clientName || "-")}</td>
         <td>${escapeHtml(order.productName || "-")}</td>
-        <td>발주 ${escapeHtml(order.startDate || "-")}<br><small>납기 ${escapeHtml(order.endDate || "미정")}</small></td>
+        <td>발주 ${escapeHtml(order.startDate || "-")}<br><small>${escapeHtml(getPurchaseOrderDeliveryLabel(order))}</small></td>
         <td>${formatPurchaseOrderQuantity(order.totalOrderQuantity)}</td>
         <td>${formatPurchaseOrderQuantity(order.accumulatedInboundQuantity)}</td>
         <td>${formatPurchaseOrderQuantity(order.remainingQuantity)}</td>
@@ -8826,6 +8845,12 @@ function formatPurchaseOrderQuantity(value) {
   return `${Number(value || 0).toLocaleString("ko-KR")} ea`;
 }
 
+function getPurchaseOrderDeliveryLabel(order) {
+  return order?.deliveryType === "daily"
+    ? `일 ${formatNumber(order.dailyMinimumQuantity)}개 이상`
+    : `납기 ${order?.endDate || "미정"}`;
+}
+
 function getPurchaseOrderById(id) {
   return state.purchaseOrders.find((order) => order.purchaseOrderId === id) || null;
 }
@@ -8869,6 +8894,9 @@ function openPurchaseOrderModal(order = null) {
   purchaseOrderQuantity.value = formatPurchaseOrderQuantityInput(order?.totalOrderQuantity || "");
   purchaseOrderStartDateControl?.setValue(order?.startDate || getLocalDateInputValue());
   purchaseOrderEndDateControl?.setValue(order?.endDate || "");
+  purchaseOrderDeliveryType.value = order?.deliveryType === "daily" ? "daily" : "date";
+  purchaseOrderDailyMinimumQuantity.value = formatPurchaseOrderQuantityInput(order?.dailyMinimumQuantity || "");
+  syncPurchaseOrderDeliveryFields();
   purchaseOrderFormStatus.value = order && getPurchaseOrderDisplayStatus(order) === "임의 완료" ? "임의 완료" : order?.status === "취소" ? "취소" : "";
   purchaseOrderFormStatus.disabled = order && getPurchaseOrderDisplayStatus(order) === "임의 완료";
   purchaseOrderNote.value = order?.note || "";
@@ -8900,7 +8928,9 @@ function getPurchaseOrderPayload() {
     productName: product?.productName || purchaseOrderProductName.value.trim() || currentOrder?.productName || "",
     orderRound: purchaseOrderRound.value.trim(),
     startDate: purchaseOrderStartDate.value,
-    endDate: purchaseOrderEndDate.value,
+    endDate: purchaseOrderDeliveryType.value === "daily" ? "" : purchaseOrderEndDate.value,
+    deliveryType: purchaseOrderDeliveryType.value,
+    dailyMinimumQuantity: purchaseOrderDeliveryType.value === "daily" ? parsePurchaseOrderQuantityInput(purchaseOrderDailyMinimumQuantity.value) : null,
     totalOrderQuantity: parsePurchaseOrderQuantityInput(purchaseOrderQuantity.value),
     status: purchaseOrderFormStatus.value,
     note: purchaseOrderNote.value.trim(),
@@ -8923,6 +8953,10 @@ async function savePurchaseOrder() {
   const payload = getPurchaseOrderPayload();
   if (!payload.productId || !payload.startDate || !Number.isSafeInteger(payload.totalOrderQuantity) || payload.totalOrderQuantity <= 0) {
     purchaseOrderFormMessage.textContent = "필수 항목을 모두 입력해주세요.";
+    return;
+  }
+  if (payload.deliveryType === "daily" && (!Number.isSafeInteger(payload.dailyMinimumQuantity) || payload.dailyMinimumQuantity <= 0)) {
+    purchaseOrderFormMessage.textContent = "일 최소 생산량은 1 이상의 정수로 입력해주세요.";
     return;
   }
   if (payload.endDate && payload.startDate > payload.endDate) {
@@ -8950,6 +8984,18 @@ async function savePurchaseOrder() {
     savePurchaseOrderButton.disabled = false;
   }
 }
+
+function syncPurchaseOrderDeliveryFields() {
+  const daily = purchaseOrderDeliveryType?.value === "daily";
+  if (purchaseOrderEndDateField) purchaseOrderEndDateField.hidden = daily;
+  if (purchaseOrderDailyMinimumField) purchaseOrderDailyMinimumField.hidden = !daily;
+  if (purchaseOrderDailyMinimumQuantity) {
+    purchaseOrderDailyMinimumQuantity.disabled = !daily;
+    purchaseOrderDailyMinimumQuantity.required = daily;
+  }
+  purchaseOrderEndDateField?.querySelectorAll("input").forEach(input => { input.disabled = daily; });
+}
+
 
 async function togglePurchaseOrderCompletion(order, button) {
   if (button.disabled) return;
