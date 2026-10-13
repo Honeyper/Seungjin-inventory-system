@@ -134,7 +134,7 @@ async function verifyProductionPlanPilot(page, fixture) {
   assert.equal(await page.locator('#inboundProductPickerList [data-copy-picker-product], #inboundProductPickerList [data-edit-picker-product]').count(), 0);
   await page.locator('#inboundProductPickerList .picker-product').click();
   assert.equal(await rows.first().locator('[data-plan-field=worker]').inputValue(), '유순희');
-  assert.deepEqual(await rows.first().locator('[data-plan-field=worker] option').allTextContents(), ['미지정','유순희 (직원)']);
+  assert.deepEqual(await rows.first().locator('[data-plan-field=worker] option').allTextContents(), ['미지정','유순희']);
   assert.deepEqual(await rows.first().locator('[data-plan-field=packagingWorker] option').allTextContents(), ['미지정','수쿠마 (아웃소싱)']);
   await rows.first().locator('[data-plan-field=packagingWorker]').selectOption('');
   await rows.first().locator('[data-plan-field=packagingWorker]').selectOption('수쿠마');
