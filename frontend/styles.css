@@ -15027,3 +15027,36 @@ small, em {
   #productionPlanView .production-plan-table input { font-size: 0.7rem; }
   #productionPlanView .production-plan-table th { font-size: 0.67rem; }
 }
+
+/* Keep product selection and its operation in one balanced table cell. */
+#productionPlanView .production-plan-table td.production-plan-product {
+  padding: 0.55rem 0.45rem;
+}
+#productionPlanView .production-plan-product-trigger {
+  min-height: 3rem;
+  padding-block: 0.45rem;
+  border-radius: 0.45rem 0.45rem 0 0;
+  border-bottom: 0;
+}
+#productionPlanView .production-plan-stage-field {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #d8e1ec;
+  border-radius: 0 0 0.45rem 0.45rem;
+  background: #f8fafd;
+}
+#productionPlanView .production-plan-stage-field > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 0.68rem;
+}
+#productionPlanView .production-plan-stage-field select {
+  flex: 1 1 0;
+  width: auto;
+  max-width: 7rem;
+  min-height: 1.85rem;
+  border-radius: 0.3rem;
+}
