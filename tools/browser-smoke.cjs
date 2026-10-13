@@ -102,7 +102,7 @@ async function verifyAdminViews(page) {
 async function verifyProductionPlanPilot(page, fixture) {
   fixture.mockProducts = [
     { productId: 'NP-0001', productCode: 'NP-0001', productName: '오브제 파운데이션 외용기', clientName: '뉴파트너스',
-      processStage1: '실크', processStage2: '실크', finalProcess: '2도', processRoute: '1도 실크 → 2도 실크', processGroups: [[1],[2]], boxQuantity: '567 ea', trayQuantity: '80 ea' },
+      processStage1: '실크', processStage2: '실크', finalProcess: '2도', processRoute: '1도 실크 → 2도 실크', processGroups: [[1],[2]], processHourlyProductionRates: {'1도':1000,'2도':2000}, boxQuantity: '567 ea', trayQuantity: '80 ea' },
     { productId: 'OTHER', productCode: 'OTHER', productName: '다른 제품', clientName: '다른 업체', finalProcess: '2도' }
   ];
   fixture.mockOrders = [
@@ -151,11 +151,11 @@ async function verifyProductionPlanPilot(page, fixture) {
   assert.equal(await rows.first().locator('[data-plan-field=packagingWorker]').inputValue(), '수쿠마');
   const staff = await page.evaluate(() => state.productionPlanJobs.map(row => [row.worker,row.workerType,row.packagingWorker,row.packagingWorkerType]));
   assert.deepEqual(staff,[['유순희','employee','수쿠마','outsourcing']]);
-  await page.evaluate(() => { state.productionPlanJobs[0].cumulativeProduction = 4321; });
+  assert.equal(await page.evaluate(() => state.productionPlanJobs[0].targetQuantity), 10000);
   await stage.selectOption('1');
   assert.equal(await rows.count(), 1);
   assert.equal(await machine.inputValue(), '');
-  assert.equal(await page.evaluate(() => state.productionPlanJobs[0].cumulativeProduction), null);
+  assert.equal(await page.evaluate(() => state.productionPlanJobs[0].targetQuantity), 8000);
   await machine.selectOption('2호기');
   await page.locator('#saveProductionPlanButton').click();
   await page.reload();
@@ -164,12 +164,10 @@ async function verifyProductionPlanPilot(page, fixture) {
   assert.equal(await machine.inputValue(), '2호기');
   await stage.selectOption('2');
   assert.equal(await machine.inputValue(), '12호기');
-  assert.equal(await page.evaluate(() => state.productionPlanJobs[0].cumulativeProduction), 4321);
+  assert.equal(await page.evaluate(() => state.productionPlanJobs[0].targetQuantity), 10000);
   await page.locator('#saveProductionPlanButton').click();
   await page.locator('#syncProductionPlanButton').click();
   await page.waitForFunction(() => !document.querySelector('#syncProductionPlanButton').disabled);
-  await page.locator('#generateProductionPlanButton').click();
-  await page.waitForFunction(() => !document.querySelector('#generateProductionPlanButton').disabled);
   assert.equal(await rows.count(), 1);
   assert.equal(await stage.inputValue(), '2');
   await page.screenshot({path:'/private/tmp/seungjin-selected-stage.png',fullPage:true});
@@ -234,8 +232,6 @@ async function verifyProductionPlanPrintTypes(page, fixture) {
   assert.equal(await row.locator('[data-plan-field=machine]').inputValue(), '3호기');
   await page.locator('#syncProductionPlanButton').click();
   await page.waitForFunction(() => !document.querySelector('#syncProductionPlanButton').disabled);
-  await page.locator('#generateProductionPlanButton').click();
-  await page.waitForFunction(() => !document.querySelector('#generateProductionPlanButton').disabled);
   assert.equal(await page.evaluate(() => state.productionPlanJobs[0].productId), 'FOIL');
   assert.equal(await process.inputValue(), '박 인쇄');
   await page.screenshot({path:'/private/tmp/seungjin-print-types-foil.png',fullPage:true});
@@ -245,7 +241,8 @@ async function verifyProductionPlanPrintTypes(page, fixture) {
   await page.locator('#inboundProductPickerList .picker-product[data-product="NP-0001"]').click();
   assert.equal(await stage.inputValue(), '2');
   await page.locator('#saveProductionPlanButton').click();
-  await page.screenshot({path:'/private/tmp/seungjin-print-types-silk.png',fullPage:true});
+  assert.equal(fixture.actions.includes('getProductionPlanReference'), false);
+  await page.screenshot({path:'/private/tmp/seungjin-simple-planning.png',fullPage:true});
 }
 
 async function verifyProductionPlanStorageQuota(page) {
@@ -330,10 +327,10 @@ async function verifyPurchaseOrderDelivery(page, fixture) {
     state.productionPlanJobs.forEach(row => { row.cumulativeProduction = 20000; row.cumulativeHours = 5; row.loss = 0; });
     renderProductionPlan();
   }, row.purchaseOrderId);
-  assert.match(await page.locator('#productionPlanTableBody').textContent(), /일 12,000개 이상/);
+  assert.equal(await page.locator('#productionPlanDetailPanel, #productionPlanBoardPanel, #generateProductionPlanButton').count(), 0);
   const scheduled = await page.evaluate(() => ({target:state.productionPlanJobs[0].targetQuantity,missing:state.productionPlanJobs[0].planMissing}));
   assert.equal(scheduled.missing, false);
-  assert.equal(scheduled.target, 12000);
+  assert.equal(scheduled.target, 16000);
   await page.goto(origin + '/admin.html#purchase-orders');
   await page.evaluate(id => openPurchaseOrderModal(getPurchaseOrderById(id)), row.purchaseOrderId);
   await page.locator('#purchaseOrderDeliveryType').selectOption('date');

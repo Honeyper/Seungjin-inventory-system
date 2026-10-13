@@ -82,28 +82,19 @@ test("부모 메뉴를 펼치거나 접어도 현재 페이지는 변경하지 �
   assert.equal(context.workMenuButton["aria-expanded"], "true");
 });
 
-test("생산계획 페이지는 계획표와 기계별 스케줄을 별도 탭으로 제공한다", () => {
-  assert.match(html, /id="productionPlanTableTab"[^>]*role="tab"[^>]*aria-controls="productionPlanTablePanel"/);
-  assert.match(html, /id="productionPlanBoardTab"[^>]*role="tab"[^>]*aria-controls="productionPlanBoardPanel"/);
-  assert.match(html, /id="productionPlanTablePanel"[^>]*role="tabpanel"/);
-  assert.match(html, /id="productionPlanBoardPanel"[^>]*role="tabpanel"[^>]*hidden/);
-  assert.match(html, /<th>인쇄 유형<\/th>[\s\S]*<th>기계 번호<\/th>[\s\S]*<th>업체<\/th>[\s\S]*<th>제품명<\/th>/);
-  assert.match(html, /<th>목표 생산량<\/th>[\s\S]*<th>잔량<\/th>[\s\S]*<th>납기일<\/th>[\s\S]*<th>작업자<\/th>/);
-  assert.match(html, /id="machineScheduleBoard"/);
-  assert.doesNotMatch(html.slice(html.indexOf('id="productionPlanView"'), html.indexOf('id="workStatusView"')), /생산계획을 준비하고 있습니다/);
+test("생산계획은 발주량과 제품별 시간당 생산량을 보여주는 한 표로 구성한다", () => {
+  assert.match(html, /id="productionPlanTablePanel"/);
+  assert.match(html, /<th>발주량<\/th>[\s\S]*<th>시간당 생산량<\/th>[\s\S]*<th>하루 목표 생산량<\/th>/);
+  assert.doesNotMatch(html, /id="productionPlanDetailPanel"|id="productionPlanBoardPanel"|id="generateProductionPlanButton"/);
 });
 
-test("생산계획의 핵심 동작은 실제 발주 동기화, 자동 초안, 저장과 인쇄에 연결된다", () => {
+test("발주 새로고침·계획 저장·인쇄는 유지한다", () => {
   assert.match(html, /id="syncProductionPlanButton"/);
-  assert.match(html, /id="generateProductionPlanButton"/);
   assert.match(html, /id="saveProductionPlanButton"/);
   assert.match(html, /id="printProductionPlanButton"/);
-  assert.match(source, /function buildProductionPlanJobs\(\{ autoAssign = false, preserve = \[\] \} = \{\}\)/);
-  assert.match(source, /getProductionPlanOpenOrders\(\)/);
   const save = source.slice(source.indexOf("function saveProductionPlanDraft()"), source.indexOf("function printProductionPlan()"));
   assert.match(save, /const key = getProductionPlanStorageKey\(\)/);
   assert.match(save, /localStorage\.setItem\(key, serialized\)/);
-  assert.match(source, /function renderMachineScheduleBoard\(\)/);
 });
 
 test("생산계획 제품 변경 시 연결된 발주 정보도 함께 갱신한다", () => {
@@ -118,22 +109,9 @@ test("생산계획 제품 변경 시 연결된 발주 정보도 함께 갱신한
   assert.match(source, /selectProductionPlanProduct\(product\)/);
 });
 
-test("생산계획은 우측 상세를 접고 펼치며 발주 연결값과 현장 입력값을 구분한다", () => {
-  assert.match(html, /id="productionPlanDetailToggle"[^>]*aria-controls="productionPlanDetailPanel"/);
-  assert.match(html, /id="productionPlanDetailPanel"[^>]*hidden/);
-  assert.match(source, /function setProductionPlanDetailOpen\(open\)/);
-  assert.match(source, /발주 및 작업 정보/);
-  assert.match(source, /생산 실적/);
-  assert.match(source, /"cumulativeHours"/);
-  assert.match(source, /"actualProduction"/);
-  assert.doesNotMatch(source, /<input data-plan-field="targetQuantity"/);
-  assert.doesNotMatch(source, /<select data-plan-field="hours"/);
-});
-
-test("스프레드시트 계산식과 8시간 우선 근무 제약을 자동 계획에 적용한다", () => {
-  assert.match(html, /production-planner\.js/);
-  assert.match(source, /SeungjinProductionPlanner.calculate/);
-  assert.match(source, /SeungjinProductionPlanner.schedule/);
+test("실적 입력과 참고 실적·복잡한 일정 계산을 제거한다", () => {
+  assert.doesNotMatch(source, /function renderProductionPlanDetail|function loadProductionPlanReferenceRows|function renderMachineScheduleBoard/);
+  assert.doesNotMatch(source, /data-plan-detail-field|data-plan-reference/);
+  assert.match(source, /product\?\.processHourlyProductionRates/);
   assert.match(source, /const PRODUCTION_STANDARD_WORK_HOURS = 8/);
-  assert.match(source, /const PRODUCTION_MAX_WORK_HOURS = 10/);
 });

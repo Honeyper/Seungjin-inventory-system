@@ -122,16 +122,9 @@ test('시트 백업에 납기 방식과 일 최소 생산량도 저장한다', (
   assert.deepEqual(Array.from(fields.dailyMinimumQuantity), ['일 최소 생산량']);
 });
 
-test('생산계획은 날짜 없는 매일 생산의 최소량을 계산하되 잔량보다 많이 계획하지 않는다', () => {
-  const c = vm.createContext({ window: {} });
+test('단순 생산계획은 발주의 일 최소량 입력 없이 등록 생산량을 기준으로 계산한다', () => {
+  const c = vm.createContext({window:{}});
   vm.runInContext(source('frontend/production-planner.js'), c);
-  const planner = c.window.SeungjinProductionPlanner;
-  const input = { orderQuantity: 100000, cumulativeProduction: 20000, cumulativeHours: 10, loss: 0,
-    workDays: 0, dailyMinimumQuantity: 10000 };
-  const result = planner.calculate(input);
-  assert.equal(result.dailyRequired, 10000);
-  assert.equal(result.formulaTarget, 10000);
-  assert.equal(result.dailyTargetHours, 5);
-  assert.equal(planner.calculate({ ...input, cumulativeProduction: 98000 }).formulaTarget, 2000);
-  assert.equal(planner.calculate({ ...input, cumulativeProduction: null }).remaining, null);
+  const result = c.window.SeungjinProductionPlanner.calculate({orderQuantity:100000,hourlyRate:2000,dailyMinimumQuantity:10000});
+  assert.equal(result.targetQuantity,16000);assert.equal(result.hours,8);
 });
