@@ -326,6 +326,51 @@ async function verifyProductionPlanDelivery(page, fixture) {
   console.log(JSON.stringify({planDelivery:true,dailyMinimum7000:true,fixedDate:true,hourlyRateInDetails:true,stageChanges:true}));
 }
 
+async function verifyProductionPlanMetrics(page) {
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]');
+  const details=page.locator('.production-plan-details-row');
+  await row.locator('[data-plan-details-toggle]').click();
+  assert.equal(await details.locator('dt').count(),11);
+  assert.deepEqual(await details.locator('dt').allTextContents(),['작업일','일일 목표 시간','총 소요 시간(예상)','발주량','LOSS','누적 생산량','누적 시간','시간당 생산량','일일 필수 생산량','실 생산량','달성률']);
+  const target=await page.evaluate(()=>state.productionPlanJobs[0].targetQuantity);
+  for(const [field,value] of Object.entries({workDays:'10',loss:'200',cumulativeProduction:'4000',cumulativeHours:'2',actualProduction:'800'})) {
+    await details.locator(`[data-plan-field=${field}]`).fill(value);
+  }
+  assert.equal(await details.locator('[data-plan-detail-value=dailyRequired]').textContent(),'1,000 ea');
+  assert.equal(await details.locator('[data-plan-detail-value=achievementRate]').textContent(),'80%');
+  assert.equal(await page.evaluate(()=>state.productionPlanJobs[0].targetQuantity),target);
+  await page.locator('#saveProductionPlanButton').click();
+  await page.reload();
+  await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise && state.productionPlanJobs[0].actualProduction===800);
+  await row.locator('[data-plan-details-toggle]').click();
+  assert.equal(await details.locator('[data-plan-field=workDays]').inputValue(),'10');
+  await row.locator('[data-plan-field=stage]').selectOption('1');
+  await details.locator('[data-plan-field=actualProduction]').fill('100');
+  await row.locator('[data-plan-field=stage]').selectOption('2');
+  assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'800');
+  assert.equal(await details.locator('[data-plan-field=loss]').inputValue(),'200');
+  await details.locator('[data-plan-field=workDays]').fill('0');
+  await page.locator('#saveProductionPlanButton').click();
+  assert.match(await page.locator('#productionPlanStatus').textContent(),/입력값/);
+  assert.equal(await page.evaluate(()=>state.productionPlanJobs[0].workDays),10);
+  await details.locator('[data-plan-field=workDays]').fill('10');
+  await details.locator('[data-plan-field=actualProduction]').fill('-1');
+  await page.locator('#saveProductionPlanButton').click();
+  assert.match(await page.locator('#productionPlanStatus').textContent(),/입력값/);
+  await details.locator('[data-plan-field=actualProduction]').fill('800');
+  await page.locator('#saveProductionPlanButton').click();
+  assert.match(await page.locator('#productionPlanStatus').textContent(),/저장했습니다/);
+  for(const width of [1920,1280,960]) {
+    await page.setViewportSize({width,height:900});
+    const bounds=await page.locator('.production-plan-table-wrap').evaluate(wrap=>({width:wrap.clientWidth,scroll:wrap.scrollWidth}));
+    assert.ok(bounds.scroll<=bounds.width+1);
+    await page.locator('.production-plan-table-wrap').screenshot({path:`/private/tmp/seungjin-plan-metrics-${width}.png`});
+  }
+  await page.setViewportSize({width:1280,height:900});
+  await row.locator('[data-plan-details-toggle]').click();
+  console.log(JSON.stringify({planMetrics:11,inputsSaveReload:true,perStage:true,invalidInputsBlocked:true,mainTargetUnchanged:true}));
+}
+
 async function verifyProductionPlanStorageQuota(page) {
   const filled = await page.evaluate(() => {
     const cacheKey = 'seungjinAdminCache:v3:dev:inbounds:quota-test';
@@ -525,6 +570,7 @@ async function main() {
     await verifyProductionPlanPrintTypes(page, fixture);
     await verifyProductionPlanDetails(page, fixture);
     await verifyProductionPlanDelivery(page, fixture);
+    await verifyProductionPlanMetrics(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);

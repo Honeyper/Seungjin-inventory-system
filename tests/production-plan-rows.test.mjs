@@ -251,3 +251,25 @@ test('계획표 납기는 최신 발주의 날짜 또는 일 필수 수량을 �
  c.state.purchaseOrders[0].endDate='';assert.equal(c.getProductionPlanDeliveryLabel(job),'미정');
  assert.equal(c.getProductionPlanDeliveryLabel({purchaseOrderId:''}),'—');
 });
+
+
+test('상세 11개 항목은 기존 목표를 바꾸지 않고 공정별 입력을 저장한다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,deliveryType:'daily',dailyMinimumQuantity:7000}];
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ Object.assign(job,{workDays:17,loss:200,cumulativeProduction:4000,cumulativeHours:2,actualProduction:6000});
+ c.updateProductionPlanTargets([job]);assert.equal(job.targetQuantity,10000);
+ const values=c.getProductionPlanDetailMetrics(job);
+ assert.equal(values.dailyRequired,7000);assert.equal(values.dailyTargetHours,5);assert.equal(values.totalExpectedHours,5);
+ assert.ok(Math.abs(values.achievementRate-6000/7000*100)<1e-8);
+ assert.equal(c.formatProductionPlanDetailValue('achievementRate',values.achievementRate),'85.7%');
+ assert.equal((c.renderProductionPlanMetrics(job).match(/<dt>/g)||[]).length,11);
+ c.changeProductionPlanStage(job,1);assert.equal(job.actualProduction,null);
+ Object.assign(job,{workDays:5,loss:0,cumulativeProduction:0,cumulativeHours:0,actualProduction:0});
+ c.changeProductionPlanStage(job,2);assert.equal(job.actualProduction,6000);assert.equal(job.loss,200);
+ assert.equal(c.saveProductionPlanDraft(),true);c.loadProductionPlanDraft();
+ const saved=c.state.productionPlanJobs[0];assert.equal(saved.workDays,17);assert.equal(saved.cumulativeHours,2);assert.equal(saved.actualProduction,6000);
+ c.state.purchaseOrders[0].deliveryType='date';assert.equal(c.getProductionPlanDetailMetrics(saved).dailyRequired,589);
+ saved.workDays=null;saved.actualProduction=null;const empty=c.getProductionPlanDetailMetrics(saved);
+ assert.equal(empty.dailyRequired,null);assert.equal(empty.achievementRate,null);
+ assert.equal(c.formatProductionPlanDetailValue('achievementRate',empty.achievementRate),'—');
+});

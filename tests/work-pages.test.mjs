@@ -84,7 +84,7 @@ test("부모 메뉴를 펼치거나 접어도 현재 페이지는 변경하지 �
 
 test("생산계획은 발주량과 제품별 시간당 생산량을 보여주는 한 표로 구성한다", () => {
   assert.match(html, /id="productionPlanTablePanel"/);
-  assert.match(html, /<th>발주량<\/th>[\s\S]*<th>시간당 생산량<\/th>[\s\S]*<th>하루 목표 생산량<\/th>/);
+  assert.match(html, /<th>발주량<\/th>[\s\S]*<th>납기일<\/th>[\s\S]*<th>하루 목표 생산량<\/th>/);
   assert.doesNotMatch(html, /id="productionPlanDetailPanel"|id="productionPlanBoardPanel"|id="generateProductionPlanButton"/);
 });
 
@@ -109,7 +109,7 @@ test("생산계획 제품 변경 시 연결된 발주 정보도 함께 갱신한
   assert.match(source, /selectProductionPlanProduct\(product\)/);
 });
 
-test("실적 입력과 참고 실적·복잡한 일정 계산을 제거한다", () => {
+test("상세 실적 입력과 별개로 참고 실적·복잡한 일정 계산 없이 단순 목표를 유지한다", () => {
   assert.doesNotMatch(source, /function renderProductionPlanDetail|function loadProductionPlanReferenceRows|function renderMachineScheduleBoard/);
   assert.doesNotMatch(source, /data-plan-detail-field|data-plan-reference/);
   assert.match(source, /product\?\.processHourlyProductionRates/);
