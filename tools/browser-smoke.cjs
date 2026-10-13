@@ -245,6 +245,51 @@ async function verifyProductionPlanPrintTypes(page, fixture) {
   await page.screenshot({path:'/private/tmp/seungjin-simple-planning.png',fullPage:true});
 }
 
+async function verifyProductionPlanDetails(page, fixture) {
+  const rows=page.locator('#productionPlanTableBody [data-plan-row-id]');
+  const buttons=rows.locator('[data-plan-details-toggle]');
+  const before=await page.evaluate(()=>JSON.stringify(state.productionPlanJobs));
+  const status=await page.locator('#productionPlanStatus').textContent();
+  const actions=fixture.actions.length;
+  assert.equal(await buttons.getAttribute('aria-expanded'),'false');
+  assert.equal(await page.locator('.production-plan-details-row').isVisible(),false);
+  await buttons.click();
+  assert.equal(await buttons.getAttribute('aria-expanded'),'true');
+  assert.equal(await buttons.locator('.production-plan-details-toggle-label').textContent(),'세부사항 닫기');
+  assert.equal(await page.locator('.production-plan-details-row').isVisible(),true);
+  assert.equal(await page.locator('.production-plan-details-row td').getAttribute('colspan'),'10');
+  assert.equal(await rows.evaluate(row=>row.nextElementSibling.classList.contains('production-plan-details-row')),true);
+  await page.locator('.production-plan-table-wrap').screenshot({path:'/private/tmp/seungjin-plan-details-open.png'});
+  await buttons.press('Enter');
+  assert.equal(await buttons.getAttribute('aria-expanded'),'false');
+  await buttons.press('Space');
+  assert.equal(await buttons.getAttribute('aria-expanded'),'true');
+  await page.evaluate(()=>renderProductionPlan());
+  assert.equal(await buttons.getAttribute('aria-expanded'),'true');
+  await page.evaluate(()=>{
+    window.detailsOriginalJobs=state.productionPlanJobs;
+    const first=state.productionPlanJobs[0];
+    state.productionPlanJobs=[first,...[1,2].map(i=>({...first,planRowId:`DETAIL-ROW-${i}`}))];
+    renderProductionPlanTable();
+  });
+  assert.equal(await buttons.count(),3);
+  await buttons.nth(1).click();
+  await buttons.nth(0).click();
+  assert.deepEqual(await buttons.evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-expanded'))),['false','true','false']);
+  assert.equal(await page.locator('.production-plan-details-row:visible').count(),1);
+  await page.evaluate(()=>renderProductionPlanTable());
+  assert.deepEqual(await buttons.evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-expanded'))),['false','true','false']);
+  await page.evaluate(()=>{
+    state.productionPlanJobs=window.detailsOriginalJobs;delete window.detailsOriginalJobs;
+    state.productionPlanExpandedRows=new Set();renderProductionPlanTable();
+  });
+  assert.equal(await page.evaluate(()=>JSON.stringify(state.productionPlanJobs)),before);
+  assert.equal(await page.locator('#productionPlanStatus').textContent(),status);
+  assert.equal(fixture.actions.length,actions);
+  assert.equal(await rows.count(),1);
+  console.log(JSON.stringify({planDetails:true,keyboard:true,independentRows:true,planUnchanged:true}));
+}
+
 async function verifyProductionPlanStorageQuota(page) {
   const filled = await page.evaluate(() => {
     const cacheKey = 'seungjinAdminCache:v3:dev:inbounds:quota-test';
@@ -442,6 +487,7 @@ async function main() {
     await verifyAdminViews(page);
     await verifyProductionPlanPilot(page, fixture);
     await verifyProductionPlanPrintTypes(page, fixture);
+    await verifyProductionPlanDetails(page, fixture);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
