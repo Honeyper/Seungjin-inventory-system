@@ -89,6 +89,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "생산계획 세부사항 열기·닫기 효과", items: ["세부사항이 부드럽게 펼쳐지고 접히도록 전환 효과를 추가했습니다. 빠르게 반복해 눌러도 현재 높이에서 이어서 움직이며, 기기의 움직임 줄이기 설정을 따릅니다."] },
   { date: "2026-10-13", title: "생산계획 세부사항 11개 항목", items: ["작업일·일일 목표 시간·총 소요 시간(예상)·발주량·LOSS·누적 생산량·누적 시간·시간당 생산량·일일 필수 생산량·실 생산량·달성률을 표시합니다. 작업일과 실적 입력을 공정별로 저장하며 계획표의 기존 목표 계산은 유지합니다."] },
   { date: "2026-10-13", title: "생산계획 작업시간 제목 변경", items: ["생산계획표의 예상 작업시간 제목을 작업시간으로 변경했습니다."] },
   { date: "2026-10-13", title: "생산계획 기계 칸 강조선 제거", items: ["기계 번호 왼쪽의 노란 강조선을 제거했습니다."] },
@@ -3155,8 +3156,8 @@ function renderProductionPlanTable() {
           <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><span class="production-plan-details-chevron" aria-hidden="true">⌄</span></button></div></td>
     </tr>
     <tr id="${detailsId}" class="production-plan-details-row" data-plan-details-row="${escapeAttribute(job.planRowId)}" ${expanded ? "" : "hidden"}>
-      <td colspan="10"><div class="production-plan-details-region" role="region" aria-label="${escapeAttribute(label)} 세부사항"><strong>세부사항</strong>
-        ${renderProductionPlanMetrics(job)}</div></td>
+      <td colspan="10"><div class="production-plan-details-collapse"><div class="production-plan-details-space"><div class="production-plan-details-region" role="region" aria-label="${escapeAttribute(label)} 세부사항"><strong>세부사항</strong>
+        ${renderProductionPlanMetrics(job)}</div></div></div></td>
     </tr>`;
   }).join("");
 }
@@ -3172,6 +3173,32 @@ function selectProductionPlanJob(planRowId) {
 
 
 
+function animateProductionPlanDetails(details, expanded) {
+  const wrapper = details.querySelector(".production-plan-details-collapse");
+  const startHeight = details.hidden ? 0 : wrapper.getBoundingClientRect().height;
+  const startOpacity = details.hidden ? 0 : Number(getComputedStyle(wrapper).opacity);
+  delete wrapper.planDetailsAnimation;
+  (wrapper.getAnimations?.() || []).forEach(animation => animation.cancel());
+  details.inert = !expanded;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || typeof wrapper.animate !== "function") {
+    details.hidden = !expanded;
+    return;
+  }
+  details.hidden = false;
+  const endHeight = expanded ? wrapper.getBoundingClientRect().height : 0;
+  const animation = wrapper.animate([
+    { height: `${startHeight}px`, opacity: startOpacity },
+    { height: `${endHeight}px`, opacity: expanded ? 1 : 0 }
+  ], { duration: 240, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" });
+  wrapper.planDetailsAnimation = animation;
+  animation.onfinish = () => {
+    if (wrapper.planDetailsAnimation !== animation) return;
+    details.hidden = !expanded;
+    animation.cancel();
+    delete wrapper.planDetailsAnimation;
+  };
+}
+
 function toggleProductionPlanDetails(button) {
   const planRowId = button.dataset.planDetailsToggle;
   if (!state.productionPlanJobs.some(job => job.planRowId === planRowId)) return;
@@ -3181,7 +3208,7 @@ function toggleProductionPlanDetails(button) {
   const expanded = !state.productionPlanExpandedRows.has(planRowId);
   if (expanded) state.productionPlanExpandedRows.add(planRowId);
   else state.productionPlanExpandedRows.delete(planRowId);
-  details.hidden = !expanded;
+  animateProductionPlanDetails(details, expanded);
   button.setAttribute("aria-expanded", String(expanded));
   button.querySelector(".production-plan-details-toggle-label").textContent = `세부사항 ${expanded ? "닫기" : "열기"}`;
 }
