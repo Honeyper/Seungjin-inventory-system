@@ -78,9 +78,9 @@ const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNG
 const PRODUCTION_PROCESS_ORDER = ["박 인쇄", "실크 인쇄", "자동화"];
 const PRODUCTION_PLAN_PRODUCT_ID = "NP-0001";
 const PRODUCTION_PLAN_DEFAULT_STAGE = 2;
-const PRODUCTION_PLAN_DETAIL_INPUT_FIELDS = ["loss", "cumulativeHours", "actualProduction"];
+const PRODUCTION_PLAN_DETAIL_INPUT_FIELDS = ["loss", "actualWorkHours", "actualProduction"];
 let productionPlanActualLedgerCache = null;
-const PRODUCTION_PLAN_STAGE_FIELDS = ["machine", "worker", "workerType", "packagingWorker", "packagingWorkerType", "note", "stageGroup", "workDays", "lossMode", "cumulativeProduction", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS];
+const PRODUCTION_PLAN_STAGE_FIELDS = ["machine", "worker", "workerType", "packagingWorker", "packagingWorkerType", "note", "stageGroup", "workDays", "lossMode", "cumulativeProduction", "cumulativeHours", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS];
 const PRODUCTION_PLAN_STAFF = {
   worker: [{ name: "유순희", type: "employee", label: "직원" }],
   packagingWorker: [{ name: "수쿠마", type: "outsourcing", label: "아웃소싱" }]
@@ -90,6 +90,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "실 근무시간 입력과 누적 시간 자동 합계", items: ["누적 시간 옆에 일별 실 근무시간 입력칸을 추가했습니다. 현재 브라우저에 저장된 같은 발주·인쇄 유형·공정의 실 근무시간을 선택 날짜까지 중복 없이 합산하며, 현재 입력값과 잔여 작업일도 즉시 반영합니다."] },
   { date: "2026-10-13", title: "생산계획 잔여 작업일 자동 계산", items: ["작업일을 잔여 작업일로 변경했습니다. 총 소요시간에서 입력한 누적 시간을 뺀 뒤 하루 8시간으로 나누며, 누적 시간이 늘어나면 즉시 줄어듭니다. 소수점 한 자리까지 올리고 완료 시 0일로 표시합니다."] },
   { date: "2026-10-13", title: "금일 생산량과 누적 생산량 자동 합계", items: ["실 생산량을 금일 생산량으로 변경했습니다. 현재 브라우저에서 같은 발주·인쇄 유형·공정에 저장한 날짜별 금일 생산량을 선택 날짜까지 합산하고 현재 입력한 값도 즉시 반영합니다. 같은 날의 저장본·이전 형식은 중복 합산하지 않습니다."] },
   { date: "2026-10-13", title: "생산계획 LOSS 5% 기본값", items: ["LOSS는 발주량의 5%를 기본값으로 넣고 직접 수정할 수 있습니다. 자동값은 발주량 변경에 맞춰 갱신하며, 직접 입력한 수량은 0개를 포함해 공정별로 보존합니다."] },
@@ -3072,7 +3073,7 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
   if (!order || !isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process)
     || [order.status, order.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status)) || getProductionPlanBalance(order) <= 0) return false;
   const productChanged = job.productId !== order.productId;
-  if (productChanged) ["workDays", "lossMode", "cumulativeProduction", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS].forEach(key => delete job[key]);
+  if (productChanged) ["workDays", "lossMode", "cumulativeProduction", "cumulativeHours", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS].forEach(key => delete job[key]);
   if (job.purchaseOrderId !== order.purchaseOrderId) { job.loss = null; job.lossMode = "auto"; }
   const options = getProductionPlanStageOptions(order.productId, process);
   if (!options.length) return false;
@@ -3152,7 +3153,8 @@ function readProductionPlanActualLedger() {
   }
 }
 
-function getProductionPlanActualSubtotal(jobs, target) {
+function getProductionPlanActualSubtotal(jobs, target, field = "actualProduction") {
+  const scale = field === "actualWorkHours" ? 100 : 1;
   const processKey = value => String(value || "").replace(/\s/g, "");
   const groupKey = (value, stage) => JSON.stringify((Array.isArray(value) && value.length ? value : [stage]).map(Number).sort((a,b) => a-b));
   const owners = jobs.filter(item => item && item.purchaseOrderId === target.purchaseOrderId
@@ -3168,13 +3170,15 @@ function getProductionPlanActualSubtotal(jobs, target) {
   for (const item of sources) {
     if (item.planRowId && ids.has(item.planRowId)) continue;
     if (item.planRowId) ids.add(item.planRowId);
-    const actual = window.SeungjinProductionPlanner.number(item.actualProduction);
-    if (actual !== null && Number.isSafeInteger(actual)) total += actual;
+    const actual = window.SeungjinProductionPlanner.number(item[field]);
+    const units = actual === null ? null : scale === 100 ? Math.round(actual * scale) : actual;
+    if (units !== null && Number.isSafeInteger(units)) total += units;
   }
-  return Number.isSafeInteger(total) ? total : null;
+  return Number.isSafeInteger(total) ? total / scale : null;
 }
 
-function getProductionPlanCumulativeProduction(job) {
+function getProductionPlanCumulativeActual(job, field) {
+  const scale = field === "actualWorkHours" ? 100 : 1;
   if (!job.purchaseOrderId) return null;
   const ledger = readProductionPlanActualLedger();
   if (!ledger) return null;
@@ -3182,23 +3186,33 @@ function getProductionPlanCumulativeProduction(job) {
   for (const snapshot of ledger) {
     if (snapshot.date > state.productionPlanDate) continue;
     if (snapshot.date === state.productionPlanDate && snapshot.factory === state.productionPlanFactory) continue;
-    const subtotal = getProductionPlanActualSubtotal(snapshot.jobs, job);
+    const subtotal = getProductionPlanActualSubtotal(snapshot.jobs, job, field);
     if (subtotal === null) return null;
-    total += subtotal;
+    total += Math.round(subtotal * scale);
   }
-  const current = getProductionPlanActualSubtotal(state.productionPlanJobs.includes(job) ? state.productionPlanJobs : [job], job);
-  return current !== null && Number.isSafeInteger(total + current) ? total + current : null;
+  const current = getProductionPlanActualSubtotal(state.productionPlanJobs.includes(job) ? state.productionPlanJobs : [job], job, field);
+  const units = current === null ? null : total + Math.round(current * scale);
+  return units !== null && Number.isSafeInteger(units) ? units / scale : null;
+}
+
+function getProductionPlanCumulativeProduction(job) {
+  return getProductionPlanCumulativeActual(job, "actualProduction");
+}
+
+function getProductionPlanCumulativeHours(job) {
+  return getProductionPlanCumulativeActual(job, "actualWorkHours");
 }
 
 function getProductionPlanDetailMetrics(job) {
   const values = getProductionPlanCalculations(job);
   const number = window.SeungjinProductionPlanner.number;
-  const days = values.totalHours !== null ? Math.max(0, values.totalHours - (number(job.cumulativeHours) ?? 0)) / PRODUCTION_STANDARD_WORK_HOURS : null;
+  const cumulativeHours = getProductionPlanCumulativeHours(job);
+  const days = values.totalHours !== null && cumulativeHours !== null ? Math.max(0, values.totalHours - cumulativeHours) / PRODUCTION_STANDARD_WORK_HOURS : null;
   const actual = number(job.actualProduction);
   const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
   const daily = order?.deliveryType === "daily" ? number(order.dailyMinimumQuantity) : null;
   const required = daily > 0 ? daily : values.orderQuantity !== null && values.totalHours > 0 ? Math.ceil(Math.min(values.orderQuantity, values.hourlyRate * PRODUCTION_STANDARD_WORK_HOURS)) : null;
-  return { cumulativeProduction: getProductionPlanCumulativeProduction(job), workDays: days, dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
+  return { cumulativeHours, cumulativeProduction: getProductionPlanCumulativeProduction(job), workDays: days, dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
     orderQuantity: values.orderQuantity, hourlyRate: values.hourlyRate,
     dailyRequired: required, achievementRate: actual !== null && required > 0 ? actual / required * 100 : null };
 }
@@ -3206,6 +3220,7 @@ function getProductionPlanDetailMetrics(job) {
 function formatProductionPlanDetailValue(key, value) {
   if (value === null || value === undefined) return "—";
   if (["dailyTargetHours", "totalExpectedHours"].includes(key)) return formatProductionPlanHours(value);
+  if (key === "cumulativeHours") return `${formatNumber(value)}시간`;
   if (key === "workDays") return `${formatNumber(Math.ceil(value * 10 - 1e-9) / 10)}일`;
   if (key === "achievementRate") return `${formatNumber(Math.round(value * 10) / 10)}%`;
   return `${formatNumber(value)} ${key === "hourlyRate" ? "개/시간" : "ea"}`;
@@ -3220,7 +3235,8 @@ function renderProductionPlanMetrics(job) {
     {key:"orderQuantity",label:"발주량"},
     {key:"loss",label:"LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
     {key:"cumulativeProduction",label:"누적 생산량",title:"현재 브라우저에서 선택 날짜까지 같은 발주·인쇄 유형·공정에 저장된 금일 생산량 합계"},
-    {key:"cumulativeHours",label:"누적 시간",unit:"시간",step:"0.01"},
+    {key:"cumulativeHours",label:"누적 시간",title:"현재 브라우저에서 선택 날짜까지 같은 발주·인쇄 유형·공정에 저장된 실 근무시간 합계"},
+    {key:"actualWorkHours",label:"실 근무시간",unit:"시간",step:"0.01",title:"선택 날짜에 실제 근무한 시간"},
     {key:"hourlyRate",label:"시간당 생산량",title:"제품에 등록된 선택 공정의 시간당 생산량"},
     {key:"dailyRequired",label:"일일 필수 생산량",title:"매일 납기는 등록된 하루 필수 수량, 지정 납기는 발주량 ÷ 자동 계산한 작업일 (하루 미만이면 하루 기준)"},
     {key:"actualProduction",label:"금일 생산량",unit:"ea"},
@@ -3358,7 +3374,7 @@ function handleProductionPlanFieldChange(event) {
   if (PRODUCTION_PLAN_DETAIL_INPUT_FIELDS.includes(key)) {
     const value = window.SeungjinProductionPlanner.number(field.value);
     const valid = field.value === "" || value !== null && value >= 0
-      && (key === "cumulativeHours" || Number.isSafeInteger(value));
+      && (key === "actualWorkHours" ? Number.isSafeInteger(Math.round(value * 100)) : Number.isSafeInteger(value));
     field.setCustomValidity(valid ? "" : "수량은 0 이상의 정수, 시간은 0 이상의 숫자로 입력해주세요.");
     field.setAttribute("aria-invalid", String(!valid));
     if (!valid) return;
