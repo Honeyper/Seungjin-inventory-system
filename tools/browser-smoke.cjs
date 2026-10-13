@@ -290,6 +290,42 @@ async function verifyProductionPlanDetails(page, fixture) {
   console.log(JSON.stringify({planDetails:true,keyboard:true,independentRows:true,planUnchanged:true}));
 }
 
+async function verifyProductionPlanDelivery(page, fixture) {
+  const order=fixture.mockOrders.find(o=>o.productId==='NP-0001');
+  const previous={deliveryType:order.deliveryType,dailyMinimumQuantity:order.dailyMinimumQuantity,endDate:order.endDate};
+  Object.assign(order,{deliveryType:'daily',dailyMinimumQuantity:7000,endDate:'2020-01-01'});
+  const target=await page.evaluate(()=>state.productionPlanJobs[0].targetQuantity);
+  await page.evaluate(()=>{
+    Object.assign(state.purchaseOrders.find(o=>o.purchaseOrderId===state.productionPlanJobs[0].purchaseOrderId),{deliveryType:'daily',dailyMinimumQuantity:7000,endDate:'2020-01-01'});
+    renderProductionPlan();
+  });
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]');
+  assert.equal((await page.locator('.production-plan-table th').nth(5).textContent()).trim(),'납기일');
+  assert.match(await row.locator('td').nth(5).textContent(),/일 7,000개 이상/);
+  assert.doesNotMatch(await row.textContent(),/2,000 개\/시간|2020-01-01/);
+  assert.equal(await page.evaluate(()=>state.productionPlanJobs[0].targetQuantity),target);
+  await row.locator('[data-plan-details-toggle]').click();
+  assert.match(await page.locator('.production-plan-details-region').textContent(),/시간당 생산량.*2,000 개\/시간/s);
+  await row.locator('[data-plan-field=stage]').selectOption('1');
+  assert.match(await page.locator('.production-plan-details-region').textContent(),/1,000 개\/시간/);
+  await row.locator('[data-plan-field=stage]').selectOption('2');
+  await page.locator('.production-plan-table-wrap').screenshot({path:'/private/tmp/seungjin-plan-delivery-details.png'});
+  await page.locator('#saveProductionPlanButton').click();
+  await page.reload();
+  await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise && state.productionPlanJobs[0].dailyMinimumQuantity===7000);
+  assert.match(await row.locator('td').nth(5).textContent(),/일 7,000개 이상/);
+  Object.assign(order,{deliveryType:'date',dailyMinimumQuantity:null,endDate:'2026-10-30'});
+  await page.evaluate(()=>{
+    Object.assign(state.purchaseOrders.find(o=>o.purchaseOrderId===state.productionPlanJobs[0].purchaseOrderId),{deliveryType:'date',dailyMinimumQuantity:null,endDate:'2026-10-30'});
+    renderProductionPlan();
+  });
+  assert.equal((await row.locator('td').nth(5).textContent()).trim(),'2026-10-30');
+  Object.assign(order,previous);
+  await page.reload();
+  await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise && state.productionPlanJobs[0].hourlyRate===2000);
+  console.log(JSON.stringify({planDelivery:true,dailyMinimum7000:true,fixedDate:true,hourlyRateInDetails:true,stageChanges:true}));
+}
+
 async function verifyProductionPlanStorageQuota(page) {
   const filled = await page.evaluate(() => {
     const cacheKey = 'seungjinAdminCache:v3:dev:inbounds:quota-test';
@@ -488,6 +524,7 @@ async function main() {
     await verifyProductionPlanPilot(page, fixture);
     await verifyProductionPlanPrintTypes(page, fixture);
     await verifyProductionPlanDetails(page, fixture);
+    await verifyProductionPlanDelivery(page, fixture);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);

@@ -233,3 +233,21 @@ test('저장값을 실제로 다시 읽을 수 없으면 저장 성공으로 표
  const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();c.localStorage.setItem=()=>{};
  assert.equal(c.saveProductionPlanDraft(),false);assert.equal(c.productionPlanStatus.dataset.type,'error');
 });
+
+
+test('계획표 납기는 최신 발주의 날짜 또는 일 필수 수량을 표시하고 생산량은 상세에만 둔다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,deliveryType:'daily',dailyMinimumQuantity:7000,endDate:'2020-01-01'}];
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();c.renderProductionPlan();
+ const job=c.state.productionPlanJobs[0];
+ assert.equal(c.getProductionPlanDeliveryLabel(job),'일 7,000개 이상');
+ assert.equal(job.targetQuantity,10000);
+ const [main]=c.productionPlanTableBody.innerHTML.split('</tr>');
+ assert.match(main,/일 7,000개 이상/);assert.doesNotMatch(main,/2,000 개\/시간/);
+ assert.match(c.productionPlanTableBody.innerHTML,/시간당 생산량<\/dt>.*2,000 개\/시간/s);
+ c.state.purchaseOrders[0].dailyMinimumQuantity=12000;
+ assert.equal(c.getProductionPlanDeliveryLabel(job),'일 12,000개 이상');
+ Object.assign(c.state.purchaseOrders[0],{deliveryType:'date',endDate:'2026-10-30'});
+ assert.equal(c.getProductionPlanDeliveryLabel(job),'2026-10-30');
+ c.state.purchaseOrders[0].endDate='';assert.equal(c.getProductionPlanDeliveryLabel(job),'미정');
+ assert.equal(c.getProductionPlanDeliveryLabel({purchaseOrderId:''}),'—');
+});
