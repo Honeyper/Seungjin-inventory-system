@@ -3200,9 +3200,6 @@ function renderProductionPlan() {
   }
   renderProductionPlanDetail();
   if (state.productionPlanActiveTab === "board") renderMachineScheduleBoard();
-  const caption = document.querySelector("#productionPlanTableCaption");
-  const job = state.productionPlanJobs[0];
-  if (caption) caption.textContent = `${state.productionPlanDate || "오늘"} · ${state.productionPlanFactory} · ${job?.productName ? `${job.productName} · ${getProductionPlanStageLabel(job)} ` : ""}${job?.process || "실크 인쇄"}를 계획합니다.`;
 }
 
 function handleProductionPlanFieldChange(event) {
