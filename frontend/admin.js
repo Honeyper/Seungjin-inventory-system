@@ -85,6 +85,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "생산계획별 세부사항 펼치기", items: ["각 계획의 세부사항 열기 버튼을 누르면 해당 행 바로 아래에서 세부사항 영역을 열고 닫을 수 있습니다. 세부사항 내용은 추후 추가합니다."] },
   { date: "2026-10-13", title: "목표 생산량 500개 단위 내림", items: ["하루 목표 생산량은 발주량과 8시간 생산 가능 수량 중 작은 값을 기준으로 500개 단위로 항상 내림합니다. 예: 6,008개 → 6,000개. 예상 작업시간도 내림한 목표 수량으로 계산합니다."] },
   { date: "2026-10-13", title: "생산계획표 행 높이 축소", items: ["여러 계획을 한눈에 볼 수 있도록 행 높이와 제품·공정 칸의 여백을 줄였습니다. 인쇄·포장 구분은 작업자 선택창 옆에 표시하며, 가운데 정렬과 스크롤 없는 표 너비를 유지합니다."] },
   { date: "2026-10-13", title: "생산계획표 칸 정리", items: ["생산계획표의 폭과 글자 정렬을 맞추고, 제품 선택과 공정 선택을 하나의 칸으로 묶어 간격과 선택창 크기를 정리했습니다."] },
@@ -622,7 +623,8 @@ const state = {
   productionPlanFactory: "1공장",
   productionPlanJobs: [],
   productionPlanPickerJobId: "",
-  productionPlanSelectedJobId: ""
+  productionPlanSelectedJobId: "",
+  productionPlanExpandedRows: new Set()
 };
 
 const adminUserName = document.querySelector("#adminUserName");
@@ -2740,6 +2742,7 @@ function buildProductionPlanJobs({ preserve = [] } = {}) {
 
 
 function loadProductionPlanDraft() {
+  state.productionPlanExpandedRows = new Set();
   const savedJobs = readProductionPlanDraft();
   state.productionPlanJobs = ensureProductionPlanRows(savedJobs || buildProductionPlanJobs());
   if (!state.productionPlanJobs.some((job) => job.planRowId === state.productionPlanSelectedJobId)) {
@@ -2823,8 +2826,10 @@ function replaceProductionPlanJobOrder(job, purchaseOrderId) {
 
 function renderProductionPlanTable() {
   if (!productionPlanTableBody) return;
-  productionPlanTableBody.innerHTML = getProductionPlanFilteredJobs().map(job => {
+  productionPlanTableBody.innerHTML = getProductionPlanFilteredJobs().map((job, index) => {
     const label = job.productName || "제품 선택", empty = !job.purchaseOrderId;
+    const detailsId = `production-plan-details-${index}`;
+    const expanded = state.productionPlanExpandedRows?.has(job.planRowId) || false;
     return `<tr class="${job.planRowId === state.productionPlanSelectedJobId ? "is-selected" : ""}" data-plan-row-id="${escapeAttribute(job.planRowId)}">
       <td class="production-plan-process"><select data-plan-field="process" aria-label="${escapeAttribute(label)} 인쇄 유형">
         ${PRODUCTION_PROCESS_ORDER.map(process => `<option value="${process}" ${process === job.process ? "selected" : ""}>${escapeHtml(process === "박 인쇄" ? "박" : process === "실크 인쇄" ? "실크" : process)}</option>`).join("")}</select></td>
@@ -2841,7 +2846,12 @@ function renderProductionPlanTable() {
         <label><span>인쇄</span><select data-plan-field="worker" aria-label="${escapeAttribute(label)} 인쇄 작업자">${renderProductionPlanStaffOptions(job,"worker")}</select></label>
         <label><span>포장</span><select data-plan-field="packagingWorker" aria-label="${escapeAttribute(label)} 포장 작업자">${renderProductionPlanStaffOptions(job,"packagingWorker")}</select></label></div></td>
       <td class="production-plan-auto">${empty || job.planMissing ? "—" : formatProductionPlanHours(job.hours)}</td>
-      <td><div class="production-plan-note-controls"><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(label)} 특이사항" /></div></td>
+      <td><div class="production-plan-note-controls"><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(label)} 특이사항" />
+        <button class="production-plan-details-toggle" type="button" data-plan-details-toggle="${escapeAttribute(job.planRowId)}" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${escapeAttribute(label)} 세부사항">
+          <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><span class="production-plan-details-chevron" aria-hidden="true">⌄</span></button></div></td>
+    </tr>
+    <tr id="${detailsId}" class="production-plan-details-row" data-plan-details-row="${escapeAttribute(job.planRowId)}" ${expanded ? "" : "hidden"}>
+      <td colspan="10"><div class="production-plan-details-region" role="region" aria-label="${escapeAttribute(label)} 세부사항"><strong>세부사항</strong></div></td>
     </tr>`;
   }).join("");
 }
@@ -2857,7 +2867,26 @@ function selectProductionPlanJob(planRowId) {
 
 
 
+function toggleProductionPlanDetails(button) {
+  const planRowId = button.dataset.planDetailsToggle;
+  if (!state.productionPlanJobs.some(job => job.planRowId === planRowId)) return;
+  const details = document.getElementById(button.getAttribute("aria-controls"));
+  if (!details || details.dataset.planDetailsRow !== planRowId) return;
+  state.productionPlanExpandedRows ||= new Set();
+  const expanded = !state.productionPlanExpandedRows.has(planRowId);
+  if (expanded) state.productionPlanExpandedRows.add(planRowId);
+  else state.productionPlanExpandedRows.delete(planRowId);
+  details.hidden = !expanded;
+  button.setAttribute("aria-expanded", String(expanded));
+  button.querySelector(".production-plan-details-toggle-label").textContent = `세부사항 ${expanded ? "닫기" : "열기"}`;
+}
+
 function handleProductionPlanTableClick(event) {
+  const detailsButton = event.target.closest("[data-plan-details-toggle]");
+  if (detailsButton) {
+    toggleProductionPlanDetails(detailsButton);
+    return;
+  }
   const row = event.target.closest("[data-plan-row-id]");
   if (!row) return;
   selectProductionPlanJob(row.dataset.planRowId, { open: false });

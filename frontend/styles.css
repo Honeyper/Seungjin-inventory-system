@@ -15089,3 +15089,61 @@ small, em {
   font-size: 0.68rem;
   white-space: nowrap;
 }
+
+/* Each plan opens its own details below the compact row. */
+#productionPlanView .production-plan-note-controls {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+#productionPlanView .production-plan-details-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 1.35rem;
+  padding: 0.1rem 0.2rem;
+  border: 1px solid #d8e1ec;
+  border-radius: 0.3rem;
+  background: #f8fafd;
+  color: var(--navy-dark);
+  font: inherit;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+#productionPlanView .production-plan-details-toggle:hover {
+  border-color: #a9bdd8;
+  background: #edf3fb;
+}
+#productionPlanView .production-plan-details-toggle:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+#productionPlanView .production-plan-details-chevron {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+#productionPlanView .production-plan-details-toggle[aria-expanded="true"] .production-plan-details-chevron {
+  transform: rotate(180deg);
+}
+#productionPlanView .production-plan-details-row[hidden] { display: none; }
+#productionPlanView .production-plan-details-row > td {
+  padding: 0.4rem 0.5rem;
+  background: #f8fafd;
+}
+#productionPlanView .production-plan-details-region {
+  min-height: 4rem;
+  padding: 0.5rem;
+  border: 1px solid #e0e7f0;
+  border-radius: 0.35rem;
+  background: #fff;
+  color: #60718d;
+  font-size: 0.72rem;
+}
+@media print {
+  #productionPlanView .production-plan-details-toggle,
+  #productionPlanView .production-plan-details-row { display: none; }
+}
