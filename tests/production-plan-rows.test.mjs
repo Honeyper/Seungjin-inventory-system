@@ -275,7 +275,7 @@ test('상세 11개 항목은 기존 목표를 바꾸지 않고 공정별 입력�
 });
 
 
-test('작업일은 총 소요시간을 8시간으로 나누며 기존 수기 작업일은 계산에 쓰지 않는다',()=>{
+test('누적 시간이 없으면 잔여 작업일은 총 소요시간을 8시간으로 나누며 기존 수기 작업일은 계산에 쓰지 않는다',()=>{
  const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:99100,deliveryType:'daily',dailyMinimumQuantity:7000}];
  c.state.products[0].processHourlyProductionRates['2도']=751;
  c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];job.workDays=5;
@@ -357,4 +357,26 @@ test('저장값 읽기가 차단되면 누적 생산량을 0으로 표시하지 
  c.testStorage.set('rows-test:selected-job:1공장:2026-09-10',JSON.stringify({jobs:[{...job,actualProduction:2000}]}));
  c.localStorage.getItem=()=>{throw new Error('storage denied');};
  assert.equal(c.getProductionPlanCumulativeProduction(job),null);
+});
+
+
+test('잔여 작업일은 누적 시간만 차감하고 0일 아래로 내려가지 않는다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:92000,deliveryType:'date'}];
+ c.state.products[0].processHourlyProductionRates['2도']=1000;
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();let job=c.state.productionPlanJobs[0];
+ const baseline=c.getProductionPlanDetailMetrics(job);
+ for(const [hours,label] of [[null,'11.5일'],[0,'11.5일'],[8,'10.5일'],[16.8,'9.4일'],[91.99,'0.1일'],[92,'0일'],[100,'0일'],['','11.5일']]){
+  Object.assign(job,{cumulativeHours:hours,actualProduction:99999,cumulativeProduction:99999,loss:99999,lossMode:'manual'});
+  const values=c.getProductionPlanDetailMetrics(job);
+  assert.equal(c.formatProductionPlanDetailValue('workDays',values.workDays),label);
+  assert.equal(values.totalExpectedHours,92);assert.equal(values.dailyRequired,baseline.dailyRequired);
+  assert.equal(values.dailyTargetHours,baseline.dailyTargetHours);
+ }
+ job.cumulativeHours=8;assert.match(c.renderProductionPlanMetrics(job),/<dt>잔여 작업일<\/dt>/);
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();job=c.state.productionPlanJobs[0];
+ assert.equal(c.getProductionPlanDetailMetrics(job).workDays,10.5);
+ c.changeProductionPlanStage(job,1);assert.equal(job.cumulativeHours,null);
+ c.changeProductionPlanStage(job,2);assert.equal(c.getProductionPlanDetailMetrics(job).workDays,10.5);
+ c.state.products[0].processHourlyProductionRates['2도']=null;
+ assert.equal(c.getProductionPlanDetailMetrics(job).workDays,null);
 });
