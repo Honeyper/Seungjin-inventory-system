@@ -7,7 +7,7 @@
   function calculate({orderQuantity, hourlyRate, workHours = 8}) {
     const order = number(orderQuantity), rate = number(hourlyRate), hours = number(workHours);
     const validRate = rate > 0 ? rate : null;
-    const target = order !== null && validRate !== null && hours > 0 ? Math.min(order, Math.floor(validRate * hours + 1e-7)) : null;
+    const target = order !== null && validRate !== null && hours > 0 ? Math.floor(Math.min(order, validRate * hours) / 500) * 500 : null;
     return {orderQuantity:order,hourlyRate:validRate,targetQuantity:target,
       hours:target !== null ? target / validRate : null,
       totalHours:order !== null && validRate !== null ? order / validRate : null};
