@@ -78,8 +78,8 @@ const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNG
 const PRODUCTION_PROCESS_ORDER = ["박 인쇄", "실크 인쇄", "자동화"];
 const PRODUCTION_PLAN_PRODUCT_ID = "NP-0001";
 const PRODUCTION_PLAN_DEFAULT_STAGE = 2;
-const PRODUCTION_PLAN_DETAIL_INPUT_FIELDS = ["workDays", "loss", "cumulativeProduction", "cumulativeHours", "actualProduction"];
-const PRODUCTION_PLAN_STAGE_FIELDS = ["machine", "worker", "workerType", "packagingWorker", "packagingWorkerType", "note", "stageGroup", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS];
+const PRODUCTION_PLAN_DETAIL_INPUT_FIELDS = ["loss", "cumulativeProduction", "cumulativeHours", "actualProduction"];
+const PRODUCTION_PLAN_STAGE_FIELDS = ["machine", "worker", "workerType", "packagingWorker", "packagingWorkerType", "note", "stageGroup", "workDays", "lossMode", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS];
 const PRODUCTION_PLAN_STAFF = {
   worker: [{ name: "유순희", type: "employee", label: "직원" }],
   packagingWorker: [{ name: "수쿠마", type: "outsourcing", label: "아웃소싱" }]
@@ -89,6 +89,8 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "생산계획 LOSS 5% 기본값", items: ["LOSS는 발주량의 5%를 기본값으로 넣고 직접 수정할 수 있습니다. 자동값은 발주량 변경에 맞춰 갱신하며, 직접 입력한 수량은 0개를 포함해 공정별로 보존합니다."] },
+  { date: "2026-10-13", title: "생산계획 작업일 자동 계산", items: ["작업일을 직접 입력하는 대신 총 소요시간을 하루 8시간으로 나눠 자동 표시합니다. 소수점 한 자리까지 올려 8.5일처럼 표시하며, 매일 납기의 필수 수량은 발주에 등록한 값을 유지합니다."] },
   { date: "2026-10-13", title: "생산계획 세부사항 열기·닫기 효과", items: ["세부사항이 부드럽게 펼쳐지고 접히도록 전환 효과를 추가했습니다. 빠르게 반복해 눌러도 현재 높이에서 이어서 움직이며, 기기의 움직임 줄이기 설정을 따릅니다."] },
   { date: "2026-10-13", title: "생산계획 세부사항 11개 항목", items: ["작업일·일일 목표 시간·총 소요 시간(예상)·발주량·LOSS·누적 생산량·누적 시간·시간당 생산량·일일 필수 생산량·실 생산량·달성률을 표시합니다. 작업일과 실적 입력을 공정별로 저장하며 계획표의 기존 목표 계산은 유지합니다."] },
   { date: "2026-10-13", title: "생산계획 작업시간 제목 변경", items: ["생산계획표의 예상 작업시간 제목을 작업시간으로 변경했습니다."] },
@@ -2921,11 +2923,25 @@ function formatProductionPlanHours(hours) {
 
 
 
+function applyProductionPlanDefaultLoss(job, orderQuantity) {
+  const loss = window.SeungjinProductionPlanner.number(job.loss);
+  if (job.lossMode !== "manual") {
+    if (job.lossMode !== "auto" && loss !== null) job.lossMode = "manual";
+    else {
+      job.lossMode = "auto";
+      job.loss = orderQuantity !== null ? Math.round(orderQuantity * 0.05) : null;
+    }
+  }
+  const draft = job.stageDrafts?.[job.stage];
+  if (draft) Object.assign(draft, {loss: job.loss, lossMode: job.lossMode});
+}
+
 function updateProductionPlanTargets(jobs) {
   for (const job of jobs) {
     if (!(PRODUCTION_MACHINE_OPTIONS[job.process] || []).includes(job.machine)) job.machine = "";
     const values = getProductionPlanCalculations(job);
     job.orderQuantity = values.orderQuantity;
+    applyProductionPlanDefaultLoss(job, values.orderQuantity);
     job.hourlyRate = values.hourlyRate;
     job.targetQuantity = values.targetQuantity ?? 0;
     job.hours = values.hours;
@@ -3043,7 +3059,8 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
   if (!order || !isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process)
     || [order.status, order.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status)) || getProductionPlanBalance(order) <= 0) return false;
   const productChanged = job.productId !== order.productId;
-  if (productChanged) PRODUCTION_PLAN_DETAIL_INPUT_FIELDS.forEach(key => delete job[key]);
+  if (productChanged) ["workDays", "lossMode", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS].forEach(key => delete job[key]);
+  if (job.purchaseOrderId !== order.purchaseOrderId) { job.loss = null; job.lossMode = "auto"; }
   const options = getProductionPlanStageOptions(order.productId, process);
   if (!options.length) return false;
   if (productChanged || !options.some(option => option.stage === job.stage)) {
@@ -3086,11 +3103,12 @@ function getProductionPlanDeliveryLabel(job) {
 function getProductionPlanDetailMetrics(job) {
   const values = getProductionPlanCalculations(job);
   const number = window.SeungjinProductionPlanner.number;
-  const days = number(job.workDays), actual = number(job.actualProduction);
+  const days = values.totalHours !== null ? values.totalHours / PRODUCTION_STANDARD_WORK_HOURS : null;
+  const actual = number(job.actualProduction);
   const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
   const daily = order?.deliveryType === "daily" ? number(order.dailyMinimumQuantity) : null;
-  const required = daily > 0 ? daily : values.orderQuantity !== null && days > 0 ? Math.ceil(values.orderQuantity / days) : null;
-  return { dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
+  const required = daily > 0 ? daily : values.orderQuantity !== null && days > 0 ? Math.ceil(Math.min(values.orderQuantity, values.hourlyRate * PRODUCTION_STANDARD_WORK_HOURS)) : null;
+  return { workDays: days, dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
     orderQuantity: values.orderQuantity, hourlyRate: values.hourlyRate,
     dailyRequired: required, achievementRate: actual !== null && required > 0 ? actual / required * 100 : null };
 }
@@ -3098,6 +3116,7 @@ function getProductionPlanDetailMetrics(job) {
 function formatProductionPlanDetailValue(key, value) {
   if (value === null || value === undefined) return "—";
   if (["dailyTargetHours", "totalExpectedHours"].includes(key)) return formatProductionPlanHours(value);
+  if (key === "workDays") return `${formatNumber(Math.ceil(value * 10 - 1e-9) / 10)}일`;
   if (key === "achievementRate") return `${formatNumber(Math.round(value * 10) / 10)}%`;
   return `${formatNumber(value)} ${key === "hourlyRate" ? "개/시간" : "ea"}`;
 }
@@ -3105,15 +3124,15 @@ function formatProductionPlanDetailValue(key, value) {
 function renderProductionPlanMetrics(job) {
   const metrics = getProductionPlanDetailMetrics(job);
   const fields = [
-    {key:"workDays",label:"작업일",unit:"일",min:1},
+    {key:"workDays",label:"작업일",title:"총 소요시간 ÷ 하루 8시간 (소수점 한 자리까지 올림)"},
     {key:"dailyTargetHours",label:"일일 목표 시간",title:"계획표의 목표 생산량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"totalExpectedHours",label:"총 소요 시간(예상)",title:"전체 발주량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"orderQuantity",label:"발주량"},
-    {key:"loss",label:"LOSS",unit:"ea",title:"손실량"},
+    {key:"loss",label:"LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
     {key:"cumulativeProduction",label:"누적 생산량",unit:"ea"},
     {key:"cumulativeHours",label:"누적 시간",unit:"시간",step:"0.01"},
     {key:"hourlyRate",label:"시간당 생산량",title:"제품에 등록된 선택 공정의 시간당 생산량"},
-    {key:"dailyRequired",label:"일일 필수 생산량",title:"매일 납기는 등록된 하루 필수 수량, 지정 납기는 발주량 ÷ 입력한 작업일"},
+    {key:"dailyRequired",label:"일일 필수 생산량",title:"매일 납기는 등록된 하루 필수 수량, 지정 납기는 발주량 ÷ 자동 계산한 작업일 (하루 미만이면 하루 기준)"},
     {key:"actualProduction",label:"실 생산량",unit:"ea"},
     {key:"achievementRate",label:"달성률",title:"실 생산량 ÷ 일일 필수 생산량 × 100"}
   ];
@@ -3248,12 +3267,19 @@ function handleProductionPlanFieldChange(event) {
   const key = field.dataset.planField;
   if (PRODUCTION_PLAN_DETAIL_INPUT_FIELDS.includes(key)) {
     const value = window.SeungjinProductionPlanner.number(field.value);
-    const valid = field.value === "" || value !== null && value >= (key === "workDays" ? 1 : 0)
+    const valid = field.value === "" || value !== null && value >= 0
       && (key === "cumulativeHours" || Number.isSafeInteger(value));
-    field.setCustomValidity(valid ? "" : "0 이상의 수량을 입력해주세요. 작업일은 1일 이상의 정수로 입력해주세요.");
+    field.setCustomValidity(valid ? "" : "수량은 0 이상의 정수, 시간은 0 이상의 숫자로 입력해주세요.");
     field.setAttribute("aria-invalid", String(!valid));
     if (!valid) return;
     job[key] = value;
+    if (key === "loss") {
+      job.lossMode = value === null ? "auto" : "manual";
+      if (event.type === "change" && value === null) {
+        applyProductionPlanDefaultLoss(job, getProductionPlanCalculations(job).orderQuantity);
+        field.value = job.loss ?? "";
+      }
+    }
     refreshProductionPlanMetrics(row, job);
   } else if (key === "process") {
     if (!changeProductionPlanPrintType(job, field.value)) { field.value = job.process; return; }
@@ -3345,6 +3371,7 @@ function saveProductionPlanDraft() {
     }
     return false;
   }
+  state.productionPlanJobs.forEach(job => applyProductionPlanDefaultLoss(job, getProductionPlanCalculations(job).orderQuantity));
   try {
     const key = getProductionPlanStorageKey();
     const serialized = JSON.stringify({
