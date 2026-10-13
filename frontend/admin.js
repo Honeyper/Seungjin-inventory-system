@@ -2968,7 +2968,8 @@ function getProductionPlanReferenceCandidates(job = state.productionPlanJobs.fin
     const sameName = rowName === name || job.productId === PRODUCTION_PLAN_PRODUCT_ID && ["오브제외용기", "오브제파운데이션외용기"].includes(rowName);
     const label = String(row.productName || "").match(/((?:[1-6]도\+)*[1-6]도)\s*$/)?.[1];
     const sourceGroup = Array.isArray(row.stageGroup) ? row.stageGroup : label ? label.match(/[1-6]/g).map(Number) : [getProductionPlanReferenceStage(row)];
-    return sameName && row.process === job.process && getProductionPlanReferenceStage(row) === job.stage
+    const sameClient = !row.clientName || !job.clientName || normalize(row.clientName) === normalize(job.clientName);
+    return sameName && sameClient && row.process === job.process && getProductionPlanReferenceStage(row) === job.stage
       && JSON.stringify(sourceGroup) === JSON.stringify(job.stageGroup || [job.stage]);
   });
 }

@@ -236,6 +236,7 @@ test('동시 작업 공정은 단독 공정 실적이나 다른 제품의 실적
  c.changeProductionPlanOrder(job,'PO-SILK');
  c.state.productionPlanReferenceRows=[{id:'single',productName:'실크 제품 2도',process:'실크 인쇄',sourceDate:'2026-09-10',stage:2},
  {id:'wrong',productName:'다른 제품 1도+2도',process:'실크 인쇄',sourceDate:'2026-09-10',stage:2},
+ {id:'wrong-client',productName:'실크 제품 1도+2도',clientName:'다른 업체',process:'실크 인쇄',sourceDate:'2026-09-10',stage:2},
  {id:'combined',productName:'실크 제품 1도+2도',process:'실크 인쇄',sourceDate:'2026-09-10',stage:2}];
  assert.equal(c.getProductionPlanReference(job).id,'combined');
  job.productionReferenceId='wrong';assert.equal(c.getProductionPlanReference(job),null);
