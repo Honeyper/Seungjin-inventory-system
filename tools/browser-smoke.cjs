@@ -202,6 +202,14 @@ async function verifyProductionPlanPrintTypes(page, fixture) {
   await page.locator('#closeInboundProductPicker').click();
   await process.selectOption('자동화');
   assert.equal(await stage.inputValue(), '2');
+  const autoMachine = row.locator('[data-plan-field=machine]');
+  assert.deepEqual(await autoMachine.locator('option').evaluateAll(nodes=>nodes.map(node=>node.value)), ['', '1호기', '2호기', '3호기', '4호기']);
+  await autoMachine.selectOption('4호기');
+  await page.locator('#saveProductionPlanButton').click();
+  await page.reload();
+  await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  assert.equal(await process.inputValue(), '자동화');
+  assert.equal(await autoMachine.inputValue(), '4호기');
   await row.locator('[data-plan-product-picker]').click();
   assert.deepEqual(await ids(), ['NP-0001','OTHER']);
   await page.locator('#inboundProductPickerList .picker-product[data-product=OTHER]').click();
