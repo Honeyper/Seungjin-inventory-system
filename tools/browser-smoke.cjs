@@ -333,9 +333,9 @@ async function verifyProductionPlanMetrics(page) {
   const details=page.locator('.production-plan-details-row');
   await row.locator('[data-plan-details-toggle]').click();
   assert.equal(await details.locator('dt').count(),11);
-  assert.deepEqual(await details.locator('dt').allTextContents(),['작업일','일일 목표 시간','총 소요 시간(예상)','발주량','LOSS','누적 생산량','누적 시간','시간당 생산량','일일 필수 생산량','실 생산량','달성률']);
+  assert.deepEqual(await details.locator('dt').allTextContents(),['작업일','일일 목표 시간','총 소요 시간(예상)','발주량','LOSS','누적 생산량','누적 시간','시간당 생산량','일일 필수 생산량','금일 생산량','달성률']);
   const target=await page.evaluate(()=>state.productionPlanJobs[0].targetQuantity);
-  for(const [field,value] of Object.entries({loss:'200',cumulativeProduction:'4000',cumulativeHours:'2',actualProduction:'800'})) {
+  for(const [field,value] of Object.entries({loss:'200',cumulativeHours:'2',actualProduction:'800'})) {
     await details.locator(`[data-plan-field=${field}]`).fill(value);
   }
   assert.equal(await details.locator('[data-plan-detail-value=dailyRequired]').textContent(),'10,000 ea');
@@ -500,6 +500,52 @@ async function verifyProductionPlanLossDefault(page, fixture) {
     const job=state.productionPlanJobs[0];job.loss=null;job.lossMode='auto';renderProductionPlan();
   });
   console.log(JSON.stringify({lossDefault5Percent:true,example99100:4955,manual123Preserved:true,manualZeroPreserved:true,clearResetsDefault:true,targetUnchanged:true}));
+}
+
+async function verifyProductionPlanCumulative(page) {
+  const setup=await page.evaluate(()=>{
+    const job=state.productionPlanJobs[0],prefix=PRODUCTION_PLAN_STORAGE_PREFIX;
+    for(const key of Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)))if(key?.startsWith(prefix+':'))localStorage.removeItem(key);
+    const sample=actual=>({...job,actualProduction:actual,stageDrafts:{}});
+    const put=(factory,date,jobs,legacy=false)=>{
+      const key=legacy?`${prefix}:${factory}:${date}`:`${prefix}:selected-job:${factory}:${date}`;
+      localStorage.setItem(key,JSON.stringify({factory,date,jobs}));return key;
+    };
+    const priorKey=put('1공장','2026-09-16',[sample(1000)]);
+    put('1공장','2026-09-16',[sample(9999)],true);
+    put('1공장','2026-09-17',[{...sample(9000),stage:1,stageGroup:[1],stageDrafts:{2:{stageGroup:[2],actualProduction:2000}}}]);
+    put('2공장','2026-09-18',[sample(700)]);
+    put('1공장','2026-09-19',[sample(9000)]);
+    put('1공장','2026-09-15',[{...sample(999),purchaseOrderId:'OTHER'},{...sample(999),process:'자동화'}]);
+    put('1공장','2026-09-18',[sample(3000)]);
+    Object.assign(job,{actualProduction:500,cumulativeProduction:123456});
+    invalidateProductionPlanActualLedger();renderProductionPlan();
+    return {priorKey,priorJob:sample(1500)};
+  });
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]'),details=page.locator('.production-plan-details-row');
+  await row.locator('[data-plan-details-toggle]').click();
+  const input=details.locator('[data-plan-field=actualProduction]'),total=details.locator('[data-plan-detail-value=cumulativeProduction]');
+  assert.equal(await details.locator('[data-plan-field=cumulativeProduction]').count(),0);
+  assert.match(await input.getAttribute('aria-label'),/금일 생산량/);
+  assert.equal(await total.textContent(),'4,200 ea');
+  await page.locator('#saveProductionPlanButton').click();await page.locator('#saveProductionPlanButton').click();
+  await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise && state.productionPlanJobs[0].actualProduction===500);
+  await row.locator('[data-plan-details-toggle]').click();assert.equal(await total.textContent(),'4,200 ea');
+  await input.fill('600');assert.equal(await total.textContent(),'4,300 ea');
+  await input.fill('');assert.equal(await total.textContent(),'3,700 ea');
+  await input.fill('0');assert.equal(await total.textContent(),'3,700 ea');
+  await input.fill('500');
+  await page.evaluate(()=>window.productionInputBefore=document.querySelector('[data-plan-field=actualProduction]'));
+  const other=await page.context().newPage();await other.goto(origin+'/storage-test.html');
+  await other.evaluate(data=>localStorage.setItem(data.priorKey,JSON.stringify({jobs:[data.priorJob]})),setup);
+  await page.waitForFunction(()=>document.querySelector('[data-plan-detail-value=cumulativeProduction]').textContent==='4,700 ea');
+  assert.equal(await input.inputValue(),'500');
+  assert.equal(await page.evaluate(()=>window.productionInputBefore===document.querySelector('[data-plan-field=actualProduction]')),true);
+  await other.close();
+  await page.locator('#saveProductionPlanButton').click();
+  await page.locator('.production-plan-table-wrap').screenshot({path:'/private/tmp/seungjin-plan-cumulative.png'});
+  await row.locator('[data-plan-details-toggle]').click();
+  console.log(JSON.stringify({cumulativeProduction:true,total4700:true,currentEditImmediate:true,savesNotDuplicated:true,futureAndOtherOrdersExcluded:true,legacyDuplicatesExcluded:true,stageDraftsIncluded:true,crossTabRefresh:true,fieldLabel:'금일 생산량'}));
 }
 
 async function verifyProductionPlanStorageQuota(page) {
@@ -697,6 +743,7 @@ async function main() {
     await verifyProductionPlanSlide(page);
     await verifyProductionPlanAutoDays(page, fixture);
     await verifyProductionPlanLossDefault(page, fixture);
+    await verifyProductionPlanCumulative(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);

@@ -315,3 +315,46 @@ test('지정 납기의 일일 필수 수량은 자동 작업일의 부동소수 
  c.state.purchaseOrders[0].totalOrderQuantity=99100;c.state.products[0].processHourlyProductionRates['2도']=1000;
  assert.equal(c.getProductionPlanDetailMetrics(job).dailyRequired,8000);
 });
+
+
+test('누적 생산량은 날짜별 금일 생산량을 중복 없이 합산하고 현재 수정값을 우선한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ const put=(key,jobs)=>c.testStorage.set(key,JSON.stringify({jobs}));
+ const record=actual=>({...job,actualProduction:actual,stageDrafts:{}});
+ put('rows-test:selected-job:1공장:2026-09-09',[record(1000)]);
+ put('rows-test:1공장:2026-09-09',[record(9999)]);
+ put('rows-test:selected-job:1공장:2026-09-10',[{...record(9000),stage:1,stageGroup:[1],stageDrafts:{2:{stageGroup:[2],actualProduction:2000}}},record(2500)]);
+ put(c.getProductionPlanStorageKey(),[record(3000)]);
+ put('rows-test:selected-job:2공장:2026-09-11',[record(700)]);
+ put('rows-test:selected-job:1공장:2026-09-12',[record(9000)]);
+ put('rows-test:selected-job:1공장:2026-09-08',[{...record(999),purchaseOrderId:'OTHER'}, {...record(999),process:'자동화'}, {...record(999),stage:1,stageGroup:[1]}, {...record(999),stageGroup:[1,2]}]);
+ put('rows-test-dev:selected-job:1공장:2026-09-07',[record(9999)]);
+ put('rows-test:selected-job:1공장:2026-02-30',[record(9999)]);
+ c.testStorage.set('rows-test:selected-job:1공장:2026-09-07','broken');put('rows-test:1공장:2026-09-07',[record(150)]);
+ job.actualProduction=500;job.cumulativeProduction=123456;
+ assert.equal(c.getProductionPlanCumulativeProduction(job),4850);
+ job.actualProduction=0;assert.equal(c.getProductionPlanCumulativeProduction(job),4350);
+ job.actualProduction=null;assert.equal(c.getProductionPlanCumulativeProduction(job),4350);
+ job.actualProduction=600;c.saveProductionPlanDraft();assert.equal(c.getProductionPlanCumulativeProduction(job),4950);
+ c.saveProductionPlanDraft();assert.equal(c.getProductionPlanCumulativeProduction(job),4950);
+ const html=c.renderProductionPlanMetrics(job);assert.match(html,/data-plan-detail-value="cumulativeProduction"/);assert.doesNotMatch(html,/data-plan-field="cumulativeProduction"/);assert.match(html,/금일 생산량/);
+ put('rows-test:selected-job:1공장:2026-09-09',[record(2000)]);c.invalidateProductionPlanActualLedger();assert.equal(c.getProductionPlanCumulativeProduction(job),5950);
+});
+
+test('비활성 공정에 보관한 금일 생산량도 합산하고 입력마다 저장본을 다시 읽지 않는다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ c.testStorage.set('rows-test:selected-job:1공장:2026-09-10',JSON.stringify({jobs:[{...job,stage:1,stageGroup:[1],actualProduction:9000,stageDrafts:{2:{stageGroup:[2],actualProduction:'2,000'}}}]}));
+ let reads=0;const get=c.localStorage.getItem;c.localStorage.getItem=key=>{reads++;return get(key);};
+ job.actualProduction=500;assert.equal(c.getProductionPlanCumulativeProduction(job),2500);const initial=reads;
+ for(let i=0;i<20;i++){job.actualProduction=i;assert.equal(c.getProductionPlanCumulativeProduction(job),2000+i);}
+ assert.equal(reads,initial);
+ c.invalidateProductionPlanActualLedger();c.localStorage.key=()=>{throw new Error('storage denied');};assert.equal(c.getProductionPlanCumulativeProduction(job),null);
+});
+
+
+test('저장값 읽기가 차단되면 누적 생산량을 0으로 표시하지 않는다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ c.testStorage.set('rows-test:selected-job:1공장:2026-09-10',JSON.stringify({jobs:[{...job,actualProduction:2000}]}));
+ c.localStorage.getItem=()=>{throw new Error('storage denied');};
+ assert.equal(c.getProductionPlanCumulativeProduction(job),null);
+});
