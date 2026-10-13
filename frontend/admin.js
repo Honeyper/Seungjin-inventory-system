@@ -85,6 +85,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "생산계획 납기 표시 및 상세 생산량", items: ["계획표의 시간당 생산량을 세부사항으로 옮기고 해당 칸에 발주 납기일을 표시합니다. 매일 생산·납기 발주는 날짜 대신 일 7,000개 이상처럼 등록된 하루 필수 수량을 표시합니다."] },
   { date: "2026-10-13", title: "생산계획별 세부사항 펼치기", items: ["각 계획의 세부사항 열기 버튼을 누르면 해당 행 바로 아래에서 세부사항 영역을 열고 닫을 수 있습니다. 세부사항 내용은 추후 추가합니다."] },
   { date: "2026-10-13", title: "목표 생산량 500개 단위 내림", items: ["하루 목표 생산량은 발주량과 8시간 생산 가능 수량 중 작은 값을 기준으로 500개 단위로 항상 내림합니다. 예: 6,008개 → 6,000개. 예상 작업시간도 내림한 목표 수량으로 계산합니다."] },
   { date: "2026-10-13", title: "생산계획표 행 높이 축소", items: ["여러 계획을 한눈에 볼 수 있도록 행 높이와 제품·공정 칸의 여백을 줄였습니다. 인쇄·포장 구분은 작업자 선택창 옆에 표시하며, 가운데 정렬과 스크롤 없는 표 너비를 유지합니다."] },
@@ -2824,6 +2825,16 @@ function replaceProductionPlanJobOrder(job, purchaseOrderId) {
   return changeProductionPlanOrder(job, purchaseOrderId);
 }
 
+function getProductionPlanDeliveryLabel(job) {
+  if (!job.purchaseOrderId) return "—";
+  const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
+  if ((order ? order.deliveryType : job.deliveryType) === "daily") {
+    const minimum = order ? order.dailyMinimumQuantity : job.dailyMinimumQuantity;
+    return minimum > 0 ? `일 ${formatNumber(minimum)}개 이상` : "일 생산량 미정";
+  }
+  return (order ? order.endDate : job.dueDate) || "미정";
+}
+
 function renderProductionPlanTable() {
   if (!productionPlanTableBody) return;
   productionPlanTableBody.innerHTML = getProductionPlanFilteredJobs().map((job, index) => {
@@ -2840,7 +2851,7 @@ function renderProductionPlanTable() {
         <label class="production-plan-stage-field"><span>작업 공정</span><select data-plan-field="stage" aria-label="${escapeAttribute(label)} 작업 공정" ${getProductionPlanStageOptions(job.productId, job.process).length < 2 ? "disabled" : ""}>
         ${getProductionPlanStageOptions(job.productId, job.process).map(option => `<option value="${option.stage}" ${option.stage === job.stage ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label></td>
       <td class="production-plan-auto"><strong>${empty || job.orderQuantity === null ? "—" : `${formatNumber(job.orderQuantity)} ea`}</strong></td>
-      <td class="production-plan-auto"><strong>${empty ? "—" : job.hourlyRate === null ? "미입력" : `${formatNumber(job.hourlyRate)} 개/시간`}</strong></td>
+      <td class="production-plan-auto production-plan-delivery"><strong>${escapeHtml(getProductionPlanDeliveryLabel(job))}</strong></td>
       <td class="production-plan-auto"><strong>${empty ? "—" : job.planMissing ? "시간당 생산량 미입력" : `${formatNumber(job.targetQuantity)} ea`}</strong>${job.planMessage ? `<small>${escapeHtml(job.planMessage)}</small>` : ""}</td>
       <td class="production-plan-staff-cell"><div class="production-plan-staff-fields">
         <label><span>인쇄</span><select data-plan-field="worker" aria-label="${escapeAttribute(label)} 인쇄 작업자">${renderProductionPlanStaffOptions(job,"worker")}</select></label>
@@ -2851,7 +2862,8 @@ function renderProductionPlanTable() {
           <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><span class="production-plan-details-chevron" aria-hidden="true">⌄</span></button></div></td>
     </tr>
     <tr id="${detailsId}" class="production-plan-details-row" data-plan-details-row="${escapeAttribute(job.planRowId)}" ${expanded ? "" : "hidden"}>
-      <td colspan="10"><div class="production-plan-details-region" role="region" aria-label="${escapeAttribute(label)} 세부사항"><strong>세부사항</strong></div></td>
+      <td colspan="10"><div class="production-plan-details-region" role="region" aria-label="${escapeAttribute(label)} 세부사항"><strong>세부사항</strong>
+        <dl class="production-plan-details-metrics"><div><dt>시간당 생산량</dt><dd><strong>${empty ? "—" : job.hourlyRate === null ? "미입력" : `${formatNumber(job.hourlyRate)} 개/시간`}</strong></dd></div></dl></div></td>
     </tr>`;
   }).join("");
 }
