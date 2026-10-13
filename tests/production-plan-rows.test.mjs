@@ -253,7 +253,7 @@ test('계획표 납기는 최신 발주의 날짜 또는 일 필수 수량을 �
 });
 
 
-test('상세 11개 항목은 기존 목표를 바꾸지 않고 공정별 입력을 저장한다',()=>{
+test('상세 12개 항목은 기존 목표를 바꾸지 않고 공정별 입력을 저장한다',()=>{
  const c=setup();c.state.purchaseOrders=[{...order,deliveryType:'daily',dailyMinimumQuantity:7000}];
  c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
  Object.assign(job,{workDays:17,loss:200,lossMode:"manual",cumulativeProduction:4000,cumulativeHours:2,actualProduction:6000});
@@ -262,7 +262,7 @@ test('상세 11개 항목은 기존 목표를 바꾸지 않고 공정별 입력�
  assert.equal(values.dailyRequired,7000);assert.equal(values.dailyTargetHours,5);assert.equal(values.totalExpectedHours,5);
  assert.ok(Math.abs(values.achievementRate-6000/7000*100)<1e-8);
  assert.equal(c.formatProductionPlanDetailValue('achievementRate',values.achievementRate),'85.7%');
- assert.equal((c.renderProductionPlanMetrics(job).match(/<dt>/g)||[]).length,11);
+ assert.equal((c.renderProductionPlanMetrics(job).match(/<dt>/g)||[]).length,12);
  c.changeProductionPlanStage(job,1);assert.equal(job.actualProduction,null);
  Object.assign(job,{workDays:5,loss:0,lossMode:"manual",cumulativeProduction:0,cumulativeHours:0,actualProduction:0});
  c.changeProductionPlanStage(job,2);assert.equal(job.actualProduction,6000);assert.equal(job.loss,200);
@@ -366,17 +366,56 @@ test('잔여 작업일은 누적 시간만 차감하고 0일 아래로 내려가
  c.state.productionPlanJobs=c.buildProductionPlanJobs();let job=c.state.productionPlanJobs[0];
  const baseline=c.getProductionPlanDetailMetrics(job);
  for(const [hours,label] of [[null,'11.5일'],[0,'11.5일'],[8,'10.5일'],[16.8,'9.4일'],[91.99,'0.1일'],[92,'0일'],[100,'0일'],['','11.5일']]){
-  Object.assign(job,{cumulativeHours:hours,actualProduction:99999,cumulativeProduction:99999,loss:99999,lossMode:'manual'});
+  Object.assign(job,{actualWorkHours:hours,cumulativeHours:99999,actualProduction:99999,cumulativeProduction:99999,loss:99999,lossMode:'manual'});
   const values=c.getProductionPlanDetailMetrics(job);
   assert.equal(c.formatProductionPlanDetailValue('workDays',values.workDays),label);
   assert.equal(values.totalExpectedHours,92);assert.equal(values.dailyRequired,baseline.dailyRequired);
   assert.equal(values.dailyTargetHours,baseline.dailyTargetHours);
  }
- job.cumulativeHours=8;assert.match(c.renderProductionPlanMetrics(job),/<dt>잔여 작업일<\/dt>/);
+ job.actualWorkHours=8;assert.match(c.renderProductionPlanMetrics(job),/<dt>잔여 작업일<\/dt>/);
  c.saveProductionPlanDraft();c.loadProductionPlanDraft();job=c.state.productionPlanJobs[0];
  assert.equal(c.getProductionPlanDetailMetrics(job).workDays,10.5);
- c.changeProductionPlanStage(job,1);assert.equal(job.cumulativeHours,null);
+ c.changeProductionPlanStage(job,1);assert.equal(job.actualWorkHours,null);
  c.changeProductionPlanStage(job,2);assert.equal(c.getProductionPlanDetailMetrics(job).workDays,10.5);
  c.state.products[0].processHourlyProductionRates['2도']=null;
  assert.equal(c.getProductionPlanDetailMetrics(job).workDays,null);
+});
+
+test('누적 시간은 일별 실 근무시간만 소수점 둘째 자리까지 중복 없이 합산한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ const row=hours=>({...job,actualWorkHours:hours,cumulativeHours:9999,stageDrafts:{}});
+ const put=(key,jobs)=>c.testStorage.set(key,JSON.stringify({jobs}));
+ put('rows-test:selected-job:1공장:2026-09-09',[row(2.5)]);
+ put('rows-test:1공장:2026-09-09',[row(999)]);
+ put('rows-test:selected-job:1공장:2026-09-10',[{...row(99),stage:1,stageGroup:[1],stageDrafts:{2:{stageGroup:[2],actualWorkHours:1.25,cumulativeHours:999}}}]);
+ put('rows-test:selected-job:2공장:2026-09-11',[row(3.1)]);
+ put(c.getProductionPlanStorageKey(),[row(999)]);
+ put('rows-test:selected-job:1공장:2026-09-12',[row(999)]);
+ put('rows-test:selected-job:1공장:2026-09-08',[{...row(999),purchaseOrderId:'OTHER'},{...row(999),stageGroup:[1,2]},{...row(999),process:'자동화'},{...row(999),productId:'OTHER'}]);
+ job.actualWorkHours=.2;job.cumulativeHours=123456;
+ assert.equal(c.getProductionPlanCumulativeHours(job),7.05);
+ job.actualWorkHours=0;assert.equal(c.getProductionPlanCumulativeHours(job),6.85);
+ job.actualWorkHours=null;assert.equal(c.getProductionPlanCumulativeHours(job),6.85);
+ job.actualWorkHours=.35;c.saveProductionPlanDraft();c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ const loaded=c.state.productionPlanJobs[0];assert.equal(loaded.actualWorkHours,.35);assert.equal(loaded.cumulativeHours,123456);
+ assert.equal(c.getProductionPlanCumulativeHours(loaded),7.2);
+ const html=c.renderProductionPlanMetrics(loaded);assert.match(html,/data-plan-detail-value="cumulativeHours"/);assert.doesNotMatch(html,/data-plan-field="cumulativeHours"/);
+ assert.ok(html.indexOf('<dt>실 근무시간</dt>')>html.indexOf('<dt>누적 시간</dt>'));
+ put('rows-test:selected-job:1공장:2026-09-10',[{...row(99),stage:1,stageGroup:[1],stageDrafts:{2:{stageGroup:[2],actualWorkHours:1.25}}},row(4)]);
+ c.invalidateProductionPlanActualLedger();assert.equal(c.getProductionPlanCumulativeHours(loaded),9.95);
+ c.changeProductionPlanStage(loaded,1);assert.equal(loaded.actualWorkHours,null);
+ c.changeProductionPlanStage(loaded,2);assert.equal(loaded.actualWorkHours,.35);
+});
+
+test('누적 시간은 소수 합산 오차와 저장 제한을 처리하고 수기 누적값을 일별 시간으로 쓰지 않는다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ const key='rows-test:selected-job:1공장:2026-09-10';
+ c.testStorage.set(key,JSON.stringify({jobs:[{...job,actualWorkHours:.1,cumulativeHours:1000}]}));
+ let reads=0;const get=c.localStorage.getItem;c.localStorage.getItem=k=>{reads++;return get(k);};
+ job.actualWorkHours=.2;job.cumulativeHours=1000;assert.equal(c.getProductionPlanCumulativeHours(job),.3);
+ const initial=reads;for(let i=0;i<20;i++){job.actualWorkHours=i;assert.equal(c.getProductionPlanCumulativeHours(job),i+.1);}assert.equal(reads,initial);
+ c.testStorage.set(key,JSON.stringify({jobs:[{...job,actualWorkHours:.2}]}));c.invalidateProductionPlanActualLedger();job.actualWorkHours=.1;assert.equal(c.getProductionPlanCumulativeHours(job),.3);
+ c.invalidateProductionPlanActualLedger();c.localStorage.getItem=()=>{throw new Error('storage denied');};
+ const metrics=c.getProductionPlanDetailMetrics(job);assert.equal(metrics.cumulativeHours,null);assert.equal(metrics.workDays,null);
+ assert.equal(c.formatProductionPlanDetailValue('cumulativeHours',null),'—');
 });

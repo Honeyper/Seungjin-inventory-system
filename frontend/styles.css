@@ -15179,7 +15179,7 @@ small, em {
 #productionPlanView .production-plan-detail-input span { flex: 0 0 auto; }
 #productionPlanView .production-plan-detail-input input[aria-invalid="true"] { border-color: #bd2f2f; }
 @media (min-width: 1600px) {
-  #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(11, minmax(0, 1fr)); }
+  #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(12, minmax(0, 1fr)); }
 }
 @media (max-width: 800px) {
   #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
