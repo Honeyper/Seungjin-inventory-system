@@ -14970,3 +14970,7 @@ small, em {
 .production-plan-staff-fields label > span { color: #60718d; font-size: 0.72rem; font-weight: 700; }
 .production-plan-staff-fields select { width: 100%; min-width: 0; }
 .production-plan-staff-summary { color: #60718d; font-size: 0.8rem; line-height: 1.6; }
+
+.production-plan-stage-field { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem; margin-top: 0.45rem; }
+.production-plan-stage-field > span { color: #60718d; font-size: 0.72rem; font-weight: 700; }
+.production-plan-stage-field select { width: 100%; min-width: 0; }
