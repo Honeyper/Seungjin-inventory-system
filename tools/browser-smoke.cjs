@@ -116,7 +116,7 @@ async function verifyProductionPlanPilot(page, fixture) {
   await page.waitForFunction(() => typeof applyProductsResult === 'function' && state.purchaseOrdersLoaded && !state.productsLoadPromise);
   const rows = page.locator('#productionPlanTableBody [data-plan-row-id]');
   assert.equal(await rows.count(), 1);
-  assert.match((await rows.allTextContents()).join(' '), /실크 인쇄.*오브제.*외용기/s);
+  assert.match((await rows.allTextContents()).join(' '), /실크.*오브제.*외용기/s);
   assert.equal(await page.locator('[data-plan-add-process], [data-plan-delete-row], #singleProductionPlan, #productionPlanProcessFilter').count(), 0);
   assert.match(await page.locator('#productionPlanJobCount').textContent(), /1/);
   const machine = rows.first().locator('[data-plan-field=machine]');
@@ -129,11 +129,11 @@ async function verifyProductionPlanPilot(page, fixture) {
   assert.deepEqual(await stage.locator('option').allTextContents(), ['1도', '2도']);
   await rows.first().locator('[data-plan-product-picker]').click();
   await page.waitForFunction(() => !document.querySelector('#inboundProductPickerModal').hidden);
-  assert.equal(await page.locator('#inboundProductPickerList .picker-product').count(), 1);
-  assert.equal(await page.locator('#inboundProductPickerList .picker-product').getAttribute('data-product'), 'NP-0001');
+  assert.equal(await page.locator('#inboundProductPickerList .picker-product').count(), 2);
+  assert.equal(await page.locator('#inboundProductPickerList .picker-product[data-product="NP-0001"]').getAttribute('data-product'), 'NP-0001');
   assert.equal(await page.locator('#createProductFromPickerButton').isVisible(), false);
   assert.equal(await page.locator('#inboundProductPickerList [data-copy-picker-product], #inboundProductPickerList [data-edit-picker-product]').count(), 0);
-  await page.locator('#inboundProductPickerList .picker-product').click();
+  await page.locator('#inboundProductPickerList .picker-product[data-product="NP-0001"]').click();
   assert.equal(await rows.first().locator('[data-plan-field=worker]').inputValue(), '유순희');
   assert.deepEqual(await rows.first().locator('[data-plan-field=worker] option').allTextContents(), ['미지정','유순희']);
   assert.deepEqual(await rows.first().locator('[data-plan-field=packagingWorker] option').allTextContents(), ['미지정','수쿠마 (아웃소싱)']);
@@ -179,6 +179,65 @@ async function verifyProductionPlanPilot(page, fixture) {
   assert.equal(await page.locator('#inboundProductPickerList .picker-product').count(), 2);
   assert.equal(await page.locator('#createProductFromPickerButton').isVisible(), true);
   await page.locator('#closeInboundProductPicker').click();
+}
+
+async function verifyProductionPlanPrintTypes(page, fixture) {
+  fixture.mockProducts.push(
+    {productCode:'FOIL',productId:'FOIL',productName:'박 인쇄 제품',clientName:'박 업체',finalProcess:'2도',processStage1:'박',processStage2:'박',processGroups:[[1],[2]]},
+    {productCode:'MIXED',productId:'MIXED',productName:'혼합 공정 제품',finalProcess:'3도',processStage1:'실크',processStage2:'박',processStage3:'실크'},
+    {productCode:'COATING',productId:'COATING',productName:'코팅 제품',finalProcess:'코팅',processRoute:'코팅'}
+  );
+  fixture.mockOrders.push({purchaseOrderId:'PO-FOIL',productId:'FOIL',productName:'박 인쇄 제품',clientName:'박 업체',totalOrderQuantity:10000,status:'작업중',endDate:'2026-10-14'},
+    {purchaseOrderId:'PO-MIXED',productId:'MIXED',productName:'혼합 공정 제품',totalOrderQuantity:10000,status:'작업중',endDate:'2026-10-14'});
+  await page.reload();
+  await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  const row = page.locator('#productionPlanTableBody [data-plan-row-id]');
+  const process = row.locator('[data-plan-field=process]');
+  const stage = row.locator('[data-plan-field=stage]');
+  assert.deepEqual(await process.locator('option').allTextContents(), ['박','실크','자동화']);
+  const products = page.locator('#inboundProductPickerList .picker-product');
+  const ids = () => products.evaluateAll(nodes => nodes.map(node=>node.dataset.product).sort());
+  await row.locator('[data-plan-product-picker]').click();
+  assert.deepEqual(await ids(), ['NP-0001','OTHER']);
+  await page.locator('#closeInboundProductPicker').click();
+  await process.selectOption('자동화');
+  assert.equal(await stage.inputValue(), '2');
+  await row.locator('[data-plan-product-picker]').click();
+  assert.deepEqual(await ids(), ['NP-0001','OTHER']);
+  await page.locator('#inboundProductPickerList .picker-product[data-product=OTHER]').click();
+  assert.equal(await page.evaluate(() => state.productionPlanJobs[0].productId), 'OTHER');
+  assert.equal(await stage.inputValue(), '1');
+  await process.selectOption('박 인쇄');
+  assert.equal(await page.evaluate(() => state.productionPlanJobs[0].purchaseOrderId), '');
+  await row.locator('[data-plan-product-picker]').click();
+  assert.deepEqual(await ids(), ['FOIL','MIXED']);
+  assert.match(await page.locator('#inboundProductPickerTitle').evaluate(node=>node.nextElementSibling.textContent), /박 인쇄/);
+  await page.locator('#inboundProductPickerList .picker-product[data-product=MIXED]').click();
+  assert.deepEqual(await stage.locator('option').allTextContents(), ['2도']);
+  await row.locator('[data-plan-product-picker]').click();
+  await page.locator('#inboundProductPickerList .picker-product[data-product=FOIL]').click();
+  await stage.selectOption('2');
+  await row.locator('[data-plan-field=machine]').selectOption('3호기');
+  await page.locator('#saveProductionPlanButton').click();
+  await page.reload();
+  await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  assert.equal(await process.inputValue(), '박 인쇄');
+  assert.equal(await stage.inputValue(), '2');
+  assert.equal(await row.locator('[data-plan-field=machine]').inputValue(), '3호기');
+  await page.locator('#syncProductionPlanButton').click();
+  await page.waitForFunction(() => !document.querySelector('#syncProductionPlanButton').disabled);
+  await page.locator('#generateProductionPlanButton').click();
+  await page.waitForFunction(() => !document.querySelector('#generateProductionPlanButton').disabled);
+  assert.equal(await page.evaluate(() => state.productionPlanJobs[0].productId), 'FOIL');
+  assert.equal(await process.inputValue(), '박 인쇄');
+  await page.screenshot({path:'/private/tmp/seungjin-print-types-foil.png',fullPage:true});
+  await process.selectOption('실크 인쇄');
+  await row.locator('[data-plan-product-picker]').click();
+  assert.deepEqual(await ids(), ['NP-0001','OTHER']);
+  await page.locator('#inboundProductPickerList .picker-product[data-product="NP-0001"]').click();
+  assert.equal(await stage.inputValue(), '2');
+  await page.locator('#saveProductionPlanButton').click();
+  await page.screenshot({path:'/private/tmp/seungjin-print-types-silk.png',fullPage:true});
 }
 
 async function verifyPurchaseOrderDelivery(page, fixture) {
@@ -341,6 +400,7 @@ async function main() {
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
     await verifyProductionPlanPilot(page, fixture);
+    await verifyProductionPlanPrintTypes(page, fixture);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
     await verifyPartialUpload(page, fixture);
@@ -356,7 +416,7 @@ async function main() {
     assert.equal(fixture.loginCalls, 2);
     await page.setViewportSize({ width: 390, height: 844 });
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, purchaseOrderDelivery: true, productionPlanPilot: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
+    console.log(JSON.stringify({ passed: true, purchaseOrderDelivery: true, productionPlanPilot: true, productionPlanPrintTypes: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
   } finally {
     await browser.close();
   }

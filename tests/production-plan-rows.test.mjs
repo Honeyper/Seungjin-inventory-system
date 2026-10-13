@@ -115,7 +115,7 @@ test('2도만 선택한 계획은 1도 작업이나 실적 없이도 2도 목표
  assert.deepEqual(plain(c.state.purchaseOrders),before);
 });
 
-test('완료·취소 또는 다른 제품은 샘플 계획에 연결하지 않는다',()=>{
+test('완료·취소 또는 미등록 제품은 계획에 연결하지 않는다',()=>{
  const c=setup();
  for(const status of ['취소','임의 완료','발주완료']) {
   c.state.purchaseOrders=[{...order,status}];assert.equal(c.getProductionPlanOpenOrders().length,0);
@@ -141,4 +141,103 @@ test('공정 선택을 바꾸어도 직원·아웃소싱 구분과 이름 표시
  assert.match(c.renderProductionPlanStaffOptions(job,'worker'),/>유순희<\/option>/);
  assert.doesNotMatch(c.renderProductionPlanStaffOptions(job,'worker'),/\(직원\)/);
  assert.match(c.renderProductionPlanStaffOptions(job,'packagingWorker'),/수쿠마.*아웃소싱/);
+});
+
+function addPrintProducts(c) {
+ const products=[
+  {productCode:'FOIL',productName:'박 제품',clientName:'박 업체',finalProcess:'2도',processStage1:'박',processStage2:'박',processGroups:[[1],[2]]},
+  {productCode:'SILK',productName:'실크 제품',finalProcess:'3도',processStage1:'실크',processStage2:'실크',processStage3:'실크',processGroups:[[1,2],[3]]},
+  {productCode:'MIXED',productName:'혼합 제품',finalProcess:'3도',processStage1:'실크',processStage2:'박',processStage3:'실크'},
+  {productCode:'COATING',productName:'코팅 제품',finalProcess:'코팅',processRoute:'코팅'}
+ ];
+ c.state.products.push(...products);
+ c.state.purchaseOrders.push(...products.map(product=>({...order,productId:product.productCode,productName:product.productName,purchaseOrderId:'PO-'+product.productCode})));
+ return products;
+}
+
+test('박은 박 공정 제품만, 실크·자동화는 박 공정이 없는 인쇄 제품만 허용한다',()=>{
+ const c=setup();const [foil,silk,mixed,coating]=addPrintProducts(c);
+ for(const process of ['실크 인쇄','자동화']) {
+  assert.equal(c.isProductionPlanProductAllowed(foil,process),false);
+  assert.equal(c.isProductionPlanProductAllowed(mixed,process),false);
+  assert.equal(c.isProductionPlanProductAllowed(silk,process),true);
+  assert.equal(c.isProductionPlanProductAllowed(coating,process),false);
+ }
+ assert.equal(c.isProductionPlanProductAllowed(foil,'박 인쇄'),true);
+ assert.equal(c.isProductionPlanProductAllowed(mixed,'박 인쇄'),true);
+ assert.equal(c.isProductionPlanProductAllowed(silk,'박 인쇄'),false);
+ assert.deepEqual(plain(c.getProductionPlanStageOptions('MIXED','박 인쇄').map(option=>option.label)),['2도']);
+ assert.deepEqual(plain(c.getProductionPlanStageOptions('SILK','자동화').map(option=>option.label)),['1도+2도','3도']);
+});
+
+test('예전 공정 경로와 공정 이름도 박 제품 제한에 반영한다',()=>{
+ const c=setup();
+ const legacy={productCode:'LEGACY',finalProcess:'3도',processRoute:'1도+2도 박 → 3도 실크',processGroups:[[1,2],[3]]};
+ c.state.products.push(legacy);
+ assert.equal(c.isProductionPlanProductAllowed(legacy,'박 인쇄'),true);
+ assert.equal(c.isProductionPlanProductAllowed(legacy,'자동화'),false);
+ assert.deepEqual(plain(c.getProductionPlanStageOptions('LEGACY','박 인쇄').map(option=>option.label)),['1도+2도']);
+ assert.equal(c.isProductionPlanProductAllowed({finalProcess:'1도',processStage1:'박 인쇄'},'실크 인쇄'),false);
+ assert.equal(c.isProductionPlanProductAllowed({finalProcess:'1도',productionProcess:'박 인쇄'},'박 인쇄'),true);
+});
+
+test('박으로 바꾸면 실크 제품 연결과 기존 실적을 해제하고 직접 잘못 연결하는 것도 차단한다',()=>{
+ const c=setup();addPrintProducts(c);c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ const job=c.state.productionPlanJobs[0];Object.assign(job,{cumulativeProduction:7000,machine:'12호기',stageDrafts:{1:{cumulativeProduction:9000}}});
+ const id=job.planRowId;assert.equal(c.changeProductionPlanPrintType(job,'박 인쇄'),true);
+ assert.equal(job.planRowId,id);assert.equal(job.productId,'');assert.equal(job.purchaseOrderId,'');
+ assert.equal(job.cumulativeProduction,undefined);assert.deepEqual(plain(job.stageDrafts),{});
+ assert.equal(c.changeProductionPlanOrder(job,order.purchaseOrderId),false);
+ assert.equal(c.changeProductionPlanOrder(job,'PO-FOIL'),true);assert.equal(job.productId,'FOIL');assert.equal(job.stage,1);
+ assert.equal(c.changeProductionPlanStage(job,2),true);
+ const before=plain(job);assert.equal(c.changeProductionPlanPrintType(job,'코팅'),false);assert.deepEqual(plain(job),before);
+});
+
+test('실크에서 자동화로 바꾸면 제품·공정은 유지하되 다른 유형의 실적을 재사용하지 않는다',()=>{
+ const c=setup();addPrintProducts(c);const job=c.buildProductionPlanJobs()[0];
+ Object.assign(job,{cumulativeProduction:7000,cumulativeHours:7,actualProduction:1000,machine:'12호기',productionReferenceId:'silk-ref'});
+ assert.equal(c.changeProductionPlanPrintType(job,'자동화'),true);
+ assert.equal(job.productId,order.productId);assert.equal(job.stage,2);assert.equal(job.process,'자동화');
+ assert.equal(job.cumulativeProduction,null);assert.equal(job.cumulativeHours,null);assert.equal(job.productionReferenceId,'');
+ assert.equal(job.worker,'유순희');assert.equal(job.packagingWorkerType,'outsourcing');
+ assert.match(c.renderProductionPlanStaffOptions(job,'worker'),/>유순희<\/option>/);
+});
+
+test('박 제품 선택·공정·실적은 저장, 동기화와 자동 생성 후에도 유지된다',async()=>{
+ const c=setup();addPrintProducts(c);c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ const job=c.state.productionPlanJobs[0];c.changeProductionPlanPrintType(job,'박 인쇄');c.changeProductionPlanOrder(job,'PO-FOIL');c.changeProductionPlanStage(job,2);
+ Object.assign(job,{cumulativeProduction:9000,cumulativeHours:9,loss:0,machine:'3호기'});
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();await c.syncProductionPlanOrders();await c.generateProductionPlanDraft();
+ const saved=c.state.productionPlanJobs[0];
+ assert.equal(saved.productId,'FOIL');assert.equal(saved.process,'박 인쇄');assert.equal(saved.stage,2);assert.equal(saved.cumulativeProduction,9000);
+ assert.equal(c.state.productionPlanJobs.length,1);
+ assert.match(c.productionPlanTableBody.innerHTML,/data-plan-field="process"/);
+ assert.equal(c.getProductionPlanActiveJobs().length,1);
+});
+
+test('새 저장키는 기존 오브제 공정 선택 저장본을 읽고 원본을 보존한다',()=>{
+ const c=setup();const oldKey=c.getProductionPlanLegacyStorageKey()+':stage-selection';
+ const old=JSON.stringify({jobs:[{...order,process:'실크 인쇄',stage:1,stageSelectionVersion:1,productionMetricsVersion:2,cumulativeProduction:5000,cumulativeHours:5}]});
+ c.testStorage.set(oldKey,old);c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].stage,1);
+ c.saveProductionPlanDraft();assert.equal(c.testStorage.get(oldKey),old);assert.ok(c.testStorage.has(c.getProductionPlanStorageKey()));
+});
+
+test('선택 제품을 바꿀 때 이전 제품의 누적 실적과 공정별 입력을 복사하지 않는다',()=>{
+ const c=setup();const products=addPrintProducts(c);c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ const job=c.state.productionPlanJobs[0];Object.assign(job,{cumulativeProduction:9000,stageDrafts:{1:{cumulativeProduction:5000}}});
+ c.state.productionPlanPickerJobId=job.planRowId;c.selectProductionPlanProduct(products[1]);
+ const next=c.state.productionPlanJobs[0];assert.equal(next.productId,'SILK');assert.equal(next.stage,2);assert.equal(next.cumulativeProduction,null);
+ assert.equal(next.stageGroup.join('+'),'1+2');assert.equal(next.stageDrafts[1],undefined);
+ c.selectProductionPlanProduct(products[0]);assert.equal(c.state.productionPlanJobs[0].productId,'SILK');
+});
+
+test('동시 작업 공정은 단독 공정 실적이나 다른 제품의 실적을 자동 참조하지 않는다',()=>{
+ const c=setup();addPrintProducts(c);const job=c.createProductionPlanEmptyJob(2,'실크 인쇄','SILK');
+ c.changeProductionPlanOrder(job,'PO-SILK');
+ c.state.productionPlanReferenceRows=[{id:'single',productName:'실크 제품 2도',process:'실크 인쇄',sourceDate:'2026-09-10',stage:2},
+ {id:'wrong',productName:'다른 제품 1도+2도',process:'실크 인쇄',sourceDate:'2026-09-10',stage:2},
+ {id:'wrong-client',productName:'실크 제품 1도+2도',clientName:'다른 업체',process:'실크 인쇄',sourceDate:'2026-09-10',stage:2},
+ {id:'combined',productName:'실크 제품 1도+2도',process:'실크 인쇄',sourceDate:'2026-09-10',stage:2}];
+ assert.equal(c.getProductionPlanReference(job).id,'combined');
+ job.productionReferenceId='wrong';assert.equal(c.getProductionPlanReference(job),null);
 });
