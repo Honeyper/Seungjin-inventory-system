@@ -43,7 +43,7 @@ function setup() {
   vm.runInContext(fs.readFileSync(new URL("../frontend/production-planner.js", import.meta.url), "utf8"), context);
   vm.runInContext(source.slice(source.indexOf("const PRODUCTION_PROCESS_ORDER"), source.indexOf("const SYSTEM_UPDATE_HISTORY")), context);
   vm.runInContext(source.slice(source.indexOf("function getProductionPlanLegacyStorageKey()"), source.indexOf("function getCurrentView()")), context);
-  vm.runInContext(source.slice(source.indexOf("function getAdminResponseCacheKeys("), source.indexOf("function openAdminLargeCacheDatabase(")), context);
+  vm.runInContext(source.slice(source.indexOf("function getAdminResponseCacheKeys("), source.indexOf("\n}\n", source.indexOf("function writeAdminCache(")) + 3), context);
   context.testStorage = storage;
   return context;
 }
