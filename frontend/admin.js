@@ -87,6 +87,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "최대 허용 LOSS 표시명 변경", items: ["생산계획 세부사항의 LOSS 이름을 최대 허용 LOSS로 변경했습니다."] },
   { date: "2026-10-13", title: "생산계획 입력·선택칸 가운데 정렬", items: ["세부사항 숫자 입력값을 가운데로 맞추고, 선택칸의 좌우 여백과 화살표 위치를 정리했습니다."] },
   { date: "2026-10-13", title: "생산계획 선택 행 파란 선 제거", items: ["선택한 생산계획 행의 위아래에 표시되던 파란 선을 제거했습니다."] },
   { date: "2026-10-13", title: "실 근무시간 입력과 누적 시간 자동 합계", items: ["누적 시간 옆에 일별 실 근무시간 입력칸을 추가했습니다. 현재 브라우저에 저장된 같은 발주·인쇄 유형·공정의 실 근무시간을 선택 날짜까지 중복 없이 합산하며, 현재 입력값과 잔여 작업일도 즉시 반영합니다."] },
@@ -2993,7 +2994,7 @@ function renderProductionPlanMetrics(job) {
     {key:"dailyTargetHours",label:"일일 목표 시간",title:"계획표의 목표 생산량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"totalExpectedHours",label:"총 소요 시간(예상)",title:"전체 발주량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"orderQuantity",label:"발주량"},
-    {key:"loss",label:"LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
+    {key:"loss",label:"최대 허용 LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
     {key:"cumulativeProduction",label:"누적 생산량",title:"현재 브라우저에서 선택 날짜까지 같은 발주·인쇄 유형·공정에 저장된 금일 생산량 합계"},
     {key:"cumulativeHours",label:"누적 시간",title:"현재 브라우저에서 선택 날짜까지 같은 발주·인쇄 유형·공정에 저장된 실 근무시간 합계"},
     {key:"actualWorkHours",label:"실 근무시간",unit:"시간",step:"0.01",title:"선택 날짜에 실제 근무한 시간"},
