@@ -126,7 +126,7 @@ async function verifyProductionPlanPilot(page, fixture) {
   await rows.first().locator('[data-plan-field=worker]').selectOption('유순희');
   const stage = rows.first().locator('[data-plan-field=stage]');
   assert.equal(await stage.inputValue(), '2');
-  assert.deepEqual(await stage.locator('option').allTextContents(), ['1도 (1번째 공정)', '2도 (2번째 공정)']);
+  assert.deepEqual(await stage.locator('option').allTextContents(), ['1도', '2도']);
   await rows.first().locator('[data-plan-product-picker]').click();
   await page.waitForFunction(() => !document.querySelector('#inboundProductPickerModal').hidden);
   assert.equal(await page.locator('#inboundProductPickerList .picker-product').count(), 1);

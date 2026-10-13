@@ -2896,7 +2896,7 @@ function renderProductionPlanTable() {
           </button>
           <label class="production-plan-stage-field"><span>작업 공정</span>
             <select data-plan-field="stage" aria-label="${escapeAttribute(rowLabel)} 작업 공정" ${getProductionPlanStageOptions(job.productId).length < 2 ? "disabled" : ""}>
-              ${getProductionPlanStageOptions(job.productId).map(option => `<option value="${option.stage}" ${option.stage === job.stage ? "selected" : ""}>${escapeHtml(option.label)} (${option.ordinal}번째 공정)</option>`).join("")}
+              ${getProductionPlanStageOptions(job.productId).map(option => `<option value="${option.stage}" ${option.stage === job.stage ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
             </select>
           </label>
         </td>
