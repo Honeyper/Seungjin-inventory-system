@@ -31,7 +31,7 @@ test('입고 재집계 후에도 임의 완료 상태와 실제 수량을 유지
 function functionSource(source,name){const a=source.indexOf(`function ${name}(`);const b=source.indexOf('\nfunction ',a+1);return source.slice(a,b<0?undefined:b);}
 test('화면 상태와 생산계획 대상은 임의 완료를 일반 입고완료와 구분한다',()=>{
  const s=fs.readFileSync(new URL('../frontend/admin.js',import.meta.url),'utf8');
- const c=vm.createContext({PRODUCTION_PLAN_PRODUCT_ID:'KR-0024',state:{purchaseOrders:[{...order,productId:'KR-0024',status:'임의 완료'}, {...order,productId:'KR-0024',purchaseOrderId:'PO-ACTIVE'}]},getProductionPlanBalance:o=>o.remainingQuantity});
+ const c=vm.createContext({PRODUCTION_PROCESS_ORDER:['박 인쇄','실크 인쇄','자동화'],isProductionPlanProductAllowed:()=>true,getProductionPlanProduct:()=>({}),state:{purchaseOrders:[{...order,productId:'KR-0024',status:'임의 완료'}, {...order,productId:'KR-0024',purchaseOrderId:'PO-ACTIVE'}]},getProductionPlanBalance:o=>o.remainingQuantity});
  vm.runInContext(functionSource(s,'getPurchaseOrderDisplayStatus')+'\n'+functionSource(s,'getProductionPlanOpenOrders'),c);
  assert.equal(c.getPurchaseOrderDisplayStatus({...order,status:'임의 완료'}),'임의 완료');
  assert.equal(c.getProductionPlanOpenOrders().length,1);assert.equal(c.getProductionPlanOpenOrders()[0].purchaseOrderId,'PO-ACTIVE');
