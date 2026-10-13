@@ -83,7 +83,7 @@ const PRODUCTION_PLAN_STAFF = {
   packagingWorker: [{ name: "수쿠마", type: "outsourcing", label: "아웃소싱" }]
 };
 const PRODUCTION_MACHINE_OPTIONS = {
-  ...Object.fromEntries(PRODUCTION_PROCESS_ORDER.map(process => [process, Array.from({ length: 12 }, (_, index) => `${index + 1}호기`)]))
+  ...Object.fromEntries(PRODUCTION_PROCESS_ORDER.map(process => [process, Array.from({ length: process === "자동화" ? 4 : 12 }, (_, index) => `${index + 1}호기`)]))
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const PRODUCTION_DISCOURAGED_WORK_HOURS = 9;
@@ -100,6 +100,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "자동화 기계 선택 범위", items: ["자동화 인쇄는 1호기부터 4호기까지만 선택하고 배정합니다. 기존 계획에 없는 기계가 저장돼 있으면 해당 기계 배정을 해제합니다."] },
   { date: "2026-10-13", title: "생산계획 인쇄 유형 선택", items: ["박·실크·자동화 인쇄 유형을 선택하고 제품 공정에 따라 선택 목록을 제한합니다. 박은 박 공정 제품만, 실크·자동화는 박 공정이 없는 제품만 선택합니다."] },
   { date: "2026-10-13", title: "생산계획 공정 선택", items: ["오브제 외용기 샘플은 2도 한 행으로 표시합니다. 제품의 등록 공정 중 작업할 공정을 선택하고 선택한 공정만 계획합니다. 공정별 입력을 따로 보관하며 동시 작업 공정은 묶음으로 선택합니다."] },
   { date: "2026-10-13", title: "생산계획 작업자 표시 간소화", items: ["직원 작업자는 이름만 표시하고 아웃소싱 표시는 유지합니다. 저장되는 직원·아웃소싱 구분은 그대로 유지합니다."] },
@@ -2975,6 +2976,9 @@ function getProductionPlanReferenceCandidates(job = state.productionPlanJobs.fin
 }
 
 function updateProductionPlanTargets(jobs) {
+  for (const job of jobs) {
+    if (!(PRODUCTION_MACHINE_OPTIONS[job.process] || []).includes(job.machine)) job.machine = "";
+  }
   const active = jobs.filter(job => job.purchaseOrderId && PRODUCTION_PROCESS_ORDER.includes(job.process));
   const calculations = new Map(active.map(job => [job.planRowId, getProductionPlanCalculations(job)]));
   const inputs = active.map(job => {

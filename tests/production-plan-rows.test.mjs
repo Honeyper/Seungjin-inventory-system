@@ -241,3 +241,19 @@ test('동시 작업 공정은 단독 공정 실적이나 다른 제품의 실적
  assert.equal(c.getProductionPlanReference(job).id,'combined');
  job.productionReferenceId='wrong';assert.equal(c.getProductionPlanReference(job),null);
 });
+
+test('자동화의 기존 5호기 이상 배정은 해제하고 자동 배정도 1~4호기만 사용한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ const job=c.state.productionPlanJobs[0];c.changeProductionPlanPrintType(job,'자동화');
+ Object.assign(job,{machine:'12호기',cumulativeProduction:9000,cumulativeHours:9,loss:0});
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ let row=c.state.productionPlanJobs[0];assert.equal(row.machine,'');
+ assert.equal(row.cumulativeProduction,9000);
+ assert.ok(c.state.productionPlanSchedule.entries.length>0);
+ assert.ok(c.state.productionPlanSchedule.entries.every(entry=>['1호기','2호기','3호기','4호기'].includes(entry.machine)));
+ row.machine='4호기';c.renderProductionPlan();row=c.state.productionPlanJobs[0];assert.equal(row.machine,'4호기');
+ assert.ok(c.state.productionPlanSchedule.entries.every(entry=>entry.machine==='4호기'));
+ c.changeProductionPlanPrintType(row,'실크 인쇄');Object.assign(row,{machine:'12호기',cumulativeProduction:9000,cumulativeHours:9,loss:0});
+ c.renderProductionPlan();assert.equal(c.state.productionPlanJobs[0].machine,'12호기');
+ assert.ok(c.state.productionPlanSchedule.entries.every(entry=>entry.machine==='12호기'));
+});
