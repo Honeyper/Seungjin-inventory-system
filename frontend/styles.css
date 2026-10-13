@@ -15300,15 +15300,17 @@ small, em {
   min-width: 0;
   text-align: center;
   padding-inline: 0.35rem;
+  padding-block: 0;
+  line-height: 1.2;
 }
 #productionPlanView .production-plan-table select {
   appearance: none;
-  padding-inline: 0.8rem;
+  padding-inline: 0.85rem;
   text-align-last: center;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23506480' stroke-width='1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-size: 0.5rem;
-  background-position: right 0.2rem center;
+  background-size: 0.5rem 0.3rem;
+  background-position: right 0.3rem center;
 }
 #productionPlanView .production-plan-product-trigger {
   position: relative;
@@ -15329,6 +15331,11 @@ small, em {
   #productionPlanView .production-plan-table select,
   #productionPlanView .production-plan-table input { font-size: 0.7rem; }
   #productionPlanView .production-plan-table th { font-size: 0.67rem; }
+  #productionPlanView .production-plan-staff-fields select {
+    padding-inline: 0.6rem;
+    background-size: 0.4rem 0.25rem;
+    background-position: right 0.2rem center;
+  }
 }
 
 /* Compact rows keep a dozen planning jobs readable together. */
@@ -15483,7 +15490,20 @@ small, em {
   gap: 0.25rem;
   font-size: 0.7rem;
 }
-#productionPlanView .production-plan-detail-input input { min-width: 0; width: 100%; }
+#productionPlanView .production-plan-detail-input input {
+  min-width: 0;
+  width: 100%;
+  text-align: center;
+  padding-inline: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+#productionPlanView .production-plan-table input[type="number"] { appearance: textfield; }
+#productionPlanView .production-plan-table input[type="number"]::-webkit-inner-spin-button,
+#productionPlanView .production-plan-table input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  display: none;
+  margin: 0;
+}
 #productionPlanView .production-plan-detail-input span { flex: 0 0 auto; }
 #productionPlanView .production-plan-detail-input input[aria-invalid="true"] { border-color: #bd2f2f; }
 @media (min-width: 1600px) {
