@@ -9398,9 +9398,7 @@ small, em {
 
 .production-plan-table {
   width: 100%;
-  /* Keep columns tied to the full workspace, not the shrinking detail-panel track. */
-  width: max(80rem, calc(100cqi - 2.3rem - 2px));
-  min-width: 80rem;
+  min-width: 0;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -15271,8 +15269,6 @@ small, em {
 }
 
 
-.production-plan-table th:nth-child(4) { width: 17%; }
-.production-plan-table th:nth-child(8) { width: 14%; }
 .production-plan-staff-fields { display: grid; gap: 0.5rem; }
 .production-plan-staff-fields label { display: grid; gap: 0.2rem; min-width: 0; }
 .production-plan-staff-fields label > span { color: #60718d; font-size: 0.72rem; font-weight: 700; }
@@ -15285,3 +15281,57 @@ small, em {
 
 /* The simplified plan keeps only the work count and daily production target. */
 #productionPlanView .production-plan-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* Keep all planning columns inside the available desktop page width. */
+#productionPlanView .production-plan-table th,
+#productionPlanView .production-plan-table td {
+  padding: 0.55rem 0.25rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+#productionPlanView .production-plan-table th { white-space: normal; line-height: 1.35; }
+#productionPlanView .production-plan-table th:nth-child(1) { width: 7%; }
+#productionPlanView .production-plan-table th:nth-child(2) { width: 7%; }
+#productionPlanView .production-plan-table th:nth-child(3) { width: 7%; }
+#productionPlanView .production-plan-table th:nth-child(4) { width: 21%; }
+#productionPlanView .production-plan-table th:nth-child(5) { width: 7%; }
+#productionPlanView .production-plan-table th:nth-child(6) { width: 8%; }
+#productionPlanView .production-plan-table th:nth-child(7) { width: 9%; }
+#productionPlanView .production-plan-table th:nth-child(8) { width: 16%; }
+#productionPlanView .production-plan-table th:nth-child(9) { width: 8%; }
+#productionPlanView .production-plan-table th:nth-child(10) { width: 10%; }
+#productionPlanView .production-plan-table select,
+#productionPlanView .production-plan-table input {
+  min-width: 0;
+  text-align: center;
+  padding-inline: 0.35rem;
+}
+#productionPlanView .production-plan-table select {
+  appearance: none;
+  padding-inline: 0.8rem;
+  text-align-last: center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23506480' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 0.5rem;
+  background-position: right 0.2rem center;
+}
+#productionPlanView .production-plan-product-trigger {
+  position: relative;
+  padding-inline: 1.25rem;
+  text-align: center;
+}
+#productionPlanView .production-plan-product-trigger > span { flex: 1; }
+#productionPlanView .production-plan-product-trigger > i { position: absolute; right: 0.35rem; }
+#productionPlanView .production-plan-staff-fields label,
+#productionPlanView .production-plan-stage-field { text-align: center; }
+@media (max-width: 1100px) {
+  #productionPlanView .production-plan-table th:nth-child(1),
+  #productionPlanView .production-plan-table th:nth-child(2) { width: 8.5%; }
+  #productionPlanView .production-plan-table th:nth-child(3) { width: 6%; }
+  #productionPlanView .production-plan-table th:nth-child(4) { width: 20%; }
+  #productionPlanView .production-plan-table th:nth-child(10) { width: 9%; }
+  #productionPlanView .production-plan-table td,
+  #productionPlanView .production-plan-table select,
+  #productionPlanView .production-plan-table input { font-size: 0.7rem; }
+  #productionPlanView .production-plan-table th { font-size: 0.67rem; }
+}
