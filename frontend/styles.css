@@ -15126,9 +15126,11 @@ small, em {
 }
 #productionPlanView .production-plan-details-row[hidden] { display: none; }
 #productionPlanView .production-plan-details-row > td {
-  padding: 0.4rem 0.5rem;
+  padding: 0;
   background: #f8fafd;
 }
+#productionPlanView .production-plan-details-collapse { overflow: hidden; }
+#productionPlanView .production-plan-details-space { padding: 0.4rem 0.5rem; }
 #productionPlanView .production-plan-details-region {
   min-height: 4rem;
   padding: 0.5rem;
@@ -15190,4 +15192,11 @@ small, em {
   margin: 0.15rem 0 0;
   color: var(--navy-dark);
   font-size: 0.85rem;
+}
+
+#productionPlanView .production-plan-details-chevron {
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  #productionPlanView .production-plan-details-chevron { transition: none; }
 }

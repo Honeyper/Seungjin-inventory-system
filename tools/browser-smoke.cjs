@@ -256,6 +256,7 @@ async function verifyProductionPlanDetails(page, fixture) {
   await buttons.click();
   assert.equal(await buttons.getAttribute('aria-expanded'),'true');
   assert.equal(await buttons.locator('.production-plan-details-toggle-label').textContent(),'세부사항 닫기');
+  await page.locator('.production-plan-details-row').waitFor({state:'visible'});
   assert.equal(await page.locator('.production-plan-details-row').isVisible(),true);
   assert.equal(await page.locator('.production-plan-details-row td').getAttribute('colspan'),'10');
   assert.equal(await rows.evaluate(row=>row.nextElementSibling.classList.contains('production-plan-details-row')),true);
@@ -276,6 +277,7 @@ async function verifyProductionPlanDetails(page, fixture) {
   await buttons.nth(1).click();
   await buttons.nth(0).click();
   assert.deepEqual(await buttons.evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-expanded'))),['false','true','false']);
+  await page.waitForFunction(()=>document.querySelectorAll('.production-plan-details-row:not([hidden])').length===1);
   assert.equal(await page.locator('.production-plan-details-row:visible').count(),1);
   await page.evaluate(()=>renderProductionPlanTable());
   assert.deepEqual(await buttons.evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-expanded'))),['false','true','false']);
@@ -369,6 +371,52 @@ async function verifyProductionPlanMetrics(page) {
   await page.setViewportSize({width:1280,height:900});
   await row.locator('[data-plan-details-toggle]').click();
   console.log(JSON.stringify({planMetrics:11,inputsSaveReload:true,perStage:true,invalidInputsBlocked:true,mainTargetUnchanged:true}));
+}
+
+async function verifyProductionPlanSlide(page) {
+  await page.waitForFunction(()=>document.querySelector('.production-plan-details-row').hidden);
+  const before=await page.evaluate(()=>JSON.stringify(state.productionPlanJobs));
+  const opening=await page.evaluate(()=>{
+    const button=document.querySelector('[data-plan-details-toggle]');button.click();
+    const row=document.querySelector('.production-plan-details-row');
+    const wrapper=row.querySelector('.production-plan-details-collapse');
+    const animation=wrapper.planDetailsAnimation;animation.pause();animation.currentTime=80;
+    return {height:wrapper.getBoundingClientRect().height,full:wrapper.querySelector('.production-plan-details-space').getBoundingClientRect().height,hidden:row.hidden,inert:row.inert,expanded:button.getAttribute('aria-expanded')};
+  });
+  assert.ok(opening.height>0 && opening.height<opening.full,JSON.stringify(opening));
+  assert.equal(opening.hidden,false);assert.equal(opening.inert,false);assert.equal(opening.expanded,'true');
+  await page.evaluate(()=>document.querySelector('.production-plan-details-collapse').planDetailsAnimation.finish());
+  await page.waitForFunction(()=>!document.querySelector('.production-plan-details-collapse').planDetailsAnimation);
+  const closing=await page.evaluate(()=>{
+    const button=document.querySelector('[data-plan-details-toggle]');button.click();
+    const row=document.querySelector('.production-plan-details-row'),wrapper=row.querySelector('.production-plan-details-collapse');
+    const animation=wrapper.planDetailsAnimation;animation.pause();animation.currentTime=80;
+    return {height:wrapper.getBoundingClientRect().height,full:wrapper.querySelector('.production-plan-details-space').getBoundingClientRect().height,hidden:row.hidden,inert:row.inert,expanded:button.getAttribute('aria-expanded')};
+  });
+  assert.ok(closing.height>0 && closing.height<closing.full,JSON.stringify(closing));
+  assert.equal(closing.hidden,false);assert.equal(closing.inert,true);assert.equal(closing.expanded,'false');
+  await page.evaluate(()=>document.querySelector('.production-plan-details-collapse').planDetailsAnimation.finish());
+  await page.waitForFunction(()=>document.querySelector('.production-plan-details-row').hidden);
+  const rapid=await page.evaluate(()=>{
+    const button=document.querySelector('[data-plan-details-toggle]'),wrapper=document.querySelector('.production-plan-details-collapse');
+    button.click();wrapper.planDetailsAnimation.pause();wrapper.planDetailsAnimation.currentTime=80;
+    const height=wrapper.getBoundingClientRect().height;
+    button.click();button.click();
+    const resumed=wrapper.getBoundingClientRect().height;
+    const count=wrapper.getAnimations().length;wrapper.planDetailsAnimation.finish();
+    return {height,resumed,count,expanded:button.getAttribute('aria-expanded')};
+  });
+  assert.ok(Math.abs(rapid.height-rapid.resumed)<1,JSON.stringify(rapid));assert.equal(rapid.count,1);assert.equal(rapid.expanded,'true');
+  await page.waitForFunction(()=>!document.querySelector('.production-plan-details-collapse').planDetailsAnimation);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.locator('[data-plan-details-toggle]').click();
+  assert.equal(await page.locator('.production-plan-details-row').evaluate(row=>row.hidden),true);
+  await page.locator('[data-plan-details-toggle]').click();
+  assert.equal(await page.locator('.production-plan-details-collapse').evaluate(wrapper=>wrapper.getAnimations().length),0);
+  assert.equal(await page.evaluate(()=>JSON.stringify(state.productionPlanJobs)),before);
+  await page.locator('[data-plan-details-toggle]').click();
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  console.log(JSON.stringify({detailsSlide:true,opening,closing,rapid,reducedMotion:true,inputsUnchanged:true}));
 }
 
 async function verifyProductionPlanStorageQuota(page) {
@@ -563,6 +611,7 @@ async function main() {
     await verifyProductionPlanDetails(page, fixture);
     await verifyProductionPlanDelivery(page, fixture);
     await verifyProductionPlanMetrics(page);
+    await verifyProductionPlanSlide(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
