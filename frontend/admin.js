@@ -99,6 +99,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "생산계획 작업자 표시 간소화", items: ["직원 작업자는 이름만 표시하고 아웃소싱 표시는 유지합니다. 저장되는 직원·아웃소싱 구분은 그대로 유지합니다."] },
   { date: "2026-10-12", title: "생산계획 인쇄·포장 작업자 선택", items: ["인쇄 작업자는 유순희(직원), 포장 작업자는 수쿠마(아웃소싱)를 선택합니다. 인쇄와 포장 담당자 및 인력 구분을 공정별 계획에 각각 저장하고 표시합니다."] },
   { date: "2026-10-12", title: "오브제 외용기 2도 생산계획 샘플", items: ["생산계획 샘플을 오브제 파운데이션 외용기로 변경했습니다. 1도·2도 실크 인쇄를 각각 배정하고 공정별 기계·작업자·실적을 저장합니다. 2도는 1도 생산분을 기준으로 배정하며 완제품 목표는 2도 수량으로 표시합니다."] },
   { date: "2026-10-12", title: "발주 납기 방식 및 일 최소 생산량", items: ["발주 등록·수정에서 지정 납기일 또는 매일 생산·납기를 선택합니다. 매일 생산은 일 최소 생산량을 저장하고 목록에 일 ○○개 이상으로 표시하며, 생산계획에도 일 최소량을 적용합니다. 기존 발주는 날짜 납기 방식을 유지합니다."] },
@@ -2730,7 +2731,7 @@ function getProductionPlanStaffAssignments(job) {
 function getProductionPlanStaffLabel(job, role) {
   const name = job?.[role] || "";
   const person = PRODUCTION_PLAN_STAFF[role].find(person => person.name === name);
-  return person ? `${person.name} (${person.label})` : name ? `${name} (기존 입력)` : "미지정";
+  return person ? (person.type === "employee" ? person.name : `${person.name} (${person.label})`) : name ? `${name} (기존 입력)` : "미지정";
 }
 
 function renderProductionPlanStaffOptions(job, role) {
@@ -2739,7 +2740,7 @@ function renderProductionPlanStaffOptions(job, role) {
   const legacy = value && !people.some(person => person.name === value)
     ? `<option value="${escapeAttribute(value)}" selected disabled>기존 입력: ${escapeHtml(value)}</option>` : "";
   return `<option value="" ${!value ? "selected" : ""}>미지정</option>${legacy}`
-    + people.map(person => `<option value="${escapeAttribute(person.name)}" ${value === person.name ? "selected" : ""}>${escapeHtml(person.name)} (${person.label})</option>`).join("");
+    + people.map(person => `<option value="${escapeAttribute(person.name)}" ${value === person.name ? "selected" : ""}>${escapeHtml(getProductionPlanStaffLabel({ [role]: person.name }, role))}</option>`).join("");
 }
 
 function getProductionPlanGroup(job) {

@@ -206,7 +206,7 @@ test("인쇄 직원과 포장 아웃소싱을 공정별 별도 항목으로 저�
   assert.deepEqual(plain(c.state.productionPlanJobs.map(row=>[row.worker,row.workerType,row.packagingWorker,row.packagingWorkerType])),
     [["유순희","employee","수쿠마","outsourcing"],["유순희","employee","수쿠마","outsourcing"]]);
   const html=c.renderProductionPlanStaffOptions(c.state.productionPlanJobs[0],"worker");
-  assert.match(html,/유순희.*직원/);assert.doesNotMatch(html,/수쿠마/);
+  assert.match(html,/>유순희<\/option>/);assert.doesNotMatch(html,/\(직원\)/);assert.doesNotMatch(html,/수쿠마/);
   assert.match(c.renderProductionPlanStaffOptions(c.state.productionPlanJobs[0],"packagingWorker"),/수쿠마.*아웃소싱/);
 });
 
