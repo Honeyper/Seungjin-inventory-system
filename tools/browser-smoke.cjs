@@ -248,6 +248,34 @@ async function verifyProductionPlanPrintTypes(page, fixture) {
   await page.screenshot({path:'/private/tmp/seungjin-print-types-silk.png',fullPage:true});
 }
 
+async function verifyProductionPlanStorageQuota(page) {
+  const filled = await page.evaluate(() => {
+    const cacheKey = 'seungjinAdminCache:v3:dev:inbounds:quota-test';
+    let value = '', chunk = 512 * 1024, blocked = false;
+    while (chunk >= 1) {
+      try { localStorage.setItem(cacheKey, value + 'x'.repeat(chunk)); value += 'x'.repeat(chunk); }
+      catch(error) { if(error.name !== 'QuotaExceededError') throw error; blocked = true; chunk = Math.floor(chunk/2); }
+    }
+    state.productionPlanDate = '2026-09-19';
+    Object.assign(state.productionPlanJobs[0], {machine:'4호기',cumulativeProduction:11000,cumulativeHours:11,loss:0,note:'입력 내용 보존'});
+    return {blocked,cacheLength:value.length,key:getProductionPlanStorageKey()};
+  });
+  assert.equal(filled.blocked,true);
+  await page.locator('#saveProductionPlanButton').click();
+  assert.match(await page.locator('#productionPlanStatus').textContent(), /저장했습니다/);
+  const saved = await page.evaluate(key => ({draft:JSON.parse(localStorage.getItem(key)),cache:localStorage.getItem('seungjinAdminCache:v3:dev:inbounds:quota-test')}), filled.key);
+  assert.equal(saved.cache,null);
+  assert.equal(saved.draft.jobs[0].cumulativeProduction,11000);
+  assert.equal(saved.draft.jobs[0].cumulativeHours,11);
+  assert.equal(saved.draft.jobs[0].note,'입력 내용 보존');
+  await page.reload();
+  await page.waitForFunction(() => state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  await page.evaluate(() => setProductionPlanDate('2026-09-19'));
+  const loaded = await page.evaluate(() => state.productionPlanJobs[0]);
+  assert.equal(loaded.cumulativeProduction,11000);assert.equal(loaded.cumulativeHours,11);assert.equal(loaded.note,'입력 내용 보존');
+  console.log(JSON.stringify({quotaRecovery:true,cacheCharacters:filled.cacheLength}));
+}
+
 async function verifyPurchaseOrderDelivery(page, fixture) {
   await page.goto(origin + '/admin.html#purchase-orders');
   await page.reload();
@@ -409,6 +437,7 @@ async function main() {
     await verifyAdminViews(page);
     await verifyProductionPlanPilot(page, fixture);
     await verifyProductionPlanPrintTypes(page, fixture);
+    await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
     await verifyPartialUpload(page, fixture);
@@ -424,7 +453,7 @@ async function main() {
     assert.equal(fixture.loginCalls, 2);
     await page.setViewportSize({ width: 390, height: 844 });
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, purchaseOrderDelivery: true, productionPlanPilot: true, productionPlanPrintTypes: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
+    console.log(JSON.stringify({ passed: true, purchaseOrderDelivery: true, productionPlanPilot: true, productionPlanPrintTypes: true, productionPlanQuotaRecovery: true, monthlyConfirmation: true, uploads: fixture.uploads, timing, consoleErrors: errors.length }));
   } finally {
     await browser.close();
   }
