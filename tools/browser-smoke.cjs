@@ -333,7 +333,7 @@ async function verifyProductionPlanMetrics(page) {
   const details=page.locator('.production-plan-details-row');
   await row.locator('[data-plan-details-toggle]').click();
   assert.equal(await details.locator('dt').count(),12);
-  assert.deepEqual(await details.locator('dt').allTextContents(),['잔여 작업일','일일 목표 시간','총 소요 시간(예상)','발주량','LOSS','누적 생산량','누적 시간','실 근무시간','시간당 생산량','일일 필수 생산량','금일 생산량','달성률']);
+  assert.deepEqual(await details.locator('dt').allTextContents(),['잔여 작업일','일일 목표 시간','총 소요 시간(예상)','발주량','최대 허용 LOSS','누적 생산량','누적 시간','실 근무시간','시간당 생산량','일일 필수 생산량','금일 생산량','달성률']);
   const target=await page.evaluate(()=>state.productionPlanJobs[0].targetQuantity);
   for(const [field,value] of Object.entries({loss:'200',actualWorkHours:'2',actualProduction:'800'})) {
     await details.locator(`[data-plan-field=${field}]`).fill(value);
