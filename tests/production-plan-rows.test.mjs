@@ -19,7 +19,7 @@ function setup() {
     window: { confirm: () => true },
     state: { productionPlanDate: "2026-09-11", productionPlanFactory: "1공장", productionPlanJobs: [],
       productionPlanSelectedJobId: "", productionPlanProcessFilter: "", productionPlanActiveTab: "table",
-      purchaseOrders: [order], products: [{ productCode: order.productId, productionProcess: "실크 인쇄" }], purchaseOrdersLoaded: true },
+      purchaseOrders: [order], products: [{ productCode: order.productId, productionProcess: "실크 인쇄", finalProcess: "2도", processGroups: [[1],[2]] }], purchaseOrdersLoaded: true },
     PRODUCTION_PLAN_STORAGE_PREFIX: "rows-test",
     localStorage: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     productionPlanTableBody: { innerHTML: "", querySelectorAll: () => [] },
@@ -36,199 +36,109 @@ function setup() {
     showToast: () => {}, closeInboundProductPicker: () => {}, openInboundProductPicker: () => {},
     ensureProductsLoaded: async () => {}, loadPurchaseOrders: async () => {}, requestApi: async () => ({ rows: [] })
   });
+  vm.runInContext(fs.readFileSync(new URL("../frontend/qr-label.js", import.meta.url), "utf8"), context);
+  context.window.SeungjinQrLabel = context.SeungjinQrLabel;
   vm.runInContext(fs.readFileSync(new URL("../frontend/production-planner.js", import.meta.url), "utf8"), context);
   vm.runInContext(source.slice(source.indexOf("const PRODUCTION_PROCESS_ORDER"), source.indexOf("const SYSTEM_UPDATE_HISTORY")), context);
-  vm.runInContext(source.slice(source.indexOf("function getProductionPlanStorageKey()"), source.indexOf("function getCurrentView()")), context);
+  vm.runInContext(source.slice(source.indexOf("function getProductionPlanLegacyStorageKey()"), source.indexOf("function getCurrentView()")), context);
   context.testStorage = storage;
   return context;
 }
 
-test("빈 계획도 실크 인쇄·오브제 외용기 두 공정만 표시하고 반복 보정에 입력을 유지한다", () => {
-  const c = setup(), rows = c.ensureProductionPlanRows([]);
-  assert.equal(rows.length, 2);
-  assert.equal(rows[0].process, "실크 인쇄");
-  assert.equal(rows[0].productId, "NP-0001");
-  rows[0].worker = "입력 유지";
-  rows[0].workerType = "";
-  assert.deepEqual(plain(c.ensureProductionPlanRows(rows)), plain(rows));
-  c.state.productionPlanJobs = rows;
-  c.renderProductionPlanTable();
-  assert.equal((c.productionPlanTableBody.innerHTML.match(/data-plan-row-id=/g) || []).length, 2);
-  assert.doesNotMatch(c.productionPlanTableBody.innerHTML, /data-plan-add-process|data-plan-delete-row|박 인쇄|자동화/);
+test('오브제 기본 계획은 2도 한 행이며 자동 생성과 동기화 후에도 한 행이다',async()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ assert.equal(c.state.productionPlanJobs.length,1);assert.equal(c.state.productionPlanJobs[0].stage,2);
+ await c.syncProductionPlanOrders();await c.generateProductionPlanDraft();
+ assert.equal(c.state.productionPlanJobs.length,1);assert.equal(c.state.productionPlanJobs[0].stage,2);
+ assert.equal((c.productionPlanTableBody.innerHTML.match(/data-plan-row-id=/g)||[]).length,1);
+ assert.match(c.productionPlanTableBody.innerHTML,/data-plan-field="stage"/);
 });
 
-test("다른 제품과 중복 오브제 외용기 행을 제외해도 전달받은 원본은 변경하지 않는다", () => {
-  const c = setup();
-  const jobs = [{productId:"OTHER",process:"박 인쇄",worker:"다른 제품"},
-    {productId:"NP-0001",purchaseOrderId:order.purchaseOrderId,process:"박 인쇄",worker:"유지"},
-    {productId:"NP-0001",process:"실크 인쇄",worker:"중복"}];
-  const original = plain(jobs), rows = c.ensureProductionPlanRows(jobs);
-  assert.equal(rows.length, 2);
-  assert.equal(rows[0].worker, "유지");
-  assert.equal(rows[0].process, "실크 인쇄");
-  assert.deepEqual(plain(jobs), original);
+test('공정 선택은 제품의 등록 공정을 사용하고 동시 공정도 하나의 선택지로 제공한다',()=>{
+ const c=setup();
+ assert.deepEqual(plain(c.getProductionPlanStageOptions().map(option=>[option.stage,option.label])),[[1,'1도'],[2,'2도']]);
+ c.state.products.push({productCode:'MULTI',finalProcess:'6도',processGroups:[[1,2],[3],[4,5,6]]});
+ assert.deepEqual(plain(c.getProductionPlanStageOptions('MULTI').map(option=>[option.stage,option.label,option.ordinal])),
+  [[2,'1도+2도',1],[3,'3도',2],[6,'4도+5도+6도',3]]);
+ assert.equal(c.getProductionPlanStageOptions('UNKNOWN').length,0);
 });
 
-test("오브제 외용기 발주가 여러 개라도 선택한 발주 두 공정만 동기화한다", async () => {
-  const c = setup();
-  c.state.purchaseOrders.push({...order,purchaseOrderId:"PO-OBJET-2"}, {...order,productId:"OTHER",purchaseOrderId:"PO-OTHER"});
-  const selected = {...c.buildProductionPlanJobs()[0],purchaseOrderId:"PO-OBJET-2",worker:"선택 작업자",note:"입력 메모"};
-  c.state.productionPlanJobs = [selected];
-  await c.syncProductionPlanOrders();
-  await c.generateProductionPlanDraft();
-  assert.equal(c.state.productionPlanJobs.length, 2);
-  assert.equal(c.state.productionPlanJobs[0].purchaseOrderId, "PO-OBJET-2");
-  assert.equal(c.state.productionPlanJobs[0].worker, "선택 작업자");
-  assert.equal(c.state.productionPlanJobs[0].note, "입력 메모");
-  assert.equal(c.getProductionPlanOpenOrders().length, 2);
+test('공정 변경 시 실적이 섞이지 않고 이전 공정으로 돌아가면 입력을 복원한다',()=>{
+ const c=setup();const job=c.buildProductionPlanJobs()[0];
+ Object.assign(job,{machine:'12호기',cumulativeProduction:5000,cumulativeHours:5,loss:0,note:'2도 메모'});
+ assert.equal(c.changeProductionPlanStage(job,1),true);assert.equal(job.cumulativeProduction,null);
+ Object.assign(job,{machine:'1호기',cumulativeProduction:8000,cumulativeHours:4,loss:0,note:'1도 메모'});
+ assert.equal(c.changeProductionPlanStage(job,2),true);
+ assert.equal(job.cumulativeProduction,5000);assert.equal(job.machine,'12호기');assert.equal(job.note,'2도 메모');
+ assert.equal(c.changeProductionPlanStage(job,1),true);
+ assert.equal(job.cumulativeProduction,8000);assert.equal(job.machine,'1호기');assert.equal(job.note,'1도 메모');
+ const before=plain(job);assert.equal(c.changeProductionPlanStage(job,6),false);assert.deepEqual(plain(job),before);
 });
 
-test("선택 함수를 직접 호출해도 다른 제품이나 발주로 바꿀 수 없다", () => {
-  const c = setup();
-  c.state.purchaseOrders.push({...order,productId:"OTHER",purchaseOrderId:"PO-OTHER"});
-  c.state.productionPlanJobs = c.buildProductionPlanJobs();
-  const job = c.state.productionPlanJobs[0], before = plain(job);
-  c.state.productionPlanPickerJobId = job.planRowId;
-  c.selectProductionPlanProduct({productCode:"OTHER"});
-  assert.equal(c.changeProductionPlanOrder(job,"PO-OTHER"), false);
-  assert.deepEqual(plain(job), before);
+test('선택한 1도는 저장·재조회·발주 동기화·자동 생성 후에도 1도로 유지한다',async()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ c.changeProductionPlanStage(c.state.productionPlanJobs[0],1);
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ await c.syncProductionPlanOrders();await c.generateProductionPlanDraft();
+ assert.equal(c.state.productionPlanJobs.length,1);assert.equal(c.state.productionPlanJobs[0].stage,1);
 });
 
-test("같은 오브제 외용기를 재선택해도 입력한 작업자와 생산실적을 초기화하지 않는다", () => {
-  const c = setup();
-  c.state.productionPlanJobs = c.buildProductionPlanJobs();
-  const job = c.state.productionPlanJobs[0];
-  Object.assign(job,{worker:"유지 작업자",cumulativeProduction:1000,cumulativeHours:1,loss:0});
-  c.state.productionPlanPickerJobId = job.planRowId;
-  c.selectProductionPlanProduct({productCode:"NP-0001"});
-  assert.equal(c.state.productionPlanJobs.length, 2);
-  assert.equal(c.state.productionPlanJobs[0].worker, "유지 작업자");
-  assert.equal(c.state.productionPlanJobs[0].cumulativeProduction, 1000);
+test('예전 두 행 저장본은 2도를 선택해서 불러오며 원본을 덮어쓰지 않는다',()=>{
+ const c=setup();
+ const original=JSON.stringify({jobs:[{...order,stage:1,productionMetricsVersion:2,cumulativeProduction:8000,cumulativeHours:4,machine:'1호기'},
+  {...order,stage:2,productionMetricsVersion:2,cumulativeProduction:5000,cumulativeHours:5,machine:'12호기'}]});
+ const oldKey=c.getProductionPlanLegacyStorageKey();c.testStorage.set(oldKey,original);
+ c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs.length,1);
+ assert.equal(c.state.productionPlanJobs[0].stage,2);assert.equal(c.state.productionPlanJobs[0].cumulativeProduction,5000);
+ c.saveProductionPlanDraft();assert.equal(c.testStorage.get(oldKey),original);
+ assert.ok(c.testStorage.has(c.getProductionPlanStorageKey()));
+ c.changeProductionPlanStage(c.state.productionPlanJobs[0],1);
+ assert.equal(c.state.productionPlanJobs[0].cumulativeProduction,8000);
 });
 
-test("기존 전체 계획 저장본은 그대로 두고 오브제 외용기만 별도 범위로 저장한다", () => {
-  const c = setup();
-  const legacyKey = "rows-test:1공장:2026-09-11";
-  const legacy = JSON.stringify({jobs:[{productId:"OTHER",process:"박 인쇄"},
-    {...c.buildProductionPlanJobs()[0],worker:"예전 오브제 외용기 입력"}]});
-  c.testStorage.set(legacyKey, legacy);
-  c.loadProductionPlanDraft();
-  assert.equal(c.state.productionPlanJobs.length, 2);
-  assert.equal(c.state.productionPlanJobs[0].worker,"예전 오브제 외용기 입력");
-  c.saveProductionPlanDraft();
-  assert.equal(c.testStorage.get(legacyKey), legacy);
-  assert.ok(c.testStorage.has("rows-test:product:NP-0001:1공장:2026-09-11"));
-  c.state.productionPlanDate = "2026-09-12";
-  assert.equal(c.readProductionPlanDraft(), null);
-  c.state.productionPlanDate = "2026-09-11";
-  c.state.productionPlanFactory = "2공장";
-  assert.equal(c.readProductionPlanDraft(), null);
+test('1도 자료만 있던 예전 계획을 2도 실적으로 잘못 사용하지 않는다',()=>{
+ const c=setup();const old={...order,stage:1,productionMetricsVersion:2,cumulativeProduction:9000,cumulativeHours:9};
+ const rows=c.ensureProductionPlanRows([old]);
+ assert.equal(rows.length,1);assert.equal(rows[0].stage,2);
+ assert.equal(c.getProductionPlanCalculations(rows[0]).cumulativeProduction,null);
+ assert.equal(old.cumulativeProduction,9000);
 });
 
-test("완료되거나 취소된 발주는 두 공정 계획에 연결하지 않는다", () => {
-  const c = setup();
-  for (const status of ["취소","임의 완료","발주완료"]) {
-    c.state.purchaseOrders = [{...order,status}];
-    const rows = c.ensureProductionPlanRows([{...order,process:"실크 인쇄"}]);
-    assert.equal(rows.length, 2);
-    assert.equal(rows[0].purchaseOrderId, "");
-    assert.equal(c.getProductionPlanOpenOrders().length, 0);
-  }
+test('2도만 선택한 계획은 1도 작업이나 실적 없이도 2도 목표를 계산한다',()=>{
+ const c=setup();const before=plain(c.state.purchaseOrders);c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ Object.assign(c.state.productionPlanJobs[0],{cumulativeProduction:9700,cumulativeHours:9.7,loss:0,machine:'1호기'});
+ c.renderProductionPlan();assert.equal(c.state.productionPlanSchedule.unknown.length,0);
+ assert.equal(c.state.productionPlanJobs[0].targetQuantity,300);assert.equal(c.productionPlanTargetQuantity.innerHTML,'300 <em>ea</em>');
+ c.changeProductionPlanStage(c.state.productionPlanJobs[0],1);
+ Object.assign(c.state.productionPlanJobs[0],{cumulativeProduction:9000,cumulativeHours:9,loss:0});
+ c.renderProductionPlan();assert.equal(c.productionPlanTargetQuantity.innerHTML,'1,000 <em>ea</em>');
+ assert.deepEqual(plain(c.state.purchaseOrders),before);
 });
 
-test("참고 실적도 오브제 외용기만 선택하고 다른 오브제 외용기 제품은 제외한다", () => {
-  const c = setup();
-  c.state.productionPlanReferenceRows = [{productName:"오브제 외용기"},{productName:"오브제 파운데이션 외용기"},
-    {productName:"투쿨포스쿨"},{productName:"오브제 파운데이션 오버캡"}];
-  assert.equal(c.getProductionPlanReferenceCandidates().length, 2);
+test('완료·취소 또는 다른 제품은 샘플 계획에 연결하지 않는다',()=>{
+ const c=setup();
+ for(const status of ['취소','임의 완료','발주완료']) {
+  c.state.purchaseOrders=[{...order,status}];assert.equal(c.getProductionPlanOpenOrders().length,0);
+  assert.equal(c.ensureProductionPlanRows([order])[0].purchaseOrderId,'');
+ }
+ c.state.purchaseOrders=[order,{...order,productId:'OTHER',purchaseOrderId:'PO-OTHER'}];
+ const job=c.buildProductionPlanJobs()[0];const before=plain(job);
+ assert.equal(c.changeProductionPlanOrder(job,'PO-OTHER'),false);assert.deepEqual(plain(job),before);
 });
 
-test("두 공정 목표와 합계는 생산 잔량을 초과하지 않고 원본 발주는 유지한다", () => {
-  const c = setup(), before = plain(c.state.purchaseOrders);
-  c.state.productionPlanJobs = c.buildProductionPlanJobs();
-  Object.assign(c.state.productionPlanJobs[0],{cumulativeProduction:9700,cumulativeHours:9.7,loss:0,worker:"작업자"});
-  Object.assign(c.state.productionPlanJobs[1],{cumulativeProduction:9700,cumulativeHours:9.7,loss:0,worker:"2도 작업자"});
-  c.renderProductionPlan();
-  assert.equal(c.getProductionPlanActiveJobs().length, 2);
-  assert.equal(c.state.productionPlanJobs[0].targetQuantity, 300);
-  assert.equal(c.productionPlanTargetQuantity.innerHTML,"300 <em>ea</em>");
-  assert.deepEqual(plain(c.state.purchaseOrders), before);
+test('공정이 표시되지 않은 참고 실적은 선택한 공정의 누적 생산량으로 자동 복사하지 않는다',()=>{
+ const c=setup();c.state.productionPlanReferenceRows=[{id:'unlabelled',productName:order.productName,process:'실크 인쇄',
+  sourceDate:'2026-09-11',orderQuantity:order.totalOrderQuantity,dueDate:order.endDate,cumulativeProduction:9000,cumulativeHours:9}];
+ const job=c.buildProductionPlanJobs()[0];assert.equal(c.getProductionPlanReference(job),null);
+ assert.equal(c.getProductionPlanCalculations(job).cumulativeProduction,null);
 });
 
-test("1도·2도의 기계와 실적은 독립 저장되고 메디큐브 저장본은 보존한다", () => {
-  const c = setup();
-  const previousKey = "rows-test:product:KR-0024:1공장:2026-09-11";
-  const oldPlan = JSON.stringify({jobs:[{productId:"KR-0024",worker:"이전 계획"}]});
-  c.testStorage.set(previousKey,oldPlan);
-  c.state.productionPlanJobs = c.buildProductionPlanJobs();
-  Object.assign(c.state.productionPlanJobs[0],{machine:"1호기",worker:"1도 작업자",cumulativeProduction:8000,cumulativeHours:4,loss:0});
-  Object.assign(c.state.productionPlanJobs[1],{machine:"12호기",worker:"2도 작업자",cumulativeProduction:5000,cumulativeHours:5,loss:0});
-  c.saveProductionPlanDraft();
-  c.loadProductionPlanDraft();
-  assert.deepEqual(plain(c.state.productionPlanJobs.map(row=>[row.stage,row.machine,row.worker,row.cumulativeProduction])),
-    [[1,"1호기","1도 작업자",8000],[2,"12호기","2도 작업자",5000]]);
-  assert.equal(c.testStorage.get(previousKey),oldPlan);
-  assert.equal(new Set(c.state.productionPlanJobs.map(row=>row.planRowId)).size,2);
-});
-
-test("공정이 표시되지 않은 실적은 두 공정의 누적 생산량으로 자동 복사하지 않는다", () => {
-  const c = setup();
-  c.state.productionPlanReferenceRows = [{id:"unlabelled",productName:order.productName,process:"실크 인쇄",sourceDate:"2026-09-11",
-    dueDate:order.endDate,orderQuantity:order.totalOrderQuantity,cumulativeProduction:9000,cumulativeHours:9}];
-  const jobs = c.buildProductionPlanJobs();
-  for(const job of jobs) {
-    assert.equal(c.getProductionPlanReference(job),null);
-    assert.equal(c.getProductionPlanCalculations(job).cumulativeProduction,null);
-  }
-});
-
-test("공정 구분이 없던 예전 계획의 실적을 1도 생산분으로 가정하지 않는다", () => {
-  const c = setup();
-  const previous = {...order,productionMetricsVersion:2,process:"실크 인쇄",worker:"기존 작업자",
-    cumulativeProduction:9000,cumulativeHours:9,actualProduction:1000};
-  for(const rows of [c.ensureProductionPlanRows([previous]),c.buildProductionPlanJobs({preserve:[previous]})]) {
-    assert.equal(rows[0].worker,"기존 작업자");
-    assert.equal(rows[0].cumulativeProduction,null);
-    assert.equal(rows[0].actualProduction,null);
-    assert.equal(c.getProductionPlanCalculations(rows[1]).cumulativeProduction,null);
-  }
-  assert.equal(previous.cumulativeProduction,9000);
-});
-
-test("인쇄 직원과 포장 아웃소싱을 공정별 별도 항목으로 저장하고 다시 불러온다", () => {
-  const c = setup();
-  c.state.productionPlanJobs = c.buildProductionPlanJobs();
-  for (const row of c.state.productionPlanJobs) {
-    assert.equal(row.worker,"유순희");assert.equal(row.workerType,"employee");
-    assert.equal(row.packagingWorker,"수쿠마");assert.equal(row.packagingWorkerType,"outsourcing");
-  }
-  c.saveProductionPlanDraft();c.loadProductionPlanDraft();
-  assert.deepEqual(plain(c.state.productionPlanJobs.map(row=>[row.worker,row.workerType,row.packagingWorker,row.packagingWorkerType])),
-    [["유순희","employee","수쿠마","outsourcing"],["유순희","employee","수쿠마","outsourcing"]]);
-  const html=c.renderProductionPlanStaffOptions(c.state.productionPlanJobs[0],"worker");
-  assert.match(html,/>유순희<\/option>/);assert.doesNotMatch(html,/\(직원\)/);assert.doesNotMatch(html,/수쿠마/);
-  assert.match(c.renderProductionPlanStaffOptions(c.state.productionPlanJobs[0],"packagingWorker"),/수쿠마.*아웃소싱/);
-});
-
-test("인쇄 담당자로 포장 아웃소싱을 지정할 수 없고 미지정 선택도 저장된다", () => {
-  const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
-  const job=c.state.productionPlanJobs[0];
-  const change=(key,value)=>{
-    const field={value,dataset:{planField:key}};
-    const event={type:"change",target:{closest:selector=>selector==="[data-plan-field]"?field:{dataset:{planRowId:job.planRowId}}}};
-    c.handleProductionPlanFieldChange(event);
-  };
-  change("worker","수쿠마");assert.equal(job.worker,"유순희");assert.equal(job.workerType,"employee");
-  change("packagingWorker","");
-  assert.equal(c.state.productionPlanJobs[0].packagingWorker,"");
-  assert.equal(c.state.productionPlanJobs[0].packagingWorkerType,"");
-  c.saveProductionPlanDraft();c.loadProductionPlanDraft();
-  assert.equal(c.state.productionPlanJobs[0].packagingWorker,"");
-});
-
-test("기존 직접 입력한 작업자는 보존하되 직원이나 아웃소싱으로 임의 분류하지 않는다", () => {
-  const c=setup();
-  const rows=c.ensureProductionPlanRows([{...order,stage:1,productionMetricsVersion:2,worker:"기존 작업자",workerType:"employee"}]);
-  assert.equal(rows[0].worker,"기존 작업자");assert.equal(rows[0].workerType,"");
-  assert.match(c.renderProductionPlanStaffOptions(rows[0],"worker"),/selected disabled>기존 입력: 기존 작업자/);
+test('공정 선택을 바꾸어도 직원·아웃소싱 구분과 이름 표시를 유지한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ c.changeProductionPlanStage(c.state.productionPlanJobs[0],1);c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ const job=c.state.productionPlanJobs[0];
+ assert.deepEqual([job.worker,job.workerType,job.packagingWorker,job.packagingWorkerType],['유순희','employee','수쿠마','outsourcing']);
+ assert.match(c.renderProductionPlanStaffOptions(job,'worker'),/>유순희<\/option>/);
+ assert.doesNotMatch(c.renderProductionPlanStaffOptions(job,'worker'),/\(직원\)/);
+ assert.match(c.renderProductionPlanStaffOptions(job,'packagingWorker'),/수쿠마.*아웃소싱/);
 });
