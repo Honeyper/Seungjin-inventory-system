@@ -15282,3 +15282,6 @@ small, em {
 .production-plan-stage-field { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem; margin-top: 0.45rem; }
 .production-plan-stage-field > span { color: #60718d; font-size: 0.72rem; font-weight: 700; }
 .production-plan-stage-field select { width: 100%; min-width: 0; }
+
+/* The simplified plan keeps only the work count and daily production target. */
+#productionPlanView .production-plan-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

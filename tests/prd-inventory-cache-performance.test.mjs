@@ -32,5 +32,5 @@ test("재고를 보지 않는 화면에서 전체 재고를 미리 요청하지 
   assert.doesNotMatch(adminSource, /scheduleInventoryDashboardWarmup/);
   const initializer = adminSource.slice(adminSource.indexOf("function initializeProductionPlan()"), adminSource.indexOf("function getProductionPlanStorageKey()"));
   assert.doesNotMatch(initializer, /loadProductionPlanReferenceRows\(/);
-  assert.match(adminSource, /view === "production-plan"[\s\S]*?loadProductionPlanReferenceRows\(\)/);
+  assert.doesNotMatch(adminSource, /loadProductionPlanReferenceRows\(/);
 });

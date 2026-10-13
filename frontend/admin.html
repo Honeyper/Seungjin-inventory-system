@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260918-audit-bulk-v1-prd-invoice-preview-r18-completed-r35-storage-r37-qr-bulk-r38-checkbox-r39-auto-order-r43-name-fit-r47-product-copy-r52-inbound-totals-r53-inline-r54-divider-r55-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-stage-picker-r65" />
+    <link rel="stylesheet" href="./styles.css?v=20260918-audit-bulk-v1-prd-invoice-preview-r18-completed-r35-storage-r37-qr-bulk-r38-checkbox-r39-auto-order-r43-name-fit-r47-product-copy-r52-inbound-totals-r53-inline-r54-divider-r55-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-stage-picker-r65-simple-plan-r71" />
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260909-qr-worker-hint-prd-qr-bulk-r38" />
     <link rel="stylesheet" href="./qr-process-groups.css?v=20260918-process-font-r19-expanded-space-r48-equal-rows-r49" />
     <link rel="stylesheet" href="./common-container-shipping.css?v=20260922-common-shipping-v1">
@@ -264,11 +264,7 @@
             <div class="production-plan-heading-actions">
               <button class="production-plan-button secondary" type="button" id="syncProductionPlanButton">
                 <i class="ti ti-refresh" aria-hidden="true"></i>
-                발주 동기화
-              </button>
-              <button class="production-plan-button primary" type="button" id="generateProductionPlanButton">
-                <i class="ti ti-sparkles" aria-hidden="true"></i>
-                AI 계획 생성
+                발주 새로고침
               </button>
             </div>
           </section>
@@ -313,33 +309,12 @@
                 <strong id="productionPlanJobCount">0 <em>건</em></strong>
               </article>
               <article>
-                <span>목표 생산량</span>
+                <span>하루 목표 생산량 (8시간)</span>
                 <strong id="productionPlanTargetQuantity">0 <em>ea</em></strong>
               </article>
-              <article>
-                <span>납기 임박</span>
-                <strong id="productionPlanDueSoonCount">0 <em>건</em></strong>
-              </article>
-              <article>
-                <span>미배정 작업</span>
-                <strong id="productionPlanUnassignedCount">0 <em>건</em></strong>
-              </article>
             </div>
 
-            <div class="production-plan-workspace" id="productionPlanWorkspace">
-              <div class="production-plan-main">
-            <div class="production-plan-tabs" role="tablist" aria-label="생산계획 보기 방식">
-              <button class="active" type="button" id="productionPlanTableTab" role="tab" aria-selected="true" aria-controls="productionPlanTablePanel">
-                <i class="ti ti-table" aria-hidden="true"></i>
-                생산계획표
-              </button>
-              <button type="button" id="productionPlanBoardTab" role="tab" aria-selected="false" aria-controls="productionPlanBoardPanel">
-                <i class="ti ti-calendar-time" aria-hidden="true"></i>
-                기계별 스케줄
-              </button>
-            </div>
-
-            <div class="production-plan-panel" id="productionPlanTablePanel" role="tabpanel" aria-labelledby="productionPlanTableTab">
+            <div class="production-plan-panel" id="productionPlanTablePanel">
               <div class="production-plan-section-heading">
                 <div>
                   <h2 id="productionPlanTitle">일일 생산계획표</h2>
@@ -354,11 +329,11 @@
                       <th>기계 번호</th>
                       <th>업체</th>
                       <th>제품명</th>
-                      <th>목표 생산량</th>
-                      <th>잔량</th>
-                      <th>납기일</th>
+                      <th>발주량</th>
+                      <th>시간당 생산량</th>
+                      <th>하루 목표 생산량</th>
                       <th>작업자</th>
-                      <th>작업 시간</th>
+                      <th>예상 작업시간</th>
                       <th>특이사항</th>
                     </tr>
                   </thead>
@@ -368,40 +343,6 @@
               <p class="production-plan-status" id="productionPlanStatus" role="status"></p>
             </div>
 
-            <div class="production-plan-panel" id="productionPlanBoardPanel" role="tabpanel" aria-labelledby="productionPlanBoardTab" hidden>
-              <div class="production-plan-section-heading">
-                <div>
-                  <h2>기계별 스케줄 보드</h2>
-                  <p>기계별 작업 순서와 예상 작업 시간을 한눈에 확인합니다.</p>
-                </div>
-                <div class="schedule-board-legend" aria-label="스케줄 상태 범례">
-                  <span><i class="ready"></i>계획</span>
-                  <span><i class="urgent"></i>납기 임박</span>
-                  <span><i class="unassigned"></i>미배정</span>
-                </div>
-              </div>
-              <div class="machine-schedule-board" id="machineScheduleBoard"></div>
-              <p class="production-plan-status" id="machineScheduleStatus" role="status"></p>
-            </div>
-              </div>
-
-              <button class="production-plan-detail-toggle" type="button" id="productionPlanDetailToggle" aria-expanded="false" aria-controls="productionPlanDetailPanel">
-                <i class="ti ti-layout-sidebar-right-expand" aria-hidden="true"></i>
-                <span>생산 상세</span>
-              </button>
-              <aside class="production-plan-detail-panel" id="productionPlanDetailPanel" aria-label="생산 상세 계산" hidden>
-                <header class="production-plan-detail-header">
-                  <div>
-                    <span>선택 작업</span>
-                    <h2>생산 상세</h2>
-                  </div>
-                  <button type="button" id="productionPlanDetailClose" aria-label="생산 상세 접기">
-                    <i class="ti ti-layout-sidebar-right-collapse" aria-hidden="true"></i>
-                  </button>
-                </header>
-                <div class="production-plan-detail-body" id="productionPlanDetailBody"></div>
-              </aside>
-            </div>
           </section>
         </div>
         <div class="page-view work-view" id="workStatusView" data-view="work-status" hidden>
@@ -3318,11 +3259,11 @@
     <script src="./qr-label.js?v=20260916-label-process-v1-process-groups-r17-legacy-dashes-r44"></script>
     <script src="./qr-payload.js?v=20260904-box-checksum-prd"></script>
     <script src="./segmented-date.js?v=20260907-purchase-date-auto-advance-prd"></script>
-    <script src="./production-planner.js?v=20261013-selected-stage-v4"></script>
+    <script src="./production-planner.js?v=20261013-product-rate-v5"></script>
     <script src="./purchase-order-sort.js?v=20260916-order-column-sort-v1"></script>
     <script src="./inventory-list-sort.js?v=20260917-inventory-list-sort-v1"></script>
     <script src="./inventory-audit-cards.js?v=20260917-audit-card-drag-v1"></script>
     <script src="./common-container-shipping.js?v=20260922-common-shipping-v1"></script>
-    <script src="./admin.js?v=20260918-audit-bulk-v1-prd-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-count20-r24-process-rates-r25-shipping-fix-r26-notification-read-r27-inbound-confirmation-r32-bulk-move-r33-survey-r34-completed-r35-monthly-day30-r36-storage-r37-qr-bulk-r38-audit-storage-r41-camera-focus-r42-auto-order-r43-legacy-dashes-r44-reopen-cache-r45-shipping-performance-r46-name-fit-r47-expanded-space-r48-equal-rows-r49-search-batch-r50-compact-r51-product-copy-r52-inbound-totals-r53-inline-r54-divider-r55-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-employee-label-r64-stage-picker-r65-stage-label-r66-print-types-r67-caption-r68-auto-machines-r69-plan-save-r70"></script>
+    <script src="./admin.js?v=20260918-audit-bulk-v1-prd-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-count20-r24-process-rates-r25-shipping-fix-r26-notification-read-r27-inbound-confirmation-r32-bulk-move-r33-survey-r34-completed-r35-monthly-day30-r36-storage-r37-qr-bulk-r38-audit-storage-r41-camera-focus-r42-auto-order-r43-legacy-dashes-r44-reopen-cache-r45-shipping-performance-r46-name-fit-r47-expanded-space-r48-equal-rows-r49-search-batch-r50-compact-r51-product-copy-r52-inbound-totals-r53-inline-r54-divider-r55-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-employee-label-r64-stage-picker-r65-stage-label-r66-print-types-r67-caption-r68-auto-machines-r69-plan-save-r70-simple-plan-r71"></script>
   </body>
 </html>
