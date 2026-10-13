@@ -256,7 +256,7 @@ test('계획표 납기는 최신 발주의 날짜 또는 일 필수 수량을 �
 test('상세 11개 항목은 기존 목표를 바꾸지 않고 공정별 입력을 저장한다',()=>{
  const c=setup();c.state.purchaseOrders=[{...order,deliveryType:'daily',dailyMinimumQuantity:7000}];
  c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
- Object.assign(job,{workDays:17,loss:200,cumulativeProduction:4000,cumulativeHours:2,actualProduction:6000});
+ Object.assign(job,{workDays:17,loss:200,lossMode:"manual",cumulativeProduction:4000,cumulativeHours:2,actualProduction:6000});
  c.updateProductionPlanTargets([job]);assert.equal(job.targetQuantity,10000);
  const values=c.getProductionPlanDetailMetrics(job);
  assert.equal(values.dailyRequired,7000);assert.equal(values.dailyTargetHours,5);assert.equal(values.totalExpectedHours,5);
@@ -264,12 +264,54 @@ test('상세 11개 항목은 기존 목표를 바꾸지 않고 공정별 입력�
  assert.equal(c.formatProductionPlanDetailValue('achievementRate',values.achievementRate),'85.7%');
  assert.equal((c.renderProductionPlanMetrics(job).match(/<dt>/g)||[]).length,11);
  c.changeProductionPlanStage(job,1);assert.equal(job.actualProduction,null);
- Object.assign(job,{workDays:5,loss:0,cumulativeProduction:0,cumulativeHours:0,actualProduction:0});
+ Object.assign(job,{workDays:5,loss:0,lossMode:"manual",cumulativeProduction:0,cumulativeHours:0,actualProduction:0});
  c.changeProductionPlanStage(job,2);assert.equal(job.actualProduction,6000);assert.equal(job.loss,200);
  assert.equal(c.saveProductionPlanDraft(),true);c.loadProductionPlanDraft();
  const saved=c.state.productionPlanJobs[0];assert.equal(saved.workDays,17);assert.equal(saved.cumulativeHours,2);assert.equal(saved.actualProduction,6000);
- c.state.purchaseOrders[0].deliveryType='date';assert.equal(c.getProductionPlanDetailMetrics(saved).dailyRequired,589);
- saved.workDays=null;saved.actualProduction=null;const empty=c.getProductionPlanDetailMetrics(saved);
+ c.state.purchaseOrders[0].deliveryType='date';assert.equal(c.getProductionPlanDetailMetrics(saved).dailyRequired,10000);
+ saved.workDays=null;saved.actualProduction=null;c.state.products[0].processHourlyProductionRates["2도"]=null;const empty=c.getProductionPlanDetailMetrics(saved);
  assert.equal(empty.dailyRequired,null);assert.equal(empty.achievementRate,null);
  assert.equal(c.formatProductionPlanDetailValue('achievementRate',empty.achievementRate),'—');
+});
+
+
+test('작업일은 총 소요시간을 8시간으로 나누며 기존 수기 작업일은 계산에 쓰지 않는다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:99100,deliveryType:'daily',dailyMinimumQuantity:7000}];
+ c.state.products[0].processHourlyProductionRates['2도']=751;
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];job.workDays=5;
+ let values=c.getProductionPlanDetailMetrics(job);
+ assert.equal(values.workDays,99100/751/8);assert.equal(c.formatProductionPlanDetailValue('workDays',values.workDays),'16.5일');
+ assert.equal(values.dailyRequired,7000);
+ const html=c.renderProductionPlanMetrics(job);assert.match(html,/data-plan-detail-value="workDays"/);assert.doesNotMatch(html,/data-plan-field="workDays"/);
+ c.state.products[0].processHourlyProductionRates['2도']=1000;
+ for(const [quantity,days,label] of [[68000,8.5,'8.5일'],[65600,8.2,'8.2일'],[8000,1,'1일'],[8010,1.00125,'1.1일'],[500,.0625,'0.1일'],[0,0,'0일']]){
+  c.state.purchaseOrders[0].totalOrderQuantity=quantity;values=c.getProductionPlanDetailMetrics(job);
+  assert.equal(values.workDays,days);assert.equal(c.formatProductionPlanDetailValue('workDays',values.workDays),label);
+ }
+ c.state.products[0].processHourlyProductionRates['2도']=null;
+ values=c.getProductionPlanDetailMetrics(job);assert.equal(values.workDays,null);assert.equal(c.formatProductionPlanDetailValue('workDays',values.workDays),'—');
+});
+
+
+test('LOSS는 발주량 5%로 시작하고 직접 수정한 값과 0개를 공정별로 저장한다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:99100}];
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();let job=c.state.productionPlanJobs[0];
+ assert.equal(job.loss,4955);assert.equal(job.lossMode,'auto');
+ c.state.purchaseOrders[0].totalOrderQuantity=100000;c.updateProductionPlanTargets([job]);assert.equal(job.loss,5000);
+ job.loss=0;job.lossMode='manual';c.state.purchaseOrders[0].totalOrderQuantity=120000;
+ c.updateProductionPlanTargets([job]);assert.equal(job.loss,0);
+ assert.equal(c.saveProductionPlanDraft(),true);c.loadProductionPlanDraft();job=c.state.productionPlanJobs[0];
+ assert.equal(job.loss,0);assert.equal(job.lossMode,'manual');
+ c.changeProductionPlanStage(job,1);c.updateProductionPlanTargets([job]);assert.equal(job.loss,6000);
+ job.loss=12;job.lossMode='manual';c.changeProductionPlanStage(job,2);c.updateProductionPlanTargets([job]);assert.equal(job.loss,0);
+ job.loss=null;job.lossMode='auto';c.state.purchaseOrders[0].totalOrderQuantity=20000;c.updateProductionPlanTargets([job]);assert.equal(job.loss,1000);
+ job.loss=42;delete job.lossMode;c.updateProductionPlanTargets([job]);assert.equal(job.loss,42);assert.equal(job.lossMode,'manual');
+});
+
+test('지정 납기의 일일 필수 수량은 자동 작업일의 부동소수 오차로 1개 늘어나지 않는다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:50000,deliveryType:'date'}];
+ c.state.products[0].processHourlyProductionRates['2도']=751;
+ const job=c.buildProductionPlanJobs()[0];assert.equal(c.getProductionPlanDetailMetrics(job).dailyRequired,6008);
+ c.state.purchaseOrders[0].totalOrderQuantity=99100;c.state.products[0].processHourlyProductionRates['2도']=1000;
+ assert.equal(c.getProductionPlanDetailMetrics(job).dailyRequired,8000);
 });
