@@ -67,6 +67,7 @@ const session = readAdminSession();
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v3:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const ADMIN_LOCAL_CACHE_MAX_BYTES = 1024 * 1024;
 const ADMIN_LARGE_CACHE_DB_NAME = `${ADMIN_CACHE_PREFIX}:large`;
 const ADMIN_LARGE_CACHE_STORE = "responses";
 let adminLargeCacheDatabasePromise = null;
@@ -100,6 +101,7 @@ const PRODUCTION_NON_WORKING_DATES = new Set([
   "2026-12-25"
 ]);
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-13", title: "생산계획 저장 오류 수정", items: ["조회용 임시 데이터로 저장 공간이 찼을 때 해당 임시 데이터만 정리하고 계획 저장을 재시도합니다. 기존 계획과 작업 내용은 보존하고, 조회 임시 데이터의 저장 크기를 제한합니다."] },
   { date: "2026-10-13", title: "자동화 기계 선택 범위", items: ["자동화 인쇄는 1호기부터 4호기까지만 선택하고 배정합니다. 기존 계획에 없는 기계가 저장돼 있으면 해당 기계 배정을 해제합니다."] },
   { date: "2026-10-13", title: "생산계획 인쇄 유형 선택", items: ["박·실크·자동화 인쇄 유형을 선택하고 제품 공정에 따라 선택 목록을 제한합니다. 박은 박 공정 제품만, 실크·자동화는 박 공정이 없는 제품만 선택합니다."] },
   { date: "2026-10-13", title: "생산계획 공정 선택", items: ["오브제 외용기 샘플은 2도 한 행으로 표시합니다. 제품의 등록 공정 중 작업할 공정을 선택하고 선택한 공정만 계획합니다. 공정별 입력을 따로 보관하며 동시 작업 공정은 묶음으로 선택합니다."] },
@@ -472,14 +474,56 @@ function readAdminCache(name) {
   }
 }
 
+function getAdminResponseCacheKeys(storage, allEnvironments = false) {
+  const environment = window.SEUNGJIN_CONFIG?.ENV || "prod";
+  const keys = [];
+  for (let index = 0; index < storage.length; index++) {
+    const key = storage.key(index);
+    const match = String(key || "").match(/^seungjinAdminCache:v\d+:(prod|dev):(products$|inbounds:|inventory-dashboard(?::|$))/);
+    if (match && (allEnvironments || match[1] === environment)) keys.push(key);
+  }
+  return keys;
+}
+
+function isBrowserStorageQuotaError(error) {
+  return ["QuotaExceededError", "NS_ERROR_DOM_QUOTA_REACHED"].includes(error?.name)
+    || error?.code === 22 || error?.code === 1014;
+}
+
+function clearAdminResponseCaches(storage, allEnvironments = false) {
+  const keys = getAdminResponseCacheKeys(storage, allEnvironments);
+  keys.forEach(key => storage.removeItem(key));
+  return keys.length;
+}
+
 function writeAdminCache(name, data) {
   try {
-    localStorage.setItem(`${ADMIN_CACHE_PREFIX}:${name}`, JSON.stringify({
-      savedAt: Date.now(),
-      data
-    }));
+    const key = `${ADMIN_CACHE_PREFIX}:${name}`;
+    const serialized = JSON.stringify({savedAt:Date.now(),data});
+    const size = 2 * (key.length + serialized.length);
+    if (size > ADMIN_LOCAL_CACHE_MAX_BYTES) {
+      localStorage.removeItem(key);
+      return;
+    }
+    const entries = getAdminResponseCacheKeys(localStorage).filter(cacheKey => cacheKey !== key).map(cacheKey => {
+      const value = localStorage.getItem(cacheKey) || "";
+      let savedAt = 0;
+      try { savedAt = Number(JSON.parse(value)?.savedAt) || 0; } catch (error) {}
+      return {key:cacheKey,size:2 * (cacheKey.length + value.length),savedAt};
+    }).sort((a,b) => a.savedAt - b.savedAt);
+    let total = size + entries.reduce((sum, entry) => sum + entry.size, 0);
+    for (const entry of entries) {
+      if (total <= ADMIN_LOCAL_CACHE_MAX_BYTES) break;
+      localStorage.removeItem(entry.key);
+      total -= entry.size;
+    }
+    try { localStorage.setItem(key, serialized); }
+    catch (error) {
+      if (isBrowserStorageQuotaError(error)) localStorage.removeItem(key);
+      // A response cache must never prevent saving a user's plan.
+    }
   } catch (error) {
-    // Storage quota or private-mode failures must not block the page.
+    // Storage or serialization failures must not block the live response.
   }
 }
 
@@ -3556,19 +3600,37 @@ async function generateProductionPlanDraft() {
 
 function saveProductionPlanDraft() {
   try {
-    localStorage.setItem(getProductionPlanStorageKey(), JSON.stringify({
+    const key = getProductionPlanStorageKey();
+    const serialized = JSON.stringify({
       savedAt: new Date().toISOString(),
       date: state.productionPlanDate,
       factory: state.productionPlanFactory,
       jobs: state.productionPlanJobs
-    }));
+    });
+    try { localStorage.setItem(key, serialized); }
+    catch (error) {
+      if (!isBrowserStorageQuotaError(error)) throw error;
+      // Only server response copies are disposable. Plans, drafts and sessions stay intact.
+      clearAdminResponseCaches(localStorage, true);
+      localStorage.setItem(key, serialized);
+    }
+    if (localStorage.getItem(key) !== serialized) throw new Error("PlanStorageVerificationError");
     if (productionPlanStatus) {
       productionPlanStatus.textContent = `${state.productionPlanDate} ${state.productionPlanFactory} 생산계획을 저장했습니다.`;
       productionPlanStatus.dataset.type = "success";
     }
     showToast("생산계획을 저장했습니다.");
+    return true;
   } catch (error) {
-    if (productionPlanStatus) productionPlanStatus.textContent = "생산계획을 저장하지 못했습니다. 브라우저 저장 공간을 확인해주세요.";
+    if (productionPlanStatus) {
+      productionPlanStatus.textContent = isBrowserStorageQuotaError(error)
+        ? "저장 공간이 부족해 계획을 저장하지 못했습니다. 입력 내용은 화면에 유지되어 있습니다."
+        : error?.name === "SecurityError"
+          ? "브라우저에서 저장을 차단하고 있습니다. 이 사이트의 저장 권한을 허용한 뒤 다시 저장해주세요."
+          : "생산계획을 저장하지 못했습니다. 입력 내용은 화면에 유지되어 있으니 다시 저장해주세요.";
+      productionPlanStatus.dataset.type = "error";
+    }
+    return false;
   }
 }
 

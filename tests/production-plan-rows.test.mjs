@@ -21,7 +21,9 @@ function setup() {
       productionPlanSelectedJobId: "", productionPlanProcessFilter: "", productionPlanActiveTab: "table",
       purchaseOrders: [order], products: [{ productCode: order.productId, productionProcess: "실크 인쇄", finalProcess: "2도", processGroups: [[1],[2]] }], purchaseOrdersLoaded: true },
     PRODUCTION_PLAN_STORAGE_PREFIX: "rows-test",
-    localStorage: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
+    ADMIN_CACHE_PREFIX: "seungjinAdminCache:v3:prod", ADMIN_LOCAL_CACHE_MAX_BYTES: 1024*1024,
+    localStorage: { get length() {return storage.size;}, key: index => [...storage.keys()][index] ?? null,
+      getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     productionPlanTableBody: { innerHTML: "", querySelectorAll: () => [] },
     productionPlanStatus: { textContent: "", dataset: {} },
     productionPlanWorkspace: null, productionPlanDetailPanel: null, productionPlanDetailToggle: null,
@@ -41,6 +43,7 @@ function setup() {
   vm.runInContext(fs.readFileSync(new URL("../frontend/production-planner.js", import.meta.url), "utf8"), context);
   vm.runInContext(source.slice(source.indexOf("const PRODUCTION_PROCESS_ORDER"), source.indexOf("const SYSTEM_UPDATE_HISTORY")), context);
   vm.runInContext(source.slice(source.indexOf("function getProductionPlanLegacyStorageKey()"), source.indexOf("function getCurrentView()")), context);
+  vm.runInContext(source.slice(source.indexOf("function getAdminResponseCacheKeys("), source.indexOf("function openAdminLargeCacheDatabase(")), context);
   context.testStorage = storage;
   return context;
 }
@@ -256,4 +259,72 @@ test('자동화의 기존 5호기 이상 배정은 해제하고 자동 배정도
  c.changeProductionPlanPrintType(row,'실크 인쇄');Object.assign(row,{machine:'12호기',cumulativeProduction:9000,cumulativeHours:9,loss:0});
  c.renderProductionPlan();assert.equal(c.state.productionPlanJobs[0].machine,'12호기');
  assert.ok(c.state.productionPlanSchedule.entries.every(entry=>entry.machine==='12호기'));
+});
+
+function useQuotaStorage(c, limit) {
+ const store=c.testStorage;
+ c.localStorage.setItem=(key,value)=>{
+  const bytes=2 * ([...store].filter(([name])=>name!==key).reduce((sum,[name,data])=>sum+name.length+data.length,0)+key.length+value.length);
+  if(bytes>limit) {const error=new Error('quota');error.name='QuotaExceededError';throw error;}
+  store.set(key,value);
+ };
+}
+
+test('저장 공간이 찼을 때 응답 캐시만 정리하고 계획과 입력값을 저장한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ const job=c.state.productionPlanJobs[0];Object.assign(job,{cumulativeProduction:11000,cumulativeHours:11,note:'진행 중 입력'});
+ const protectedKeys={
+  'rows-test:selected-job:1공장:2026-09-10':'지난 계획',
+  'seungjinProductionPlan:v1:prod:sources':'참고 실적 선택',
+  'seungjinShippingBoxDrafts':'출고 입력',
+  'seungjinMobilePersistentSession':'로그인',
+  'another-application':'다른 프로그램',
+  'seungjinAdminCache:v3:prod:productsDraft':'편집 중 내용'
+ };
+ Object.entries(protectedKeys).forEach(([key,value])=>c.testStorage.set(key,value));
+ c.testStorage.set('seungjinAdminCache:v3:prod:inbounds:2026-10-01:2026-10-13','x'.repeat(5000));
+ c.testStorage.set('seungjinAdminCache:v2:dev:products','x'.repeat(5000));
+ useQuotaStorage(c,7000);
+ assert.equal(c.saveProductionPlanDraft(),true);
+ assert.equal(c.productionPlanStatus.dataset.type,'success');
+ const saved=JSON.parse(c.testStorage.get(c.getProductionPlanStorageKey()));assert.equal(saved.jobs[0].cumulativeProduction,11000);assert.equal(saved.jobs[0].note,'진행 중 입력');
+ Object.entries(protectedKeys).forEach(([key,value])=>assert.equal(c.testStorage.get(key),value));
+ assert.equal(c.testStorage.has('seungjinAdminCache:v2:dev:products'),false);
+ assert.equal(c.testStorage.has('seungjinAdminCache:v3:prod:inbounds:2026-10-01:2026-10-13'),false);
+ c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].cumulativeHours,11);
+});
+
+test('임시 캐시가 없어 재시도도 실패하면 기존 계획과 현재 입력을 보존하고 실패를 표시한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ c.testStorage.set(c.getProductionPlanStorageKey(),'이전 저장본');c.testStorage.set('other-origin-data','x'.repeat(5000));useQuotaStorage(c,1000);
+ const before=plain(c.state.productionPlanJobs);
+ assert.equal(c.saveProductionPlanDraft(),false);assert.equal(c.testStorage.get(c.getProductionPlanStorageKey()),'이전 저장본');
+ assert.deepEqual(plain(c.state.productionPlanJobs),before);assert.equal(c.productionPlanStatus.dataset.type,'error');assert.match(c.productionPlanStatus.textContent,/저장 공간이 부족/);
+});
+
+test('브라우저 저장 권한 차단은 캐시를 지우지 않고 권한 오류로 안내한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();c.testStorage.set('seungjinAdminCache:v3:prod:products','cached');
+ c.localStorage.setItem=()=>{const error=new Error('blocked');error.name='SecurityError';throw error;};
+ assert.equal(c.saveProductionPlanDraft(),false);assert.equal(c.testStorage.get('seungjinAdminCache:v3:prod:products'),'cached');
+ assert.match(c.productionPlanStatus.textContent,/브라우저에서 저장을 차단/);
+});
+
+test('조회 캐시는 전체 1MB 안에서 오래된 응답만 교체하고 계획을 보존한다',()=>{
+ const c=setup();c.testStorage.set('seungjinProductionPlan:v1:prod:plan','saved-plan');
+ c.testStorage.set('seungjinAdminCache:v3:prod:inbounds:old',JSON.stringify({savedAt:1,data:'x'.repeat(300000)}));
+ c.testStorage.set('seungjinAdminCache:v3:prod:products',JSON.stringify({savedAt:2,data:'x'.repeat(100000)}));
+ c.writeAdminCache('inbounds:new',{rows:'x'.repeat(300000)});
+ assert.equal(c.testStorage.has('seungjinAdminCache:v3:prod:inbounds:old'),false);
+ assert.equal(c.testStorage.has('seungjinAdminCache:v3:prod:products'),true);
+ assert.equal(c.testStorage.get('seungjinProductionPlan:v1:prod:plan'),'saved-plan');
+ const bytes=c.getAdminResponseCacheKeys(c.localStorage).reduce((sum,key)=>sum+2*(key.length+c.localStorage.getItem(key).length),0);
+ assert.ok(bytes<=1024*1024);assert.equal(JSON.parse(c.testStorage.get('seungjinAdminCache:v3:prod:inbounds:new')).data.rows.length,300000);
+ c.writeAdminCache('inbounds:new',{rows:'x'.repeat(600000)});
+ assert.equal(c.testStorage.has('seungjinAdminCache:v3:prod:inbounds:new'),false);
+ assert.equal(c.testStorage.get('seungjinProductionPlan:v1:prod:plan'),'saved-plan');
+});
+
+test('저장값을 실제로 다시 읽을 수 없으면 저장 성공으로 표시하지 않는다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();c.localStorage.setItem=()=>{};
+ assert.equal(c.saveProductionPlanDraft(),false);assert.equal(c.productionPlanStatus.dataset.type,'error');
 });

@@ -100,7 +100,9 @@ test("생산계획의 핵심 동작은 실제 발주 동기화, 자동 초안, �
   assert.match(html, /id="printProductionPlanButton"/);
   assert.match(source, /function buildProductionPlanJobs\(\{ autoAssign = false, preserve = \[\] \} = \{\}\)/);
   assert.match(source, /getProductionPlanOpenOrders\(\)/);
-  assert.match(source, /localStorage\.setItem\(getProductionPlanStorageKey\(\)/);
+  const save = source.slice(source.indexOf("function saveProductionPlanDraft()"), source.indexOf("function printProductionPlan()"));
+  assert.match(save, /const key = getProductionPlanStorageKey\(\)/);
+  assert.match(save, /localStorage\.setItem\(key, serialized\)/);
   assert.match(source, /function renderMachineScheduleBoard\(\)/);
 });
 
