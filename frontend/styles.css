@@ -15149,9 +15149,38 @@ small, em {
   word-break: keep-all;
 }
 #productionPlanView .production-plan-details-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin: 0.4rem 0 0;
+}
+#productionPlanView .production-plan-details-metrics > div {
+  min-width: 0;
+  padding: 0.4rem;
+  border: 1px solid #e0e7f0;
+  border-radius: 0.3rem;
+  background: #fafbfd;
+}
+#productionPlanView .production-plan-details-metrics dt {
   display: flex;
   justify-content: center;
-  margin: 0.4rem 0 0;
+  align-items: center;
+  min-height: 2rem;
+}
+#productionPlanView .production-plan-detail-input {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+}
+#productionPlanView .production-plan-detail-input input { min-width: 0; width: 100%; }
+#productionPlanView .production-plan-detail-input span { flex: 0 0 auto; }
+#productionPlanView .production-plan-detail-input input[aria-invalid="true"] { border-color: #bd2f2f; }
+@media (min-width: 1600px) {
+  #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(11, minmax(0, 1fr)); }
+}
+@media (max-width: 800px) {
+  #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 #productionPlanView .production-plan-details-metrics dt {
   color: #60718d;
