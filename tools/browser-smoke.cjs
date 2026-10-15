@@ -253,6 +253,11 @@ async function verifyProductionPlanDetails(page, fixture) {
   const actions=fixture.actions.length;
   assert.equal(await buttons.getAttribute('aria-expanded'),'false');
   assert.equal(await page.locator('.production-plan-details-row').isVisible(),false);
+  await rows.locator('td').nth(2).click();
+  assert.equal(await buttons.getAttribute('aria-expanded'),'true');
+  await rows.locator('td').nth(4).click();assert.equal(await buttons.getAttribute('aria-expanded'),'true');
+  await buttons.click();assert.equal(await buttons.getAttribute('aria-expanded'),'false');
+  await rows.locator('[data-plan-field=note]').click();assert.equal(await buttons.getAttribute('aria-expanded'),'false');
   await buttons.click();
   assert.equal(await buttons.getAttribute('aria-expanded'),'true');
   assert.equal(await buttons.locator('.production-plan-details-toggle-label').textContent(),'세부사항 닫기');
@@ -274,7 +279,7 @@ async function verifyProductionPlanDetails(page, fixture) {
     renderProductionPlanTable();
   });
   assert.equal(await buttons.count(),3);
-  await buttons.nth(1).click();
+  await rows.nth(1).locator('td').nth(2).click();
   await buttons.nth(0).click();
   assert.deepEqual(await buttons.evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-expanded'))),['false','true','false']);
   await page.waitForFunction(()=>document.querySelectorAll('.production-plan-details-row:not([hidden])').length===1);
@@ -289,7 +294,7 @@ async function verifyProductionPlanDetails(page, fixture) {
   assert.equal(await page.locator('#productionPlanStatus').textContent(),status);
   assert.equal(fixture.actions.length,actions);
   assert.equal(await rows.count(),1);
-  console.log(JSON.stringify({planDetails:true,keyboard:true,independentRows:true,planUnchanged:true}));
+  console.log(JSON.stringify({planDetails:true,rowClickOpens:true,repeatedClickStaysOpen:true,inputClickPreserved:true,keyboard:true,independentRows:true,planUnchanged:true}));
 }
 
 async function verifyProductionPlanDelivery(page, fixture) {
