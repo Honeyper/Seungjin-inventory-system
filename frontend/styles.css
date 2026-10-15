@@ -15433,8 +15433,10 @@ small, em {
   outline-offset: 1px;
 }
 #productionPlanView .production-plan-details-chevron {
-  font-size: 0.85rem;
-  line-height: 1;
+  display: block;
+  flex: 0 0 auto;
+  width: 0.85rem;
+  height: 0.85rem;
 }
 #productionPlanView .production-plan-details-toggle[aria-expanded="true"] .production-plan-details-chevron {
   transform: rotate(180deg);
