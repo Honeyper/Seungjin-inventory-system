@@ -1014,7 +1014,7 @@ async function verifyInventoryTableFit(page) {
     const bounds=await page.locator('.inventory-table').evaluate(table=>{
       const wrap=table.closest('.table-scroll'),r=table.getBoundingClientRect(),last=table.querySelector('tbody tr td:last-child').getBoundingClientRect();
       return {width:wrap.clientWidth,scroll:wrap.scrollWidth,tableWidth:r.width,lastRight:last.right,wrapRight:wrap.getBoundingClientRect().right,
-        clipped:[...table.querySelectorAll('th,td,button,.inventory-badge')].filter(el=>el.scrollWidth>el.clientWidth+2).map(el=>({tag:el.tagName,text:el.textContent.trim(),width:el.clientWidth,scroll:el.scrollWidth}))};
+        clipped:[...table.querySelectorAll('th,td,button,.inventory-badge,.table-product-name,.table-product-name-text')].filter(el=>el.scrollWidth>el.clientWidth+2).map(el=>({tag:el.tagName,text:el.textContent.trim(),width:el.clientWidth,scroll:el.scrollWidth}))};
     });
     assert.ok(bounds.scroll<=bounds.width+1,JSON.stringify({viewport:width,...bounds}));
     assert.ok(bounds.lastRight<=bounds.wrapRight+1);assert.deepEqual(bounds.clipped,[],JSON.stringify({viewport:width,...bounds}));
