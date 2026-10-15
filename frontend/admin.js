@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "등록 시작 전 미배정 오브제 항목 정리", items: ["오브제의 첫 기계 배정 또는 실제 생산 기록 이전 날짜에는 미배정 기본 항목을 목록과 계획 합계에서 제외합니다. 날짜 이동·새로고침으로 다시 생기지 않으며, 실제 실적과 배정 이력은 유지합니다."] },
   { date: "2026-10-15", title: "전일 공정·기계 설정 유지", items: ["저장된 계획이 없는 날짜는 같은 공장·발주의 가장 최근 이전 계획에서 인쇄 유형·작업 공정·기계번호를 이어받습니다. 해당 날짜에 저장한 설정을 우선하며 생산량·실 근무시간은 전날 값을 복사하지 않습니다."] },
   { date: "2026-10-15", title: "실크·자동화 생산 실적 통합 합산", items: ["같은 발주·제품·공정의 실크와 자동화 실적을 함께 합산합니다. 날짜별 인쇄 유형이 달라도 누적 생산량·누적 시간과 잔량 기반 생산계획에 모두 반영하며 박 인쇄와 다른 공정은 분리합니다."] },
   { date: "2026-10-15", title: "생산 실적 기준 잔여 작업일", items: ["잔여 작업일을 누적 근무시간 대신 누적 생산량 기준으로 계산합니다. 실제로 남은 수량을 선택 공정의 시간당 생산량과 하루 8시간으로 나누므로, 목표보다 많이 생산하면 그만큼 더 줄어듭니다. 금일 입력값도 즉시 반영합니다."] },
@@ -2780,6 +2781,23 @@ function getProductionPlanOpenOrders(process = "") {
     });
 }
 
+function excludeUnassignedProductionPlanHistory(jobs) {
+  const ledger = readProductionPlanActualLedger() || [];
+  const hasWork = job => [job, ...Object.values(job.stageDrafts || {})].some(item => item
+    && ((PRODUCTION_MACHINE_OPTIONS[job.process] || []).includes(item.machine)
+      || window.SeungjinProductionPlanner.number(item.actualProduction) > 0
+      || window.SeungjinProductionPlanner.number(item.actualWorkHours) > 0));
+  return jobs.map(job => {
+    if (job.productId !== PRODUCTION_PLAN_PRODUCT_ID || !job.purchaseOrderId || hasWork(job)) return job;
+    const startDate = ledger.filter(snapshot => snapshot.factory === state.productionPlanFactory
+      && snapshot.jobs.some(item => item && item.purchaseOrderId === job.purchaseOrderId
+        && (!item.productId || item.productId === job.productId) && hasWork(item)))
+      .map(snapshot => snapshot.date).sort()[0];
+    return startDate && state.productionPlanDate < startDate
+      ? createProductionPlanEmptyJob(PRODUCTION_PLAN_DEFAULT_STAGE, "실크 인쇄", "") : job;
+  });
+}
+
 function inheritProductionPlanSetup(jobs) {
   const snapshots = (readProductionPlanActualLedger() || [])
     .filter(snapshot => snapshot.factory === state.productionPlanFactory && snapshot.date < state.productionPlanDate)
@@ -2812,7 +2830,7 @@ function buildProductionPlanJobs({ preserve = [] } = {}) {
     purchaseOrderId:order.purchaseOrderId,productId:order.productId,productName:order.productName,
     clientName:order.clientName,orderRound:order.orderRound || "",note:order.note || ""
   } : {})}]);
-  return updateProductionPlanTargets(ensureProductionPlanRows(jobs));
+  return updateProductionPlanTargets(ensureProductionPlanRows(excludeUnassignedProductionPlanHistory(jobs)));
 }
 
 
@@ -2820,7 +2838,7 @@ function loadProductionPlanDraft() {
   invalidateProductionPlanActualLedger();
   state.productionPlanExpandedRows = new Set();
   const savedJobs = readProductionPlanDraft();
-  state.productionPlanJobs = ensureProductionPlanRows(savedJobs || buildProductionPlanJobs());
+  state.productionPlanJobs = ensureProductionPlanRows(excludeUnassignedProductionPlanHistory(savedJobs || buildProductionPlanJobs()));
   if (!state.productionPlanJobs.some((job) => job.planRowId === state.productionPlanSelectedJobId)) {
     state.productionPlanSelectedJobId = getProductionPlanActiveJobs()[0]?.planRowId || "";
   }

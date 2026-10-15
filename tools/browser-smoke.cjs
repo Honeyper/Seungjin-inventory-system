@@ -747,6 +747,27 @@ async function verifyProductionPlanSetupCarryover(page) {
   console.log(JSON.stringify({setupCarryover:true,printTypeStageMachine:true,actualsBlank:true,savedSettingsWin:true,explicitUnassigned:true,skipUnsavedDays:true,reload:true}));
 }
 
+async function verifyProductionPlanNoUnassignedHistory(page) {
+  const clear=()=>{for(const key of Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)))if(key?.startsWith(PRODUCTION_PLAN_STORAGE_PREFIX+':'))localStorage.removeItem(key);};
+  await page.evaluate(clear);await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]');
+  async function date(value){await page.locator('#productionPlanDate').fill(value);await page.locator('#productionPlanDate').dispatchEvent('change');}
+  await date('2026-10-12');await row.locator('[data-plan-field=machine]').selectOption('3호기');
+  await row.locator('[data-plan-details-toggle]').click();await page.locator('.production-plan-details-row [data-plan-field=actualProduction]').fill('8000');await page.locator('#saveProductionPlanButton').click();
+  const saved=await page.evaluate(()=>localStorage.getItem(getProductionPlanStorageKey()));
+  for(const value of ['2026-10-11','2026-10-10','2026-09-01']){
+    await date(value);assert.equal(await row.locator('[data-plan-product-picker] strong').textContent(),'제품 선택');
+    assert.equal(await page.evaluate(()=>getProductionPlanActiveJobs().length),0);
+    assert.equal(await page.locator('#productionPlanTargetQuantity').textContent(),'0 ea');
+  }
+  await page.locator('#syncProductionPlanButton').click();assert.equal(await page.evaluate(()=>getProductionPlanActiveJobs().length),0);
+  await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);await date('2026-10-11');assert.equal(await page.evaluate(()=>getProductionPlanActiveJobs().length),0);
+  await date('2026-10-12');assert.equal(await row.locator('[data-plan-field=machine]').inputValue(),'3호기');assert.equal(await page.evaluate(()=>localStorage.getItem(getProductionPlanStorageKey())),saved);
+  await date('2026-10-13');assert.equal(await row.locator('[data-plan-field=machine]').inputValue(),'3호기');assert.equal(await page.evaluate(()=>getProductionPlanCumulativeProduction(state.productionPlanJobs[0])),8000);
+  await page.evaluate(clear);await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  console.log(JSON.stringify({noUnassignedHistory:true,beforeStartEmpty:true,summaryZero:true,syncReloadNoReappearance:true,registeredActualsPreserved:true,followingDayCarryover:true}));
+}
+
 async function verifyProductionPlanStorageQuota(page) {
   const filled = await page.evaluate(() => {
     const cacheKey = 'seungjinAdminCache:v3:dev:inbounds:quota-test';
@@ -948,6 +969,7 @@ async function main() {
     await verifyProductionPlanScheduling(page, fixture);
     await verifyProductionPlanThreeSavedDays(page, fixture);
     await verifyProductionPlanSetupCarryover(page);
+    await verifyProductionPlanNoUnassignedHistory(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
