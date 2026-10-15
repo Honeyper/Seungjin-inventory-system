@@ -275,7 +275,7 @@ test('상세 12개 항목은 기존 목표를 바꾸지 않고 공정별 입력�
 });
 
 
-test('누적 시간이 없으면 잔여 작업일은 총 소요시간을 8시간으로 나누며 기존 수기 작업일은 계산에 쓰지 않는다',()=>{
+test('생산 실적이 없으면 잔여 작업일은 총 소요시간을 8시간으로 나누며 기존 수기 작업일은 계산에 쓰지 않는다',()=>{
  const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:99100,deliveryType:'daily',dailyMinimumQuantity:7000}];
  c.state.products[0].processHourlyProductionRates['2도']=751;
  c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];job.workDays=5;
@@ -361,19 +361,19 @@ test('저장값 읽기가 차단되면 누적 생산량을 0으로 표시하지 
 });
 
 
-test('잔여 작업일은 누적 시간만 차감하고 0일 아래로 내려가지 않는다',()=>{
+test('잔여 작업일은 누적 생산량 기준이며 근무시간·LOSS와 별개로 0일 아래로 내려가지 않는다',()=>{
  const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:92000,deliveryType:'date'}];
  c.state.products[0].processHourlyProductionRates['2도']=1000;
  c.state.productionPlanJobs=c.buildProductionPlanJobs();let job=c.state.productionPlanJobs[0];
  const baseline=c.getProductionPlanDetailMetrics(job);
- for(const [hours,label] of [[null,'11.5일'],[0,'11.5일'],[8,'10.5일'],[16.8,'9.4일'],[91.99,'0.1일'],[92,'0일'],[100,'0일'],['','11.5일']]){
-  Object.assign(job,{actualWorkHours:hours,cumulativeHours:99999,actualProduction:99999,cumulativeProduction:99999,loss:99999,lossMode:'manual'});
+ for(const [production,label] of [[null,'11.5일'],[0,'11.5일'],[8000,'10.5일'],[16800,'9.4일'],[91990,'0.1일'],[92000,'0일'],[100000,'0일'],['','11.5일']]){
+  Object.assign(job,{actualWorkHours:999,cumulativeHours:99999,actualProduction:production,cumulativeProduction:99999,loss:99999,lossMode:'manual'});
   const values=c.getProductionPlanDetailMetrics(job);
   assert.equal(c.formatProductionPlanDetailValue('workDays',values.workDays),label);
   assert.equal(values.totalExpectedHours,92);assert.equal(values.dailyRequired,baseline.dailyRequired);
   assert.equal(values.dailyTargetHours,baseline.dailyTargetHours);
  }
- job.actualWorkHours=8;assert.match(c.renderProductionPlanMetrics(job),/<dt>잔여 작업일<\/dt>/);
+ job.actualProduction=8000;job.actualWorkHours=8;assert.match(c.renderProductionPlanMetrics(job),/<dt>잔여 작업일<\/dt>/);
  c.saveProductionPlanDraft();c.loadProductionPlanDraft();job=c.state.productionPlanJobs[0];
  assert.equal(c.getProductionPlanDetailMetrics(job).workDays,10.5);
  c.changeProductionPlanStage(job,1);assert.equal(job.actualWorkHours,null);
@@ -439,4 +439,21 @@ test('마지막 날 목표가 500개 미만이어도 정확한 잔량을 표시�
  c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];c.updateProductionPlanTargets([job]);
  assert.equal(job.targetQuantity,250);assert.equal(job.hours,8);assert.equal(c.getProductionPlanDetailMetrics(job).dailyRequired,250);
  c.state.purchaseOrders[0].endDate='2028-01-01';c.updateProductionPlanTargets([job]);assert.equal(job.planMissing,true);assert.match(job.planMessage,/공휴일 자료/);
+});
+
+
+test('오브제 12·13·14일 8시간씩 근무해 목표 초과 생산하면 잔여 일수도 더 줄어든다',()=>{
+ const c=setup();c.state.productionPlanDate='2026-10-15';c.state.purchaseOrders=[{...order,totalOrderQuantity:99100,deliveryType:'daily',dailyMinimumQuantity:7000}];
+ c.state.products[0].processHourlyProductionRates['2도']=1023;c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ for(const [date,actual] of [['2026-10-12',10000],['2026-10-13',11000],['2026-10-14',12000]]) {
+  c.testStorage.set(`rows-test:selected-job:1공장:${date}`,JSON.stringify({jobs:[{...job,actualProduction:actual,actualWorkHours:8,stageDrafts:{}}]}));
+ }
+ c.invalidateProductionPlanActualLedger();let metrics=c.getProductionPlanDetailMetrics(job);
+ assert.equal(metrics.cumulativeProduction,33000);assert.equal(metrics.cumulativeHours,24);
+ assert.equal(metrics.workDays,(99100-33000)/1023/8);assert.equal(c.formatProductionPlanDetailValue('workDays',metrics.workDays),'8.1일');
+ assert.ok(metrics.workDays<(99100/1023-24)/8);
+ job.actualWorkHours=8;assert.equal(c.getProductionPlanDetailMetrics(job).workDays,metrics.workDays);
+ job.actualProduction=2000;metrics=c.getProductionPlanDetailMetrics(job);assert.equal(metrics.cumulativeProduction,35000);assert.equal(metrics.cumulativeHours,32);
+ assert.equal(c.formatProductionPlanDetailValue('workDays',metrics.workDays),'7.9일');
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.getProductionPlanDetailMetrics(c.state.productionPlanJobs[0]).cumulativeProduction,35000);
 });
