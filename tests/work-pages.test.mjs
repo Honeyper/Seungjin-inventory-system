@@ -84,7 +84,7 @@ test("부모 메뉴를 펼치거나 접어도 현재 페이지는 변경하지 �
 
 test("생산계획은 발주량과 제품별 시간당 생산량을 보여주는 한 표로 구성한다", () => {
   assert.match(html, /id="productionPlanTablePanel"/);
-  assert.match(html, /<th>발주량<\/th>[\s\S]*<th>납기일<\/th>[\s\S]*<th>하루 목표 생산량<\/th>/);
+  assert.match(html, /<th>발주량<\/th>[\s\S]*<th>납기<\/th>[\s\S]*<th>하루 목표 생산량<\/th>/);
   assert.doesNotMatch(html, /id="productionPlanDetailPanel"|id="productionPlanBoardPanel"|id="generateProductionPlanButton"/);
 });
 
