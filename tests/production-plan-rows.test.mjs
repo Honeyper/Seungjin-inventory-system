@@ -52,7 +52,7 @@ test('제품에 등록된 2도 생산량과 발주량만으로 목표가 즉시 
  const c=setup();const before=plain(c.state.purchaseOrders);c.state.productionPlanJobs=c.buildProductionPlanJobs();
  c.renderProductionPlan();assert.equal(c.state.productionPlanJobs.length,1);
  const job=c.state.productionPlanJobs[0];assert.equal(job.stage,2);assert.equal(job.hourlyRate,2000);
- assert.equal(job.targetQuantity,10000);assert.equal(job.hours,5);
+ assert.equal(job.targetQuantity,10000);assert.equal(job.hours,8);
  Object.assign(job,{cumulativeProduction:999999,cumulativeHours:1,loss:999999,actualProduction:0,workDays:0});
  c.renderProductionPlan();assert.equal(c.state.productionPlanJobs[0].targetQuantity,10000);
  await c.syncProductionPlanOrders();assert.equal(c.state.productionPlanJobs[0].targetQuantity,10000);
@@ -259,7 +259,7 @@ test('상세 12개 항목은 기존 목표를 바꾸지 않고 공정별 입력�
  Object.assign(job,{workDays:17,loss:200,lossMode:"manual",cumulativeProduction:4000,cumulativeHours:2,actualProduction:6000});
  c.updateProductionPlanTargets([job]);assert.equal(job.targetQuantity,10000);
  const values=c.getProductionPlanDetailMetrics(job);
- assert.equal(values.dailyRequired,7000);assert.equal(values.dailyTargetHours,5);assert.equal(values.totalExpectedHours,5);
+ assert.equal(values.dailyRequired,7000);assert.equal(values.dailyTargetHours,8);assert.equal(values.totalExpectedHours,5);
  assert.ok(Math.abs(values.achievementRate-6000/7000*100)<1e-8);
  assert.equal(c.formatProductionPlanDetailValue('achievementRate',values.achievementRate),'85.7%');
  assert.equal((c.renderProductionPlanMetrics(job).match(/<dt>/g)||[]).length,12);
@@ -311,7 +311,7 @@ test('LOSS는 발주량 5%로 시작하고 직접 수정한 값과 0개를 공�
 test('지정 납기의 일일 필수 수량은 자동 작업일의 부동소수 오차로 1개 늘어나지 않는다',()=>{
  const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:50000,deliveryType:'date'}];
  c.state.products[0].processHourlyProductionRates['2도']=751;
- const job=c.buildProductionPlanJobs()[0];assert.equal(c.getProductionPlanDetailMetrics(job).dailyRequired,6008);
+ const job=c.buildProductionPlanJobs()[0];assert.equal(c.getProductionPlanDetailMetrics(job).dailyRequired,6000);
  c.state.purchaseOrders[0].totalOrderQuantity=99100;c.state.products[0].processHourlyProductionRates['2도']=1000;
  assert.equal(c.getProductionPlanDetailMetrics(job).dailyRequired,8000);
 });
@@ -319,7 +319,7 @@ test('지정 납기의 일일 필수 수량은 자동 작업일의 부동소수 
 
 test('누적 생산량은 날짜별 금일 생산량을 중복 없이 합산하고 현재 수정값을 우선한다',()=>{
  const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
- const put=(key,jobs)=>c.testStorage.set(key,JSON.stringify({jobs}));
+ const put=(key,jobs)=>{c.testStorage.set(key,JSON.stringify({jobs}));c.invalidateProductionPlanActualLedger();};
  const record=actual=>({...job,actualProduction:actual,stageDrafts:{}});
  put('rows-test:selected-job:1공장:2026-09-09',[record(1000)]);
  put('rows-test:1공장:2026-09-09',[record(9999)]);
@@ -344,6 +344,7 @@ test('누적 생산량은 날짜별 금일 생산량을 중복 없이 합산하�
 test('비활성 공정에 보관한 금일 생산량도 합산하고 입력마다 저장본을 다시 읽지 않는다',()=>{
  const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
  c.testStorage.set('rows-test:selected-job:1공장:2026-09-10',JSON.stringify({jobs:[{...job,stage:1,stageGroup:[1],actualProduction:9000,stageDrafts:{2:{stageGroup:[2],actualProduction:'2,000'}}}]}));
+ c.invalidateProductionPlanActualLedger();
  let reads=0;const get=c.localStorage.getItem;c.localStorage.getItem=key=>{reads++;return get(key);};
  job.actualProduction=500;assert.equal(c.getProductionPlanCumulativeProduction(job),2500);const initial=reads;
  for(let i=0;i<20;i++){job.actualProduction=i;assert.equal(c.getProductionPlanCumulativeProduction(job),2000+i);}
@@ -355,7 +356,7 @@ test('비활성 공정에 보관한 금일 생산량도 합산하고 입력마�
 test('저장값 읽기가 차단되면 누적 생산량을 0으로 표시하지 않는다',()=>{
  const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
  c.testStorage.set('rows-test:selected-job:1공장:2026-09-10',JSON.stringify({jobs:[{...job,actualProduction:2000}]}));
- c.localStorage.getItem=()=>{throw new Error('storage denied');};
+ c.invalidateProductionPlanActualLedger();c.localStorage.getItem=()=>{throw new Error('storage denied');};
  assert.equal(c.getProductionPlanCumulativeProduction(job),null);
 });
 
@@ -384,7 +385,7 @@ test('잔여 작업일은 누적 시간만 차감하고 0일 아래로 내려가
 test('누적 시간은 일별 실 근무시간만 소수점 둘째 자리까지 중복 없이 합산한다',()=>{
  const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
  const row=hours=>({...job,actualWorkHours:hours,cumulativeHours:9999,stageDrafts:{}});
- const put=(key,jobs)=>c.testStorage.set(key,JSON.stringify({jobs}));
+ const put=(key,jobs)=>{c.testStorage.set(key,JSON.stringify({jobs}));c.invalidateProductionPlanActualLedger();};
  put('rows-test:selected-job:1공장:2026-09-09',[row(2.5)]);
  put('rows-test:1공장:2026-09-09',[row(999)]);
  put('rows-test:selected-job:1공장:2026-09-10',[{...row(99),stage:1,stageGroup:[1],stageDrafts:{2:{stageGroup:[2],actualWorkHours:1.25,cumulativeHours:999}}}]);
@@ -411,6 +412,7 @@ test('누적 시간은 소수 합산 오차와 저장 제한을 처리하고 수
  const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
  const key='rows-test:selected-job:1공장:2026-09-10';
  c.testStorage.set(key,JSON.stringify({jobs:[{...job,actualWorkHours:.1,cumulativeHours:1000}]}));
+ c.invalidateProductionPlanActualLedger();
  let reads=0;const get=c.localStorage.getItem;c.localStorage.getItem=k=>{reads++;return get(k);};
  job.actualWorkHours=.2;job.cumulativeHours=1000;assert.equal(c.getProductionPlanCumulativeHours(job),.3);
  const initial=reads;for(let i=0;i<20;i++){job.actualWorkHours=i;assert.equal(c.getProductionPlanCumulativeHours(job),i+.1);}assert.equal(reads,initial);
@@ -418,4 +420,23 @@ test('누적 시간은 소수 합산 오차와 저장 제한을 처리하고 수
  c.invalidateProductionPlanActualLedger();c.localStorage.getItem=()=>{throw new Error('storage denied');};
  const metrics=c.getProductionPlanDetailMetrics(job);assert.equal(metrics.cumulativeHours,null);assert.equal(metrics.workDays,null);
  assert.equal(c.formatProductionPlanDetailValue('cumulativeHours',null),'—');
+});
+
+test('목표는 전날까지의 같은 공정 실적만 빼고 오늘 입력과 반복 저장에 흔들리지 않는다',()=>{
+ const c=setup();c.state.productionPlanDate='2026-10-19';c.state.purchaseOrders=[{...order,totalOrderQuantity:24000,endDate:'2026-10-21',deliveryType:'date'}];
+ c.state.products[0].processHourlyProductionRates['2도']=1000;c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ const put=(key,actual)=>{c.testStorage.set(key,JSON.stringify({jobs:[{...job,actualProduction:actual,stageDrafts:{}}]}));c.invalidateProductionPlanActualLedger();};
+ const past='rows-test:selected-job:2공장:2026-10-16';put(past,17000);
+ put('rows-test:selected-job:2공장:2026-10-19',9000);put(c.getProductionPlanStorageKey(),9999);
+ job.actualProduction=5000;c.updateProductionPlanTargets([job]);assert.equal(job.targetQuantity,7000);assert.equal(job.hours,8);
+ c.saveProductionPlanDraft();c.saveProductionPlanDraft();assert.equal(c.getProductionPlanCalculations(job).targetQuantity,7000);
+ put(past,18000);c.refreshProductionPlanTargets();assert.equal(job.targetQuantity,6000);assert.equal(job.actualProduction,5000);
+ c.setProductionPlanDate('2026-10-20');assert.equal(c.state.productionPlanJobs[0].targetQuantity,0); // 18,000 + 9,000 + 5,000 already exceeds 24,000.
+});
+
+test('마지막 날 목표가 500개 미만이어도 정확한 잔량을 표시하고 하루 계획시간은 8시간이다',()=>{
+ const c=setup();c.state.productionPlanDate='2026-10-19';c.state.purchaseOrders=[{...order,totalOrderQuantity:250,endDate:'2026-10-20'}];
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];c.updateProductionPlanTargets([job]);
+ assert.equal(job.targetQuantity,250);assert.equal(job.hours,8);assert.equal(c.getProductionPlanDetailMetrics(job).dailyRequired,250);
+ c.state.purchaseOrders[0].endDate='2028-01-01';c.updateProductionPlanTargets([job]);assert.equal(job.planMissing,true);assert.match(job.planMessage,/공휴일 자료/);
 });

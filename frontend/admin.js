@@ -77,6 +77,7 @@ const PRODUCTION_PLAN_PRODUCT_ID = "NP-0001";
 const PRODUCTION_PLAN_DEFAULT_STAGE = 2;
 const PRODUCTION_PLAN_DETAIL_INPUT_FIELDS = ["loss", "actualWorkHours", "actualProduction"];
 let productionPlanActualLedgerCache = null;
+const productionPlanCalculationCache = new Map();
 const PRODUCTION_PLAN_STAGE_FIELDS = ["machine", "worker", "workerType", "packagingWorker", "packagingWorkerType", "note", "stageGroup", "workDays", "lossMode", "cumulativeProduction", "cumulativeHours", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS];
 const PRODUCTION_PLAN_STAFF = {
   worker: [{ name: "유순희", type: "employee", label: "직원" }],
@@ -87,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "납기와 인건비를 고려한 자동 근무계획", items: ["전날까지의 누적 생산량을 제외한 잔량과 납기까지의 근무일을 계산해 평일 8시간을 우선 배정합니다. 부족할 때만 최대 10시간 연장, 주말, 공휴일 순으로 조정하며 목표량도 함께 바뀝니다. 마지막 생산일은 500개 미만 잔량도 정확히 생산합니다. 2026·2027년 공휴일·대체공휴일을 반영합니다."] },
   { date: "2026-10-13", title: "최대 허용 LOSS 표시명 변경", items: ["생산계획 세부사항의 LOSS 이름을 최대 허용 LOSS로 변경했습니다."] },
   { date: "2026-10-13", title: "생산계획 입력·선택칸 가운데 정렬", items: ["세부사항 숫자 입력값을 가운데로 맞추고, 선택칸의 좌우 여백과 화살표 위치를 정리했습니다."] },
   { date: "2026-10-13", title: "생산계획 선택 행 파란 선 제거", items: ["선택한 생산계획 행의 위아래에 표시되던 파란 선을 제거했습니다."] },
@@ -2486,6 +2488,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("storage", event => {
   if (event.key !== null && !event.key.startsWith(`${PRODUCTION_PLAN_STORAGE_PREFIX}:`)) return;
   invalidateProductionPlanActualLedger();
+  refreshProductionPlanTargets();
   productionPlanTableBody?.querySelectorAll("[data-plan-details-row]").forEach(row => {
     const job = state.productionPlanJobs.find(item => item.planRowId === row.dataset.planDetailsRow);
     if (job) refreshProductionPlanMetrics(row, job);
@@ -2682,8 +2685,17 @@ function getProductionPlanCalculations(job) {
   const key = getProductionPlanStageLabel(job);
   const rates = product?.processHourlyProductionRates || {};
   const hourlyRate = rates[key] ?? (Object.keys(rates).length === 0 && getProductionPlanStageOptions(job?.productId).length === 1 ? product?.hourlyProductionRate : null);
-  return window.SeungjinProductionPlanner.calculate({orderQuantity:order?.totalOrderQuantity,
-    hourlyRate,workHours:PRODUCTION_STANDARD_WORK_HOURS});
+  const input = {orderQuantity:order?.totalOrderQuantity, hourlyRate,
+    completedProduction:getProductionPlanCumulativeActual(job, "actualProduction", {beforeDateOnly:true}),
+    startDate:state.productionPlanDate, dueDate:order?.endDate, deliveryType:order?.deliveryType || "date",
+    dailyMinimumQuantity:order?.dailyMinimumQuantity,
+    extraHolidays:window.SEUNGJIN_CONFIG?.PRODUCTION_PLAN_HOLIDAYS || []};
+  const cacheKey = JSON.stringify(input);
+  if (productionPlanCalculationCache.has(cacheKey)) return productionPlanCalculationCache.get(cacheKey);
+  const values = window.SeungjinProductionPlanner.plan(input);
+  if (productionPlanCalculationCache.size >= 64) productionPlanCalculationCache.clear();
+  productionPlanCalculationCache.set(cacheKey, values);
+  return values;
 }
 
 function formatProductionPlanHours(hours) {
@@ -2721,8 +2733,11 @@ function updateProductionPlanTargets(jobs) {
     job.hours = values.hours;
     job.totalHours = values.totalHours;
     job.planMissing = values.targetQuantity === null;
-    job.planMessage = !job.purchaseOrderId ? "" : values.orderQuantity === null ? "발주량을 확인해주세요."
-      : values.hourlyRate === null ? `제품관리에서 ${getProductionPlanStageLabel(job)} 시간당 생산량을 입력해주세요.` : "";
+    job.planMessage = !job.purchaseOrderId ? "" : values.hourlyRate === null
+      ? `제품관리에서 ${getProductionPlanStageLabel(job)} 시간당 생산량을 입력해주세요.` : values.message;
+    job.planMode = values.mode;
+    job.completionDate = values.completionDate;
+    job.remainingQuantity = values.remainingQuantity;
     job.scheduledMachine = "";
   }
   return jobs;
@@ -2938,7 +2953,7 @@ function getProductionPlanActualSubtotal(jobs, target, field = "actualProduction
   return Number.isSafeInteger(total) ? total / scale : null;
 }
 
-function getProductionPlanCumulativeActual(job, field) {
+function getProductionPlanCumulativeActual(job, field, {beforeDateOnly = false} = {}) {
   const scale = field === "actualWorkHours" ? 100 : 1;
   if (!job.purchaseOrderId) return null;
   const ledger = readProductionPlanActualLedger();
@@ -2946,12 +2961,12 @@ function getProductionPlanCumulativeActual(job, field) {
   let total = 0;
   for (const snapshot of ledger) {
     if (snapshot.date > state.productionPlanDate) continue;
-    if (snapshot.date === state.productionPlanDate && snapshot.factory === state.productionPlanFactory) continue;
+    if (snapshot.date === state.productionPlanDate && (beforeDateOnly || snapshot.factory === state.productionPlanFactory)) continue;
     const subtotal = getProductionPlanActualSubtotal(snapshot.jobs, job, field);
     if (subtotal === null) return null;
     total += Math.round(subtotal * scale);
   }
-  const current = getProductionPlanActualSubtotal(state.productionPlanJobs.includes(job) ? state.productionPlanJobs : [job], job, field);
+  const current = beforeDateOnly ? 0 : getProductionPlanActualSubtotal(state.productionPlanJobs.includes(job) ? state.productionPlanJobs : [job], job, field);
   const units = current === null ? null : total + Math.round(current * scale);
   return units !== null && Number.isSafeInteger(units) ? units / scale : null;
 }
@@ -2972,7 +2987,7 @@ function getProductionPlanDetailMetrics(job) {
   const actual = number(job.actualProduction);
   const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
   const daily = order?.deliveryType === "daily" ? number(order.dailyMinimumQuantity) : null;
-  const required = daily > 0 ? daily : values.orderQuantity !== null && values.totalHours > 0 ? Math.ceil(Math.min(values.orderQuantity, values.hourlyRate * PRODUCTION_STANDARD_WORK_HOURS)) : null;
+  const required = values.targetQuantity === null ? null : daily > 0 ? Math.min(daily, values.remainingQuantity) : values.targetQuantity;
   return { cumulativeHours, cumulativeProduction: getProductionPlanCumulativeProduction(job), workDays: days, dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
     orderQuantity: values.orderQuantity, hourlyRate: values.hourlyRate,
     dailyRequired: required, achievementRate: actual !== null && required > 0 ? actual / required * 100 : null };
@@ -2991,7 +3006,7 @@ function renderProductionPlanMetrics(job) {
   const metrics = getProductionPlanDetailMetrics(job);
   const fields = [
     {key:"workDays",label:"잔여 작업일",title:"(총 소요시간 − 누적 시간) ÷ 하루 8시간 (최소 0일, 소수점 한 자리까지 올림)"},
-    {key:"dailyTargetHours",label:"일일 목표 시간",title:"계획표의 목표 생산량 ÷ 제품에 등록된 시간당 생산량"},
+    {key:"dailyTargetHours",label:"일일 목표 시간",title:"평일 8시간을 우선하고 납기 부족 시 최대 10시간으로 조정한 오늘 계획 근무시간"},
     {key:"totalExpectedHours",label:"총 소요 시간(예상)",title:"전체 발주량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"orderQuantity",label:"발주량"},
     {key:"loss",label:"최대 허용 LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
@@ -2999,7 +3014,7 @@ function renderProductionPlanMetrics(job) {
     {key:"cumulativeHours",label:"누적 시간",title:"현재 브라우저에서 선택 날짜까지 같은 발주·인쇄 유형·공정에 저장된 실 근무시간 합계"},
     {key:"actualWorkHours",label:"실 근무시간",unit:"시간",step:"0.01",title:"선택 날짜에 실제 근무한 시간"},
     {key:"hourlyRate",label:"시간당 생산량",title:"제품에 등록된 선택 공정의 시간당 생산량"},
-    {key:"dailyRequired",label:"일일 필수 생산량",title:"매일 납기는 등록된 하루 필수 수량, 지정 납기는 발주량 ÷ 자동 계산한 작업일 (하루 미만이면 하루 기준)"},
+    {key:"dailyRequired",label:"일일 필수 생산량",title:"매일 납기는 등록된 하루 필수 수량, 지정 납기는 오늘의 계획 목표 수량"},
     {key:"actualProduction",label:"금일 생산량",unit:"ea"},
     {key:"achievementRate",label:"달성률",title:"금일 생산량 ÷ 일일 필수 생산량 × 100"}
   ];
@@ -3013,6 +3028,29 @@ function refreshProductionPlanMetrics(row, job) {
   row.querySelectorAll("[data-plan-detail-value]").forEach(element => {
     element.textContent = formatProductionPlanDetailValue(element.dataset.planDetailValue, metrics[element.dataset.planDetailValue]);
   });
+}
+
+function formatProductionPlanWorkHours(job) {
+  if (!job.purchaseOrderId || job.planMissing) return "—";
+  if (job.hours === 0) return job.planMode === "complete" ? "완료" : "휴무";
+  return formatProductionPlanHours(job.hours);
+}
+
+function formatProductionPlanTarget(job) {
+  return !job.purchaseOrderId ? "—" : job.planMissing ? "계산 확인 필요" : `${formatNumber(job.targetQuantity)} ea`;
+}
+
+function refreshProductionPlanTargets() {
+  updateProductionPlanTargets(state.productionPlanJobs);
+  productionPlanTableBody?.querySelectorAll("[data-plan-row-id]").forEach(row => {
+    const job = state.productionPlanJobs.find(item => item.planRowId === row.dataset.planRowId);
+    if (!job) return;
+    const target = row.querySelector("[data-plan-target]"), hours = row.querySelector("[data-plan-hours]"), message = row.querySelector("[data-plan-message]");
+    if (target) target.textContent = formatProductionPlanTarget(job);
+    if (hours) { hours.textContent = formatProductionPlanWorkHours(job); hours.title = job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선"; }
+    if (message) { message.textContent = job.planMessage; message.title = job.planMessage; message.hidden = !job.planMessage; }
+  });
+  renderProductionPlanSummary();
 }
 
 function renderProductionPlanTable() {
@@ -3032,11 +3070,11 @@ function renderProductionPlanTable() {
         ${getProductionPlanStageOptions(job.productId, job.process).map(option => `<option value="${option.stage}" ${option.stage === job.stage ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label></td>
       <td class="production-plan-auto"><strong>${empty || job.orderQuantity === null ? "—" : `${formatNumber(job.orderQuantity)} ea`}</strong></td>
       <td class="production-plan-auto production-plan-delivery"><strong>${escapeHtml(getProductionPlanDeliveryLabel(job))}</strong></td>
-      <td class="production-plan-auto"><strong>${empty ? "—" : job.planMissing ? "시간당 생산량 미입력" : `${formatNumber(job.targetQuantity)} ea`}</strong>${job.planMessage ? `<small>${escapeHtml(job.planMessage)}</small>` : ""}</td>
+      <td class="production-plan-auto"><strong data-plan-target>${escapeHtml(formatProductionPlanTarget(job))}</strong><small data-plan-message title="${escapeAttribute(job.planMessage)}" ${job.planMessage ? "" : "hidden"}>${escapeHtml(job.planMessage)}</small></td>
       <td class="production-plan-staff-cell"><div class="production-plan-staff-fields">
         <label><span>인쇄</span><select data-plan-field="worker" aria-label="${escapeAttribute(label)} 인쇄 작업자">${renderProductionPlanStaffOptions(job,"worker")}</select></label>
         <label><span>포장</span><select data-plan-field="packagingWorker" aria-label="${escapeAttribute(label)} 포장 작업자">${renderProductionPlanStaffOptions(job,"packagingWorker")}</select></label></div></td>
-      <td class="production-plan-auto">${empty || job.planMissing ? "—" : formatProductionPlanHours(job.hours)}</td>
+      <td class="production-plan-auto" data-plan-hours title="${escapeAttribute(job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선")}">${escapeHtml(formatProductionPlanWorkHours(job))}</td>
       <td><div class="production-plan-note-controls"><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(label)} 특이사항" />
         <button class="production-plan-details-toggle" type="button" data-plan-details-toggle="${escapeAttribute(job.planRowId)}" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${escapeAttribute(label)} 세부사항">
           <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><span class="production-plan-details-chevron" aria-hidden="true">⌄</span></button></div></td>

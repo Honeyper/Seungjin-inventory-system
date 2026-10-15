@@ -109,7 +109,7 @@ test("생산계획 제품 변경 시 연결된 발주 정보도 함께 갱신한
   assert.match(source, /selectProductionPlanProduct\(product\)/);
 });
 
-test("상세 실적 입력과 별개로 참고 실적·복잡한 일정 계산 없이 단순 목표를 유지한다", () => {
+test("참고 실적·다중 계획 화면 없이 한 표에서 근무시간과 목표를 계산한다", () => {
   assert.doesNotMatch(source, /function renderProductionPlanDetail|function loadProductionPlanReferenceRows|function renderMachineScheduleBoard/);
   assert.doesNotMatch(source, /data-plan-detail-field|data-plan-reference/);
   assert.match(source, /product\?\.processHourlyProductionRates/);
