@@ -308,7 +308,7 @@ async function verifyProductionPlanDelivery(page, fixture) {
     renderProductionPlan();
   });
   const row=page.locator('#productionPlanTableBody [data-plan-row-id]');
-  assert.equal((await page.locator('.production-plan-table th').nth(5).textContent()).trim(),'납기일');
+  assert.equal((await page.locator('.production-plan-table th').nth(5).textContent()).trim(),'납기');
   assert.match(await row.locator('td').nth(5).textContent(),/일 7,000개 이상/);
   assert.doesNotMatch(await row.textContent(),/2,000 개\/시간|2020-01-01/);
   assert.equal(await page.evaluate(()=>state.productionPlanJobs[0].targetQuantity),target);
