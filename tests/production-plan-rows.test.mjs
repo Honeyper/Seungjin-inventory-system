@@ -501,3 +501,26 @@ test('이전 설정은 다른 공장·발주·미래 날짜에서 가져오지 �
  c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].machine,'');
  c.setProductionPlanDate('2026-10-11');assert.equal(c.state.productionPlanJobs[0].process,'실크 인쇄');assert.equal(c.state.productionPlanJobs[0].machine,'');
 });
+
+
+test('오브제 최초 등록일 이전의 미배정 자동 행과 빈 저장본은 목록에서 제외한다',async()=>{
+ const c=setup();c.state.productionPlanDate='2026-10-12';c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ const started={...c.state.productionPlanJobs[0],machine:'3호기',actualProduction:8000,actualWorkHours:8,stageDrafts:{}};
+ c.testStorage.set(c.getProductionPlanStorageKey(),JSON.stringify({jobs:[started]}));
+ const oldKey='rows-test:selected-job:1공장:2026-10-10',old=JSON.stringify({jobs:[{...started,machine:'',actualProduction:null,actualWorkHours:null}]});c.testStorage.set(oldKey,old);
+ for(const date of ['2026-10-10','2026-10-11']) {
+  c.setProductionPlanDate(date);assert.equal(c.getProductionPlanActiveJobs().length,0);assert.equal(c.state.productionPlanJobs[0].purchaseOrderId,'');
+  c.renderProductionPlan();await c.syncProductionPlanOrders();assert.equal(c.getProductionPlanActiveJobs().length,0);
+ }
+ assert.equal(c.testStorage.get(oldKey),old);
+ c.setProductionPlanDate('2026-10-12');assert.equal(c.getProductionPlanActiveJobs().length,1);assert.equal(c.state.productionPlanJobs[0].actualProduction,8000);
+ c.setProductionPlanDate('2026-10-13');assert.equal(c.state.productionPlanJobs[0].machine,'3호기');assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),8000);
+});
+
+test('기계가 없어도 저장한 실적은 등록 이력으로 인정하며 다른 공장 기록은 시작일로 쓰지 않는다',()=>{
+ const c=setup();c.state.productionPlanDate='2026-10-12';const base=c.buildProductionPlanJobs()[0];
+ c.testStorage.set(c.getProductionPlanStorageKey(),JSON.stringify({jobs:[{...base,actualProduction:8000,actualWorkHours:8}]}));
+ c.testStorage.set('rows-test:selected-job:2공장:2026-10-09',JSON.stringify({jobs:[{...base,machine:'3호기'}]}));
+ c.setProductionPlanDate('2026-10-11');assert.equal(c.getProductionPlanActiveJobs().length,0);
+ c.setProductionPlanDate('2026-10-12');assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),8000);
+});
