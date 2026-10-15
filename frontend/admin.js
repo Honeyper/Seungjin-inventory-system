@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "모든 플로팅 팝업 Esc 닫기", items: ["입고 QR 미리보기·제품 선택·재고·출고·이미지 팝업과 관리 메뉴를 Esc 키로 닫을 수 있습니다. 팝업이 겹쳐 있으면 화면 맨 위의 팝업만 하나씩 닫고, 기존 닫기 동작에 따라 임시 상태와 미리보기를 정리합니다."] },
   { date: "2026-10-15", title: "생산계획 행 클릭으로 세부사항 열기·접기", items: ["생산계획 행의 업체·발주량·납기·목표량·작업시간 등을 누르면 해당 세부사항이 자동으로 열립니다. 같은 행을 다시 누르면 접히며 기존 세부사항 버튼으로도 열고 닫을 수 있습니다."] },
   { date: "2026-10-15", title: "등록 시작 전 미배정 오브제 항목 정리", items: ["오브제의 첫 기계 배정 또는 실제 생산 기록 이전 날짜에는 미배정 기본 항목을 목록과 계획 합계에서 제외합니다. 날짜 이동·새로고침으로 다시 생기지 않으며, 실제 실적과 배정 이력은 유지합니다."] },
   { date: "2026-10-15", title: "전일 공정·기계 설정 유지", items: ["저장된 계획이 없는 날짜는 같은 공장·발주의 가장 최근 이전 계획에서 인쇄 유형·작업 공정·기계번호를 이어받습니다. 해당 날짜에 저장한 설정을 우선하며 생산량·실 근무시간은 전날 값을 복사하지 않습니다."] },
@@ -1145,15 +1146,6 @@ document.addEventListener("click", (event) => {
   adminUserMenuButton?.setAttribute("aria-expanded", "false");
 });
 
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape" || adminUserMenu.hidden) {
-    return;
-  }
-  adminUserMenu.hidden = true;
-  adminUserMenuButton?.setAttribute("aria-expanded", "false");
-  adminUserMenuButton?.focus();
-});
-
 function readBackupNotificationSignatures() {
   try {
     const signatures = JSON.parse(localStorage.getItem(BACKUP_NOTIFICATION_READ_KEY) || "[]");
@@ -1471,12 +1463,6 @@ document.addEventListener("click", (event) => {
   setBackupNotificationPanelOpen(false);
 });
 
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape" || backupNotificationPanel?.hidden) return;
-  setBackupNotificationPanelOpen(false);
-  backupNotificationButton?.focus();
-});
-
 document.querySelector("#newProductButton").addEventListener("click", () => {
   openProductModal();
 });
@@ -1557,10 +1543,7 @@ document.addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   if (!purchaseOrderMenuButton) return;
-  if (event.key === "Escape") {
-    event.preventDefault();
-    closePurchaseOrderActionMenu(true);
-  } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+  if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
     event.preventDefault();
     const buttons = Array.from(purchaseOrderActionMenu.querySelectorAll("button"));
     const current = buttons.indexOf(document.activeElement);
@@ -2248,107 +2231,78 @@ document.addEventListener("click", (event) => {
   }
 });
 
-document.addEventListener("keydown", (event) => {
-  if (!productImageGalleryModal?.hidden) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeProductImageGallery();
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      moveProductImageGallery(-1);
-    } else if (event.key === "ArrowRight") {
-      event.preventDefault();
-      moveProductImageGallery(1);
+function getTopAdminFloatingPopup() {
+  const modalClosers = {
+    shippingInspectionModal: closeShippingInspectionModal, remainingInventoryModal: closeRemainingInventoryModal,
+    shippingCompletionModal: closeShippingCompletionModal,
+    ...(typeof closeShippingCancelModal === "function" ? {shippingCancelModal: closeShippingCancelModal} : {}),
+    transferReturnModal: closeTransferReturnModal, shippingWaitingConfirmModal: closeShippingWaitingConfirmModal,
+    shippingHoldGuideModal: closeShippingHoldGuideModal, productModal: closeProductModal,
+    productDetailModal: closeProductDetailModal, inboundDetailModal: closeInboundDetailModal,
+    inventoryAuditBoxConfirmModal: closeInventoryAuditBoxConfirmModal, existingStockModal: closeExistingStockModal,
+    inboundProductPickerModal: closeInboundProductPicker, purchaseOrderModal: closePurchaseOrderModal,
+    inventoryAttentionModal: closeInventoryAttentionModal, inboundQrModal: closeInboundQrModal,
+    productImageGalleryModal: closeProductImageGallery
+  };
+  const popups = Array.from(document.querySelectorAll(".modal-backdrop"), element => ({
+    element, close: () => {
+      const button = element.querySelector(".modal-close");
+      if (button?.disabled) return;
+      if (modalClosers[element.id]) modalClosers[element.id]();
+      else button?.click();
     }
+  }));
+  const add = (element, close, returnFocus) => { if (element) popups.push({element, close, returnFocus}); };
+  add(adminUserMenu, () => {
+    adminUserMenu.hidden = true;
+    adminUserMenuButton?.setAttribute("aria-expanded", "false");
+  }, adminUserMenuButton);
+  add(backupNotificationPanel, () => setBackupNotificationPanelOpen(false), backupNotificationButton);
+  add(purchaseOrderActionMenu, () => closePurchaseOrderActionMenu(), purchaseOrderMenuButton);
+  add(rowActionMenu, closeRowActionMenu, state.activeMenuButton);
+  add(inboundRowActionMenu, closeInboundRowActionMenu, state.activeInboundMenuButton);
+  add(shippingRowActionMenu, closeShippingRowActionMenu, state.activeShippingMenuButton);
+  add(inboundDefectReasonPanel, () => setInboundDefectReasonOpen(false), inboundDefectReasonButton);
+  add(document.querySelector("#inboundEditDefectReasonPanel"), () => setInboundEditDefectReasonOpen(false), document.querySelector("#inboundEditDefectReasonButton"));
+  const layer = element => {
+    // A popup inside a modal belongs above that modal, not below its backdrop.
+    for (let node = element.closest(".modal-backdrop") || element; node; node = node.parentElement) {
+      const zIndex = getComputedStyle(node).zIndex;
+      if (zIndex !== "auto") return Number(zIndex) || 0;
+    }
+    return 0;
+  };
+  return popups.filter(({element}) => !element.closest("[hidden]") && element.getClientRects().length
+      && getComputedStyle(element).visibility !== "hidden")
+    .sort((a, b) => layer(b.element) - layer(a.element)
+      || (a.element.compareDocumentPosition(b.element) & Node.DOCUMENT_POSITION_FOLLOWING ? 1 : -1))[0] || null;
+}
+
+function dismissTopAdminFloatingPopup(event) {
+  // Native dialogs own their Escape/cancel event and must leave their parent open.
+  if (event.defaultPrevented || event.isComposing || document.querySelector("dialog[open]")) return;
+  const popup = getTopAdminFloatingPopup();
+  if (!popup) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  popup.close();
+  const remainingModal = getTopAdminFloatingPopup()?.element.closest(".modal-backdrop");
+  document.body.classList.toggle("modal-open", Boolean(document.querySelector(".modal-backdrop:not([hidden])")));
+  if (popup.returnFocus?.isConnected && popup.returnFocus.getClientRects().length) {
+    popup.returnFocus.focus({preventScroll:true});
+  } else if (remainingModal && (document.activeElement === document.body || document.activeElement?.closest("[hidden]"))) {
+    focusModalDialog(remainingModal);
+  }
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    dismissTopAdminFloatingPopup(event);
     return;
   }
-
-  if (event.key !== "Escape") {
-    return;
-  }
-
-  if (!rowActionMenu.hidden) {
-    closeRowActionMenu();
-    return;
-  }
-
-  if (!inboundRowActionMenu.hidden) {
-    closeInboundRowActionMenu();
-    return;
-  }
-
-  if (shippingRowActionMenu && !shippingRowActionMenu.hidden) {
-    closeShippingRowActionMenu(true);
-    return;
-  }
-
-  if (inboundDefectReasonButton?.getAttribute("aria-expanded") === "true") {
-    setInboundDefectReasonOpen(false);
-    return;
-  }
-
-  if (!inboundProductPickerModal.hidden) {
-    closeInboundProductPicker();
-    return;
-  }
-
-  if (purchaseOrderModal && !purchaseOrderModal.hidden) {
-    closePurchaseOrderModal();
-    return;
-  }
-
-  if (!productDetailModal.hidden) {
-    closeProductDetailModal();
-    return;
-  }
-
-  if (document.querySelector("#inboundEditDefectReasonButton")?.getAttribute("aria-expanded") === "true") {
-    setInboundEditDefectReasonOpen(false);
-    return;
-  }
-
-  if (!inboundDetailModal.hidden) {
-    closeInboundDetailModal();
-    return;
-  }
-
-  if (inventoryAttentionModal && !inventoryAttentionModal.hidden) {
-    closeInventoryAttentionModal();
-    return;
-  }
-
-  if (shippingInspectionModal && !shippingInspectionModal.hidden) {
-    closeShippingInspectionModal();
-    return;
-  }
-
-  if (shippingCompletionModal && !shippingCompletionModal.hidden) {
-    closeShippingCompletionModal();
-    return;
-  }
-
-  if (remainingInventoryModal && !remainingInventoryModal.hidden) {
-    closeRemainingInventoryModal();
-    return;
-  }
-
-  if (transferReturnModal && !transferReturnModal.hidden) {
-    closeTransferReturnModal();
-    return;
-  }
-
-  if (shippingWaitingConfirmModal && !shippingWaitingConfirmModal.hidden) {
-    closeShippingWaitingConfirmModal();
-    return;
-  }
-
-  if (shippingHoldGuideModal && !shippingHoldGuideModal.hidden) {
-    closeShippingHoldGuideModal();
-    return;
-  }
-
-  if (!productModal.hidden) {
-    closeProductModal();
+  if (!productImageGalleryModal?.hidden && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
+    event.preventDefault();
+    moveProductImageGallery(event.key === "ArrowLeft" ? -1 : 1);
   }
 });
 
