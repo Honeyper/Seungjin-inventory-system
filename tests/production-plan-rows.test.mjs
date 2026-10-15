@@ -327,7 +327,7 @@ test('누적 생산량은 날짜별 금일 생산량을 중복 없이 합산하�
  put(c.getProductionPlanStorageKey(),[record(3000)]);
  put('rows-test:selected-job:2공장:2026-09-11',[record(700)]);
  put('rows-test:selected-job:1공장:2026-09-12',[record(9000)]);
- put('rows-test:selected-job:1공장:2026-09-08',[{...record(999),purchaseOrderId:'OTHER'}, {...record(999),process:'자동화'}, {...record(999),stage:1,stageGroup:[1]}, {...record(999),stageGroup:[1,2]}]);
+ put('rows-test:selected-job:1공장:2026-09-08',[{...record(999),purchaseOrderId:'OTHER'}, {...record(999),process:'박 인쇄'}, {...record(999),stage:1,stageGroup:[1]}, {...record(999),stageGroup:[1,2]}]);
  put('rows-test-dev:selected-job:1공장:2026-09-07',[record(9999)]);
  put('rows-test:selected-job:1공장:2026-02-30',[record(9999)]);
  c.testStorage.set('rows-test:selected-job:1공장:2026-09-07','broken');put('rows-test:1공장:2026-09-07',[record(150)]);
@@ -392,7 +392,7 @@ test('누적 시간은 일별 실 근무시간만 소수점 둘째 자리까지 
  put('rows-test:selected-job:2공장:2026-09-11',[row(3.1)]);
  put(c.getProductionPlanStorageKey(),[row(999)]);
  put('rows-test:selected-job:1공장:2026-09-12',[row(999)]);
- put('rows-test:selected-job:1공장:2026-09-08',[{...row(999),purchaseOrderId:'OTHER'},{...row(999),stageGroup:[1,2]},{...row(999),process:'자동화'},{...row(999),productId:'OTHER'}]);
+ put('rows-test:selected-job:1공장:2026-09-08',[{...row(999),purchaseOrderId:'OTHER'},{...row(999),stageGroup:[1,2]},{...row(999),process:'박 인쇄'},{...row(999),productId:'OTHER'}]);
  job.actualWorkHours=.2;job.cumulativeHours=123456;
  assert.equal(c.getProductionPlanCumulativeHours(job),7.05);
  job.actualWorkHours=0;assert.equal(c.getProductionPlanCumulativeHours(job),6.85);
@@ -456,4 +456,21 @@ test('오브제 12·13·14일 8시간씩 근무해 목표 초과 생산하면 �
  job.actualProduction=2000;metrics=c.getProductionPlanDetailMetrics(job);assert.equal(metrics.cumulativeProduction,35000);assert.equal(metrics.cumulativeHours,32);
  assert.equal(c.formatProductionPlanDetailValue('workDays',metrics.workDays),'7.9일');
  c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.getProductionPlanDetailMetrics(c.state.productionPlanJobs[0]).cumulativeProduction,35000);
+});
+
+
+test('12·14일 실크와 13일 자동화의 같은 2도 실적을 합산한다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:99100,deliveryType:'daily',dailyMinimumQuantity:7000}];
+ c.state.products[0].processHourlyProductionRates['2도']=1023;
+ for(const [date,process,total] of [['2026-10-12','실크 인쇄',8000],['2026-10-13','자동화',16000],['2026-10-14','실크 인쇄',24000]]) {
+  c.state.productionPlanDate=date;c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+  c.changeProductionPlanPrintType(job,process);Object.assign(job,{actualProduction:8000,actualWorkHours:8});
+  assert.equal(c.getProductionPlanCumulativeProduction(job),total);assert.equal(c.getProductionPlanCumulativeHours(job),total/1000);
+  c.saveProductionPlanDraft();c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+  assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),total);
+ }
+ const job=c.state.productionPlanJobs[0];assert.equal(c.formatProductionPlanDetailValue('workDays',c.getProductionPlanDetailMetrics(job).workDays),'9.2일');
+ assert.equal(c.getProductionPlanCumulativeActual(job,'actualProduction',{beforeDateOnly:true}),16000);
+ c.state.productionPlanDate='2026-10-15';c.loadProductionPlanDraft();
+ assert.equal(c.getProductionPlanCalculations(c.state.productionPlanJobs[0]).remainingQuantity,75100);
 });
