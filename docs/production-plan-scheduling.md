@@ -24,3 +24,9 @@
 - [우주항공청 2027 월력요항 발표](https://www.kasa.go.kr/prog/plcyBrf/brief/kor/sub01_01_04/view.do?plcyBrfNo=431)
 - [한국천문연구원 2027 달력자료](https://astro.kasi.re.kr/kor/life/post/calendarData?year=2027)
 - [인사혁신처 2026-04-29 노동절·제헌절 공휴일 지정](https://openminister.mpm.go.kr/mpm/comm/newsPress/newsPressRelease/?boardId=bbs_0000000000000029&category=&cntId=4250&mode=view&pageIdx=4)
+
+## 날짜별 설정
+
+- 저장된 계획이 없는 날짜는 같은 공장·발주의 가장 최근 이전 저장본에서 인쇄 유형·공정/공정 묶음·기계번호만 이어받는다. 전날 저장이 없으면 마지막 저장 날짜를 사용한다.
+- 해당 날짜의 저장본이 우선한다. 직접 미배정으로 저장한 기계는 미배정을 유지하며, 해당 인쇄 유형에서 사용할 수 없는 기계는 미배정으로 처리한다. 다른 공장·발주와 미래 날짜의 설정은 가져오지 않는다.
+- 생산량·실 근무시간·메모·수정 LOSS 등 날짜별 입력은 복사하지 않는다.

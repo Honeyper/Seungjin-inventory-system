@@ -723,6 +723,30 @@ async function verifyProductionPlanThreeSavedDays(page,fixture) {
   console.log(JSON.stringify({threeSavedDays:true,dates:[12,13,14],mixedSilkAutomation:true,cumulative24000:true,actualHours24:true,remaining9_2Days:true,today2000Remaining9Days:true,saveReload:true,noDoubleCounting:true}));
 }
 
+async function verifyProductionPlanSetupCarryover(page) {
+  const clear = () => {
+    for (const key of Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)))
+      if (key?.startsWith(PRODUCTION_PLAN_STORAGE_PREFIX+':')) localStorage.removeItem(key);
+  };
+  await page.evaluate(clear);await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]'), details=page.locator('.production-plan-details-row');
+  const process=row.locator('[data-plan-field=process]'), machine=row.locator('[data-plan-field=machine]'), stage=row.locator('[data-plan-field=stage]');
+  async function date(value){await page.locator('#productionPlanDate').fill(value);await page.locator('#productionPlanDate').dispatchEvent('change');}
+  async function open(){if(await row.locator('[data-plan-details-toggle]').getAttribute('aria-expanded')==='false')await row.locator('[data-plan-details-toggle]').click();}
+  await date('2026-10-12');await process.selectOption('자동화');await stage.selectOption('1');await machine.selectOption('3호기');await open();
+  await details.locator('[data-plan-field=actualProduction]').fill('8000');await details.locator('[data-plan-field=actualWorkHours]').fill('8');await page.locator('#saveProductionPlanButton').click();
+  await date('2026-10-13');assert.equal(await process.inputValue(),'자동화');assert.equal(await stage.inputValue(),'1');assert.equal(await machine.inputValue(),'3호기');await open();
+  assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'');assert.equal(await details.locator('[data-plan-field=actualWorkHours]').inputValue(),'');
+  assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'8,000 ea');
+  await stage.selectOption('2');await machine.selectOption('4호기');await page.locator('#saveProductionPlanButton').click();
+  await date('2026-10-14');assert.equal(await stage.inputValue(),'2');assert.equal(await machine.inputValue(),'4호기');await machine.selectOption('');await page.locator('#saveProductionPlanButton').click();
+  await date('2026-10-19');assert.equal(await machine.inputValue(),'');assert.equal(await process.inputValue(),'자동화');
+  await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);await date('2026-10-13');
+  assert.equal(await process.inputValue(),'자동화');assert.equal(await stage.inputValue(),'2');assert.equal(await machine.inputValue(),'4호기');
+  await page.evaluate(clear);await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  console.log(JSON.stringify({setupCarryover:true,printTypeStageMachine:true,actualsBlank:true,savedSettingsWin:true,explicitUnassigned:true,skipUnsavedDays:true,reload:true}));
+}
+
 async function verifyProductionPlanStorageQuota(page) {
   const filled = await page.evaluate(() => {
     const cacheKey = 'seungjinAdminCache:v3:dev:inbounds:quota-test';
@@ -923,6 +947,7 @@ async function main() {
     await verifyProductionPlanCumulativeHours(page);
     await verifyProductionPlanScheduling(page, fixture);
     await verifyProductionPlanThreeSavedDays(page, fixture);
+    await verifyProductionPlanSetupCarryover(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
