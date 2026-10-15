@@ -774,6 +774,62 @@ async function verifyProductionPlanNoUnassignedHistory(page) {
   console.log(JSON.stringify({noUnassignedHistory:true,beforeStartEmpty:true,summaryZero:true,syncReloadNoReappearance:true,registeredActualsPreserved:true,followingDayCarryover:true}));
 }
 
+async function verifyAdminPopupEscape(page) {
+  await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  const modalIds=await page.locator('.modal-backdrop').evaluateAll(nodes=>nodes.map(node=>node.id));
+  for(const id of modalIds) {
+    await page.evaluate(id=>{
+      const modal=document.getElementById(id);modal.hidden=false;document.body.classList.add('modal-open');modal.querySelector('.modal-close').focus();
+    },id);
+    assert.equal(await page.locator('#'+id).isVisible(),true,id+' starts visible');
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#'+id).getAttribute('hidden'),'');
+  }
+  await page.evaluate(()=>{adminUserMenu.hidden=false;inboundQrModal.hidden=false;document.querySelector('#closeInboundQrModal').focus();});
+  await page.keyboard.press('Escape');assert.equal(await page.locator('#inboundQrModal').isVisible(),false);assert.equal(await page.locator('#adminUserMenu').isVisible(),true);
+  await page.keyboard.press('Escape');assert.equal(await page.locator('#adminUserMenu').isVisible(),false);
+  await page.evaluate(()=>{
+    productDetailModal.hidden=false;inboundQrModal.hidden=false;document.body.classList.add('modal-open');
+    state.activeQrBoxes=[{number:1}];state.activeQrGroups=[{}];state.isLoadingInboundQrs=true;
+    document.documentElement.classList.add('qr-print-work-layout');document.body.classList.add('qr-print-work-layout');
+    document.querySelector('#closeInboundQrModal').focus();
+  });
+  await page.keyboard.press('Escape');assert.equal(await page.locator('#inboundQrModal').isVisible(),false);assert.equal(await page.locator('#productDetailModal').isVisible(),true);
+  assert.deepEqual(await page.evaluate(()=>({boxes:state.activeQrBoxes.length,groups:state.activeQrGroups.length,loading:state.isLoadingInboundQrs,print:document.body.classList.contains('qr-print-work-layout'),locked:document.body.classList.contains('modal-open')})),{boxes:0,groups:0,loading:false,print:false,locked:true});
+  await page.keyboard.press('Escape');assert.equal(await page.locator('#productDetailModal').isVisible(),false);
+  await page.evaluate(()=>{
+    existingStockModal.hidden=false;inboundProductPickerModal.hidden=false;productModal.hidden=false;document.body.classList.add('modal-open');document.querySelector('#closeProductModal').focus();
+  });
+  for(const [close,keep] of [['productModal','inboundProductPickerModal'],['inboundProductPickerModal','existingStockModal'],['existingStockModal',null]]){
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#'+close).isVisible(),false);if(keep)assert.equal(await page.locator('#'+keep).isVisible(),true);
+  }
+  await page.evaluate(()=>{
+    inboundDetailModal.hidden=false;inboundDetailContent.innerHTML='<button id="inboundEditDefectReasonButton" aria-expanded="true">불량 사유</button><div id="inboundEditDefectReasonPanel" class="multi-select-panel" role="listbox">불량 사유 선택</div>';
+    document.body.classList.add('modal-open');document.querySelector('#inboundEditDefectReasonButton').focus();
+  });
+  await page.keyboard.press('Escape');assert.equal(await page.locator('#inboundEditDefectReasonPanel').isVisible(),false);assert.equal(await page.locator('#inboundDetailModal').isVisible(),true);
+  assert.equal(await page.locator('#inboundEditDefectReasonButton').getAttribute('aria-expanded'),'false');await page.keyboard.press('Escape');
+  await page.evaluate(()=>setActiveView('inbound'));
+  for(const id of ['adminUserMenu','backupNotificationPanel','purchaseOrderActionMenu','rowActionMenu','inboundRowActionMenu','shippingRowActionMenu','inboundDefectReasonPanel']) {
+    await page.evaluate(id=>{const node=document.getElementById(id);node.hidden=false;if(id==='inboundDefectReasonPanel')inboundDefectReasonButton.setAttribute('aria-expanded','true');},id);
+    assert.equal(await page.locator('#'+id).isVisible(),true,id+' starts visible');
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#'+id).getAttribute('hidden'),'');
+  }
+  await page.evaluate(()=>{
+    inboundQrModal.hidden=false;document.body.classList.add('modal-open');openProductImageGallery(['https://seungjin.test/assets/logo-generated.png','https://seungjin.test/assets/app-icon-192.png'],'테스트 제품');
+  });
+  await page.keyboard.press('ArrowRight');assert.equal(await page.evaluate(()=>state.activeProductImageIndex),1);
+  await page.keyboard.press('Escape');assert.equal(await page.locator('#productImageGalleryModal').isVisible(),false);assert.equal(await page.locator('#inboundQrModal').isVisible(),true);await page.keyboard.press('Escape');
+  await page.evaluate(()=>{
+    shippingWaitingConfirmModal.hidden=false;document.body.classList.add('modal-open');window.nativeCancelled='';
+    window.SeungjinCommonShipping.prepare('updateShippingStatus',{managementId:'ESC-TEST',productId:'COMMON',status:'출고완료',selectedBoxes:[1]},async()=>({product:{isCommonContainer:true,shippingProductNames:['제품 A'],productName:'공용용기'},boxes:[{boxId:'box1',number:1,quantity:100,status:'출고대기'}]})).catch(error=>window.nativeCancelled=error.message);
+  });
+  await page.locator('dialog[open]').waitFor({state:'visible'});await page.keyboard.press('Escape');await page.locator('dialog[open]').waitFor({state:'detached'});
+  assert.match(await page.evaluate(()=>window.nativeCancelled),/취소/);assert.equal(await page.locator('#shippingWaitingConfirmModal').isVisible(),true);await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(()=>document.body.classList.contains('modal-open')),false);
+  await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  console.log(JSON.stringify({popupEscape:true,modalCount:modalIds.length,allModals:true,menusAndReasons:true,topmostOnly:true,qrCleanup:true,bodyLock:true,nativeDialogParentPreserved:true,galleryArrows:true}));
+}
+
 async function verifyProductionPlanStorageQuota(page) {
   const filled = await page.evaluate(() => {
     const cacheKey = 'seungjinAdminCache:v3:dev:inbounds:quota-test';
@@ -984,6 +1040,7 @@ async function main() {
     await verifyProductionPlanThreeSavedDays(page, fixture);
     await verifyProductionPlanSetupCarryover(page);
     await verifyProductionPlanNoUnassignedHistory(page);
+    await verifyAdminPopupEscape(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
