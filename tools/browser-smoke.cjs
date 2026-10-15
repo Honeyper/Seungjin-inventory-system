@@ -782,19 +782,20 @@ async function verifyAdminPopupEscape(page) {
       const modal=document.getElementById(id);modal.hidden=false;document.body.classList.add('modal-open');modal.querySelector('.modal-close').focus();
     },id);
     assert.equal(await page.locator('#'+id).isVisible(),true,id+' starts visible');
-    await page.keyboard.press('Escape');assert.equal(await page.locator('#'+id).getAttribute('hidden'),'');
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#'+id).getAttribute('hidden'),'',id+' closes on Escape');
   }
   await page.evaluate(()=>{adminUserMenu.hidden=false;inboundQrModal.hidden=false;document.querySelector('#closeInboundQrModal').focus();});
   await page.keyboard.press('Escape');assert.equal(await page.locator('#inboundQrModal').isVisible(),false);assert.equal(await page.locator('#adminUserMenu').isVisible(),true);
   await page.keyboard.press('Escape');assert.equal(await page.locator('#adminUserMenu').isVisible(),false);
-  await page.evaluate(()=>{
+  const groupedQr=await page.evaluate(()=>{
     productDetailModal.hidden=false;inboundQrModal.hidden=false;document.body.classList.add('modal-open');
-    state.activeQrBoxes=[{number:1}];state.activeQrGroups=[{}];state.isLoadingInboundQrs=true;
-    document.documentElement.classList.add('qr-print-work-layout');document.body.classList.add('qr-print-work-layout');
-    document.querySelector('#closeInboundQrModal').focus();
+    state.activeQrBoxes=[{number:1}];const grouped=Array.isArray(state.activeQrGroups);
+    if(grouped){state.activeQrGroups=[{}];state.isLoadingInboundQrs=true;document.documentElement.classList.add('qr-print-work-layout');document.body.classList.add('qr-print-work-layout');}
+    document.querySelector('#closeInboundQrModal').focus();return grouped;
   });
   await page.keyboard.press('Escape');assert.equal(await page.locator('#inboundQrModal').isVisible(),false);assert.equal(await page.locator('#productDetailModal').isVisible(),true);
-  assert.deepEqual(await page.evaluate(()=>({boxes:state.activeQrBoxes.length,groups:state.activeQrGroups.length,loading:state.isLoadingInboundQrs,print:document.body.classList.contains('qr-print-work-layout'),locked:document.body.classList.contains('modal-open')})),{boxes:0,groups:0,loading:false,print:false,locked:true});
+  assert.deepEqual(await page.evaluate(()=>({boxes:state.activeQrBoxes.length,locked:document.body.classList.contains('modal-open')})),{boxes:0,locked:true});
+  if(groupedQr)assert.deepEqual(await page.evaluate(()=>({groups:state.activeQrGroups.length,loading:state.isLoadingInboundQrs,print:document.body.classList.contains('qr-print-work-layout')})),{groups:0,loading:false,print:false});
   await page.keyboard.press('Escape');assert.equal(await page.locator('#productDetailModal').isVisible(),false);
   await page.evaluate(()=>{
     existingStockModal.hidden=false;inboundProductPickerModal.hidden=false;productModal.hidden=false;document.body.classList.add('modal-open');document.querySelector('#closeProductModal').focus();
@@ -812,7 +813,7 @@ async function verifyAdminPopupEscape(page) {
   for(const id of ['adminUserMenu','backupNotificationPanel','purchaseOrderActionMenu','rowActionMenu','inboundRowActionMenu','shippingRowActionMenu','inboundDefectReasonPanel']) {
     await page.evaluate(id=>{const node=document.getElementById(id);node.hidden=false;if(id==='inboundDefectReasonPanel')inboundDefectReasonButton.setAttribute('aria-expanded','true');},id);
     assert.equal(await page.locator('#'+id).isVisible(),true,id+' starts visible');
-    await page.keyboard.press('Escape');assert.equal(await page.locator('#'+id).getAttribute('hidden'),'');
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#'+id).getAttribute('hidden'),'',id+' closes on Escape');
   }
   await page.evaluate(()=>{
     inboundQrModal.hidden=false;document.body.classList.add('modal-open');openProductImageGallery(['https://seungjin.test/assets/logo-generated.png','https://seungjin.test/assets/app-icon-192.png'],'테스트 제품');

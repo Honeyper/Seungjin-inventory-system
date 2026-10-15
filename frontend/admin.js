@@ -2468,7 +2468,8 @@ document.addEventListener("click", (event) => {
 function getTopAdminFloatingPopup() {
   const modalClosers = {
     shippingInspectionModal: closeShippingInspectionModal, remainingInventoryModal: closeRemainingInventoryModal,
-    shippingCompletionModal: closeShippingCompletionModal, shippingCancelModal: closeShippingCancelModal,
+    shippingCompletionModal: closeShippingCompletionModal,
+    ...(typeof closeShippingCancelModal === "function" ? {shippingCancelModal: closeShippingCancelModal} : {}),
     transferReturnModal: closeTransferReturnModal, shippingWaitingConfirmModal: closeShippingWaitingConfirmModal,
     shippingHoldGuideModal: closeShippingHoldGuideModal, productModal: closeProductModal,
     productDetailModal: closeProductDetailModal, inboundDetailModal: closeInboundDetailModal,
