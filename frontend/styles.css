@@ -8614,6 +8614,13 @@ small, em {
   min-width: 8.2rem;
 }
 
+.production-plan-weekday {
+  flex: 0 0 auto;
+  font-size: 0.86rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .production-plan-date-control .production-plan-today {
   width: auto;
   padding: 0 0.78rem;
@@ -15161,7 +15168,7 @@ small, em {
 }
 #productionPlanView .production-plan-details-metrics {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.4rem;
   margin: 0.4rem 0 0;
 }
@@ -15201,10 +15208,10 @@ small, em {
 #productionPlanView .production-plan-detail-input span { flex: 0 0 auto; }
 #productionPlanView .production-plan-detail-input input[aria-invalid="true"] { border-color: #bd2f2f; }
 @media (min-width: 1600px) {
-  #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(13, minmax(0, 1fr)); }
 }
 @media (max-width: 800px) {
-  #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #productionPlanView .production-plan-details-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 #productionPlanView .production-plan-details-metrics dt {
   color: #60718d;
