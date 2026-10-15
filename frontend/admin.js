@@ -91,6 +91,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "생산계획 표시 기간 및 잔여 수량", items: ["지정 납기는 납기 당일까지, 매일 납기는 저장된 실적과 근무일 기준 예상 완료일까지 표시하고 다음 날부터 목록에서 제외합니다. 과거 계획과 실제 생산 기록은 보관합니다.", "누적 생산량 옆에 발주량에서 누적 생산량을 뺀 잔여 수량을 자동 표시합니다. 금일 생산량 입력 시 바로 갱신하며 초과 생산 시 0개로 표시합니다.", "생산계획 날짜 옆에 선택한 날짜의 요일을 표시하며 이전·다음·오늘 이동 시 함께 갱신합니다."] },
   { date: "2026-10-15", title: "세부사항 화살표 세로 중앙 정렬", items: ["세부사항 열기·닫기 화살표를 글꼴 영향을 받지 않는 아이콘으로 바꿔 버튼의 세로 중앙에 맞췄습니다."] },
   { date: "2026-10-15", title: "모든 플로팅 팝업 Esc 닫기", items: ["입고 QR 미리보기·제품 선택·재고·출고·이미지 팝업과 관리 메뉴를 Esc 키로 닫을 수 있습니다. 팝업이 겹쳐 있으면 화면 맨 위의 팝업만 하나씩 닫고, 기존 닫기 동작에 따라 임시 상태와 미리보기를 정리합니다."] },
   { date: "2026-10-15", title: "생산계획 행 클릭으로 세부사항 열기·접기", items: ["생산계획 행의 업체·발주량·납기·목표량·작업시간 등을 누르면 해당 세부사항이 자동으로 열립니다. 같은 행을 다시 누르면 접히며 기존 세부사항 버튼으로도 열고 닫을 수 있습니다."] },
@@ -2834,18 +2835,72 @@ function renderProductionPlanStaffOptions(job, role) {
 }
 
 
+function getProductionPlanDailyCompletionDate(order, selectedJob) {
+  const date = state.productionPlanDate || getLocalDateInputValue();
+  const snapshots = (readProductionPlanActualLedger() || []).filter(item => item.date <= date).sort((a,b) => a.date.localeCompare(b.date));
+  const savedJob = snapshots.filter(item => item.factory === state.productionPlanFactory).flatMap(item => item.jobs)
+    .filter(item => item.purchaseOrderId === order.purchaseOrderId).at(-1);
+  const job = selectedJob || savedJob || state.productionPlanJobs.find(item => item.purchaseOrderId === order.purchaseOrderId);
+  if (!job) return null;
+  const number = window.SeungjinProductionPlanner.number;
+  let completed = 0, firstAssigned = null, lastActual = null;
+  for (const snapshot of snapshots) {
+    const sources = getProductionPlanActualSources(snapshot.jobs, job);
+    if (!sources.length) continue;
+    const actual = getProductionPlanActualSubtotal(snapshot.jobs, job);
+    if (actual === null) return null;
+    completed += actual;
+    const worked = sources.some(item => number(item.actualProduction) > 0 || number(item.actualWorkHours) > 0);
+    const assigned = worked || sources.some(item => (PRODUCTION_MACHINE_OPTIONS[job.process] || []).includes(item.machine));
+    if (assigned && !firstAssigned) firstAssigned = snapshot.date;
+    if (worked) lastActual = snapshot.date;
+  }
+  if (!firstAssigned || !Number.isSafeInteger(completed)) return null;
+  const quantity = number(order.totalOrderQuantity ?? order.orderQuantity);
+  if (quantity === null) return null;
+  if (completed >= quantity) return lastActual || firstAssigned;
+  const product = getProductionPlanProduct(job.productId);
+  const rates = product?.processHourlyProductionRates || {};
+  const hourlyRate = rates[getProductionPlanStageLabel(job)] ?? (Object.keys(rates).length === 0 && getProductionPlanStageOptions(job.productId).length === 1 ? product?.hourlyProductionRate : null);
+  // Anchor to saved work, so simply viewing a later date cannot move completion forward.
+  const start = Date.parse(`${lastActual || firstAssigned}T00:00:00Z`) + (lastActual ? 86400000 : 0);
+  for (let day = 0; day <= 731; day++) {
+    const startDate = new Date(start + day * 86400000).toISOString().slice(0, 10);
+    const result = window.SeungjinProductionPlanner.plan({orderQuantity:quantity, hourlyRate, completedProduction:completed,
+      startDate, deliveryType:"daily", dailyMinimumQuantity:order.dailyMinimumQuantity,
+      extraHolidays:window.SEUNGJIN_CONFIG?.PRODUCTION_PLAN_HOLIDAYS || []});
+    if (result.targetQuantity === null) return null;
+    completed += result.targetQuantity;
+    if (completed >= quantity) return startDate;
+  }
+  return null;
+}
+
+function isProductionPlanWithinDeadline(record, job) {
+  if (record?.deliveryType === "daily") {
+    const completionDate = getProductionPlanDailyCompletionDate(record, job);
+    return !completionDate || (state.productionPlanDate || getLocalDateInputValue()) <= completionDate;
+  }
+  const dueDate = String(record?.endDate ?? record?.dueDate ?? "").trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return true;
+  const parsed = new Date(`${dueDate}T00:00:00Z`);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== dueDate) return true;
+  return (state.productionPlanDate || getLocalDateInputValue()) <= dueDate;
+}
+
 function ensureProductionPlanRows(jobs) {
   const valid = jobs.filter(item => {
     const order = state.purchaseOrders?.find(order => order.purchaseOrderId === item.purchaseOrderId);
     const productId = order?.productId || item.productId;
     const process = PRODUCTION_PROCESS_ORDER.includes(item.process) ? item.process : "실크 인쇄";
     return (!productId && !item.purchaseOrderId || isProductionPlanProductAllowed(getProductionPlanProduct(productId), process))
-      && ![order?.status, order?.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status));
+      && ![order?.status, order?.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status))
+      && isProductionPlanWithinDeadline(order || item, item);
   });
   const explicit = valid.find(item => item.stageSelectionVersion === 1);
   const selected = explicit || valid.find(item => Number(item.stage) === PRODUCTION_PLAN_DEFAULT_STAGE) || valid[0];
   const order = state.purchaseOrders?.find(order => order.purchaseOrderId === selected?.purchaseOrderId);
-  const productId = order?.productId || selected?.productId || (selected ? "" : PRODUCTION_PLAN_PRODUCT_ID);
+  const productId = order?.productId || selected?.productId || (selected || jobs.length ? "" : PRODUCTION_PLAN_PRODUCT_ID);
   const process = PRODUCTION_PROCESS_ORDER.includes(selected?.process) ? selected.process : "실크 인쇄";
   const options = getProductionPlanStageOptions(productId, process);
   const defaultStage = (productId === PRODUCTION_PLAN_PRODUCT_ID ? options.find(option => option.stage === PRODUCTION_PLAN_DEFAULT_STAGE) : options[0])?.stage || 1;
@@ -2872,7 +2927,8 @@ function ensureProductionPlanRows(jobs) {
 
 function getProductionPlanActiveJobs() {
   return state.productionPlanJobs.filter(job => Boolean(job.purchaseOrderId)
-    && isProductionPlanProductAllowed(getProductionPlanProduct(job.productId), job.process)).slice(0, 1);
+    && isProductionPlanProductAllowed(getProductionPlanProduct(job.productId), job.process)
+    && isProductionPlanWithinDeadline(state.purchaseOrders.find(order => order.purchaseOrderId === job.purchaseOrderId) || job, job)).slice(0, 1);
 }
 
 
@@ -2966,7 +3022,7 @@ function getProductionPlanBalance(order) {
 
 function getProductionPlanOpenOrders(process = "") {
   return state.purchaseOrders
-    .filter((order) => (!process ? PRODUCTION_PROCESS_ORDER.some(type => isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), type)) : isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process)) && ![order.status, order.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status)) && getProductionPlanBalance(order) > 0)
+    .filter((order) => (!process ? PRODUCTION_PROCESS_ORDER.some(type => isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), type)) : isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process)) && ![order.status, order.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status)) && getProductionPlanBalance(order) > 0 && isProductionPlanWithinDeadline(order))
     .sort((a, b) => {
       const dueCompare = String(a.endDate || "9999-12-31").localeCompare(String(b.endDate || "9999-12-31"));
       if (dueCompare) return dueCompare;
@@ -3079,7 +3135,7 @@ function getProductionPlanMachineOptions(job) {
 function changeProductionPlanOrder(job, purchaseOrderId) {
   const order = state.purchaseOrders.find((item) => item.purchaseOrderId === purchaseOrderId);
   const process = PRODUCTION_PROCESS_ORDER.includes(job.process) ? job.process : "실크 인쇄";
-  if (!order || !isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process)
+  if (!order || !isProductionPlanWithinDeadline(order) || !isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process)
     || [order.status, order.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status)) || getProductionPlanBalance(order) <= 0) return false;
   const productChanged = job.productId !== order.productId;
   if (productChanged) ["workDays", "lossMode", "cumulativeProduction", "cumulativeHours", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS].forEach(key => delete job[key]);
@@ -3162,8 +3218,7 @@ function readProductionPlanActualLedger() {
   }
 }
 
-function getProductionPlanActualSubtotal(jobs, target, field = "actualProduction") {
-  const scale = field === "actualWorkHours" ? 100 : 1;
+function getProductionPlanActualSources(jobs, target) {
   const processKey = value => {
     const type = String(value || "").replace(/\s/g, "");
     return ["실크", "실크인쇄", "자동화"].includes(type) ? "실크인쇄" : type;
@@ -3175,8 +3230,13 @@ function getProductionPlanActualSubtotal(jobs, target, field = "actualProduction
   const sameStage = (item, stage) => groupKey(item.stageGroup, stage) === group;
   const roots = owners.filter(item => Number(item.stage) === Number(target.stage) && sameStage(item, Number(item.stage)));
   // The active row wins over its inactive copy in stageDrafts.
-  const sources = roots.length ? roots : owners.map(item => item.stageDrafts?.[target.stage])
+  return roots.length ? roots : owners.map(item => item.stageDrafts?.[target.stage])
     .filter(item => item && sameStage(item, Number(target.stage)));
+}
+
+function getProductionPlanActualSubtotal(jobs, target, field = "actualProduction") {
+  const scale = field === "actualWorkHours" ? 100 : 1;
+  const sources = getProductionPlanActualSources(jobs, target);
   const ids = new Set();
   let total = 0;
   for (const item of sources) {
@@ -3220,13 +3280,15 @@ function getProductionPlanDetailMetrics(job) {
   const number = window.SeungjinProductionPlanner.number;
   const cumulativeHours = getProductionPlanCumulativeHours(job);
   const cumulativeProduction = getProductionPlanCumulativeProduction(job);
-  const days = values.orderQuantity !== null && cumulativeProduction !== null && values.hourlyRate > 0
-    ? Math.max(0, values.orderQuantity - cumulativeProduction) / values.hourlyRate / PRODUCTION_STANDARD_WORK_HOURS : null;
+  const remainingProduction = values.orderQuantity !== null && cumulativeProduction !== null
+    ? Math.max(0, values.orderQuantity - cumulativeProduction) : null;
+  const days = remainingProduction !== null && values.hourlyRate > 0
+    ? remainingProduction / values.hourlyRate / PRODUCTION_STANDARD_WORK_HOURS : null;
   const actual = number(job.actualProduction);
   const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
   const daily = order?.deliveryType === "daily" ? number(order.dailyMinimumQuantity) : null;
   const required = values.targetQuantity === null ? null : daily > 0 ? Math.min(daily, values.remainingQuantity) : values.targetQuantity;
-  return { cumulativeHours, cumulativeProduction, workDays: days, dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
+  return { cumulativeHours, cumulativeProduction, remainingProduction, workDays: days, dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
     orderQuantity: values.orderQuantity, hourlyRate: values.hourlyRate,
     dailyRequired: required, achievementRate: actual !== null && required > 0 ? actual / required * 100 : null };
 }
@@ -3249,6 +3311,7 @@ function renderProductionPlanMetrics(job) {
     {key:"orderQuantity",label:"발주량"},
     {key:"loss",label:"최대 허용 LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
     {key:"cumulativeProduction",label:"누적 생산량",title:"현재 브라우저에서 선택 날짜까지 같은 발주·제품·공정에 저장된 금일 생산량 합계 (실크·자동화 통합)"},
+    {key:"remainingProduction",label:"잔여 수량",title:"발주량 − 선택 날짜까지 누적 생산량 (최소 0개)"},
     {key:"cumulativeHours",label:"누적 시간",title:"현재 브라우저에서 선택 날짜까지 같은 발주·제품·공정에 저장된 실 근무시간 합계 (실크·자동화 통합)"},
     {key:"actualWorkHours",label:"실 근무시간",unit:"시간",step:"0.01",title:"선택 날짜에 실제 근무한 시간"},
     {key:"hourlyRate",label:"시간당 생산량",title:"제품에 등록된 선택 공정의 시간당 생산량"},
@@ -3398,7 +3461,17 @@ function renderProductionPlanSummary() {
 }
 
 
+function updateProductionPlanWeekday() {
+  const weekday = document.querySelector("#productionPlanWeekday");
+  if (!weekday) return;
+  const value = state.productionPlanDate || getLocalDateInputValue();
+  const date = new Date(`${value}T00:00:00Z`);
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  weekday.textContent = valid ? `(${'일월화수목금토'[date.getUTCDay()]})` : "";
+}
+
 function renderProductionPlan() {
+  updateProductionPlanWeekday();
   state.productionPlanJobs = ensureProductionPlanRows(state.productionPlanJobs);
   updateProductionPlanTargets(state.productionPlanJobs);
   renderProductionPlanSummary();
@@ -3536,6 +3609,7 @@ function saveProductionPlanDraft() {
       localStorage.setItem(key, serialized);
     }
     if (localStorage.getItem(key) !== serialized) throw new Error("PlanStorageVerificationError");
+    invalidateProductionPlanActualLedger();
     if (productionPlanStatus) {
       productionPlanStatus.textContent = `${state.productionPlanDate} ${state.productionPlanFactory} 생산계획을 저장했습니다.`;
       productionPlanStatus.dataset.type = "success";
