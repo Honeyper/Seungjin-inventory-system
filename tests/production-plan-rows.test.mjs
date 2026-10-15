@@ -474,3 +474,30 @@ test('12·14일 실크와 13일 자동화의 같은 2도 실적을 합산한다'
  c.state.productionPlanDate='2026-10-15';c.loadProductionPlanDraft();
  assert.equal(c.getProductionPlanCalculations(c.state.productionPlanJobs[0]).remainingQuantity,75100);
 });
+
+
+test('새 날짜는 같은 공장·발주의 마지막 저장 공정·유형·기계를 이어받고 실적은 새로 입력한다',()=>{
+ const c=setup();c.state.productionPlanDate='2026-10-12';c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ let job=c.state.productionPlanJobs[0];c.changeProductionPlanPrintType(job,'자동화');c.changeProductionPlanStage(job,1);
+ Object.assign(job,{machine:'3호기',actualProduction:8000,actualWorkHours:8,note:'전날 메모',loss:123,lossMode:'manual'});c.saveProductionPlanDraft();
+ c.setProductionPlanDate('2026-10-13');job=c.state.productionPlanJobs[0];
+ assert.equal(job.process,'자동화');assert.equal(job.stage,1);assert.equal(job.machine,'3호기');
+ assert.equal(job.actualProduction??null,null);assert.equal(job.actualWorkHours??null,null);assert.notEqual(job.loss,123);assert.notEqual(job.note,'전날 메모');
+ assert.equal(c.getProductionPlanCumulativeProduction(job),8000);c.changeProductionPlanStage(job,2);job.machine='4호기';c.saveProductionPlanDraft();
+ c.setProductionPlanDate('2026-10-14');job=c.state.productionPlanJobs[0];assert.equal(job.stage,2);assert.equal(job.machine,'4호기');
+ job.machine='';c.saveProductionPlanDraft();c.setProductionPlanDate('2026-10-19');assert.equal(c.state.productionPlanJobs[0].machine,'');
+ c.setProductionPlanDate('2026-10-13');job=c.state.productionPlanJobs[0];assert.equal(job.stage,2);assert.equal(job.machine,'4호기');
+});
+
+test('이전 설정은 다른 공장·발주·미래 날짜에서 가져오지 않고 유효한 기계만 이어받는다',()=>{
+ const c=setup();c.state.productionPlanDate='2026-10-15';const base=c.buildProductionPlanJobs()[0];
+ const put=(factory,date,job)=>c.testStorage.set(`rows-test:selected-job:${factory}:${date}`,JSON.stringify({jobs:[job]}));
+ put('1공장','2026-10-12',{...base,process:'자동화',machine:'3호기'});
+ put('2공장','2026-10-14',{...base,process:'자동화',machine:'2호기'});
+ put('1공장','2026-10-14',{...base,purchaseOrderId:'OTHER',process:'자동화',machine:'1호기'});
+ put('1공장','2026-10-16',{...base,process:'자동화',machine:'4호기'});
+ c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].machine,'3호기');
+ put('1공장','2026-10-13',{...base,process:'자동화',machine:'12호기'});
+ c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].machine,'');
+ c.setProductionPlanDate('2026-10-11');assert.equal(c.state.productionPlanJobs[0].process,'실크 인쇄');assert.equal(c.state.productionPlanJobs[0].machine,'');
+});

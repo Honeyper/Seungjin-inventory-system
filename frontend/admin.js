@@ -91,6 +91,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "전일 공정·기계 설정 유지", items: ["저장된 계획이 없는 날짜는 같은 공장·발주의 가장 최근 이전 계획에서 인쇄 유형·작업 공정·기계번호를 이어받습니다. 해당 날짜에 저장한 설정을 우선하며 생산량·실 근무시간은 전날 값을 복사하지 않습니다."] },
   { date: "2026-10-15", title: "실크·자동화 생산 실적 통합 합산", items: ["같은 발주·제품·공정의 실크와 자동화 실적을 함께 합산합니다. 날짜별 인쇄 유형이 달라도 누적 생산량·누적 시간과 잔량 기반 생산계획에 모두 반영하며 박 인쇄와 다른 공정은 분리합니다."] },
   { date: "2026-10-15", title: "생산 실적 기준 잔여 작업일", items: ["잔여 작업일을 누적 근무시간 대신 누적 생산량 기준으로 계산합니다. 실제로 남은 수량을 선택 공정의 시간당 생산량과 하루 8시간으로 나누므로, 목표보다 많이 생산하면 그만큼 더 줄어듭니다. 금일 입력값도 즉시 반영합니다."] },
   { date: "2026-10-15", title: "납기와 인건비를 고려한 자동 근무계획", items: ["전날까지의 누적 생산량을 제외한 잔량과 납기까지의 근무일을 계산해 평일 8시간을 우선 배정합니다. 부족할 때만 최대 10시간 연장, 주말, 공휴일 순으로 조정하며 목표량도 함께 바뀝니다. 마지막 생산일은 500개 미만 잔량도 정확히 생산합니다. 2026·2027년 공휴일·대체공휴일을 반영합니다."] },
@@ -3021,6 +3022,25 @@ function getProductionPlanOpenOrders(process = "") {
     });
 }
 
+function inheritProductionPlanSetup(jobs) {
+  const snapshots = (readProductionPlanActualLedger() || [])
+    .filter(snapshot => snapshot.factory === state.productionPlanFactory && snapshot.date < state.productionPlanDate)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  return jobs.map(job => {
+    if (!job.purchaseOrderId) return job;
+    for (const snapshot of snapshots) {
+      const matches = snapshot.jobs.filter(item => item && item.purchaseOrderId === job.purchaseOrderId
+        && (!item.productId || item.productId === job.productId));
+      if (!matches.length) continue;
+      const previous = ensureProductionPlanRows(matches)[0];
+      if (previous.purchaseOrderId !== job.purchaseOrderId || !isProductionPlanProductAllowed(getProductionPlanProduct(job.productId), previous.process)) return job;
+      return {...job, process: previous.process, stage: previous.stage, stageGroup: [...previous.stageGroup],
+        machine: (PRODUCTION_MACHINE_OPTIONS[previous.process] || []).includes(previous.machine) ? previous.machine : ""};
+    }
+    return job;
+  });
+}
+
 function buildProductionPlanJobs({ preserve = [] } = {}) {
   const process = PRODUCTION_PROCESS_ORDER.includes(preserve[0]?.process) ? preserve[0].process : "실크 인쇄";
   const orders = getProductionPlanOpenOrders().filter(order => isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process));
@@ -3030,10 +3050,10 @@ function buildProductionPlanJobs({ preserve = [] } = {}) {
   const productId = order?.productId || "";
   const stage = productId === PRODUCTION_PLAN_PRODUCT_ID ? PRODUCTION_PLAN_DEFAULT_STAGE : getProductionPlanStageOptions(productId, process)[0]?.stage || 1;
   const base = createProductionPlanEmptyJob(stage, process, productId);
-  const jobs = previous.length ? previous : [{...base, ...(order ? {
+  const jobs = previous.length ? previous : inheritProductionPlanSetup([{...base, ...(order ? {
     purchaseOrderId:order.purchaseOrderId,productId:order.productId,productName:order.productName,
     clientName:order.clientName,orderRound:order.orderRound || "",note:order.note || ""
-  } : {})}];
+  } : {})}]);
   return updateProductionPlanTargets(ensureProductionPlanRows(jobs));
 }
 
