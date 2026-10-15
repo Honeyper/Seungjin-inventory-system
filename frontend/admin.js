@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "재고 목록 가로 스크롤 제거", items: ["재고 표의 14개 열을 화면 너비에 맞춰 배치했습니다. 긴 관리 ID·제품명·상태는 줄바꿈하고 QR·상세·삭제 버튼도 열 안에 배치합니다."] },
   { date: "2026-10-15", title: "생산계획 표시 기간 및 잔여 수량", items: ["지정 납기는 납기 당일까지, 매일 납기는 저장된 실적과 근무일 기준 예상 완료일까지 표시하고 다음 날부터 목록에서 제외합니다. 과거 계획과 실제 생산 기록은 보관합니다.", "누적 생산량 옆에 발주량에서 누적 생산량을 뺀 잔여 수량을 자동 표시합니다. 금일 생산량 입력 시 바로 갱신하며 초과 생산 시 0개로 표시합니다.", "생산계획 날짜 옆에 선택한 날짜의 요일을 표시하며 이전·다음·오늘 이동 시 함께 갱신합니다."] },
   { date: "2026-10-15", title: "세부사항 화살표 세로 중앙 정렬", items: ["세부사항 열기·닫기 화살표를 글꼴 영향을 받지 않는 아이콘으로 바꿔 버튼의 세로 중앙에 맞췄습니다."] },
   { date: "2026-10-15", title: "모든 플로팅 팝업 Esc 닫기", items: ["입고 QR 미리보기·제품 선택·재고·출고·이미지 팝업과 관리 메뉴를 Esc 키로 닫을 수 있습니다. 팝업이 겹쳐 있으면 화면 맨 위의 팝업만 하나씩 닫고, 기존 닫기 동작에 따라 임시 상태와 미리보기를 정리합니다."] },
@@ -2602,7 +2603,7 @@ function getProductionPlanDailyCompletionDate(order, selectedJob) {
   const date = state.productionPlanDate || getLocalDateInputValue();
   const snapshots = (readProductionPlanActualLedger() || []).filter(item => item.date <= date).sort((a,b) => a.date.localeCompare(b.date));
   const savedJob = snapshots.filter(item => item.factory === state.productionPlanFactory).flatMap(item => item.jobs)
-    .filter(item => item.purchaseOrderId === order.purchaseOrderId).at(-1);
+    .filter(item => item && item.purchaseOrderId === order.purchaseOrderId).at(-1);
   const job = selectedJob || savedJob || state.productionPlanJobs.find(item => item.purchaseOrderId === order.purchaseOrderId);
   if (!job) return null;
   const number = window.SeungjinProductionPlanner.number;

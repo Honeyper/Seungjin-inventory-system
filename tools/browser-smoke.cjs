@@ -997,6 +997,38 @@ async function verifyPurchaseOrderDelivery(page, fixture) {
   assert.match(await page.locator('#purchaseOrderTableBody').textContent(), /납기 2026-10-30/);
 }
 
+async function verifyInventoryTableFit(page) {
+  await page.goto(origin+'/admin.html#inventory');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(()=>state.inventoryLoaded && !state.inventoryLoadPromise);
+  await page.evaluate(()=>{
+    const products=['메디큐브 이지에프 엔에이디 퍼밍멀티밤 10g','(A0008)Nude by Nature MICRO BROW DETAILER 용기 #BrownBlack','SPNR414-PREQUER SKIN JUMBO SILICON SCAR STICK 충진료 보호관','에인케어 블루클레이 블랙헤드 멀티밤 17g 오버캡'];
+    const rows=Array.from({length:10},(_,index)=>({managementId:`IN-261013-KR-0024-${String(index+1).padStart(3,'0')}`,productId:'KR-0024',
+      inboundDate:'2026-10-13',clientName:index%2?'(주)창엄시스템':'(주)케이알',productName:products[index%products.length],batch:index%2?'2도 - 2공장':'-',purchaseOrderRound:'09/14 발주',
+      finalProcess:'1도',currentBoxCount:'17 box',currentTotalQuantity:'111,016 ea',storage:'현장',processStatus:index%2?'일부 출고':'보관',stockStatus:'보관',dueLabel:index%2?'일 7,000개 이상':'2026-10-30',
+      shippedShippingBoxes:index%2?Array.from({length:21},()=>({})):[]}));
+    state.inventoryRows=rows;state.filteredInventoryRows=rows;state.inventoryPage=1;state.inventoryPageSize=10;renderInventoryTable();
+  });
+  for(const width of [2560,2048,1920,1440,1280,1024,960]) {
+    await page.setViewportSize({width,height:1000});
+    const bounds=await page.locator('.inventory-table').evaluate(table=>{
+      const wrap=table.closest('.table-scroll'),r=table.getBoundingClientRect(),last=table.querySelector('tbody tr td:last-child').getBoundingClientRect();
+      return {width:wrap.clientWidth,scroll:wrap.scrollWidth,tableWidth:r.width,lastRight:last.right,wrapRight:wrap.getBoundingClientRect().right,
+        clipped:[...table.querySelectorAll('th,td,button,.inventory-badge')].filter(el=>el.scrollWidth>el.clientWidth+2).map(el=>({tag:el.tagName,text:el.textContent.trim(),width:el.clientWidth,scroll:el.scrollWidth}))};
+    });
+    assert.ok(bounds.scroll<=bounds.width+1,JSON.stringify({viewport:width,...bounds}));
+    assert.ok(bounds.lastRight<=bounds.wrapRight+1);assert.deepEqual(bounds.clipped,[],JSON.stringify({viewport:width,...bounds}));
+    assert.equal(await page.locator('#inventoryTableBody tr:first-child td').count(),14);
+    await page.locator('.inventory-list-panel').screenshot({path:`/private/tmp/seungjin-inventory-fit-${width}.png`});
+  }
+  await page.setViewportSize({width:1280,height:900});
+  await page.locator('.inventory-column-sort-button').filter({hasText:'제품명'}).click();
+  assert.equal(await page.locator('.inventory-table th[aria-sort]').count(),1);
+  assert.equal(await page.locator('[data-inventory-detail]').count(),10);
+  assert.equal(await page.locator('[data-inventory-delete]').count(),10);
+  console.log(JSON.stringify({inventoryTableFit:true,columns:14,noHorizontalScroll:true,noClippedTextOrButtons:true,sortPreserved:true,widths:[2560,2048,1920,1440,1280,1024,960]}));
+}
+
 async function verifyPartialUpload(page, fixture) {
   // Actual FileReader, image preparation, requestApi and product upload helper.
   const firstError = await page.evaluate(async () => {
@@ -1104,6 +1136,7 @@ async function main() {
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
+    await verifyInventoryTableFit(page);
     await verifyPartialUpload(page, fixture);
     const timing = await measureBatch(page);
 
