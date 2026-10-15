@@ -255,6 +255,7 @@ async function verifyProductionPlanDetails(page, fixture) {
   assert.equal(await page.locator('.production-plan-details-row').isVisible(),false);
   await rows.locator('td').nth(2).click();
   assert.equal(await buttons.getAttribute('aria-expanded'),'true');
+  await rows.locator('td').nth(2).click();assert.equal(await buttons.getAttribute('aria-expanded'),'false');
   await rows.locator('td').nth(4).click();assert.equal(await buttons.getAttribute('aria-expanded'),'true');
   await buttons.click();assert.equal(await buttons.getAttribute('aria-expanded'),'false');
   await rows.locator('[data-plan-field=note]').click();assert.equal(await buttons.getAttribute('aria-expanded'),'false');
@@ -294,7 +295,7 @@ async function verifyProductionPlanDetails(page, fixture) {
   assert.equal(await page.locator('#productionPlanStatus').textContent(),status);
   assert.equal(fixture.actions.length,actions);
   assert.equal(await rows.count(),1);
-  console.log(JSON.stringify({planDetails:true,rowClickOpens:true,repeatedClickStaysOpen:true,inputClickPreserved:true,keyboard:true,independentRows:true,planUnchanged:true}));
+  console.log(JSON.stringify({planDetails:true,rowClickOpens:true,repeatedClickCollapses:true,inputClickPreserved:true,keyboard:true,independentRows:true,planUnchanged:true}));
 }
 
 async function verifyProductionPlanDelivery(page, fixture) {
