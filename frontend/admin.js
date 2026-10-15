@@ -91,6 +91,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "실크·자동화 생산 실적 통합 합산", items: ["같은 발주·제품·공정의 실크와 자동화 실적을 함께 합산합니다. 날짜별 인쇄 유형이 달라도 누적 생산량·누적 시간과 잔량 기반 생산계획에 모두 반영하며 박 인쇄와 다른 공정은 분리합니다."] },
   { date: "2026-10-15", title: "생산 실적 기준 잔여 작업일", items: ["잔여 작업일을 누적 근무시간 대신 누적 생산량 기준으로 계산합니다. 실제로 남은 수량을 선택 공정의 시간당 생산량과 하루 8시간으로 나누므로, 목표보다 많이 생산하면 그만큼 더 줄어듭니다. 금일 입력값도 즉시 반영합니다."] },
   { date: "2026-10-15", title: "납기와 인건비를 고려한 자동 근무계획", items: ["전날까지의 누적 생산량을 제외한 잔량과 납기까지의 근무일을 계산해 평일 8시간을 우선 배정합니다. 부족할 때만 최대 10시간 연장, 주말, 공휴일 순으로 조정하며 목표량도 함께 바뀝니다. 마지막 생산일은 500개 미만 잔량도 정확히 생산합니다. 2026·2027년 공휴일·대체공휴일을 반영합니다."] },
   { date: "2026-10-13", title: "최대 허용 LOSS 표시명 변경", items: ["생산계획 세부사항의 LOSS 이름을 최대 허용 LOSS로 변경했습니다."] },
@@ -3174,7 +3175,10 @@ function readProductionPlanActualLedger() {
 
 function getProductionPlanActualSubtotal(jobs, target, field = "actualProduction") {
   const scale = field === "actualWorkHours" ? 100 : 1;
-  const processKey = value => String(value || "").replace(/\s/g, "");
+  const processKey = value => {
+    const type = String(value || "").replace(/\s/g, "");
+    return ["실크", "실크인쇄", "자동화"].includes(type) ? "실크인쇄" : type;
+  };
   const groupKey = (value, stage) => JSON.stringify((Array.isArray(value) && value.length ? value : [stage]).map(Number).sort((a,b) => a-b));
   const owners = jobs.filter(item => item && item.purchaseOrderId === target.purchaseOrderId
     && (!item.productId || item.productId === target.productId) && processKey(item.process) === processKey(target.process));
@@ -3255,8 +3259,8 @@ function renderProductionPlanMetrics(job) {
     {key:"totalExpectedHours",label:"총 소요 시간(예상)",title:"전체 발주량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"orderQuantity",label:"발주량"},
     {key:"loss",label:"최대 허용 LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
-    {key:"cumulativeProduction",label:"누적 생산량",title:"현재 브라우저에서 선택 날짜까지 같은 발주·인쇄 유형·공정에 저장된 금일 생산량 합계"},
-    {key:"cumulativeHours",label:"누적 시간",title:"현재 브라우저에서 선택 날짜까지 같은 발주·인쇄 유형·공정에 저장된 실 근무시간 합계"},
+    {key:"cumulativeProduction",label:"누적 생산량",title:"현재 브라우저에서 선택 날짜까지 같은 발주·제품·공정에 저장된 금일 생산량 합계 (실크·자동화 통합)"},
+    {key:"cumulativeHours",label:"누적 시간",title:"현재 브라우저에서 선택 날짜까지 같은 발주·제품·공정에 저장된 실 근무시간 합계 (실크·자동화 통합)"},
     {key:"actualWorkHours",label:"실 근무시간",unit:"시간",step:"0.01",title:"선택 날짜에 실제 근무한 시간"},
     {key:"hourlyRate",label:"시간당 생산량",title:"제품에 등록된 선택 공정의 시간당 생산량"},
     {key:"dailyRequired",label:"일일 필수 생산량",title:"매일 납기는 등록된 하루 필수 수량, 지정 납기는 오늘의 계획 목표 수량"},

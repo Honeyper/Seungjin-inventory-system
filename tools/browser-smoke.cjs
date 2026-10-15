@@ -548,7 +548,7 @@ async function verifyProductionPlanCumulative(page) {
     put('1공장','2026-09-17',[{...sample(9000),stage:1,stageGroup:[1],stageDrafts:{2:{stageGroup:[2],actualProduction:2000}}}]);
     put('2공장','2026-09-18',[sample(700)]);
     put('1공장','2026-09-19',[sample(9000)]);
-    put('1공장','2026-09-15',[{...sample(999),purchaseOrderId:'OTHER'},{...sample(999),process:'자동화'}]);
+    put('1공장','2026-09-15',[{...sample(999),purchaseOrderId:'OTHER'},{...sample(999),process:'박 인쇄'}]);
     put('1공장','2026-09-18',[sample(3000)]);
     Object.assign(job,{actualProduction:500,cumulativeProduction:123456});
     invalidateProductionPlanActualLedger();renderProductionPlan();
@@ -593,7 +593,7 @@ async function verifyProductionPlanCumulativeHours(page) {
     put('1공장','2026-09-16',[sample(999)],true);
     put('1공장','2026-09-17',[{...sample(99),stage:1,stageGroup:[1],stageDrafts:{2:{stageGroup:[2],actualWorkHours:4.5}}}]);
     put('2공장','2026-09-18',[sample(2.25)]);put('1공장','2026-09-19',[sample(999)]);
-    put('1공장','2026-09-15',[{...sample(999),purchaseOrderId:'OTHER'},{...sample(999),process:'자동화'}]);
+    put('1공장','2026-09-15',[{...sample(999),purchaseOrderId:'OTHER'},{...sample(999),process:'박 인쇄'}]);
     put('1공장','2026-09-18',[sample(999)]);Object.assign(job,{actualWorkHours:7.25,cumulativeHours:99999});
     invalidateProductionPlanActualLedger();renderProductionPlan();return {priorKey,priorJob:sample(10)};
   });
@@ -699,28 +699,28 @@ async function verifyProductionPlanThreeSavedDays(page,fixture) {
   async function selectDate(date){await page.locator('#productionPlanDate').fill(date);await page.locator('#productionPlanDate').dispatchEvent('change');}
   async function openDetails(){if(await row.locator('[data-plan-details-toggle]').getAttribute('aria-expanded')==='false')await row.locator('[data-plan-details-toggle]').click();}
   let total=0;
-  for(const [date,actual] of [['2026-10-12',10000],['2026-10-13',11000],['2026-10-14',12000]]) {
-    await selectDate(date);await openDetails();await details.locator('[data-plan-field=actualWorkHours]').fill('8');await details.locator('[data-plan-field=actualProduction]').fill(String(actual));
+  for(const [date,actual,process] of [['2026-10-12',8000,'실크 인쇄'],['2026-10-13',8000,'자동화'],['2026-10-14',8000,'실크 인쇄']]) {
+    await selectDate(date);await row.locator('[data-plan-field=process]').selectOption(process);await openDetails();await details.locator('[data-plan-field=actualWorkHours]').fill('8');await details.locator('[data-plan-field=actualProduction]').fill(String(actual));
     total+=actual;assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),total.toLocaleString('ko-KR')+' ea');
     await page.locator('#saveProductionPlanButton').click();
   }
   await selectDate('2026-10-15');await openDetails();
   const days=details.locator('[data-plan-detail-value=workDays]');
-  assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'33,000 ea');
-  assert.equal(await details.locator('[data-plan-detail-value=cumulativeHours]').textContent(),'24시간');assert.equal(await days.textContent(),'8.1일');
-  await details.locator('[data-plan-field=actualWorkHours]').fill('8');assert.equal(await days.textContent(),'8.1일');
-  await details.locator('[data-plan-field=actualProduction]').fill('2000');assert.equal(await days.textContent(),'7.9일');
-  assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'35,000 ea');
+  assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'24,000 ea');
+  assert.equal(await details.locator('[data-plan-detail-value=cumulativeHours]').textContent(),'24시간');assert.equal(await days.textContent(),'9.2일');
+  await details.locator('[data-plan-field=actualWorkHours]').fill('8');assert.equal(await days.textContent(),'9.2일');
+  await details.locator('[data-plan-field=actualProduction]').fill('2000');assert.equal(await days.textContent(),'9일');
+  assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'26,000 ea');
   await page.locator('#saveProductionPlanButton').click();await page.locator('#saveProductionPlanButton').click();
   await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);await selectDate('2026-10-15');await openDetails();
-  assert.equal(await days.textContent(),'7.9일');assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'35,000 ea');
-  await page.setViewportSize({width:1920,height:1000});await page.locator('.production-plan-table-wrap').screenshot({path:'/private/tmp/seungjin-remaining-production-three-days.png'});
+  assert.equal(await days.textContent(),'9일');assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'26,000 ea');
+  await page.setViewportSize({width:1920,height:1000});await page.locator('.production-plan-table-wrap').screenshot({path:'/private/tmp/seungjin-mixed-print-three-days.png'});
   Object.assign(order,previousOrder);product.processHourlyProductionRates['2도']=previousRate;
   await page.evaluate(()=>{
     for(const key of Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)))if(key?.startsWith(PRODUCTION_PLAN_STORAGE_PREFIX+':'))localStorage.removeItem(key);
   });
   await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
-  console.log(JSON.stringify({threeSavedDays:true,dates:[12,13,14],cumulative33000:true,actualHours24:true,remaining8_1Days:true,today2000Remaining7_9Days:true,saveReload:true,noDoubleCounting:true}));
+  console.log(JSON.stringify({threeSavedDays:true,dates:[12,13,14],mixedSilkAutomation:true,cumulative24000:true,actualHours24:true,remaining9_2Days:true,today2000Remaining9Days:true,saveReload:true,noDoubleCounting:true}));
 }
 
 async function verifyProductionPlanStorageQuota(page) {
