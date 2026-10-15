@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "생산계획 행 클릭으로 세부사항 열기", items: ["생산계획 행의 업체·발주량·납기·목표량·작업시간 등을 누르면 해당 세부사항이 자동으로 열립니다. 열린 행을 다시 눌러도 유지하며 세부사항 닫기 버튼으로 닫습니다."] },
   { date: "2026-10-15", title: "등록 시작 전 미배정 오브제 항목 정리", items: ["오브제의 첫 기계 배정 또는 실제 생산 기록 이전 날짜에는 미배정 기본 항목을 목록과 계획 합계에서 제외합니다. 날짜 이동·새로고침으로 다시 생기지 않으며, 실제 실적과 배정 이력은 유지합니다."] },
   { date: "2026-10-15", title: "전일 공정·기계 설정 유지", items: ["저장된 계획이 없는 날짜는 같은 공장·발주의 가장 최근 이전 계획에서 인쇄 유형·작업 공정·기계번호를 이어받습니다. 해당 날짜에 저장한 설정을 우선하며 생산량·실 근무시간은 전날 값을 복사하지 않습니다."] },
   { date: "2026-10-15", title: "실크·자동화 생산 실적 통합 합산", items: ["같은 발주·제품·공정의 실크와 자동화 실적을 함께 합산합니다. 날짜별 인쇄 유형이 달라도 누적 생산량·누적 시간과 잔량 기반 생산계획에 모두 반영하며 박 인쇄와 다른 공정은 분리합니다."] },
@@ -3190,7 +3191,11 @@ function handleProductionPlanTableClick(event) {
   }
   const row = event.target.closest("[data-plan-row-id]");
   if (!row) return;
-  selectProductionPlanJob(row.dataset.planRowId, { open: false });
+  selectProductionPlanJob(row.dataset.planRowId);
+  if (!event.target.closest("button, input, select, textarea, a, label")) {
+    const toggle = row.querySelector("[data-plan-details-toggle]");
+    if (toggle?.getAttribute("aria-expanded") === "false") toggleProductionPlanDetails(toggle);
+  }
   handleProductionPlanProductPickerOpen(event);
 }
 
