@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "생산 실적 기준 잔여 작업일", items: ["잔여 작업일을 누적 근무시간 대신 누적 생산량 기준으로 계산합니다. 실제로 남은 수량을 선택 공정의 시간당 생산량과 하루 8시간으로 나누므로, 목표보다 많이 생산하면 그만큼 더 줄어듭니다. 금일 입력값도 즉시 반영합니다."] },
   { date: "2026-10-15", title: "납기와 인건비를 고려한 자동 근무계획", items: ["전날까지의 누적 생산량을 제외한 잔량과 납기까지의 근무일을 계산해 평일 8시간을 우선 배정합니다. 부족할 때만 최대 10시간 연장, 주말, 공휴일 순으로 조정하며 목표량도 함께 바뀝니다. 마지막 생산일은 500개 미만 잔량도 정확히 생산합니다. 2026·2027년 공휴일·대체공휴일을 반영합니다."] },
   { date: "2026-10-13", title: "최대 허용 LOSS 표시명 변경", items: ["생산계획 세부사항의 LOSS 이름을 최대 허용 LOSS로 변경했습니다."] },
   { date: "2026-10-13", title: "생산계획 입력·선택칸 가운데 정렬", items: ["세부사항 숫자 입력값을 가운데로 맞추고, 선택칸의 좌우 여백과 화살표 위치를 정리했습니다."] },
@@ -2983,12 +2984,14 @@ function getProductionPlanDetailMetrics(job) {
   const values = getProductionPlanCalculations(job);
   const number = window.SeungjinProductionPlanner.number;
   const cumulativeHours = getProductionPlanCumulativeHours(job);
-  const days = values.totalHours !== null && cumulativeHours !== null ? Math.max(0, values.totalHours - cumulativeHours) / PRODUCTION_STANDARD_WORK_HOURS : null;
+  const cumulativeProduction = getProductionPlanCumulativeProduction(job);
+  const days = values.orderQuantity !== null && cumulativeProduction !== null && values.hourlyRate > 0
+    ? Math.max(0, values.orderQuantity - cumulativeProduction) / values.hourlyRate / PRODUCTION_STANDARD_WORK_HOURS : null;
   const actual = number(job.actualProduction);
   const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
   const daily = order?.deliveryType === "daily" ? number(order.dailyMinimumQuantity) : null;
   const required = values.targetQuantity === null ? null : daily > 0 ? Math.min(daily, values.remainingQuantity) : values.targetQuantity;
-  return { cumulativeHours, cumulativeProduction: getProductionPlanCumulativeProduction(job), workDays: days, dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
+  return { cumulativeHours, cumulativeProduction, workDays: days, dailyTargetHours: values.hours, totalExpectedHours: values.totalHours,
     orderQuantity: values.orderQuantity, hourlyRate: values.hourlyRate,
     dailyRequired: required, achievementRate: actual !== null && required > 0 ? actual / required * 100 : null };
 }
@@ -3005,7 +3008,7 @@ function formatProductionPlanDetailValue(key, value) {
 function renderProductionPlanMetrics(job) {
   const metrics = getProductionPlanDetailMetrics(job);
   const fields = [
-    {key:"workDays",label:"잔여 작업일",title:"(총 소요시간 − 누적 시간) ÷ 하루 8시간 (최소 0일, 소수점 한 자리까지 올림)"},
+    {key:"workDays",label:"잔여 작업일",title:"(발주량 − 누적 생산량) ÷ 시간당 생산량 ÷ 하루 8시간 (최소 0일, 소수점 한 자리까지 올림)"},
     {key:"dailyTargetHours",label:"일일 목표 시간",title:"평일 8시간을 우선하고 납기 부족 시 최대 10시간으로 조정한 오늘 계획 근무시간"},
     {key:"totalExpectedHours",label:"총 소요 시간(예상)",title:"전체 발주량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"orderQuantity",label:"발주량"},
