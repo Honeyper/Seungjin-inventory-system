@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-15", title: "세부사항 화살표 세로 중앙 정렬", items: ["세부사항 열기·닫기 화살표를 글꼴 영향을 받지 않는 아이콘으로 바꿔 버튼의 세로 중앙에 맞췄습니다."] },
   { date: "2026-10-15", title: "모든 플로팅 팝업 Esc 닫기", items: ["입고 QR 미리보기·제품 선택·재고·출고·이미지 팝업과 관리 메뉴를 Esc 키로 닫을 수 있습니다. 팝업이 겹쳐 있으면 화면 맨 위의 팝업만 하나씩 닫고, 기존 닫기 동작에 따라 임시 상태와 미리보기를 정리합니다."] },
   { date: "2026-10-15", title: "생산계획 행 클릭으로 세부사항 열기·접기", items: ["생산계획 행의 업체·발주량·납기·목표량·작업시간 등을 누르면 해당 세부사항이 자동으로 열립니다. 같은 행을 다시 누르면 접히며 기존 세부사항 버튼으로도 열고 닫을 수 있습니다."] },
   { date: "2026-10-15", title: "등록 시작 전 미배정 오브제 항목 정리", items: ["오브제의 첫 기계 배정 또는 실제 생산 기록 이전 날짜에는 미배정 기본 항목을 목록과 계획 합계에서 제외합니다. 날짜 이동·새로고침으로 다시 생기지 않으며, 실제 실적과 배정 이력은 유지합니다."] },
@@ -3077,7 +3078,7 @@ function renderProductionPlanTable() {
       <td class="production-plan-auto" data-plan-hours title="${escapeAttribute(job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선")}">${escapeHtml(formatProductionPlanWorkHours(job))}</td>
       <td><div class="production-plan-note-controls"><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(label)} 특이사항" />
         <button class="production-plan-details-toggle" type="button" data-plan-details-toggle="${escapeAttribute(job.planRowId)}" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${escapeAttribute(label)} 세부사항">
-          <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><span class="production-plan-details-chevron" aria-hidden="true">⌄</span></button></div></td>
+          <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><svg class="production-plan-details-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" /></svg></button></div></td>
     </tr>
     <tr id="${detailsId}" class="production-plan-details-row" data-plan-details-row="${escapeAttribute(job.planRowId)}" ${expanded ? "" : "hidden"}>
       <td colspan="10"><div class="production-plan-details-collapse"><div class="production-plan-details-space"><div class="production-plan-details-region" role="region" aria-label="${escapeAttribute(label)} 세부사항"><strong>세부사항</strong>
