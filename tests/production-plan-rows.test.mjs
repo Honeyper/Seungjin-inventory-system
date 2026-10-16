@@ -674,3 +674,39 @@ test('실 근무시간 미입력 시 기계 배정된 이전 계획을 참고하
  c.testStorage.set('rows-test:selected-job:1공장:2026-10-18',JSON.stringify({jobs:[{...row,machine:'',hours:10,actualWorkHours:null}]}));
  c.invalidateProductionPlanActualLedger();assert.deepEqual(plain(c.getProductionPlanPreviousWorkSchedule(row)),[{date:'2026-10-19',hours:10}]);
 });
+
+
+function setupContinuation(){
+ const c=setup();c.state.products[0].processHourlyProductionRates['2도']=1000;
+ c.state.purchaseOrders=[{...order,purchaseOrderId:'PO-44',orderRound:'44차 발주',totalOrderQuantity:3000,endDate:'2026-10-17'},
+  {...order,purchaseOrderId:'PO-45',orderRound:'45차 발주',totalOrderQuantity:15000,endDate:'2026-10-30'}];
+ c.setProductionPlanDate('2026-10-17');return c;
+}
+test('44차와 45차 선택을 바꿔도 3시간·5시간 배정과 하루 합계 8시간을 함께 표시한다',()=>{
+ const c=setupContinuation();let job=c.state.productionPlanJobs[0];job.machine='3호기';c.renderProductionPlan();job=c.state.productionPlanJobs[0];
+ assert.equal(job.purchaseOrderId,'PO-44');assert.equal(job.targetQuantity,3000);assert.equal(job.hours,8);assert.equal(job.allocatedHours,3);
+ assert.match(c.productionPlanTableBody.innerHTML,/44차 발주 3시간/);assert.match(c.productionPlanTableBody.innerHTML,/45차 발주 5시간/);
+ assert.match(c.productionPlanTargetQuantity.innerHTML,/8,000/);assert.equal(c.switchProductionPlanOrder(job,'PO-45'),true);c.updateProductionPlanTargets([job]);
+ assert.equal(job.targetQuantity,5000);assert.equal(job.hours,8);assert.equal(job.allocatedHours,5);
+ assert.equal(c.getProductionPlanCumulativeProduction(job),0);assert.equal(job.actualProduction??null,null);
+});
+test('같은 날 발주별 3시간·5시간과 생산량을 저장해도 이튿날 합계는 8시간이며 실적은 분리한다',()=>{
+ const c=setupContinuation();let job=c.state.productionPlanJobs[0];Object.assign(job,{machine:'3호기',actualProduction:3000,actualWorkHours:3});c.renderProductionPlan();job=c.state.productionPlanJobs[0];
+ c.switchProductionPlanOrder(job,'PO-45');Object.assign(job,{machine:'3호기',actualProduction:5000,actualWorkHours:5});c.renderProductionPlan();c.saveProductionPlanDraft();
+ const saved=JSON.parse(c.testStorage.get(c.getProductionPlanStorageKey()));assert.equal(saved.jobs.length,2);
+ c.loadProductionPlanDraft();assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),5000);
+ c.setProductionPlanDate('2026-10-19');job=c.state.productionPlanJobs[0];assert.equal(job.purchaseOrderId,'PO-45');assert.equal(job.machine,'3호기');assert.equal(job.targetQuantity,8000);
+ assert.equal(c.getProductionPlanCumulativeProduction(job),5000);assert.equal(c.getProductionPlanCumulativeHours(job),5);
+ assert.deepEqual(plain(c.getProductionPlanPreviousWorkSchedule(job)),[{date:'2026-10-17',hours:8}]);
+});
+test('연결 계획만 저장한 경우도 44차·45차의 하루 계획시간을 중복하거나 누락하지 않는다',()=>{
+ const c=setupContinuation();let job=c.state.productionPlanJobs[0];job.machine='3호기';c.renderProductionPlan();c.saveProductionPlanDraft();
+ c.setProductionPlanDate('2026-10-19');job=c.state.productionPlanJobs[0];
+ assert.deepEqual(plain(c.getProductionPlanPreviousWorkSchedule(job)),[{date:'2026-10-17',hours:8}]);
+ assert.equal(c.getProductionPlanCumulativeProduction(job),0);
+});
+test('다른 기계에 배정된 발주를 자동으로 이어 붙이지 않는다',()=>{
+ const c=setupContinuation();let job=c.state.productionPlanJobs[0];job.machine='3호기';
+ c.getProductionPlanOrderDraftCache().jobs.push({...job,purchaseOrderId:'PO-45',machine:'4호기'});c.updateProductionPlanTargets([job]);
+ assert.equal(job.shiftParts.length,0);assert.equal(job.targetQuantity,3000);assert.equal(job.hours,8);
+});

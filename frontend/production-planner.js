@@ -224,5 +224,84 @@
     return {...result,...planned,saturdayReliefDates:balance.saturdayReliefDates,fatigueWeeks:balance.fatigueWeeks,targetQuantity:today?.targetQuantity||0,hours:today?.hours||0,mode,message,
       completionDate:planned.shortfall===0?planned.schedule.at(-1)?.date||null:null};
   }
-  root.SeungjinProductionPlanner = {number,calculate,plan,dayType};
+  function planOrders({orders, hourlyRate, startDate, extraHolidays = [], previousWorkSchedule = []}) {
+    const shifts=[], results=[],rate=number(hourlyRate);
+    const common={hourlyRate,startDate,extraHolidays,previousWorkSchedule};
+    let blockedBy=null;
+    const nextDate=date=>new Date(dateNumber(date)+86400000).toISOString().slice(0,10);
+    for(const order of orders) {
+      const original=plan({...common,...order,startDate});
+      const result={...original,purchaseOrderId:order.purchaseOrderId,orderRound:order.orderRound,schedule:[],unfinishedQuantity:original.remainingQuantity};
+      results.push(result);
+      if(original.targetQuantity===null) {blockedBy=order;continue;}
+      if(!original.remainingQuantity) continue;
+      if(blockedBy) {
+        Object.assign(result,{targetQuantity:0,hours:0,mode:'waiting',shortfall:original.remainingQuantity,completionDate:null,
+          message:`${blockedBy.orderRound || blockedBy.purchaseOrderId} 완료 후 진행`});
+        continue;
+      }
+      let remaining=original.remainingQuantity;
+      const last=shifts.at(-1), due=order.deliveryType==='daily'?null:dateNumber(order.dueDate);
+      const addPart=(shift,quantity,minutes)=>{
+        const part={purchaseOrderId:order.purchaseOrderId,orderRound:order.orderRound,targetQuantity:quantity,workMinutes:minutes};
+        shift.parts.push(part);shift.freeMinutes-=minutes;result.schedule.push({date:shift.date,type:shift.type,part,shift});
+      };
+      // Only the completion day's spare time can move into the next order.
+      if(last?.freeMinutes>0 && (!due || dateNumber(last.date)<=due)) {
+        const quantity=dayTarget(remaining,rate,last.freeMinutes);
+        if(quantity>0) {
+          const minutes=quantity===remaining?Math.min(last.freeMinutes,Math.ceil(quantity/rate*2-1e-9)*30):last.freeMinutes;
+          addPart(last,quantity,minutes);remaining-=quantity;
+        }
+      }
+      if(remaining>0) {
+        const cursor=last?nextDate(last.date):startDate;
+        if(due!==null && dateNumber(cursor)>due) {
+          Object.assign(result,{shortfall:remaining,completionDate:null,mode:'shortfall',message:`앞선 발주 작업 후 납기 내 ${remaining.toLocaleString('ko-KR')}개 부족`});
+        } else {
+          const planned=plan({...common,...order,startDate:cursor,completedProduction:(number(order.completedProduction) || 0)+original.remainingQuantity-remaining,
+            previousWorkSchedule:[...previousWorkSchedule,...shifts.map(day=>({date:day.date,hours:day.minutes/60}))]});
+          const parts=result.schedule;
+          Object.assign(result,planned,{purchaseOrderId:order.purchaseOrderId,orderRound:order.orderRound,
+            remainingQuantity:original.remainingQuantity,schedule:parts});
+          for(const day of planned.schedule) {
+            const shift={date:day.date,type:day.type,minutes:day.hours*60,freeMinutes:day.hours*60,parts:[]};
+            shifts.push(shift);
+            const isLast=planned.shortfall===0 && day===planned.schedule.at(-1);
+            const minutes=isLast?Math.min(shift.minutes,Math.ceil(day.targetQuantity/rate*2-1e-9)*30):shift.minutes;
+            addPart(shift,day.targetQuantity,minutes);
+          }
+          remaining-=planned.schedule.reduce((total,day)=>total+day.targetQuantity,0);
+        }
+      } else Object.assign(result,{shortfall:0,completionDate:last.date});
+      result.unfinishedQuantity=remaining;
+      if(remaining>0 || result.targetQuantity===null) blockedBy=order;
+    }
+    // Attendance stays 8–10 hours even when every queued order finishes early.
+    for(const shift of shifts) {
+      if(shift.parts.length) shift.parts.at(-1).workMinutes+=shift.freeMinutes;
+      shift.freeMinutes=0;
+    }
+    for(const result of results) {
+      result.schedule=result.schedule.map(({date,type,part,shift})=>({date,type,hours:shift.minutes/60,
+        allocatedHours:part.workMinutes/60,targetQuantity:part.targetQuantity}));
+      const today=result.schedule.find(day=>day.date===startDate),shift=shifts.find(day=>day.date===startDate);
+      result.targetQuantity=result.targetQuantity===null?null:today?.targetQuantity || 0;
+      result.hours=result.hours===null?null:today?.hours || 0;
+      result.allocatedHours=today?.allocatedHours || 0;
+      result.shiftParts=today?shift.parts.map(part=>({...part,allocatedHours:part.workMinutes/60})):[];
+      if(result.unfinishedQuantity===0 && result.schedule.length) result.completionDate=result.schedule.at(-1).date;
+      if(today && today.type!=='weekday' && result.shortfall===0) result.mode=today.type==='holiday'?'holiday':'weekend';
+      if(!today && result.schedule.length) result.message=`앞선 발주 완료 후 ${result.schedule[0].date} 작업 예정`;
+      // A daily minimum remains explicit when only part of a weekday is available.
+      if(today?.type==='weekday' && orders.find(order=>order.purchaseOrderId===result.purchaseOrderId)?.deliveryType==='daily') {
+        const minimum=number(orders.find(order=>order.purchaseOrderId===result.purchaseOrderId).dailyMinimumQuantity);
+        const missing=Math.max(0,Math.min(result.remainingQuantity,minimum || 0)-today.targetQuantity);
+        if(missing) {result.shortfall=Math.max(result.shortfall || 0,missing);result.mode='shortfall';result.message=`일일 필수량 ${missing.toLocaleString('ko-KR')}개 부족`;}
+      }
+    }
+    return {orders:results,shifts:shifts.map(shift=>({date:shift.date,type:shift.type,hours:shift.minutes/60,
+      parts:shift.parts.map(part=>({purchaseOrderId:part.purchaseOrderId,orderRound:part.orderRound,targetQuantity:part.targetQuantity,allocatedHours:part.workMinutes/60}))}))};
+  }
+  root.SeungjinProductionPlanner = {number,calculate,plan,planOrders,dayType};
 })(typeof window === "undefined" ? globalThis : window);
