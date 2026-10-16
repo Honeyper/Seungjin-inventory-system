@@ -91,6 +91,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "생산계획 발주 선택", items: ["제품명 아래에서 같은 제품의 44차·45차 등 진행 중인 발주를 선택할 수 있습니다. 발주별 목표·누적 생산량·잔여 수량을 구분하고 같은 날짜에 입력한 다른 발주의 실적도 함께 보관합니다."] },
   { date: "2026-10-16", title: "재고 목록 가로 스크롤 제거", items: ["재고 표의 14개 열을 화면 너비에 맞춰 배치했습니다. 긴 관리 ID·제품명·상태는 줄바꿈하고 QR·상세·삭제 버튼도 열 안에 배치합니다."] },
   { date: "2026-10-15", title: "생산계획 표시 기간 및 잔여 수량", items: ["지정 납기는 납기 당일까지, 매일 납기는 저장된 실적과 근무일 기준 예상 완료일까지 표시하고 다음 날부터 목록에서 제외합니다. 과거 계획과 실제 생산 기록은 보관합니다.", "누적 생산량 옆에 발주량에서 누적 생산량을 뺀 잔여 수량을 자동 표시합니다. 금일 생산량 입력 시 바로 갱신하며 초과 생산 시 0개로 표시합니다.", "생산계획 날짜 옆에 선택한 날짜의 요일을 표시하며 이전·다음·오늘 이동 시 함께 갱신합니다."] },
   { date: "2026-10-15", title: "세부사항 화살표 세로 중앙 정렬", items: ["세부사항 열기·닫기 화살표를 글꼴 영향을 받지 않는 아이콘으로 바꿔 버튼의 세로 중앙에 맞췄습니다."] },
@@ -3070,7 +3071,12 @@ function inheritProductionPlanSetup(jobs) {
 function buildProductionPlanJobs({ preserve = [] } = {}) {
   const process = PRODUCTION_PROCESS_ORDER.includes(preserve[0]?.process) ? preserve[0].process : "실크 인쇄";
   const orders = getProductionPlanOpenOrders().filter(order => isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process));
+  const previousOrderId = (readProductionPlanActualLedger() || [])
+    .filter(snapshot => snapshot.factory === state.productionPlanFactory && snapshot.date < state.productionPlanDate)
+    .sort((a,b) => b.date.localeCompare(a.date)).map(snapshot => snapshot.jobs[0]?.purchaseOrderId)
+    .find(id => orders.some(order => order.purchaseOrderId === id));
   const order = orders.find(item => preserve.some(job => job.purchaseOrderId === item.purchaseOrderId))
+    || orders.find(item => item.purchaseOrderId === previousOrderId)
     || orders.find(item => item.productId === PRODUCTION_PLAN_PRODUCT_ID) || orders[0];
   const previous = preserve.filter(job => job.purchaseOrderId === (order?.purchaseOrderId || ""));
   const productId = order?.productId || "";
@@ -3085,6 +3091,7 @@ function buildProductionPlanJobs({ preserve = [] } = {}) {
 
 
 function loadProductionPlanDraft() {
+  state.productionPlanOrderDraftCache = null;
   invalidateProductionPlanActualLedger();
   state.productionPlanExpandedRows = new Set();
   const savedJobs = readProductionPlanDraft();
@@ -3139,10 +3146,13 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
   if (!order || !isProductionPlanWithinDeadline(order) || !isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process)
     || [order.status, order.storedStatus].some(status => ["취소", "임의 완료", "발주완료"].includes(status)) || getProductionPlanBalance(order) <= 0) return false;
   const productChanged = job.productId !== order.productId;
-  if (productChanged) ["workDays", "lossMode", "cumulativeProduction", "cumulativeHours", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS].forEach(key => delete job[key]);
-  if (job.purchaseOrderId !== order.purchaseOrderId) { job.loss = null; job.lossMode = "auto"; }
+  const orderChanged = job.purchaseOrderId !== order.purchaseOrderId;
   const options = getProductionPlanStageOptions(order.productId, process);
   if (!options.length) return false;
+  if (productChanged || orderChanged) {
+    ["workDays", "lossMode", "cumulativeProduction", "cumulativeHours", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS].forEach(key => delete job[key]);
+    job.loss = null; job.lossMode = "auto"; job.note = order.note || "";
+  }
   if (productChanged || !options.some(option => option.stage === job.stage)) {
     job.stage = (order.productId === PRODUCTION_PLAN_PRODUCT_ID ? options.find(option => option.stage === PRODUCTION_PLAN_DEFAULT_STAGE) : options[0])?.stage || options[0].stage;
   }
@@ -3166,8 +3176,45 @@ function changeProductionPlanOrder(job, purchaseOrderId) {
   return true;
 }
 
+function getProductionPlanOrderDraftCache() {
+  const key = getProductionPlanStorageKey();
+  if (state.productionPlanOrderDraftCache?.key !== key) state.productionPlanOrderDraftCache = {key, jobs:[]};
+  return state.productionPlanOrderDraftCache;
+}
+
+function switchProductionPlanOrder(job, purchaseOrderId) {
+  if (job.purchaseOrderId === purchaseOrderId) return true;
+  const next = JSON.parse(JSON.stringify(job));
+  if (!changeProductionPlanOrder(next, purchaseOrderId)) return false;
+  const cache = getProductionPlanOrderDraftCache();
+  if (job.purchaseOrderId) {
+    cache.jobs = cache.jobs.filter(item => item.purchaseOrderId !== job.purchaseOrderId);
+    cache.jobs.push(JSON.parse(JSON.stringify(job)));
+  }
+  const cached = cache.jobs.filter(item => item.purchaseOrderId === purchaseOrderId);
+  const saved = (readProductionPlanDraft() || []).filter(item => item?.purchaseOrderId === purchaseOrderId);
+  const restored = cached.length || saved.length ? ensureProductionPlanRows(cached.length ? cached : saved)[0]
+    : inheritProductionPlanSetup([next])[0];
+  const planRowId = job.planRowId;
+  Object.keys(job).forEach(key => delete job[key]);
+  Object.assign(job, restored, {planRowId});
+  return true;
+}
+
+function getProductionPlanOrderOptions(job) {
+  return getProductionPlanOpenOrders(job.process).filter(order => order.productId === job.productId);
+}
+
+function getProductionPlanJobsForSave() {
+  const edited = new Map();
+  for (const job of [...getProductionPlanOrderDraftCache().jobs, ...state.productionPlanJobs]) edited.set(job.purchaseOrderId || job.planRowId, job);
+  const selected = new Set(state.productionPlanJobs.map(job => job.purchaseOrderId || job.planRowId));
+  const archived = (readProductionPlanDraft() || []).filter(job => job && !edited.has(job.purchaseOrderId || job.planRowId));
+  return [...state.productionPlanJobs, ...[...edited].filter(([key]) => !selected.has(key)).map(([,job]) => job), ...archived];
+}
+
 function replaceProductionPlanJobOrder(job, purchaseOrderId) {
-  return changeProductionPlanOrder(job, purchaseOrderId);
+  return switchProductionPlanOrder(job, purchaseOrderId);
 }
 
 function getProductionPlanDeliveryLabel(job) {
@@ -3359,6 +3406,7 @@ function renderProductionPlanTable() {
   if (!productionPlanTableBody) return;
   productionPlanTableBody.innerHTML = getProductionPlanFilteredJobs().map((job, index) => {
     const label = job.productName || "제품 선택", empty = !job.purchaseOrderId;
+    const orderOptions = getProductionPlanOrderOptions(job);
     const detailsId = `production-plan-details-${index}`;
     const expanded = state.productionPlanExpandedRows?.has(job.planRowId) || false;
     return `<tr class="${job.planRowId === state.productionPlanSelectedJobId ? "is-selected" : ""}" data-plan-row-id="${escapeAttribute(job.planRowId)}">
@@ -3367,7 +3415,9 @@ function renderProductionPlanTable() {
       <td><select data-plan-field="machine" aria-label="${escapeAttribute(label)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
       <td>${escapeHtml(job.clientName || "—")}</td>
       <td class="production-plan-product"><button class="production-plan-product-trigger" type="button" data-plan-product-picker aria-label="${escapeAttribute(label)} 변경">
-        <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(getProductionPlanStageLabel(job))} · ${escapeHtml(job.orderRound || job.productId || "")}</small></span><i class="ti ti-search" aria-hidden="true"></i></button>
+        <span><strong>${escapeHtml(label)}</strong></span><i class="ti ti-search" aria-hidden="true"></i></button>
+        <label class="production-plan-stage-field production-plan-order-field"><span>발주 선택</span><select data-plan-field="purchaseOrderId" aria-label="${escapeAttribute(label)} 발주 선택" ${orderOptions.length < 2 ? "disabled" : ""}>
+        ${orderOptions.length ? orderOptions.map(order => `<option value="${escapeAttribute(order.purchaseOrderId)}" ${order.purchaseOrderId === job.purchaseOrderId ? "selected" : ""} title="${escapeAttribute(order.purchaseOrderId)} · ${formatNumber(order.totalOrderQuantity)} ea">${escapeHtml(order.orderRound || order.purchaseOrderId)}</option>`).join("") : `<option value="">발주 없음</option>`}</select></label>
         <label class="production-plan-stage-field"><span>작업 공정</span><select data-plan-field="stage" aria-label="${escapeAttribute(label)} 작업 공정" ${getProductionPlanStageOptions(job.productId, job.process).length < 2 ? "disabled" : ""}>
         ${getProductionPlanStageOptions(job.productId, job.process).map(option => `<option value="${option.stage}" ${option.stage === job.stage ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label></td>
       <td class="production-plan-auto"><strong>${empty || job.orderQuantity === null ? "—" : `${formatNumber(job.orderQuantity)} ea`}</strong></td>
@@ -3482,7 +3532,7 @@ function renderProductionPlan() {
 function handleProductionPlanFieldChange(event) {
   const field = event.target.closest("[data-plan-field]");
   const row = event.target.closest("[data-plan-row-id], [data-plan-details-row]");
-  if (!field || !row || !["process", "stage", "machine", "worker", "packagingWorker", "note", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS].includes(field.dataset.planField)) return;
+  if (!field || !row || !["purchaseOrderId", "process", "stage", "machine", "worker", "packagingWorker", "note", ...PRODUCTION_PLAN_DETAIL_INPUT_FIELDS].includes(field.dataset.planField)) return;
   const job = state.productionPlanJobs.find((item) => item.planRowId === (row.dataset.planRowId || row.dataset.planDetailsRow));
   if (!job) return;
   const key = field.dataset.planField;
@@ -3502,6 +3552,8 @@ function handleProductionPlanFieldChange(event) {
       }
     }
     refreshProductionPlanMetrics(row, job);
+  } else if (key === "purchaseOrderId") {
+    if (!getProductionPlanOrderOptions(job).some(order => order.purchaseOrderId === field.value) || !switchProductionPlanOrder(job, field.value)) { field.value = job.purchaseOrderId; return; }
   } else if (key === "process") {
     if (!changeProductionPlanPrintType(job, field.value)) { field.value = job.process; return; }
   } else if (key === "stage") {
@@ -3515,7 +3567,7 @@ function handleProductionPlanFieldChange(event) {
     Object.assign(job, getProductionPlanStaffAssignments(job));
   } else job[key] = field.value;
   // Keep the clicked product button in place when a text input loses focus.
-  if (event.type === "change" && ["process", "stage", "machine", "worker", "packagingWorker"].includes(key)) renderProductionPlan();
+  if (event.type === "change" && ["purchaseOrderId", "process", "stage", "machine", "worker", "packagingWorker"].includes(key)) renderProductionPlan();
   renderProductionPlanSummary();
   if (productionPlanStatus) {
     productionPlanStatus.textContent = "수정된 내용이 있습니다. 계획 저장을 눌러 반영해주세요.";
@@ -3600,7 +3652,7 @@ function saveProductionPlanDraft() {
       savedAt: new Date().toISOString(),
       date: state.productionPlanDate,
       factory: state.productionPlanFactory,
-      jobs: state.productionPlanJobs
+      jobs: getProductionPlanJobsForSave()
     });
     try { localStorage.setItem(key, serialized); }
     catch (error) {

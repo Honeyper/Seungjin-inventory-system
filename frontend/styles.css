@@ -15590,3 +15590,11 @@ small, em {
   max-width: 100%;
 }
 #productionPlanView [data-plan-message][hidden] { display: none; }
+
+#productionPlanView .production-plan-order-field {
+  border-radius: 0;
+  border-bottom: 0;
+}
+#productionPlanView .production-plan-order-field select { max-width: none; }
+
+#productionPlanView .production-plan-product-trigger { min-height: 1.5rem; }

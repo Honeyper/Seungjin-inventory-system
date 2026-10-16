@@ -839,6 +839,43 @@ async function verifyProductionPlanDailyWindowAndWeekday(page,fixture) {
   console.log(JSON.stringify({dailyCompletionWindow:true,finishDate:'2026-10-28',afterCompletionHidden:true,remainingQuantity75100:true,remainingAdjacent:true,weekdayNavigation:true,historyPreserved:true}));
 }
 
+async function verifyProductionPlanOrderPicker(page,fixture) {
+  const previous=fixture.mockOrders,base=previous.find(order=>order.productId==='NP-0001');
+  fixture.mockOrders=[{...base,purchaseOrderId:'ORDER-44',orderRound:'44차 발주',totalOrderQuantity:99100,deliveryType:'date',endDate:'2026-11-30'},
+    {...base,purchaseOrderId:'ORDER-45',orderRound:'45차 발주',totalOrderQuantity:45000,deliveryType:'date',endDate:'2026-11-30'}];
+  const clear=()=>{for(const key of Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)))if(key?.startsWith(PRODUCTION_PLAN_STORAGE_PREFIX+':'))localStorage.removeItem(key);};
+  await page.evaluate(clear);await page.goto(origin+'/admin.html#production-plan');await page.reload();
+  await page.waitForFunction(()=>state.purchaseOrdersLoaded && state.purchaseOrders.length===2 && !state.productsLoadPromise);
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]'),details=page.locator('.production-plan-details-row');
+  const select=row.locator('[data-plan-field=purchaseOrderId]');
+  async function date(value){await page.locator('#productionPlanDate').fill(value);await page.locator('#productionPlanDate').dispatchEvent('change');}
+  async function open(){if(await row.locator('[data-plan-details-toggle]').getAttribute('aria-expanded')==='false')await row.locator('[data-plan-details-toggle]').click();}
+  await date('2026-10-12');assert.deepEqual(await select.locator('option').allTextContents(),['44차 발주','45차 발주']);assert.equal(await select.isEnabled(),true);
+  await row.locator('[data-plan-field=machine]').selectOption('3호기');await open();
+  await details.locator('[data-plan-field=actualProduction]').fill('8000');await details.locator('[data-plan-field=actualWorkHours]').fill('8');await row.locator('[data-plan-field=note]').fill('44차 입력');
+  await select.selectOption('ORDER-45');assert.equal(await row.locator('[data-plan-field=stage]').inputValue(),'2');
+  assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'');assert.equal(await details.locator('[data-plan-field=actualWorkHours]').inputValue(),'');
+  assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'0 ea');assert.equal(await details.locator('[data-plan-detail-value=remainingProduction]').textContent(),'45,000 ea');
+  await details.locator('[data-plan-field=actualProduction]').fill('3000');await details.locator('[data-plan-field=actualWorkHours]').fill('3');await row.locator('[data-plan-field=note]').fill('45차 입력');
+  await select.selectOption('ORDER-44');assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'8000');assert.equal(await row.locator('[data-plan-field=note]').inputValue(),'44차 입력');
+  assert.equal(await details.locator('[data-plan-detail-value=remainingProduction]').textContent(),'91,100 ea');
+  await page.locator('#saveProductionPlanButton').click();await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);await date('2026-10-12');
+  assert.equal(await select.inputValue(),'ORDER-44');await open();await select.selectOption('ORDER-45');assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'3000');
+  assert.equal(await row.locator('[data-plan-field=note]').inputValue(),'45차 입력');assert.equal(await details.locator('[data-plan-detail-value=remainingProduction]').textContent(),'42,000 ea');
+  await page.locator('#saveProductionPlanButton').click();await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);await date('2026-10-12');assert.equal(await select.inputValue(),'ORDER-45');
+  await date('2026-10-13');assert.equal(await select.inputValue(),'ORDER-45');await open();assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'');
+  assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'3,000 ea');await select.selectOption('ORDER-44');assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'8,000 ea');
+  await details.locator('[data-plan-field=actualProduction]').fill('1000');await page.locator('#saveProductionPlanButton').click();assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'9,000 ea');
+  for(const width of [1920,1280,960]) {
+    await page.setViewportSize({width,height:1000});
+    const bounds=await page.locator('.production-plan-table-wrap').evaluate(wrap=>({width:wrap.clientWidth,scroll:wrap.scrollWidth}));assert.ok(bounds.scroll<=bounds.width+1);
+    await row.screenshot({path:`/private/tmp/seungjin-plan-order-picker-${width}.png`});
+  }
+  await date('2026-10-12');assert.equal(await select.inputValue(),'ORDER-45');await open();assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'3,000 ea');
+  fixture.mockOrders=previous;await page.evaluate(clear);await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);await date('2026-10-12');
+  console.log(JSON.stringify({orderPicker44And45:true,sameStage2:true,separateActuals:true,draftsRetained:true,saveReload:true,nextDaySelection:true,previousDateUnchanged:true,noHorizontalScroll:true}));
+}
+
 async function verifyAdminPopupEscape(page) {
   await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
   const modalIds=await page.locator('.modal-backdrop').evaluateAll(nodes=>nodes.map(node=>node.id));
@@ -1140,6 +1177,7 @@ async function main() {
     await verifyProductionPlanNoUnassignedHistory(page);
     await verifyProductionPlanDeadlineWindow(page, fixture);
     await verifyProductionPlanDailyWindowAndWeekday(page, fixture);
+    await verifyProductionPlanOrderPicker(page, fixture);
     await verifyAdminPopupEscape(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
