@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "작업시간 색상 구분", items: ["작업시간을 8시간은 초록색, 9시간은 노란색, 10시간은 빨간색 배지로 구분합니다. 휴무·완료·미입력은 기존 표시를 유지합니다."] },
   { date: "2026-10-16", title: "하루 목표 생산량 표시 정리", items: ["하루 목표 생산량 아래 안내 문구를 제거해 수량만 표시합니다."] },
   { date: "2026-10-16", title: "평일 8시간·토요일 우선 및 8·9·10시간 근무", items: ["하루 근무는 8·9·10시간만 배정합니다. 평일 8시간으로 부족하면 납기 안의 토요일 8시간을 먼저 추가하고, 그래도 부족할 때 9시간, 마지막으로 10시간을 검토합니다.", "일일 필수 생산량과 44차→45차 이어 작업을 유지하며, 일요일·공휴일은 토요일과 최대 근무시간으로도 부족한 경우에만 검토합니다."] },
   { date: "2026-10-16", title: "발주·공정 선택 영역 여백 개선", items: ["발주·공정 선택 영역의 좌우 여백과 항목 사이 간격을 넓혔습니다. 좁은 화면에서는 선택칸 너비를 확보하도록 여백을 조절합니다."] },
@@ -3234,6 +3235,12 @@ function formatProductionPlanWorkHours(job) {
   return formatProductionPlanHours(job.hours);
 }
 
+function renderProductionPlanWorkHours(job) {
+  const text=escapeHtml(formatProductionPlanWorkHours(job));
+  const highlighted=job.purchaseOrderId && !job.planMissing && [8,9,10].includes(job.hours);
+  return highlighted ? `<span class="production-plan-hours-badge" data-plan-hour-level="${job.hours}">${text}</span>` : text;
+}
+
 function formatProductionPlanTarget(job) {
   return !job.purchaseOrderId ? "—" : job.planMissing ? "계산 확인 필요" : `${formatNumber(job.targetQuantity)} ea`;
 }
@@ -3245,7 +3252,7 @@ function refreshProductionPlanTargets() {
     if (!job) return;
     const target = row.querySelector("[data-plan-target]"), hours = row.querySelector("[data-plan-hours]");
     if (target) { target.textContent = formatProductionPlanTarget(job); target.title = job.planMessage || ""; }
-    if (hours) { hours.textContent = formatProductionPlanWorkHours(job); hours.title = job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선"; }
+    if (hours) { hours.innerHTML = renderProductionPlanWorkHours(job); hours.title = job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선"; }
     const details=[...productionPlanTableBody.querySelectorAll("[data-plan-details-row]")].find(item => item.dataset.planDetailsRow === job.planRowId);
     const breakdown=details?.querySelector("[data-plan-shift-breakdown]");
     if (breakdown) {breakdown.hidden=!(job.shiftParts?.length > 1);breakdown.textContent=breakdown.hidden ? "" : job.planMessage;}
@@ -3277,7 +3284,7 @@ function renderProductionPlanTable() {
       <td class="production-plan-staff-cell"><div class="production-plan-staff-fields">
         <label><span>인쇄</span><select data-plan-field="worker" aria-label="${escapeAttribute(label)} 인쇄 작업자">${renderProductionPlanStaffOptions(job,"worker")}</select></label>
         <label><span>포장</span><select data-plan-field="packagingWorker" aria-label="${escapeAttribute(label)} 포장 작업자">${renderProductionPlanStaffOptions(job,"packagingWorker")}</select></label></div></td>
-      <td class="production-plan-auto" data-plan-hours title="${escapeAttribute(job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선")}">${escapeHtml(formatProductionPlanWorkHours(job))}</td>
+      <td class="production-plan-auto" data-plan-hours title="${escapeAttribute(job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선")}">${renderProductionPlanWorkHours(job)}</td>
       <td><div class="production-plan-note-controls"><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(label)} 특이사항" />
         <button class="production-plan-details-toggle" type="button" data-plan-details-toggle="${escapeAttribute(job.planRowId)}" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${escapeAttribute(label)} 세부사항">
           <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><svg class="production-plan-details-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" /></svg></button></div></td>
