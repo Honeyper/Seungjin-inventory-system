@@ -598,3 +598,44 @@ test('매일 납기 최초 배정일은 고정하고 일일 최소량 연장근�
  assert.equal(c.getProductionPlanDailyCompletionDate(c.state.purchaseOrders[0]),'2026-10-13');
  c.setProductionPlanDate('2026-10-14');assert.equal(c.getProductionPlanActiveJobs().length,0);
 });
+
+
+test('오브제 44차·45차 발주 전환은 같은 공정의 당일 실적을 분리하고 입력 중인 값을 보관한다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,orderRound:'44차 발주',totalOrderQuantity:99100},{...order,purchaseOrderId:'PO-45',orderRound:'45차 발주',totalOrderQuantity:45000}];
+ const originals=plain(c.state.purchaseOrders);c.setProductionPlanDate('2026-10-12');let job=c.state.productionPlanJobs[0];
+ Object.assign(job,{actualProduction:8000,actualWorkHours:8,machine:'3호기',note:'44 메모',loss:123,lossMode:'manual'});
+ assert.equal(c.switchProductionPlanOrder(job,'PO-45'),true);assert.equal(job.stage,2);assert.equal(job.actualProduction??null,null);assert.equal(job.actualWorkHours??null,null);
+ assert.equal(job.note,'');assert.equal(job.lossMode,'auto');assert.equal(c.getProductionPlanCumulativeProduction(job),0);assert.equal(c.getProductionPlanDetailMetrics(job).remainingProduction,45000);
+ Object.assign(job,{actualProduction:3000,actualWorkHours:3,note:'45 메모',loss:0,lossMode:'manual'});
+ assert.equal(c.switchProductionPlanOrder(job,order.purchaseOrderId),true);assert.equal(job.actualProduction,8000);assert.equal(job.actualWorkHours,8);assert.equal(job.note,'44 메모');assert.equal(job.loss,123);
+ c.renderProductionPlan();assert.match(c.productionPlanTableBody.innerHTML,/data-plan-field="purchaseOrderId"/);assert.match(c.productionPlanTableBody.innerHTML,/44차 발주/);assert.match(c.productionPlanTableBody.innerHTML,/45차 발주/);
+ assert.equal(c.saveProductionPlanDraft(),true);let stored=JSON.parse(c.testStorage.get(c.getProductionPlanStorageKey()));assert.equal(stored.jobs.length,2);assert.equal(stored.jobs[0].purchaseOrderId,order.purchaseOrderId);
+ c.loadProductionPlanDraft();job=c.state.productionPlanJobs[0];assert.equal(c.getProductionPlanCumulativeProduction(job),8000);
+ c.switchProductionPlanOrder(job,'PO-45');assert.equal(job.actualProduction,3000);assert.equal(job.actualWorkHours,3);assert.equal(job.note,'45 메모');assert.equal(job.loss,0);
+ assert.equal(c.getProductionPlanDetailMetrics(job).remainingProduction,42000);c.saveProductionPlanDraft();c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ assert.equal(c.state.productionPlanJobs[0].purchaseOrderId,'PO-45');assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),3000);
+ c.setProductionPlanDate('2026-10-13');job=c.state.productionPlanJobs[0];assert.equal(job.purchaseOrderId,'PO-45');assert.equal(job.actualProduction??null,null);assert.equal(c.getProductionPlanCumulativeProduction(job),3000);
+ c.switchProductionPlanOrder(job,order.purchaseOrderId);assert.equal(c.getProductionPlanCumulativeProduction(job),8000);assert.equal(job.actualProduction??null,null);
+ assert.deepEqual(plain(c.state.purchaseOrders),originals);
+});
+
+test('다른 발주 실적·공정별 입력을 원문 그대로 보관하고 날짜·공장별 임시 편집을 섞지 않는다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,orderRound:'44차'},{...order,purchaseOrderId:'PO-45',orderRound:'45차',totalOrderQuantity:20000}];
+ c.setProductionPlanDate('2026-10-12');let job=c.state.productionPlanJobs[0];Object.assign(job,{actualProduction:1000,machine:'3호기'});c.saveProductionPlanDraft();
+ const archived={...job,purchaseOrderId:'PO-45',stage:1,actualProduction:500,stageGroup:[1],stageDrafts:{2:{actualProduction:700,stageGroup:[2],loss:0,lossMode:'manual'}}};
+ const key=c.getProductionPlanStorageKey();const saved=JSON.parse(c.testStorage.get(key));saved.jobs.push(archived);c.testStorage.set(key,JSON.stringify(saved));c.loadProductionPlanDraft();
+ job=c.state.productionPlanJobs[0];job.actualProduction=1200;c.saveProductionPlanDraft();assert.deepEqual(JSON.parse(c.testStorage.get(key)).jobs[1],plain(archived));
+ c.switchProductionPlanOrder(job,'PO-45');assert.equal(job.stage,1);assert.equal(job.actualProduction,500);c.changeProductionPlanStage(job,2);assert.equal(job.actualProduction,700);
+ c.switchProductionPlanOrder(job,order.purchaseOrderId);assert.equal(job.actualProduction,1200);
+ c.setProductionPlanDate('2026-10-13');job=c.state.productionPlanJobs[0];c.switchProductionPlanOrder(job,'PO-45');assert.equal(job.actualProduction??null,null);
+ c.state.productionPlanFactory='2공장';c.loadProductionPlanDraft();job=c.state.productionPlanJobs[0];c.switchProductionPlanOrder(job,'PO-45');assert.equal(job.actualProduction??null,null);
+ assert.equal(c.getProductionPlanCumulativeProduction(job),700);
+});
+
+test('발주 선택은 다른 제품·완료·취소·잔량 0·납기 이후 발주를 제외한다',()=>{
+ const c=setup();c.setProductionPlanDate('2026-10-15');c.state.purchaseOrders=[{...order,orderRound:'44차'},{...order,purchaseOrderId:'PO-45',orderRound:'45차'},
+  {...order,purchaseOrderId:'CANCELED',status:'취소'}, {...order,purchaseOrderId:'COMPLETE',status:'발주완료'}, {...order,purchaseOrderId:'EMPTY',remainingShippingQuantity:0},
+  {...order,purchaseOrderId:'EXPIRED',endDate:'2026-10-14'}, {...order,purchaseOrderId:'OTHER',productId:'OTHER'}];
+ const job=c.state.productionPlanJobs[0];assert.deepEqual(plain(c.getProductionPlanOrderOptions(job).map(item=>item.purchaseOrderId)),[order.purchaseOrderId,'PO-45']);
+ const before=plain(job);assert.equal(c.switchProductionPlanOrder(job,'EXPIRED'),false);assert.deepEqual(plain(job),before);
+});
