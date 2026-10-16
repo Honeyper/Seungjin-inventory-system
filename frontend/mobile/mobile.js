@@ -65,7 +65,7 @@ const SCAN_SUCCESS_VIBRATION = [140, 45, 90];
 const SCAN_DUPLICATE_VIBRATION = [60, 35, 60];
 const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
 const SHIPPING_ACTION_CONCURRENCY = 3;
-const SHIPPING_BOX_ICON_SRC = "../assets/mobile-shipping-box-icon-2d.png?v=20260712-shipping-box-icon";
+const SHIPPING_BOX_ICON_SRC = "../assets/line-icons/package.svg?v=20261016-thin-r116";
 const INVENTORY_STORAGE_OPTIONS = [
   "미지정",
   "현장",

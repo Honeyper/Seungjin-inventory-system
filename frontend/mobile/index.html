@@ -8,27 +8,25 @@
     <meta name="apple-mobile-web-app-title" content="승진 관리프로그램" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>승진 관리프로그램</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=20260720-management-app-v2" />
-    <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png?v=20260720-pearl-icon-v2" />
+    <link rel="manifest" href="./manifest.webmanifest?v=20260720-management-app-v2-blue-symbol-r117" />
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png?v=20261016-blue-symbol-r117" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
-    />
-    <link rel="stylesheet" href="./mobile.css?v=20260910-product-image-track-dev-type-r10" />
+    <link rel="stylesheet" href="./mobile.css?v=20260910-product-image-track-dev-type-r10-thin-icons-r116-blue-symbol-r117" />
       <link rel="stylesheet" href="../common-container-shipping.css?v=20260922-common-shipping-v1">
+    <link rel="stylesheet" href="../icons.css?v=20261016-thin-r116" />
+    <link rel="icon" type="image/svg+xml" href="../assets/seungjin-symbol.svg?v=20261016-blue-r117" />
   </head>
   <body>
     <main class="mobile-app" id="mobileApp">
       <section class="screen" id="loginScreen" aria-labelledby="loginTitle">
         <div class="login-hero">
           <div class="mobile-brand">
-            <img src="../assets/logo-generated.png" alt="" />
+            <img src="../assets/seungjin-symbol.svg?v=20261016-blue-r117" alt="" />
             <span class="brand-copy">
               <strong>(주)승진</strong>
               <em>SEUNGJIN CO., LTD.</em>
@@ -42,7 +40,7 @@
         <form class="mobile-card login-card" id="mobileLoginForm">
           <div class="login-card-head">
             <div class="login-lock" aria-hidden="true">
-              <img src="../assets/login-icon-lock-line.svg?v=20260710-line-login-icons" alt="" />
+              <img src="../assets/line-icons/lock.svg?v=20261016-thin-r116" alt="" />
             </div>
             <div>
               <h2>로그인</h2>
@@ -53,7 +51,7 @@
           <div class="mobile-field">
             <label for="mobileAccountId">직원번호</label>
             <span class="field-control">
-              <img src="../assets/login-icon-user-line.svg?v=20260710-line-icons" alt="" />
+              <img src="../assets/line-icons/user.svg?v=20261016-thin-r116" alt="" />
               <input id="mobileAccountId" type="text" autocomplete="username" placeholder="직원번호를 입력하세요" />
               <span class="field-valid" aria-hidden="true">
                 <svg viewBox="0 0 20 20"><path d="m5 10 3.1 3.1L15 6.8"></path></svg>
@@ -64,10 +62,10 @@
           <div class="mobile-field">
             <label for="mobilePassword">비밀번호</label>
             <span class="field-control">
-              <img src="../assets/login-icon-password-line.svg?v=20260710-line-icons" alt="" />
+              <img src="../assets/line-icons/lock.svg?v=20261016-thin-r116" alt="" />
               <input id="mobilePassword" type="password" autocomplete="current-password" placeholder="비밀번호를 입력하세요" />
               <button class="ghost-icon-button" id="toggleMobilePassword" type="button" aria-label="비밀번호 보기">
-                <img src="../assets/login-icon-eye.png" alt="" />
+                <img src="../assets/line-icons/eye.svg?v=20261016-thin-r116" alt="" />
               </button>
               <span class="field-valid" aria-hidden="true">
                 <svg viewBox="0 0 20 20"><path d="m5 10 3.1 3.1L15 6.8"></path></svg>
@@ -93,7 +91,7 @@
           <p class="form-message" id="mobileLoginMessage" role="alert" aria-live="polite"></p>
 
           <button class="primary-action" id="adminLoginButton" type="submit">
-            <img src="../assets/login-icon-admin-shield-line.svg?v=20260710-line-login-icons" alt="" />
+            <img src="../assets/line-icons/shield-check.svg?v=20261016-thin-r116" alt="" />
             관리자 로그인
           </button>
           <button class="secondary-action disabled-action" id="workerLoginButton" type="button" disabled>직원 로그인 준비 중</button>
@@ -103,14 +101,14 @@
       <section class="screen" id="homeScreen" aria-labelledby="homeTitle">
         <header class="mobile-home-header">
           <div class="mobile-brand">
-            <img src="../assets/logo-generated.png" alt="" />
+            <img src="../assets/seungjin-symbol.svg?v=20261016-blue-r117" alt="" />
             <span class="brand-copy">
               <strong>(주)승진</strong>
               <em>SEUNGJIN CO., LTD.</em>
             </span>
           </div>
           <button class="small-outline-button" id="mobileLogoutButton" type="button">
-            <img class="mobile-header-user-icon" src="../assets/mobile-generated/mobile-header-user-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
+            <img class="mobile-header-user-icon" src="../assets/line-icons/user.svg?v=20261016-thin-r116" alt="" aria-hidden="true" />
             로그아웃
           </button>
         </header>
@@ -121,26 +119,26 @@
             <p>안전한 작업으로 오늘도 화이팅하세요.</p>
           </div>
           <div class="welcome-art" aria-hidden="true">
-            <img src="../assets/logo-generated.png" alt="" />
+            <img src="../assets/seungjin-symbol.svg?v=20261016-blue-r117" alt="" />
           </div>
         </section>
 
         <div class="mobile-menu-list" aria-label="모바일 메뉴">
           <button class="mobile-menu-card" type="button" data-mobile-route="shipping">
             <span class="menu-icon scan-icon" aria-hidden="true">
-              <img class="menu-generated-icon" src="../assets/mobile-generated/mobile-menu-shipping-outline.png?v=20260807-thin-outline" alt="" />
+              <img class="menu-generated-icon" src="../assets/line-icons/qrcode.svg?v=20261016-thin-r116" alt="" />
             </span>
             <span class="menu-copy">
               <strong>출고 관리</strong>
               <small>QR을 스캔하여 제품을 확인하고 출고 수량을 등록합니다.</small>
             </span>
             <span class="status-pill ready">사용 가능</span>
-            <span class="menu-arrow" aria-hidden="true"><img src="../assets/mobile-generated/mobile-menu-chevron-outline.png?v=20260807-thin-outline" alt="" /></span>
+            <span class="menu-arrow" aria-hidden="true"><img src="../assets/line-icons/chevron-right.svg?v=20261016-thin-r116" alt="" /></span>
           </button>
 
           <button class="mobile-menu-card locked" type="button" disabled>
             <span class="menu-icon work-icon" aria-hidden="true">
-              <img class="menu-generated-icon" src="../assets/mobile-generated/mobile-menu-work-outline.png?v=20260807-thin-outline" alt="" />
+              <img class="menu-generated-icon" src="../assets/line-icons/clipboard-check.svg?v=20261016-thin-r116" alt="" />
             </span>
             <span class="menu-copy">
               <strong>작업 현황</strong>
@@ -152,7 +150,7 @@
 
           <button class="mobile-menu-card locked" type="button" disabled>
             <span class="menu-icon inventory-icon" aria-hidden="true">
-              <img class="menu-generated-icon" src="../assets/mobile-generated/mobile-menu-inventory-outline.png?v=20260807-thin-outline" alt="" />
+              <img class="menu-generated-icon" src="../assets/line-icons/building-warehouse.svg?v=20261016-thin-r116" alt="" />
             </span>
             <span class="menu-copy">
               <strong>재고 조회</strong>
@@ -164,14 +162,14 @@
 
           <button class="mobile-menu-card" type="button" data-mobile-route="inventoryMove">
             <span class="menu-icon edit-icon" aria-hidden="true">
-              <img class="menu-generated-icon" src="../assets/mobile-generated/mobile-menu-inventory-edit-outline.png?v=20260807-thin-outline" alt="" />
+              <img class="menu-generated-icon" src="../assets/line-icons/edit.svg?v=20261016-thin-r116" alt="" />
             </span>
             <span class="menu-copy">
               <strong>재고 수정 / 예외 처리</strong>
               <small>재고 수량, 위치, 상태 등 예외 사항을 수정하고 관리합니다.</small>
             </span>
             <span class="status-pill ready">사용 가능</span>
-            <span class="menu-arrow" aria-hidden="true"><img src="../assets/mobile-generated/mobile-menu-chevron-outline.png?v=20260807-thin-outline" alt="" /></span>
+            <span class="menu-arrow" aria-hidden="true"><img src="../assets/line-icons/chevron-right.svg?v=20261016-thin-r116" alt="" /></span>
           </button>
         </div>
       </section>
@@ -307,23 +305,23 @@
 
       <nav class="bottom-nav" id="bottomNav" aria-label="모바일 하단 메뉴" hidden>
         <button type="button" data-mobile-route="home" class="active">
-          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-nav-home-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
+          <img class="bottom-nav-icon" src="../assets/line-icons/home.svg?v=20261016-thin-r116" alt="" aria-hidden="true" />
           <span>홈</span>
         </button>
         <button type="button" data-mobile-route="shipping">
-          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-nav-shipping-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
+          <img class="bottom-nav-icon" src="../assets/line-icons/truck-delivery.svg?v=20261016-thin-r116" alt="" aria-hidden="true" />
           <span>출고 관리</span>
         </button>
         <button type="button" disabled>
-          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-menu-work-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
+          <img class="bottom-nav-icon" src="../assets/line-icons/clipboard-check.svg?v=20261016-thin-r116" alt="" aria-hidden="true" />
           <span>작업 현황</span>
         </button>
         <button type="button" disabled>
-          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-nav-inventory-search-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
+          <img class="bottom-nav-icon" src="../assets/line-icons/search.svg?v=20261016-thin-r116" alt="" aria-hidden="true" />
           <span>재고 조회</span>
         </button>
         <button type="button" data-mobile-route="inventoryMove">
-          <img class="bottom-nav-icon" src="../assets/mobile-generated/mobile-nav-inventory-edit-outline.png?v=20260807-thin-outline" alt="" aria-hidden="true" />
+          <img class="bottom-nav-icon" src="../assets/line-icons/edit.svg?v=20261016-thin-r116" alt="" aria-hidden="true" />
           <span>재고 수정</span>
         </button>
       </nav>
@@ -665,6 +663,6 @@
     <script src="../vendor/jsQR.min.js"></script>
     <script src="../qr-payload.js?v=20260904-box-checksum-dev"></script>
     <script src="../common-container-shipping.js?v=20260922-common-shipping-v1"></script>
-    <script src="./mobile.js?v=20260917-audit-eligible-status-v1-dev-audit-category-r15-reliability-r20-monthly-r21-common-shipping-r23"></script>
+    <script src="./mobile.js?v=20260917-audit-eligible-status-v1-dev-audit-category-r15-reliability-r20-monthly-r21-common-shipping-r23-thin-icons-r116-blue-symbol-r117"></script>
   </body>
 </html>

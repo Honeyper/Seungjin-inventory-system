@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="678" height="722" viewBox="0 0 678 722" role="img" aria-labelledby="title desc">
+<title id="title">Seungjin — symbol</title>
+<desc id="desc">Seungjin logo reconstructed as vector paths from the supplied reference. Transparent background; navy-to-blue gradients; outlined lettering.</desc>
+<defs>
+  <linearGradient id="upper" gradientUnits="userSpaceOnUse" x1="67" y1="280" x2="446" y2="52"><stop stop-color="#061b37"/><stop offset=".43" stop-color="#08407f"/><stop offset="1" stop-color="#006fe9"/></linearGradient>
+  <linearGradient id="upperFold" gradientUnits="userSpaceOnUse" x1="359" y1="204" x2="555" y2="155"><stop stop-color="#064187"/><stop offset=".52" stop-color="#0066d6"/><stop offset="1" stop-color="#007aff"/></linearGradient>
+  <linearGradient id="lower" gradientUnits="userSpaceOnUse" x1="429" y1="337" x2="230" y2="643"><stop stop-color="#061b37"/><stop offset=".42" stop-color="#082c57"/><stop offset="1" stop-color="#005cbf"/></linearGradient>
+  <linearGradient id="lowerFold" gradientUnits="userSpaceOnUse" x1="62" y1="389" x2="228" y2="536"><stop stop-color="#08417e"/><stop offset=".6" stop-color="#0069e3"/><stop offset=".86" stop-color="#007aff"/><stop offset="1" stop-color="#0063d2"/></linearGradient>
+  <clipPath id="upperClip"><path d="M 311 43 C 336 30 361 30 387 45 L 545 147 C 575 167 586 187 586 216 L 586 282 L 390 160 C 367 146 351 149 331 160 L 165 254 L 268 317 C 296 335 309 357 309 386 L 309 455 L 82 315 C 51 297 38 276 38 247 C 38 219 52 196 79 180 Z"/></clipPath>
+  <clipPath id="lowerClip"><path d="M 326 210 L 546 348 C 575 365 587 388 587 417 C 587 447 574 471 545 489 L 316 615 C 290 630 266 623 244 610 L 78 505 C 48 487 37 467 37 438 L 37 372 L 232 494 C 253 507 272 507 293 496 L 458 405 L 365 347 C 338 330 326 311 326 282 Z"/></clipPath>
+</defs>
+<g transform="translate(64 64)"><g transform="translate(-37 -34)">
+  <path fill="url(#upper)" d="M 311 43 C 336 30 361 30 387 45 L 545 147 C 575 167 586 187 586 216 L 586 282 L 390 160 C 367 146 351 149 331 160 L 165 254 L 268 317 C 296 335 309 357 309 386 L 309 455 L 82 315 C 51 297 38 276 38 247 C 38 219 52 196 79 180 Z"/>
+  <path clip-path="url(#upperClip)" fill="url(#upperFold)" d="M 331 160 C 387 137 428 94 480 113 L 545 147 C 575 167 586 187 586 216 L 586 282 L 390 160 C 367 146 351 149 331 160 Z"/>
+  <path fill="url(#lower)" d="M 326 210 L 546 348 C 575 365 587 388 587 417 C 587 447 574 471 545 489 L 316 615 C 290 630 266 623 244 610 L 78 505 C 48 487 37 467 37 438 L 37 372 L 232 494 C 253 507 272 507 293 496 L 458 405 L 365 347 C 338 330 326 311 326 282 Z"/>
+  <path clip-path="url(#lowerClip)" fill="url(#lowerFold)" d="M 37 372 L 232 494 C 253 507 272 507 293 496 C 251 519 215 550 171 547 C 141 549 111 536 78 514 L 37 487 Z"/>
+</g></g>
+</svg>

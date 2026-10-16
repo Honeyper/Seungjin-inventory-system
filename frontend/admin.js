@@ -88,6 +88,8 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "승진 심볼·블루 포인트 적용", items: ["로그인·관리자·모바일 화면과 앱 아이콘을 제공된 승진 심볼로 통일하고 금색 브랜드 포인트를 블루로 변경했습니다. 작업시간·경고 등 업무 상태색은 유지합니다."] },
+  { date: "2026-10-16", title: "아이콘 선 두께 1px 통일", items: ["사이드바·검색·저장·인쇄·팝업·모바일 아이콘을 1px 선으로 정리했습니다. 웹폰트와 모바일 이미지 아이콘을 같은 계열의 SVG 아이콘으로 교체해 상태별 색상과 기존 동작을 유지합니다."] },
   { date: "2026-10-16", title: "로그인 화면 간소화", items: ["제공된 승진 SVG 로고와 ‘승진 관리 프로그램’ 제목 중심의 로그인 카드로 정리했습니다. 기능 소개·보안 안내·장식 문구를 제거하고 아이디·비밀번호 입력과 로그인 기능을 유지합니다."] },
   { date: "2026-10-16", title: "작업시간 색상 구분", items: ["작업시간을 8시간은 초록색, 9시간은 노란색, 10시간은 빨간색 배지로 구분합니다. 휴무·완료·미입력은 기존 표시를 유지합니다."] },
   { date: "2026-10-16", title: "하루 목표 생산량 표시 정리", items: ["하루 목표 생산량 아래 안내 문구를 제거해 수량만 표시합니다."] },
@@ -3288,7 +3290,7 @@ function renderProductionPlanTable() {
       <td class="production-plan-auto" data-plan-hours title="${escapeAttribute(job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선")}">${renderProductionPlanWorkHours(job)}</td>
       <td><div class="production-plan-note-controls"><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(label)} 특이사항" />
         <button class="production-plan-details-toggle" type="button" data-plan-details-toggle="${escapeAttribute(job.planRowId)}" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${escapeAttribute(label)} 세부사항">
-          <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><svg class="production-plan-details-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" /></svg></button></div></td>
+          <span class="production-plan-details-toggle-label">세부사항 ${expanded ? "닫기" : "열기"}</span><svg class="production-plan-details-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" /></svg></button></div></td>
     </tr>
     <tr id="${detailsId}" class="production-plan-details-row" data-plan-details-row="${escapeAttribute(job.planRowId)}" ${expanded ? "" : "hidden"}>
       <td colspan="10"><div class="production-plan-details-collapse"><div class="production-plan-details-space"><div class="production-plan-details-region" role="region" aria-label="${escapeAttribute(label)} 세부사항"><strong>세부사항</strong>
