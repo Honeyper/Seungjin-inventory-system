@@ -1358,35 +1358,6 @@
                 </label>
               </div>
             </div>
-            <div class="shipping-summary-grid shipping-settlement-summary" aria-label="출고 상태 요약">
-              <article class="shipping-summary-card amber">
-                <span class="shipping-summary-icon" aria-hidden="true">
-                  <i class="ti ti-clipboard-check"></i>
-                </span>
-                <div>
-                  <span>출고대기(검수완료)</span>
-                  <strong>12 <em>건</em></strong>
-                </div>
-              </article>
-              <article class="shipping-summary-card red">
-                <span class="shipping-summary-icon" aria-hidden="true">
-                  <i class="ti ti-shield-exclamation"></i>
-                </span>
-                <div>
-                  <span>이상 발견</span>
-                  <strong>2 <em>건</em></strong>
-                </div>
-              </article>
-              <article class="shipping-summary-card blue">
-                <span class="shipping-summary-icon" aria-hidden="true">
-                  <i class="ti ti-truck-delivery"></i>
-                </span>
-                <div>
-                  <span>출고 완료</span>
-                  <strong>5 <em>건</em></strong>
-                </div>
-              </article>
-            </div>
             <div class="shipping-settlement-grid">
               <article class="shipping-settlement-card">
                 <span>총 출고량</span>
@@ -1397,8 +1368,8 @@
                 <strong><b id="shippingSettlementTotalBoxes">0</b><em>box</em></strong>
               </article>
               <article class="shipping-settlement-card">
-                <span>총 검사 수량</span>
-                <strong><b id="shippingSettlementInspectedQuantity">0</b><em>ea</em></strong>
+                <span>출고대기 박스 수량</span>
+                <strong><b id="shippingSettlementPendingBoxes">0</b><em>box</em></strong>
               </article>
               <article class="shipping-settlement-card danger">
                 <span>총 불량 수량</span>
@@ -3263,6 +3234,6 @@
     <script src="./inventory-list-sort.js?v=20260917-inventory-list-sort-v1"></script>
     <script src="./inventory-audit-cards.js?v=20260917-audit-card-drag-v1"></script>
     <script src="./common-container-shipping.js?v=20260922-common-shipping-v1"></script>
-    <script src="./admin.js?v=20260918-audit-bulk-v1-prd-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-count20-r24-process-rates-r25-shipping-fix-r26-notification-read-r27-inbound-confirmation-r32-bulk-move-r33-survey-r34-completed-r35-monthly-day30-r36-storage-r37-qr-bulk-r38-audit-storage-r41-camera-focus-r42-auto-order-r43-legacy-dashes-r44-reopen-cache-r45-shipping-performance-r46-name-fit-r47-expanded-space-r48-equal-rows-r49-search-batch-r50-compact-r51-product-copy-r52-inbound-totals-r53-inline-r54-divider-r55-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-employee-label-r64-stage-picker-r65-stage-label-r66-print-types-r67-caption-r68-auto-machines-r69-plan-save-r70-simple-plan-r71-cost-aware-r90-max-loss-r89-control-center-r88-no-blue-lines-r87-work-hours-r86-remaining-days-r85-daily-total-r84-loss-default-r83-auto-workdays-r82-details-slide-r81-plan-metrics-r80-worktime-label-r79-plan-no-stripe-r78-plan-delivery-r77-plan-details-r76-target-floor500-r75-plan-density-r74-product-cell-r73-remaining-production-r91-mixed-print-progress-r92-setup-carryover-r93-no-unassigned-history-r94-row-details-r95-row-toggle-r96-retry1-popup-escape-r97-chevron-center-r98-deadline-window-r99-remaining-quantity-r100-weekday-r101-inventory-fit-r102-order-picker-r103-date-details-r104-balanced-hours-r105-inline-selectors-r106-weekday-position-r107-minimum-shift-r108-order-continuation-r109-selector-spacing-r110-saturday-first-r111-target-caption-r112-hours-highlight-r113-login-minimal-r114-thin-icons-r116-blue-symbol-r117-purchase-compact-r118"></script>
+    <script src="./admin.js?v=20260918-audit-bulk-v1-prd-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-count20-r24-process-rates-r25-shipping-fix-r26-notification-read-r27-inbound-confirmation-r32-bulk-move-r33-survey-r34-completed-r35-monthly-day30-r36-storage-r37-qr-bulk-r38-audit-storage-r41-camera-focus-r42-auto-order-r43-legacy-dashes-r44-reopen-cache-r45-shipping-performance-r46-name-fit-r47-expanded-space-r48-equal-rows-r49-search-batch-r50-compact-r51-product-copy-r52-inbound-totals-r53-inline-r54-divider-r55-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-employee-label-r64-stage-picker-r65-stage-label-r66-print-types-r67-caption-r68-auto-machines-r69-plan-save-r70-simple-plan-r71-cost-aware-r90-max-loss-r89-control-center-r88-no-blue-lines-r87-work-hours-r86-remaining-days-r85-daily-total-r84-loss-default-r83-auto-workdays-r82-details-slide-r81-plan-metrics-r80-worktime-label-r79-plan-no-stripe-r78-plan-delivery-r77-plan-details-r76-target-floor500-r75-plan-density-r74-product-cell-r73-remaining-production-r91-mixed-print-progress-r92-setup-carryover-r93-no-unassigned-history-r94-row-details-r95-row-toggle-r96-retry1-popup-escape-r97-chevron-center-r98-deadline-window-r99-remaining-quantity-r100-weekday-r101-inventory-fit-r102-order-picker-r103-date-details-r104-balanced-hours-r105-inline-selectors-r106-weekday-position-r107-minimum-shift-r108-order-continuation-r109-selector-spacing-r110-saturday-first-r111-target-caption-r112-hours-highlight-r113-login-minimal-r114-thin-icons-r116-blue-symbol-r117-purchase-compact-r118-shipping-pending-boxes-r119"></script>
   </body>
 </html>

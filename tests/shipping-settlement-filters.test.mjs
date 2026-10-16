@@ -41,7 +41,7 @@ function runtime(rows = [
     shippingStatusFilter: { value: "" }, shippingPeriodListOnly: { checked: false },
     shippingSortKey: null, shippingSortDirection: null,
     shippingSettlementStartDate: { value: today }, shippingSettlementEndDate: { value: today },
-    shippingSettlementFields: Object.fromEntries(["totalQuantity", "totalBoxes", "inspectedQuantity",
+    shippingSettlementFields: Object.fromEntries(["totalQuantity", "totalBoxes", "pendingBoxes",
       "defectQuantity", "defectRate"].map(key => [key, { textContent: "" }])),
     shippingSummaryCards: Array.from({ length: 3 }, () => {
       const strong = { innerHTML: "" };
@@ -86,7 +86,7 @@ function ids(rows) {
 test("제품 검색 시 해당 제품의 기간 내 출고 박스와 검사·불량 값만 집계한다", () => {
   const app = runtime();
   app.shippingSearchInput.value = "닥터멜락신멀티밤 10g";
-  assert.deepEqual(summary(app), { totalQuantity: "2,178", totalBoxes: "2", inspectedQuantity: "50", defectQuantity: "2", defectRate: "4" });
+  assert.deepEqual(summary(app), { totalQuantity: "2,178", totalBoxes: "2", pendingBoxes: "1", defectQuantity: "2", defectRate: "4" });
   assert.deepEqual(Array.from(app.getShippingSettlementStatusCounts(app.getShippingSettlementBoxItems())), [1, 0, 1]);
   assert.equal(app.shippingSummaryCards[2].strong.innerHTML, "1 <em>건</em>");
 });
@@ -115,7 +115,7 @@ test("여러 필터를 함께 적용하고 결과가 없으면 모든 결산을 
   app.shippingStatusFilter.value = "일부 출고";
   assert.deepEqual(ids(app.getShippingSettlementSourceRows()), ["PINK-PARTIAL"]);
   app.shippingStorageFilter.value = "창고";
-  assert.deepEqual(summary(app), { totalQuantity: "0", totalBoxes: "0", inspectedQuantity: "0", defectQuantity: "0", defectRate: "0" });
+  assert.deepEqual(summary(app), { totalQuantity: "0", totalBoxes: "0", pendingBoxes: "0", defectQuantity: "0", defectRate: "0" });
   assert.deepEqual(Array.from(app.getShippingSettlementStatusCounts(app.getShippingSettlementBoxItems())), [0, 0, 0]);
 });
 
@@ -157,7 +157,7 @@ test("재고조정 11박스·1,089개를 출고 실적과 검사 수량으로 �
     })), { trayQuantity: "99 ea", inboundTotalQuantity: 9999 })));
   app.shippingSearchInput.value = "닥터 멜락신";
   assert.equal(app.getShippingSettlementSourceRows().length, 4);
-  assert.deepEqual(summary(app), { totalQuantity: "0", totalBoxes: "0", inspectedQuantity: "0", defectQuantity: "0", defectRate: "0" });
+  assert.deepEqual(summary(app), { totalQuantity: "0", totalBoxes: "0", pendingBoxes: "0", defectQuantity: "0", defectRate: "0" });
   assert.equal(app.shippingSummaryCards[2].strong.innerHTML, "0 <em>건</em>");
 });
 
@@ -169,7 +169,7 @@ test("같은 입고 건에 정상출고와 과거 형식의 재고조정이 섞�
     box("출고완료", 1089, today, { shippingType: "재고 조정" }),
     box("출고완료", 1089, yesterday, { shippingType: "정상출고" })
   ])]);
-  assert.deepEqual(summary(app), { totalQuantity: "1,089", totalBoxes: "1", inspectedQuantity: "50", defectQuantity: "2", defectRate: "4" });
+  assert.deepEqual(summary(app), { totalQuantity: "1,089", totalBoxes: "1", pendingBoxes: "0", defectQuantity: "2", defectRate: "4" });
   assert.equal(app.shippingSummaryCards[2].strong.innerHTML, "1 <em>건</em>");
 });
 
@@ -186,5 +186,21 @@ test("박스 수량이 0이거나 누락되어도 검사 수량을 출고 수량
   const app = runtime([row("ZERO", [box("출고완료", 0), box("출고완료", ""),
     box("출고완료", "1,089 ea")])]);
   assert.equal(summary(app).totalQuantity, "1,089");
-  assert.equal(summary(app).inspectedQuantity, "50");
+  assert.equal(summary(app).pendingBoxes, "0");
+});
+
+
+test("출고대기는 관리 건수가 아닌 박스 개수를 합산하고 완료·보류·보관·기간 외 박스는 제외한다", () => {
+  const app = runtime([row("SPLIT", [box("출고대기"), box("출고대기"), box("검수완료"),
+    box("출고완료"), box("보류"), box("보관"), box("출고대기", 10, yesterday),
+    box("출고대기", 10, today, {shippingType: "재고조정"})])]);
+  assert.equal(summary(app).pendingBoxes, "3");
+  app.shippingSearchInput.value = "없는 제품";
+  assert.equal(summary(app).pendingBoxes, "0");
+});
+
+test("박스 상세가 없는 출고대기 행은 집계된 박스 수를 사용한다", () => {
+  const app = runtime([row("LEGACY", [], {stockStatus: "출고대기", currentBoxCount: 12,
+    shippingInspectionDate: today, currentTotalQuantity: 1200})]);
+  assert.equal(summary(app).pendingBoxes, "12");
 });
