@@ -876,6 +876,33 @@ async function verifyProductionPlanOrderPicker(page,fixture) {
   console.log(JSON.stringify({orderPicker44And45:true,sameStage2:true,separateActuals:true,draftsRetained:true,saveReload:true,nextDaySelection:true,previousDateUnchanged:true,noHorizontalScroll:true}));
 }
 
+async function verifyProductionPlanDateDetails(page) {
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]'),details=page.locator('.production-plan-details-row');
+  const button=row.locator('[data-plan-details-toggle]');
+  async function date(value){await page.locator('#productionPlanDate').fill(value);await page.locator('#productionPlanDate').dispatchEvent('change');}
+  async function expanded(value){assert.equal(await button.getAttribute('aria-expanded'),String(value));await details.waitFor({state:value?'visible':'hidden'});assert.equal(await details.isVisible(),value);}
+  await date('2026-10-12');
+  const saved=await page.evaluate(()=>{
+    const key=`${PRODUCTION_PLAN_STORAGE_PREFIX}:selected-job:${state.productionPlanFactory}:2026-10-13`,raw=localStorage.getItem(key);
+    const job={...state.productionPlanJobs[0],planRowId:'DATE-DETAILS-SAVED',machine:'3호기',actualProduction:321,actualWorkHours:2,stageDrafts:{}};
+    const data=JSON.stringify({jobs:[job]});localStorage.setItem(key,data);return {key,raw,data};
+  });
+  await button.click();await expanded(true);
+  await page.locator('#nextProductionPlanDate').click();await expanded(true);assert.equal(await row.getAttribute('data-plan-row-id'),'DATE-DETAILS-SAVED');
+  assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'321');
+  await page.locator('#nextProductionPlanDate').click();await expanded(true);assert.notEqual(await row.getAttribute('data-plan-row-id'),'DATE-DETAILS-SAVED');
+  assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'');
+  await page.locator('#previousProductionPlanDate').click();await expanded(true);assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'321');
+  await date('2026-10-16');await expanded(true);await page.locator('#todayProductionPlanDate').click();await expanded(true);
+  assert.equal(await page.locator('#productionPlanDate').inputValue(),await page.evaluate(()=>getLocalDateInputValue()));
+  await date('2026-10-13');await expanded(true);await button.click();await expanded(false);
+  await page.locator('#nextProductionPlanDate').click();await expanded(false);await page.locator('#previousProductionPlanDate').click();await expanded(false);
+  assert.equal(await page.evaluate(key=>localStorage.getItem(key),saved.key),saved.data);
+  await page.evaluate(({key,raw})=>raw===null?localStorage.removeItem(key):localStorage.setItem(key,raw),saved);
+  await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  console.log(JSON.stringify({dateDetailsStayOpen:true,previousNextTodayAndPicker:true,savedAndNewRowIds:true,manualClosePreserved:true,dateSpecificActuals:true,storedDataUnchanged:true}));
+}
+
 async function verifyAdminPopupEscape(page) {
   await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
   const modalIds=await page.locator('.modal-backdrop').evaluateAll(nodes=>nodes.map(node=>node.id));
@@ -1178,6 +1205,7 @@ async function main() {
     await verifyProductionPlanDeadlineWindow(page, fixture);
     await verifyProductionPlanDailyWindowAndWeekday(page, fixture);
     await verifyProductionPlanOrderPicker(page, fixture);
+    await verifyProductionPlanDateDetails(page);
     await verifyAdminPopupEscape(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);

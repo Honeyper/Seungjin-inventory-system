@@ -91,6 +91,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "날짜 이동 시 생산계획 세부사항 유지", items: ["이전·다음·오늘 버튼이나 날짜 선택으로 이동해도 세부사항의 열림·닫힘 상태를 유지합니다. 각 날짜의 저장된 실적과 계획을 새로 표시합니다."] },
   { date: "2026-10-16", title: "생산계획 발주 선택", items: ["제품명 아래에서 같은 제품의 44차·45차 등 진행 중인 발주를 선택할 수 있습니다. 발주별 목표·누적 생산량·잔여 수량을 구분하고 같은 날짜에 입력한 다른 발주의 실적도 함께 보관합니다."] },
   { date: "2026-10-16", title: "재고 목록 가로 스크롤 제거", items: ["재고 표의 14개 열을 화면 너비에 맞춰 배치했습니다. 긴 관리 ID·제품명·상태는 줄바꿈하고 QR·상세·삭제 버튼도 열 안에 배치합니다."] },
   { date: "2026-10-15", title: "생산계획 표시 기간 및 잔여 수량", items: ["지정 납기는 납기 당일까지, 매일 납기는 저장된 실적과 근무일 기준 예상 완료일까지 표시하고 다음 날부터 목록에서 제외합니다. 과거 계획과 실제 생산 기록은 보관합니다.", "누적 생산량 옆에 발주량에서 누적 생산량을 뺀 잔여 수량을 자동 표시합니다. 금일 생산량 입력 시 바로 갱신하며 초과 생산 시 0개로 표시합니다.", "생산계획 날짜 옆에 선택한 날짜의 요일을 표시하며 이전·다음·오늘 이동 시 함께 갱신합니다."] },
@@ -1758,8 +1759,7 @@ workMenuButton?.addEventListener("click", () => {
 });
 
 productionPlanDate?.addEventListener("change", () => {
-  state.productionPlanDate = productionPlanDate.value || getLocalDateInputValue();
-  loadProductionPlanDraft();
+  setProductionPlanDate(productionPlanDate.value);
 });
 productionPlanFactory?.addEventListener("change", () => {
   state.productionPlanFactory = productionPlanFactory.value || "1공장";
@@ -3090,12 +3090,13 @@ function buildProductionPlanJobs({ preserve = [] } = {}) {
 }
 
 
-function loadProductionPlanDraft() {
+function loadProductionPlanDraft({preserveDetails = false} = {}) {
+  const detailsExpanded = preserveDetails && state.productionPlanJobs.some(job => state.productionPlanExpandedRows?.has(job.planRowId));
   state.productionPlanOrderDraftCache = null;
   invalidateProductionPlanActualLedger();
-  state.productionPlanExpandedRows = new Set();
   const savedJobs = readProductionPlanDraft();
   state.productionPlanJobs = ensureProductionPlanRows(excludeUnassignedProductionPlanHistory(savedJobs || buildProductionPlanJobs()));
+  state.productionPlanExpandedRows = new Set(detailsExpanded ? state.productionPlanJobs.map(job => job.planRowId) : []);
   if (!state.productionPlanJobs.some((job) => job.planRowId === state.productionPlanSelectedJobId)) {
     state.productionPlanSelectedJobId = getProductionPlanActiveJobs()[0]?.planRowId || "";
   }
@@ -3113,7 +3114,7 @@ function loadProductionPlanDraft() {
 function setProductionPlanDate(value) {
   state.productionPlanDate = value || getLocalDateInputValue();
   if (productionPlanDate) productionPlanDate.value = state.productionPlanDate;
-  loadProductionPlanDraft();
+  loadProductionPlanDraft({preserveDetails:true});
 }
 
 function changeProductionPlanDate(days) {
