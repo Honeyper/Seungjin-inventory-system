@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "평일 8시간·토요일 우선 및 8·9·10시간 근무", items: ["하루 근무는 8·9·10시간만 배정합니다. 평일 8시간으로 부족하면 납기 안의 토요일 8시간을 먼저 추가하고, 그래도 부족할 때 9시간, 마지막으로 10시간을 검토합니다.", "일일 필수 생산량과 44차→45차 이어 작업을 유지하며, 일요일·공휴일은 토요일과 최대 근무시간으로도 부족한 경우에만 검토합니다."] },
   { date: "2026-10-16", title: "발주·공정 선택 영역 여백 개선", items: ["발주·공정 선택 영역의 좌우 여백과 항목 사이 간격을 넓혔습니다. 좁은 화면에서는 선택칸 너비를 확보하도록 여백을 조절합니다."] },
   { date: "2026-10-16", title: "최소 8시간 근무 및 다음 발주 이어 작업", items: ["출근일은 최소 8시간으로 배정하고 불필요한 휴일 근무는 통째로 제외합니다. 같은 제품·공정의 44차를 마치면 남은 근무시간에 45차를 이어서 생산합니다.", "예를 들어 44차 3시간과 45차 5시간을 하루 8시간으로 연결하며 발주별 목표와 실제 입력은 구분해 보관합니다. 세부사항에서 시간·수량 배분을 확인할 수 있습니다."] },
   { date: "2026-10-16", title: "날짜 바로 뒤에 요일 표시", items: ["생산계획 날짜의 일자 바로 뒤에 요일이 이어지도록 배치하고 달력 버튼은 오른쪽 끝에 표시합니다."] },
@@ -3201,7 +3202,7 @@ function renderProductionPlanMetrics(job) {
   const metrics = getProductionPlanDetailMetrics(job);
   const fields = [
     {key:"workDays",label:"잔여 작업일",title:"(발주량 − 누적 생산량) ÷ 시간당 생산량 ÷ 하루 8시간 (최소 0일, 소수점 한 자리까지 올림)"},
-    {key:"dailyTargetHours",label:"일일 목표 시간",title:"평일 8~9시간 우선, 30분 단위 근무계획. 주 3일 이상 10시간이 필요하면 납기 내 토요일 8시간으로 분산"},
+    {key:"dailyTargetHours",label:"일일 목표 시간",title:"평일 8시간 → 토요일 8시간 추가 → 9시간 → 10시간 순서. 하루 근무는 8·9·10시간만 배정"},
     {key:"totalExpectedHours",label:"총 소요 시간(예상)",title:"전체 발주량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"orderQuantity",label:"발주량"},
     {key:"loss",label:"최대 허용 LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
