@@ -91,6 +91,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "발주·공정 선택 한 줄 배치", items: ["제품명 아래에 발주와 작업 공정 선택란을 한 줄로 배치하고 글자와 화살표를 가운데 정렬했습니다."] },
   { date: "2026-10-16", title: "8·9시간 우선 생산계획 및 30분 단위 근무", items: ["평일 8시간과 9시간 이내 분산을 먼저 검토하고 9시간 30분·10시간은 필요한 경우에만 배정합니다. 근무계획은 모두 30분 단위로 계산합니다.", "같은 주에 평일 10시간 근무가 3일 이상 필요하면 납기 안의 토요일 8시간으로 분산해 평일 부담을 줄입니다. 같은 공장·작업자의 이전 근무시간을 발주와 공정에 걸쳐 반영합니다. 실 근무시간을 우선하고 미입력 시 기계가 배정된 저장 계획을 참고하며 일일 필수 생산량은 유지합니다."] },
   { date: "2026-10-16", title: "날짜 이동 시 생산계획 세부사항 유지", items: ["이전·다음·오늘 버튼이나 날짜 선택으로 이동해도 세부사항의 열림·닫힘 상태를 유지합니다. 각 날짜의 저장된 실적과 계획을 새로 표시합니다."] },
   { date: "2026-10-16", title: "생산계획 발주 선택", items: ["제품명 아래에서 같은 제품의 44차·45차 등 진행 중인 발주를 선택할 수 있습니다. 발주별 목표·누적 생산량·잔여 수량을 구분하고 같은 날짜에 입력한 다른 발주의 실적도 함께 보관합니다."] },
@@ -3450,10 +3451,10 @@ function renderProductionPlanTable() {
       <td>${escapeHtml(job.clientName || "—")}</td>
       <td class="production-plan-product"><button class="production-plan-product-trigger" type="button" data-plan-product-picker aria-label="${escapeAttribute(label)} 변경">
         <span><strong>${escapeHtml(label)}</strong></span><i class="ti ti-search" aria-hidden="true"></i></button>
-        <label class="production-plan-stage-field production-plan-order-field"><span>발주 선택</span><select data-plan-field="purchaseOrderId" aria-label="${escapeAttribute(label)} 발주 선택" ${orderOptions.length < 2 ? "disabled" : ""}>
+        <div class="production-plan-product-fields"><label class="production-plan-stage-field production-plan-order-field"><span>발주</span><select data-plan-field="purchaseOrderId" aria-label="${escapeAttribute(label)} 발주 선택" ${orderOptions.length < 2 ? "disabled" : ""}>
         ${orderOptions.length ? orderOptions.map(order => `<option value="${escapeAttribute(order.purchaseOrderId)}" ${order.purchaseOrderId === job.purchaseOrderId ? "selected" : ""} title="${escapeAttribute(order.purchaseOrderId)} · ${formatNumber(order.totalOrderQuantity)} ea">${escapeHtml(order.orderRound || order.purchaseOrderId)}</option>`).join("") : `<option value="">발주 없음</option>`}</select></label>
-        <label class="production-plan-stage-field"><span>작업 공정</span><select data-plan-field="stage" aria-label="${escapeAttribute(label)} 작업 공정" ${getProductionPlanStageOptions(job.productId, job.process).length < 2 ? "disabled" : ""}>
-        ${getProductionPlanStageOptions(job.productId, job.process).map(option => `<option value="${option.stage}" ${option.stage === job.stage ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label></td>
+        <label class="production-plan-stage-field"><span>공정</span><select data-plan-field="stage" aria-label="${escapeAttribute(label)} 작업 공정" ${getProductionPlanStageOptions(job.productId, job.process).length < 2 ? "disabled" : ""}>
+        ${getProductionPlanStageOptions(job.productId, job.process).map(option => `<option value="${option.stage}" ${option.stage === job.stage ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label></div></td>
       <td class="production-plan-auto"><strong>${empty || job.orderQuantity === null ? "—" : `${formatNumber(job.orderQuantity)} ea`}</strong></td>
       <td class="production-plan-auto production-plan-delivery"><strong>${escapeHtml(getProductionPlanDeliveryLabel(job))}</strong></td>
       <td class="production-plan-auto"><strong data-plan-target>${escapeHtml(formatProductionPlanTarget(job))}</strong><small data-plan-message title="${escapeAttribute(job.planMessage)}" ${job.planMessage ? "" : "hidden"}>${escapeHtml(job.planMessage)}</small></td>
