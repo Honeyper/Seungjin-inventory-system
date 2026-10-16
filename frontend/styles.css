@@ -15645,3 +15645,31 @@ small, em {
     gap: 0.25rem;
   }
 }
+
+#productionPlanView .production-plan-hours-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid;
+  border-radius: 0.4rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+#productionPlanView .production-plan-hours-badge[data-plan-hour-level="8"] {
+  color: #166534;
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+}
+#productionPlanView .production-plan-hours-badge[data-plan-hour-level="9"] {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+#productionPlanView .production-plan-hours-badge[data-plan-hour-level="10"] {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
