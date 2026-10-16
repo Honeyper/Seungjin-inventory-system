@@ -8877,7 +8877,7 @@ body {
 }
 
 .scan-button svg {
-  color: var(--operations-accent);
+  color: inherit;
 }
 
 .shipping-controls {
@@ -12002,4 +12002,88 @@ button.shipping-product-visual.has-photo:focus-visible {
   .inventory-remaining-box-list {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* Consistent one-pixel menu icons and clear action contrast. */
+#homeScreen .mobile-menu-card .menu-icon,
+#homeScreen .mobile-menu-card.locked .menu-icon {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#homeScreen .menu-icon .mobile-line-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+#homeScreen .mobile-menu-card.locked .menu-icon {
+  color: #8792a3;
+}
+
+#homeScreen .mobile-menu-card.locked .menu-icon .mobile-line-icon {
+  filter: none;
+  opacity: 1;
+}
+
+.mobile-line-icon > * {
+  vector-effect: non-scaling-stroke;
+}
+
+.bottom-nav .mobile-line-icon.bottom-nav-icon {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+#homeScreen .menu-arrow .mobile-line-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+#homeScreen .mobile-menu-card .status-pill.ready,
+#homeScreen .mobile-menu-card.locked .status-pill.pending {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#homeScreen .mobile-home-header .brand-copy {
+  row-gap: 5px;
+}
+
+#homeScreen .mobile-home-header .brand-copy strong {
+  margin: 0;
+  line-height: 1.2;
+}
+
+#homeScreen .mobile-home-header .brand-copy em {
+  margin: 0;
+  line-height: 1.3;
+}
+
+#shippingScreen .scan-button svg,
+#inventoryMoveScreen .scan-button svg,
+#shippingScreen .manual-shipping-open-button svg {
+  color: #fff;
+  stroke: currentColor;
+}
+
+#shippingScreen .manual-shipping-open-button .manual-shipping-open-icon {
+  color: #fff;
+  background: transparent;
 }
