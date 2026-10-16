@@ -15290,15 +15290,6 @@ small, em {
   #productionPlanView .production-plan-details-chevron { transition: none; }
 }
 
-/* Keep the compact row while making the complete scheduling reason available on hover. */
-#productionPlanView [data-plan-message] {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-#productionPlanView [data-plan-message][hidden] { display: none; }
-
 /* Order and stage share one compact row below the product name. */
 #productionPlanView .production-plan-product-fields {
   display: grid;
