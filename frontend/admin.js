@@ -88,7 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
-  { date: "2026-10-16", title: "출근일 최소 8시간 근무계획", items: ["토요일·일요일·공휴일을 포함해 출근하는 날은 최소 8시간으로 배정합니다. 마지막 잔량이 적어도 근무시간은 8시간을 유지하고 불필요한 휴일 근무는 통째로 제외합니다."] },
+  { date: "2026-10-16", title: "최소 8시간 근무 및 다음 발주 이어 작업", items: ["출근일은 최소 8시간으로 배정하고 불필요한 휴일 근무는 통째로 제외합니다. 같은 제품·공정의 44차를 마치면 남은 근무시간에 45차를 이어서 생산합니다.", "예를 들어 44차 3시간과 45차 5시간을 하루 8시간으로 연결하며 발주별 목표와 실제 입력은 구분해 보관합니다. 세부사항에서 시간·수량 배분을 확인할 수 있습니다."] },
   { date: "2026-10-16", title: "날짜 바로 뒤에 요일 표시", items: ["생산계획 날짜의 일자 바로 뒤에 요일이 이어지도록 배치하고 달력 버튼은 오른쪽 끝에 표시합니다."] },
   { date: "2026-10-16", title: "발주·공정 선택 한 줄 배치", items: ["제품명 아래에 발주와 작업 공정 선택란을 한 줄로 배치하고 글자와 화살표를 가운데 정렬했습니다."] },
   { date: "2026-10-16", title: "8·9시간 우선 생산계획 및 30분 단위 근무", items: ["평일 8시간과 9시간 이내 분산을 먼저 검토하고 9시간 30분·10시간은 필요한 경우에만 배정합니다. 근무계획은 모두 30분 단위로 계산합니다.", "같은 주에 평일 10시간 근무가 3일 이상 필요하면 납기 안의 토요일 8시간으로 분산해 평일 부담을 줄입니다. 같은 공장·작업자의 이전 근무시간을 발주와 공정에 걸쳐 반영합니다. 실 근무시간을 우선하고 미입력 시 기계가 배정된 저장 계획을 참고하며 일일 필수 생산량은 유지합니다."] },
@@ -2709,6 +2709,7 @@ function getProductionPlanPreviousWorkSchedule(job) {
     .map(snapshot => {
       const groups = new Set();
       let hundredths = 0;
+      const plannedParts=new Map(),recordedParts=new Set();
       for (const owner of snapshot.jobs.filter(item => item?.purchaseOrderId)) {
         for (const stage of new Set([String(owner.stage), ...Object.keys(owner.stageDrafts || {})])) {
           const source = stage === String(owner.stage) ? owner : owner.stageDrafts[stage];
@@ -2722,12 +2723,17 @@ function getProductionPlanPreviousWorkSchedule(job) {
           for (const item of getProductionPlanActualSources(snapshot.jobs, target)) {
             if (item.worker !== worker || item.planRowId && ids.has(item.planRowId)) continue;
             if (item.planRowId) ids.add(item.planRowId);
+            recordedParts.add(key);
+            if ((PRODUCTION_MACHINE_OPTIONS[target.process] || []).includes(item.machine)) {
+              for (const part of item.shiftParts || []) plannedParts.set(JSON.stringify([part.purchaseOrderId,owner.productId,process,[...target.stageGroup].sort((a,b)=>a-b)]),part.allocatedHours);
+            }
             let hours = window.SeungjinProductionPlanner.number(item.actualWorkHours);
-            if (hours === null && (PRODUCTION_MACHINE_OPTIONS[target.process] || []).includes(item.machine)) hours = window.SeungjinProductionPlanner.number(item.hours);
+            if (hours === null && (PRODUCTION_MACHINE_OPTIONS[target.process] || []).includes(item.machine)) hours = window.SeungjinProductionPlanner.number(item.shiftParts?.length > 1 ? item.allocatedHours : item.hours);
             if (hours !== null) hundredths += Math.round(hours * 100);
           }
         }
       }
+      for (const [key,hours] of plannedParts) if (!recordedParts.has(key) && hours >= 0) hundredths+=Math.round(hours*100);
       return {date:snapshot.date, hours:hundredths / 100};
     }).filter(day => day.hours > 0).sort((a,b) => a.date.localeCompare(b.date));
 }
@@ -2744,12 +2750,42 @@ function getProductionPlanCalculations(job) {
     dailyMinimumQuantity:order?.dailyMinimumQuantity,
     previousWorkSchedule:getProductionPlanPreviousWorkSchedule(job),
     extraHolidays:window.SEUNGJIN_CONFIG?.PRODUCTION_PLAN_HOLIDAYS || []};
-  const cacheKey = JSON.stringify(input);
+  const sequence = getProductionPlanSequenceOrders(job);
+  const cacheKey = JSON.stringify({input,sequence,selected:job?.purchaseOrderId});
   if (productionPlanCalculationCache.has(cacheKey)) return productionPlanCalculationCache.get(cacheKey);
-  const values = window.SeungjinProductionPlanner.plan(input);
+  const values = sequence.length > 1
+    ? window.SeungjinProductionPlanner.planOrders({...input,orders:sequence}).orders.find(item => item.purchaseOrderId === job.purchaseOrderId)
+    : window.SeungjinProductionPlanner.plan(input);
+  if (values.shiftParts?.length > 1) {
+    const parts=values.shiftParts.map(part => `${part.orderRound || part.purchaseOrderId} ${formatProductionPlanHours(part.allocatedHours)} · ${formatNumber(part.targetQuantity)}개`).join(" → ");
+    values.message=`총 ${formatProductionPlanHours(values.hours)} · ${parts}${values.mode === "shortfall" ? ` · ${values.message}` : ""}`;
+  }
   if (productionPlanCalculationCache.size >= 64) productionPlanCalculationCache.clear();
   productionPlanCalculationCache.set(cacheKey, values);
   return values;
+}
+
+function getProductionPlanSequenceOrders(job) {
+  if (!job?.purchaseOrderId || !/(\d+)\s*차/.test(String(state.purchaseOrders.find(order => order.purchaseOrderId === job.purchaseOrderId)?.orderRound || ""))) return [];
+  const snapshots=(readProductionPlanActualLedger() || []).filter(item => item.factory === state.productionPlanFactory && item.date <= state.productionPlanDate)
+    .sort((a,b) => b.date.localeCompare(a.date));
+  const edited=[...state.productionPlanJobs, ...getProductionPlanOrderDraftCache().jobs];
+  return getProductionPlanOrderOptions(job).filter(order => {
+    if (!/(\d+)\s*차/.test(String(order.orderRound || ""))) return false;
+    if (order.purchaseOrderId === job.purchaseOrderId) return true;
+    const peer=edited.find(item => item.purchaseOrderId === order.purchaseOrderId)
+      || snapshots.flatMap(item => item.jobs).find(item => item?.purchaseOrderId === order.purchaseOrderId);
+    if (!peer) return true;
+    const source=getProductionPlanActualSources([peer], {...job,purchaseOrderId:order.purchaseOrderId})[0];
+    return Boolean(source) && peer.process === job.process
+      && (!source.machine || !job.machine || source.machine === job.machine)
+      && (!source.worker || !job.worker || source.worker === job.worker);
+  }).sort((a,b) => {
+    const left=String(a.orderRound || "").match(/(\d+)\s*차/),right=String(b.orderRound || "").match(/(\d+)\s*차/);
+    return left && right ? Number(left[1])-Number(right[1]) : String(a.endDate || "9999").localeCompare(String(b.endDate || "9999"));
+  }).map(order => ({purchaseOrderId:order.purchaseOrderId,orderRound:order.orderRound,
+    orderQuantity:order.totalOrderQuantity,completedProduction:getProductionPlanCumulativeActual({...job,purchaseOrderId:order.purchaseOrderId},"actualProduction",{beforeDateOnly:true}),
+    dueDate:order.endDate,deliveryType:order.deliveryType || "date",dailyMinimumQuantity:order.dailyMinimumQuantity}));
 }
 
 function formatProductionPlanHours(hours) {
@@ -2785,6 +2821,8 @@ function updateProductionPlanTargets(jobs) {
     job.hourlyRate = values.hourlyRate;
     job.targetQuantity = values.targetQuantity ?? 0;
     job.hours = values.hours;
+    job.allocatedHours = values.allocatedHours ?? values.hours;
+    job.shiftParts = values.shiftParts || [];
     job.totalHours = values.totalHours;
     job.planMissing = values.targetQuantity === null;
     job.planMessage = !job.purchaseOrderId ? "" : values.hourlyRate === null
@@ -2855,11 +2893,13 @@ function inheritProductionPlanSetup(jobs) {
   return jobs.map(job => {
     if (!job.purchaseOrderId) return job;
     for (const snapshot of snapshots) {
-      const matches = snapshot.jobs.filter(item => item && item.purchaseOrderId === job.purchaseOrderId
+      const matches = snapshot.jobs.filter(item => item && (item.purchaseOrderId === job.purchaseOrderId
+        || item.shiftParts?.some(part => part.purchaseOrderId === job.purchaseOrderId))
         && (!item.productId || item.productId === job.productId));
       if (!matches.length) continue;
-      const previous = ensureProductionPlanRows(matches)[0];
-      if (previous.purchaseOrderId !== job.purchaseOrderId || !isProductionPlanProductAllowed(getProductionPlanProduct(job.productId), previous.process)) return job;
+      const previous = matches.some(item => item.purchaseOrderId === job.purchaseOrderId) ? ensureProductionPlanRows(matches)[0] : matches[0];
+      if (!getProductionPlanStageOptions(job.productId,previous.process).some(option => option.stage === previous.stage)
+        || !isProductionPlanProductAllowed(getProductionPlanProduct(job.productId), previous.process)) return job;
       return {...job, process: previous.process, stage: previous.stage, stageGroup: [...previous.stageGroup],
         machine: (PRODUCTION_MACHINE_OPTIONS[previous.process] || []).includes(previous.machine) ? previous.machine : ""};
     }
@@ -2874,9 +2914,15 @@ function buildProductionPlanJobs({ preserve = [] } = {}) {
     .filter(snapshot => snapshot.factory === state.productionPlanFactory && snapshot.date < state.productionPlanDate)
     .sort((a,b) => b.date.localeCompare(a.date)).map(snapshot => snapshot.jobs[0]?.purchaseOrderId)
     .find(id => orders.some(order => order.purchaseOrderId === id));
+  const unfinished=orders.filter(item => {
+    const stage=item.productId === PRODUCTION_PLAN_PRODUCT_ID ? PRODUCTION_PLAN_DEFAULT_STAGE : getProductionPlanStageOptions(item.productId,process)[0]?.stage || 1;
+    const target={...createProductionPlanEmptyJob(stage,process,item.productId),purchaseOrderId:item.purchaseOrderId};
+    const completed=getProductionPlanCumulativeActual(target,"actualProduction",{beforeDateOnly:true});
+    return completed === null || completed < Number(item.totalOrderQuantity);
+  });
   const order = orders.find(item => preserve.some(job => job.purchaseOrderId === item.purchaseOrderId))
-    || orders.find(item => item.purchaseOrderId === previousOrderId)
-    || orders.find(item => item.productId === PRODUCTION_PLAN_PRODUCT_ID) || orders[0];
+    || unfinished.find(item => item.purchaseOrderId === previousOrderId)
+    || unfinished.find(item => item.productId === PRODUCTION_PLAN_PRODUCT_ID) || unfinished[0] || orders[0];
   const previous = preserve.filter(job => job.purchaseOrderId === (order?.purchaseOrderId || ""));
   const productId = order?.productId || "";
   const stage = productId === PRODUCTION_PLAN_PRODUCT_ID ? PRODUCTION_PLAN_DEFAULT_STAGE : getProductionPlanStageOptions(productId, process)[0]?.stage || 1;
@@ -3161,7 +3207,7 @@ function renderProductionPlanMetrics(job) {
     {key:"cumulativeProduction",label:"누적 생산량",title:"현재 브라우저에서 선택 날짜까지 같은 발주·제품·공정에 저장된 금일 생산량 합계 (실크·자동화 통합)"},
     {key:"remainingProduction",label:"잔여 수량",title:"발주량 − 선택 날짜까지 누적 생산량 (최소 0개)"},
     {key:"cumulativeHours",label:"누적 시간",title:"현재 브라우저에서 선택 날짜까지 같은 발주·제품·공정에 저장된 실 근무시간 합계 (실크·자동화 통합)"},
-    {key:"actualWorkHours",label:"실 근무시간",unit:"시간",step:"0.01",title:"선택 날짜에 실제 근무한 시간"},
+    {key:"actualWorkHours",label:"실 근무시간",unit:"시간",step:"0.01",title:"선택 날짜에 이 발주·공정에 실제로 투입한 시간. 예: 44차 3시간, 45차 5시간을 각각 입력"},
     {key:"hourlyRate",label:"시간당 생산량",title:"제품에 등록된 선택 공정의 시간당 생산량"},
     {key:"dailyRequired",label:"일일 필수 생산량",title:"매일 납기는 등록된 하루 필수 수량, 지정 납기는 오늘의 계획 목표 수량"},
     {key:"actualProduction",label:"금일 생산량",unit:"ea"},
@@ -3198,6 +3244,9 @@ function refreshProductionPlanTargets() {
     if (target) target.textContent = formatProductionPlanTarget(job);
     if (hours) { hours.textContent = formatProductionPlanWorkHours(job); hours.title = job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선"; }
     if (message) { message.textContent = job.planMessage; message.title = job.planMessage; message.hidden = !job.planMessage; }
+    const details=[...productionPlanTableBody.querySelectorAll("[data-plan-details-row]")].find(item => item.dataset.planDetailsRow === job.planRowId);
+    const breakdown=details?.querySelector("[data-plan-shift-breakdown]");
+    if (breakdown) {breakdown.hidden=!(job.shiftParts?.length > 1);breakdown.textContent=breakdown.hidden ? "" : job.planMessage;}
   });
   renderProductionPlanSummary();
 }
@@ -3233,7 +3282,7 @@ function renderProductionPlanTable() {
     </tr>
     <tr id="${detailsId}" class="production-plan-details-row" data-plan-details-row="${escapeAttribute(job.planRowId)}" ${expanded ? "" : "hidden"}>
       <td colspan="10"><div class="production-plan-details-collapse"><div class="production-plan-details-space"><div class="production-plan-details-region" role="region" aria-label="${escapeAttribute(label)} 세부사항"><strong>세부사항</strong>
-        ${renderProductionPlanMetrics(job)}</div></div></div></td>
+        <p class="production-plan-shift-breakdown" data-plan-shift-breakdown ${job.shiftParts?.length > 1 ? "" : "hidden"}>${job.shiftParts?.length > 1 ? escapeHtml(job.planMessage) : ""}</p>${renderProductionPlanMetrics(job)}</div></div></div></td>
     </tr>`;
   }).join("");
 }
@@ -3308,7 +3357,7 @@ function handleProductionPlanTableClick(event) {
 function renderProductionPlanSummary() {
   const jobs = getProductionPlanActiveJobs();
   if (productionPlanJobCount) productionPlanJobCount.innerHTML = `${formatNumber(jobs.length)} <em>건</em>`;
-  if (productionPlanTargetQuantity) productionPlanTargetQuantity.innerHTML = `${formatNumber(jobs.reduce((sum,job)=>sum+Number(job.targetQuantity || 0),0))} <em>ea</em>`;
+  if (productionPlanTargetQuantity) productionPlanTargetQuantity.innerHTML = `${formatNumber(jobs.reduce((sum,job)=>sum+(job.shiftParts?.length > 1 ? job.shiftParts.reduce((total,part)=>total+part.targetQuantity,0) : Number(job.targetQuantity || 0)),0))} <em>ea</em>`;
 }
 
 

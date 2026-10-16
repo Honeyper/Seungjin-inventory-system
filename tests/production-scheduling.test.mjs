@@ -171,3 +171,45 @@ test('휴일을 줄일 때는 출근일 전체를 제외하고 8시간 미만이
   assert.ok(p.schedule.every(day=>day.hours===8));
  }
 });
+
+
+const chain=options=>c.SeungjinProductionPlanner.planOrders({hourlyRate:1000,startDate:'2026-10-17',orders:[
+ {purchaseOrderId:'44',orderRound:'44차 발주',orderQuantity:3000,dueDate:'2026-10-17'},
+ {purchaseOrderId:'45',orderRound:'45차 발주',orderQuantity:15000,dueDate:'2026-10-30'}],...options});
+test('토요일 44차 3시간 후 45차 5시간을 같은 8시간 근무로 연결한다',()=>{
+ const p=chain(),[a,b]=p.orders,shift=p.shifts[0];
+ assert.equal(shift.hours,8);assert.deepEqual(Array.from(shift.parts,part=>[part.purchaseOrderId,part.allocatedHours,part.targetQuantity]),[['44',3,3000],['45',5,5000]]);
+ assert.equal(a.hours,8);assert.equal(b.hours,8);assert.equal(a.allocatedHours,3);assert.equal(b.allocatedHours,5);
+ assert.equal(a.targetQuantity,3000);assert.equal(b.targetQuantity,5000);assert.equal(sum(a),3000);assert.equal(sum(b),15000);
+ assert.equal(a.completionDate,'2026-10-17');assert.equal(b.completionDate,'2026-10-20');
+ assert.ok(p.shifts.every(day=>day.hours>=8 && day.hours<=10 && day.parts.reduce((total,part)=>total+part.allocatedHours,0)===day.hours));
+});
+test('발주별 기존 실적을 각각 빼고 30분 단위로 넘기며 초과 생산하지 않는다',()=>{
+ const p=chain({orders:[{purchaseOrderId:'44',orderQuantity:10000,completedProduction:6700,dueDate:'2026-10-17'},
+ {purchaseOrderId:'45',orderQuantity:20000,completedProduction:4000,dueDate:'2026-10-30'}]});
+ assert.deepEqual(Array.from(p.shifts[0].parts,part=>[part.allocatedHours,part.targetQuantity]),[[3.5,3300],[4.5,4500]]);
+ assert.equal(sum(p.orders[0]),3300);assert.equal(sum(p.orders[1]),16000);
+ const finished=chain({orders:[{purchaseOrderId:'44',orderQuantity:3000,completedProduction:3000,dueDate:'2026-10-17'},
+ {purchaseOrderId:'45',orderQuantity:250,dueDate:'2026-10-17'}]});
+ assert.equal(finished.orders[0].hours,0);assert.equal(finished.orders[1].hours,8);assert.equal(finished.orders[1].targetQuantity,250);
+});
+test('앞 발주가 미완료이면 다음 발주를 같은 기계에 겹쳐 배정하지 않는다',()=>{
+ const p=chain({orders:[{purchaseOrderId:'44',orderQuantity:11000,dueDate:'2026-10-17'},
+ {purchaseOrderId:'45',orderQuantity:5000,dueDate:'2026-10-30'}]});
+ assert.equal(p.orders[0].shortfall,1000);assert.equal(p.orders[1].targetQuantity,0);assert.equal(p.orders[1].schedule.length,0);
+ assert.equal(p.orders[1].completionDate,null);assert.equal(p.orders[1].mode,'waiting');
+});
+test('다음 발주의 납기를 넘긴 뒤에는 이어 작업을 넣지 않는다',()=>{
+ const p=chain({orders:[{purchaseOrderId:'44',orderQuantity:18000,dueDate:'2026-10-19'},
+ {purchaseOrderId:'45',orderQuantity:5000,dueDate:'2026-10-17'}]});
+ assert.equal(sum(p.orders[0]),18000);assert.equal(p.orders[1].schedule.length,0);assert.equal(p.orders[1].shortfall,5000);
+ assert.equal(p.orders[1].completionDate,null);
+});
+test('매일 납기 미완료를 완료로 오인하지 않고 연결된 평일 필수량 부족도 알린다',()=>{
+ const unfinished=chain({startDate:'2026-10-19',orders:[{purchaseOrderId:'44',orderQuantity:30000,deliveryType:'daily',dailyMinimumQuantity:7000},
+ {purchaseOrderId:'45',orderQuantity:15000,dueDate:'2026-10-30'}]});
+ assert.equal(unfinished.orders[0].completionDate,null);assert.equal(unfinished.orders[1].schedule.length,0);
+ const p=chain({startDate:'2026-10-19',orders:[{purchaseOrderId:'44',orderQuantity:3000,dueDate:'2026-10-19'},
+ {purchaseOrderId:'45',orderQuantity:15000,deliveryType:'daily',dailyMinimumQuantity:7000}]});
+ assert.equal(p.orders[1].targetQuantity,5000);assert.equal(p.orders[1].hours,8);assert.equal(p.orders[1].shortfall,2000);assert.match(p.orders[1].message,/일일 필수량 2,000개 부족/);
+});

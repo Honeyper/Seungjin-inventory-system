@@ -901,6 +901,42 @@ async function verifyProductionPlanOrderPicker(page,fixture) {
   console.log(JSON.stringify({orderPicker44And45:true,sameStage2:true,separateActuals:true,draftsRetained:true,saveReload:true,nextDaySelection:true,previousDateUnchanged:true,noHorizontalScroll:true}));
 }
 
+async function verifyProductionPlanOrderContinuation(page,fixture) {
+  const previous=fixture.mockOrders,base=previous.find(order=>order.productId==='NP-0001');
+  const product=fixture.mockProducts.find(item=>item.productCode==='NP-0001'),rate=product.processHourlyProductionRates['2도'];
+  product.processHourlyProductionRates['2도']=1000;
+  fixture.mockOrders=[{...base,purchaseOrderId:'CONT-44',orderRound:'44차 발주',totalOrderQuantity:3000,deliveryType:'date',endDate:'2026-10-17'},
+    {...base,purchaseOrderId:'CONT-45',orderRound:'45차 발주',totalOrderQuantity:15000,deliveryType:'date',endDate:'2026-10-30'}];
+  const clear=()=>{for(const key of Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)))if(key?.startsWith(PRODUCTION_PLAN_STORAGE_PREFIX+':'))localStorage.removeItem(key);};
+  await page.evaluate(clear);await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && state.purchaseOrders.length===2 && !state.productsLoadPromise);
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]'),details=page.locator('.production-plan-details-row');
+  async function date(value){await page.locator('#productionPlanDate').fill(value);await page.locator('#productionPlanDate').dispatchEvent('change');}
+  async function open(){if(await row.locator('[data-plan-details-toggle]').getAttribute('aria-expanded')==='false')await row.locator('[data-plan-details-toggle]').click();}
+  await date('2026-10-17');await row.locator('[data-plan-field=machine]').selectOption('3호기');await open();
+  assert.equal(await row.locator('[data-plan-target]').textContent(),'3,000 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
+  assert.match(await details.locator('[data-plan-shift-breakdown]').textContent(),/44차 발주 3시간 · 3,000개 → 45차 발주 5시간 · 5,000개/);
+  assert.match(await page.locator('#productionPlanTargetQuantity').textContent(),/8,000/);
+  for(const width of [1920,960]) {
+    await page.setViewportSize({width,height:1000});
+    const bounds=await details.locator('.production-plan-details-region').evaluate(node=>({width:node.clientWidth,scroll:node.scrollWidth}));assert.ok(bounds.scroll<=bounds.width+1);
+    await details.locator('.production-plan-details-region').screenshot({path:`/private/tmp/seungjin-plan-order-continuation-${width}.png`});
+  }
+  await details.locator('[data-plan-field=actualProduction]').fill('3000');await details.locator('[data-plan-field=actualWorkHours]').fill('3');
+  await row.locator('[data-plan-field=purchaseOrderId]').selectOption('CONT-45');
+  assert.equal(await row.locator('[data-plan-target]').textContent(),'5,000 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
+  assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'');
+  await details.locator('[data-plan-field=actualProduction]').fill('5000');await details.locator('[data-plan-field=actualWorkHours]').fill('5');await page.locator('#saveProductionPlanButton').click();
+  await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);await date('2026-10-17');await open();
+  assert.equal(await row.locator('[data-plan-field=purchaseOrderId]').inputValue(),'CONT-45');assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'5,000 ea');
+  await row.locator('[data-plan-field=purchaseOrderId]').selectOption('CONT-44');assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'3,000 ea');
+  await date('2026-10-19');assert.equal(await row.locator('[data-plan-field=purchaseOrderId]').inputValue(),'CONT-45');assert.equal(await row.locator('[data-plan-field=machine]').inputValue(),'3호기');
+  assert.equal(await row.locator('[data-plan-target]').textContent(),'8,000 ea');assert.equal(await details.locator('[data-plan-field=actualProduction]').inputValue(),'');
+  assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'5,000 ea');
+  assert.deepEqual(await page.evaluate(()=>getProductionPlanPreviousWorkSchedule(state.productionPlanJobs[0])),[{date:'2026-10-17',hours:8}]);
+  fixture.mockOrders=previous;product.processHourlyProductionRates['2도']=rate;await page.evaluate(clear);await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
+  console.log(JSON.stringify({orderContinuation44To45:true,sharedShift8:true,split3And5:true,separateTargetsAndActuals:true,saveReload:true,nextDateContinues45:true,historyTotal8:true}));
+}
+
 async function verifyProductionPlanDateDetails(page) {
   const row=page.locator('#productionPlanTableBody [data-plan-row-id]'),details=page.locator('.production-plan-details-row');
   const button=row.locator('[data-plan-details-toggle]');
@@ -1222,6 +1258,7 @@ async function main() {
     await verifyProductionPlanDeadlineWindow(page, fixture);
     await verifyProductionPlanDailyWindowAndWeekday(page, fixture);
     await verifyProductionPlanOrderPicker(page, fixture);
+    await verifyProductionPlanOrderContinuation(page, fixture);
     await verifyProductionPlanDateDetails(page);
     await verifyAdminPopupEscape(page);
     await verifyProductionPlanStorageQuota(page);
