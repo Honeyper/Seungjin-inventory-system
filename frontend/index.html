@@ -3,120 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>(주)승진 관리 시스템 로그인</title>
+    <title>승진 관리 프로그램</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
-    />
-    <link rel="stylesheet" href="./styles.css?v=20260918-typography-v2-dev" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=20260918-typography-v2-dev-login-minimal-r114" />
+    <link rel="stylesheet" href="./login.css?v=20261016-minimal-logo-r114" />
   </head>
-  <body class="login-body">
+  <body class="login-body login-simple">
     <main class="login-page" aria-labelledby="page-title">
-      <section class="brand-panel" aria-label="시스템 소개">
-        <div class="brand-content">
-          <div class="brand-signature">
-            <img src="./assets/logo-generated.png" alt="" />
-            <span>
-              <strong>(주)승진</strong>
-              <small>SEUNGJIN CO., LTD.</small>
-            </span>
-          </div>
+      <form class="login-card" id="loginForm">
+        <header class="login-card-header">
+          <img class="login-logo" src="./assets/seungjin-vertical.svg?v=20261016" alt="승진" width="560" height="538" />
+          <h1 id="page-title">승진 관리 프로그램</h1>
+        </header>
 
-          <div class="brand-heading">
-            <h1 id="page-title">승진 통합 관리 시스템</h1>
-          </div>
+        <label class="field" data-login-field="accountId">
+          <span>아이디</span>
+          <span class="input-control">
+            <svg class="login-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1.5a7 7 0 0 1 14 0V20"/></svg>
+            <input id="accountId" name="accountId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="아이디" aria-describedby="accountIdHint" />
+            <svg class="field-valid-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+          </span>
+          <small class="field-hint" id="accountIdHint">아이디를 입력해주세요.</small>
+        </label>
 
-          <ul class="login-feature-list" aria-label="주요 기능">
-            <li>
-              <i class="ti ti-package-import" aria-hidden="true"></i>
-              <span><strong>입고 관리</strong><small>등록과 검수 정보를 한 번에</small></span>
-            </li>
-            <li>
-              <i class="ti ti-building-warehouse" aria-hidden="true"></i>
-              <span><strong>재고 관리</strong><small>수량과 보관 위치를 실시간으로</small></span>
-            </li>
-            <li>
-              <i class="ti ti-truck-delivery" aria-hidden="true"></i>
-              <span><strong>출고 관리</strong><small>출고대기부터 완료까지 정확하게</small></span>
-            </li>
-          </ul>
-
-        </div>
-      </section>
-
-      <section class="login-panel" aria-label="관리자 로그인">
-        <div class="login-stack">
-          <form class="login-card" id="loginForm">
-            <div class="login-secure-rail" aria-hidden="true">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-
-            <header class="login-card-header">
-              <div class="lock-badge" aria-hidden="true">
-                <i class="ti ti-shield-lock"></i>
-              </div>
-              <p><i class="ti ti-lock-check" aria-hidden="true"></i> SECURE ACCESS</p>
-              <h2>관리자 로그인</h2>
-              <span class="login-help">승진 관리 시스템 계정으로 로그인하세요.</span>
-            </header>
-
-            <label class="field" data-login-field="accountId">
-              <span>계정 ID</span>
-              <span class="input-control">
-                <i class="ti ti-user-circle" aria-hidden="true"></i>
-                <input
-                  id="accountId"
-                  name="accountId"
-                  type="text"
-                  autocomplete="username"
-                  placeholder="계정 ID를 입력하세요"
-                  aria-describedby="accountIdHint"
-                />
-                <i class="ti ti-circle-check field-valid-icon" aria-hidden="true"></i>
-              </span>
-              <small class="field-hint" id="accountIdHint">계정 ID를 입력해주세요.</small>
-            </label>
-
-            <label class="field" data-login-field="password">
-              <span>비밀번호</span>
-              <span class="password-control">
-                <i class="ti ti-lock" aria-hidden="true"></i>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autocomplete="current-password"
-                  placeholder="비밀번호를 입력하세요"
-                  aria-describedby="passwordHint"
-                />
-                <i class="ti ti-circle-check field-valid-icon" aria-hidden="true"></i>
-                <button class="show-password" type="button" aria-label="비밀번호 보기">
-                  <i class="ti ti-eye" aria-hidden="true"></i>
-                </button>
-              </span>
-              <small class="field-hint" id="passwordHint">비밀번호를 입력해주세요.</small>
-            </label>
-
-            <p class="login-message" id="loginMessage" role="alert" aria-live="polite"></p>
-
-            <button class="login-button" type="submit">
-              <span class="login-button-label">로그인</span>
-              <i class="ti ti-arrow-right login-button-icon" aria-hidden="true"></i>
+        <label class="field" data-login-field="password">
+          <span>비밀번호</span>
+          <span class="password-control">
+            <svg class="login-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 15v2"/></svg>
+            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="비밀번호" aria-describedby="passwordHint" />
+            <svg class="field-valid-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+            <button class="show-password" type="button" aria-label="비밀번호 보기">
+              <i class="ti ti-eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="login-eye-slash" d="m3 3 18 18"/></svg></i>
             </button>
+          </span>
+          <small class="field-hint" id="passwordHint">비밀번호를 입력해주세요.</small>
+        </label>
 
-            <p class="login-security"><i class="ti ti-shield-check" aria-hidden="true"></i> 승인된 관리자만 이용할 수 있습니다.</p>
-          </form>
-          <p class="copyright">© SEUNGJIN Co., Ltd. All rights reserved.</p>
-        </div>
-      </section>
+        <p class="login-message" id="loginMessage" role="alert" aria-live="polite"></p>
+        <button class="login-button" type="submit">
+          <span class="login-button-label">로그인</span>
+          <i class="ti ti-arrow-right login-button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></i>
+        </button>
+      </form>
     </main>
 
     <script src="./config.js"></script>
