@@ -8628,11 +8628,12 @@ small, em {
 }
 
 .production-plan-date-control label {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.35rem;
   height: 2.65rem;
-  padding: 0 0.75rem;
+  padding: 0 2.3rem 0 0.75rem;
   border-radius: 0.45rem;
   color: var(--navy);
 }
@@ -8655,7 +8656,22 @@ small, em {
 }
 
 .production-plan-date-control input {
-  min-width: 8.2rem;
+  min-width: 0;
+  width: 7.4rem;
+  padding: 0;
+}
+
+@supports (field-sizing: content) {
+  .production-plan-date-control input {
+    field-sizing: content;
+    width: auto;
+  }
+}
+
+.production-plan-date-control input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 0.75rem;
+  margin: 0;
 }
 
 .production-plan-weekday {
