@@ -882,6 +882,14 @@ async function verifyProductionPlanOrderPicker(page,fixture) {
   for(const width of [1920,1280,960]) {
     await page.setViewportSize({width,height:1000});
     const bounds=await page.locator('.production-plan-table-wrap').evaluate(wrap=>({width:wrap.clientWidth,scroll:wrap.scrollWidth}));assert.ok(bounds.scroll<=bounds.width+1);
+    const alignment=await row.locator('.production-plan-product-fields').evaluate(fields=>{
+      const controls=[...fields.querySelectorAll('select')].map(node=>{const r=node.getBoundingClientRect();return {left:r.left,right:r.right,center:r.top+r.height/2,width:r.width};});
+      const r=fields.getBoundingClientRect();return {controls,left:r.left,right:r.right,overflow:fields.scrollWidth-fields.clientWidth};
+    });
+    assert.equal(alignment.controls.length,2);
+    assert.ok(Math.abs(alignment.controls[0].center-alignment.controls[1].center)<1,`selector vertical alignment at ${width}`);
+    assert.ok(alignment.controls.every(control=>control.left>=alignment.left && control.right<=alignment.right && control.width>=34),`selector fit at ${width}: ${JSON.stringify(alignment)}`);
+    assert.ok(alignment.controls[0].right<alignment.controls[1].left && alignment.overflow<=1,`selectors share one row at ${width}`);
     await row.screenshot({path:`/private/tmp/seungjin-plan-order-picker-${width}.png`});
   }
   await date('2026-10-12');assert.equal(await select.inputValue(),'ORDER-45');await open();assert.equal(await details.locator('[data-plan-detail-value=cumulativeProduction]').textContent(),'3,000 ea');

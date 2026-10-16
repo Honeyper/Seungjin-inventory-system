@@ -15283,10 +15283,31 @@ small, em {
 }
 #productionPlanView [data-plan-message][hidden] { display: none; }
 
-#productionPlanView .production-plan-order-field {
-  border-radius: 0;
-  border-bottom: 0;
+/* Order and stage share one compact row below the product name. */
+#productionPlanView .production-plan-product-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid #d8e1ec;
+  border-radius: 0 0 0.35rem 0.35rem;
+  background: #f8fafd;
 }
-#productionPlanView .production-plan-order-field select { max-width: none; }
-
+#productionPlanView .production-plan-product-fields .production-plan-stage-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  gap: 0.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+#productionPlanView .production-plan-product-fields select {
+  width: 100%;
+  max-width: none;
+  padding-inline: 0.65rem;
+  background-position: right 0.2rem center;
+}
 #productionPlanView .production-plan-product-trigger { min-height: 1.5rem; }
