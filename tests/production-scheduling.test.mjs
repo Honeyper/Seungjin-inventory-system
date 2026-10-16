@@ -13,12 +13,13 @@ test('납기가 충분하면 평일 8시간으로 빠르게 끝내고 야근·�
 });
 test('미래 평일을 다 써도 부족한 만큼만 연장하고 하루 10시간을 넘지 않는다',()=>{
  const p=run({orderQuantity:17500,dueDate:'2026-10-20'});
- assert.equal(p.targetQuantity,9000);assert.equal(p.hours,9);assert.equal(p.schedule[1].hours,8.5);assert.equal(p.mode,'overtime');assert.equal(sum(p),17500);
- const m=run({orderQuantity:16001,dueDate:'2026-10-20'});assert.deepEqual(Array.from(m.schedule.map(day=>day.hours)).sort((a,b)=>a-b),[8,8.5]);assert.equal(sum(m),16001);
+ assert.equal(p.targetQuantity,9000);assert.equal(p.hours,9);assert.equal(p.schedule[1].hours,9);assert.equal(p.mode,'overtime');assert.equal(sum(p),17500);
+ const m=run({orderQuantity:16001,dueDate:'2026-10-20'});assert.deepEqual(Array.from(m.schedule.map(day=>day.hours)).sort((a,b)=>a-b),[8,9]);assert.equal(sum(m),16001);
 });
-test('평일 최대 10시간으로 충분하면 먼저 오는 주말도 쉬게 한다',()=>{
+test('평일 연장으로 맞출 수 있어도 토요일 8시간으로 평일 연장을 먼저 줄인다',()=>{
  const p=run({orderQuantity:19000,startDate:'2026-10-17',dueDate:'2026-10-20'});
- assert.equal(p.hours,0);assert.equal(p.targetQuantity,0);assert.equal(p.mode,'overtime');assert.ok(p.schedule.every(d=>d.type==='weekday'));assert.equal(sum(p),19000);
+ assert.equal(p.hours,8);assert.equal(p.targetQuantity,8000);assert.equal(p.mode,'weekend');assert.equal(sum(p),19000);
+ assert.ok(p.schedule.every(day=>day.hours===8));assert.equal(p.schedule[0].date,'2026-10-17');
 });
 test('평일 연장으로 부족해 주말에 출근하면 마지막 잔량도 최소 8시간을 배정한다',()=>{
  const p=run({orderQuantity:13000,startDate:'2026-10-16',dueDate:'2026-10-18'});
@@ -71,7 +72,7 @@ test('다양한 속도·잔량·납기에서도 초과 생산·10시간 초과·
  for(const rate of [50,751,1080,1200.5])for(const quantity of [250,6008,99100])for(const dueDate of ['2026-10-19','2026-10-23','2026-11-30']){
   const p=run({orderQuantity:quantity,hourlyRate:rate,dueDate});
   assert.equal(sum(p)+p.shortfall,quantity);
-  assert.ok(p.schedule.every(d=>d.hours>=8 && d.hours<=10 && Number.isInteger(d.hours*2) && d.targetQuantity<=rate*d.hours+1e-6));
+  assert.ok(p.schedule.every(d=>d.hours>=8 && d.hours<=10 && Number.isInteger(d.hours) && d.targetQuantity<=rate*d.hours+1e-6));
   assert.ok(p.schedule.slice(0,-1).every(d=>d.targetQuantity%500===0));
   assert.equal(p.completionDate!==null,p.shortfall===0);
   assert.ok(p.schedule.every(d=>d.date<=dueDate));
@@ -84,23 +85,26 @@ test('8시간으로 부족하면 평일 전체를 9시간 이내로 분산하고
   const p=run({orderQuantity:quantity});assert.equal(sum(p),quantity);assert.equal(p.shortfall,0);
   assert.ok(p.schedule.every(day=>day.type==='weekday' && day.hours>=8 && day.hours<=9));
  }
- const p=run({orderQuantity:46000});assert.equal(p.schedule.filter(day=>day.hours===10).length,0);assert.ok(p.schedule.every(day=>day.hours<=9.5));
+ const p=run({orderQuantity:46000});assert.equal(p.schedule.filter(day=>day.hours===10).length,1);assert.ok(p.schedule.every(day=>[8,9,10].includes(day.hours)));
 });
 
-test('평일 10시간이 주 3일이면 같은 주 토요일 8시간으로 바꿔 평일을 낮춘다',()=>{
- const p=run({orderQuantity:49000,dueDate:'2026-10-24'});
- assert.equal(p.shortfall,0);assert.equal(sum(p),49000);assert.deepEqual(Array.from(p.saturdayReliefDates),['2026-10-24']);
- assert.equal(p.schedule.find(day=>day.date==='2026-10-24').hours,8);assert.ok(p.schedule.filter(day=>day.type==='weekday').every(day=>day.hours<=9));
- assert.equal(p.fatigueWeeks.length,0);assert.match(p.message,/토요일 8시간/);
- const below=run({orderQuantity:48500,dueDate:'2026-10-24'});assert.equal(below.schedule.filter(day=>day.hours===10).length,2);assert.ok(below.schedule.every(day=>day.type==='weekday'));
+test('평일 8시간으로 부족하면 토요일 8시간을 9시간 연장보다 먼저 넣는다',()=>{
+ for(const quantity of [40001,42000,45000,47000,48000]) {
+  const p=run({orderQuantity:quantity,dueDate:'2026-10-24'});
+  assert.equal(p.shortfall,0);assert.equal(sum(p),quantity);assert.ok(p.schedule.every(day=>day.hours===8));
+  assert.deepEqual(Array.from(p.saturdayReliefDates),['2026-10-24']);assert.equal(p.fatigueWeeks.length,0);
+ }
+ const more=run({orderQuantity:49000,dueDate:'2026-10-24'});assert.ok(more.schedule.filter(day=>day.type==='weekday').every(day=>day.hours===8));
+ assert.equal(more.schedule.find(day=>day.date==='2026-10-24').hours,9);assert.equal(sum(more),49000);
 });
 
-test('이전 실제 10시간 근무를 합산하며 다른 주·미래 기록·중복 기록으로 기준을 부풀리지 않는다',()=>{
- const previous=[{date:'2026-10-19',hours:10},{date:'2026-10-20',hours:10}];
- const p=run({orderQuantity:29000,startDate:'2026-10-21',dueDate:'2026-10-24',previousWorkSchedule:previous});
- assert.equal(p.schedule.find(day=>day.date==='2026-10-24').hours,8);assert.ok(p.schedule.filter(day=>day.type==='weekday').every(day=>day.hours===8));assert.equal(sum(p),29000);
- for(const history of [[previous[0],previous[0]], [{date:'2026-10-12',hours:10},{date:'2026-10-13',hours:10}], [{date:'2026-10-22',hours:10},{date:'2026-10-23',hours:10}]]) {
-  const no=run({orderQuantity:29000,startDate:'2026-10-21',dueDate:'2026-10-24',previousWorkSchedule:history});assert.equal(no.saturdayReliefDates.length,0);
+test('이전 근무기록과 관계없이 8시간 평일·토요일으로 충분하면 연장하지 않는다',()=>{
+ const histories=[[],[{date:'2026-10-19',hours:10},{date:'2026-10-20',hours:10}],
+  [{date:'2026-10-19',hours:10},{date:'2026-10-19',hours:10}], [{date:'2026-10-12',hours:10},{date:'2026-10-13',hours:10}],
+  [{date:'2026-10-22',hours:10},{date:'2026-10-23',hours:10}]];
+ for(const previousWorkSchedule of histories) {
+  const p=run({orderQuantity:29000,startDate:'2026-10-21',dueDate:'2026-10-24',previousWorkSchedule});
+  assert.equal(p.schedule.find(day=>day.date==='2026-10-24').hours,8);assert.ok(p.schedule.every(day=>day.hours===8));assert.equal(sum(p),29000);
  }
 });
 
@@ -117,36 +121,37 @@ test('납기 뒤 토요일이나 공휴일 토요일은 대체 근무로 끌어�
  }
 });
 
-test('매주 별도로 10시간을 세고 두 주 모두 토요일로 분산한다',()=>{
+test('두 주 물량이 많아도 토요일을 사용하며 10시간보다 9시간으로 분산한다',()=>{
  const p=run({orderQuantity:106000,dueDate:'2026-10-31'});
- assert.equal(p.shortfall,0);assert.equal(sum(p),106000);assert.deepEqual(Array.from(p.saturdayReliefDates),['2026-10-24','2026-10-31']);
- assert.ok(p.schedule.filter(day=>day.type==='weekday').every(day=>day.hours<=9));assert.ok(p.schedule.filter(day=>day.type==='weekend').every(day=>day.hours===8));
+ assert.equal(p.shortfall,0);assert.equal(sum(p),106000);assert.deepEqual(Array.from(p.schedule.filter(day=>day.type==='weekend'),day=>day.date),['2026-10-24','2026-10-31']);
+ assert.ok(p.schedule.filter(day=>day.type==='weekday').every(day=>day.hours<=9));assert.ok(p.schedule.filter(day=>day.type==='weekend').every(day=>day.hours<=9));
 });
 
 test('9시간 47분 같은 계획은 만들지 않고 매일 필수량과 마지막 잔량은 지킨다',()=>{
  const p=run({orderQuantity:10000,hourlyRate:1023,dueDate:'2026-10-19'});assert.equal(p.hours,10);assert.equal(p.targetQuantity,10000);
- const daily=run({orderQuantity:99100,hourlyRate:751,deliveryType:'daily',dailyMinimumQuantity:7000});assert.equal(daily.hours,9.5);assert.equal(daily.targetQuantity,7000);
+ const daily=run({orderQuantity:99100,hourlyRate:751,deliveryType:'daily',dailyMinimumQuantity:7000});assert.equal(daily.hours,10);assert.equal(daily.targetQuantity,7500);
  const required=run({deliveryType:'daily',dailyMinimumQuantity:10000,startDate:'2026-10-21',previousWorkSchedule:[{date:'2026-10-19',hours:10},{date:'2026-10-20',hours:10}]});
  assert.equal(required.targetQuantity,10000);assert.equal(required.hours,10);assert.match(required.message,/일일 필수량 유지/);
 });
 
-test('회사 휴무와 극단적인 물량에서도 30분 단위·정확한 잔량·최대 10시간을 보장한다',()=>{
+test('회사 휴무와 극단적인 물량에서도 8·9·10시간·정확한 잔량을 보장한다',()=>{
  for(const options of [{orderQuantity:60000,dueDate:'2026-10-24'}, {orderQuantity:999999,dueDate:'2026-10-25'},
   {orderQuantity:49000,dueDate:'2026-10-24',extraHolidays:['2026-10-24']}, {orderQuantity:99100,hourlyRate:1023,dueDate:'2026-10-26'}]) {
   const p=run(options);assert.equal(sum(p)+p.shortfall,options.orderQuantity);
-  assert.ok(p.schedule.every(day=>Number.isInteger(day.hours*2) && day.hours>=8 && day.hours<=10 && day.date<=options.dueDate));
+  assert.ok(p.schedule.every(day=>Number.isInteger(day.hours) && day.hours>=8 && day.hours<=10 && day.date<=options.dueDate));
   assert.equal(p.completionDate!==null,p.shortfall===0);
   if(p.message.includes('토요일 8시간'))assert.ok(p.schedule.some(day=>day.type==='weekend' && day.hours===8));
  }
 });
 
 
-test('여러 주의 10시간 근무를 고르게 나눌 수 있으면 불필요한 토요일을 추가하지 않는다',()=>{
- const p=run({orderQuantity:97000,dueDate:'2026-10-31'});assert.equal(sum(p),97000);assert.equal(p.saturdayReliefDates.length,0);assert.ok(p.schedule.every(day=>day.type==='weekday'));
- assert.equal(p.fatigueWeeks.length,0);
- const one=run({orderQuantity:100000,dueDate:'2026-10-31'});assert.equal(sum(one),100000);assert.equal(one.saturdayReliefDates.length,1);
+test('평일 9시간반을 반복하는 대신 평일 8시간과 필요한 토요일을 넣는다',()=>{
+ const p=run({orderQuantity:47000,dueDate:'2026-10-24'});
+ assert.equal(sum(p),47000);assert.equal(p.schedule.filter(day=>day.type==='weekend').length,1);
+ assert.ok(p.schedule.every(day=>day.hours===8));assert.equal(p.completionDate,'2026-10-24');
+ const enough=run({orderQuantity:40000,dueDate:'2026-10-31'});assert.ok(enough.schedule.every(day=>day.type==='weekday' && day.hours===8));
+ const one=run({orderQuantity:85000,dueDate:'2026-10-31'});assert.equal(one.saturdayReliefDates.length,1);assert.ok(one.schedule.every(day=>day.hours===8));
 });
-
 
 test('토요일 잔량이 3시간 분량이어도 8시간 출근하며 일요일은 추가하지 않는다',()=>{
  const p=run({orderQuantity:11000,startDate:'2026-10-16',dueDate:'2026-10-18'});
@@ -161,7 +166,7 @@ test('토요일 잔량이 3시간 분량이어도 8시간 출근하며 일요일
 
 test('휴일을 줄일 때는 출근일 전체를 제외하고 8시간 미만이나 불필요한 연장을 남기지 않는다',()=>{
  const extended=run({orderQuantity:8001,startDate:'2026-10-17',dueDate:'2026-10-18'});
- assert.equal(extended.schedule.length,1);assert.equal(extended.hours,8.5);assert.equal(sum(extended),8001);
+ assert.equal(extended.schedule.length,1);assert.equal(extended.hours,9);assert.equal(sum(extended),8001);
  for(const options of [
   {orderQuantity:3000,startDate:'2026-10-17',dueDate:'2026-10-18'},
   {orderQuantity:12000,startDate:'2026-10-09',dueDate:'2026-10-10'},
@@ -212,4 +217,17 @@ test('매일 납기 미완료를 완료로 오인하지 않고 연결된 평일 
  const p=chain({startDate:'2026-10-19',orders:[{purchaseOrderId:'44',orderQuantity:3000,dueDate:'2026-10-19'},
  {purchaseOrderId:'45',orderQuantity:15000,deliveryType:'daily',dailyMinimumQuantity:7000}]});
  assert.equal(p.orders[1].targetQuantity,5000);assert.equal(p.orders[1].hours,8);assert.equal(p.orders[1].shortfall,2000);assert.match(p.orders[1].message,/일일 필수량 2,000개 부족/);
+});
+
+
+test('토요일 한 번의 8시간으로 충분하면 모든 평일을 8시간으로 유지한다',()=>{
+ const p=run({orderQuantity:99100,completedProduction:24000,hourlyRate:1080,startDate:'2026-10-15',dueDate:'2026-10-26'});
+ assert.equal(p.shortfall,0);assert.equal(sum(p),75100);
+ assert.equal(p.schedule.filter(day=>day.type==='weekend').length,1);assert.ok(p.schedule.every(day=>day.hours===8));
+ assert.equal(p.schedule.find(day=>day.type==='weekend').date,'2026-10-17');
+});
+test('토요일이 납기 안에 없으면 9시간을 먼저 쓰고 10시간은 부족할 때만 쓴다',()=>{
+ const nine=run({orderQuantity:45000});assert.ok(nine.schedule.every(day=>day.hours===9));
+ const ten=run({orderQuantity:46000});assert.equal(ten.schedule.filter(day=>day.hours===10).length,1);
+ assert.ok(ten.schedule.every(day=>[8,9,10].includes(day.hours) && day.date<='2026-10-23'));
 });

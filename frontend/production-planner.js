@@ -73,8 +73,8 @@
           value.ten+=day.hours>=10 && (day.type||dayType(day.date,extraHolidays))==='weekday'?1:0;
           value.hours+=day.hours;burden.set(week,value);
         }
-        // Shorten the most burdened week first; update its totals after each accepted half-hour reduction.
-        for(let minutes=600;minutes>480;minutes-=30) {
+        // Shorten the most burdened week first; update its totals after each accepted one-hour reduction.
+        for(let minutes=600;minutes>480;minutes-=60) {
           const pending=indices.filter(index=>candidate[index].type==='weekday' && candidate[index].minutes===minutes);
           const compare=(a,b)=>{
             const left=burden.get(weeks[a]),right=burden.get(weeks[b]);
@@ -83,9 +83,9 @@
           while(pending.length) {
             let pick=0;
             for(let index=1;index<pending.length;index++) if(compare(pending[index],pending[pick])<0) pick=index;
-            const index=pending.splice(pick,1)[0],day=candidate[index];day.minutes-=30;
-            if(allocate(candidate,remaining,rate).shortfall) day.minutes+=30;
-            else {const value=burden.get(weeks[index]);value.hours-=0.5;if(minutes===600)value.ten--;}
+            const index=pending.splice(pick,1)[0],day=candidate[index];day.minutes-=60;
+            if(allocate(candidate,remaining,rate).shortfall) day.minutes+=60;
+            else {const value=burden.get(weeks[index]);value.hours-=1;if(minutes===600)value.ten--;}
           }
         }
       };
@@ -96,7 +96,7 @@
           while(day.minutes>(day.floor||0)) {
             const before=day.minutes;
             // Attendance is a full shift: remove an unnecessary rest-day shift as a whole.
-            day.minutes=before>480?before-30:0;
+            day.minutes=before>480?before-60:0;
             if(allocate(candidate,remaining,rate).shortfall) {day.minutes=before;break;}
           }
         }
@@ -117,46 +117,41 @@
       return variants[0][index].minutes>variants[1][index].minutes?variants[0]:variants[1];
     return variants[0];
   }
-  function fillWeekdays(days, remaining, rate, previous, extraHolidays) {
-    let candidate;
-    // Prefer an even, lower ceiling to concentrating the same work into ten-hour days.
-    for(const minutes of [480,510,540,570,600]) {
-      candidate=days.map(day=>({...day,minutes:day.type==='weekday'?minutes:day.minutes}));
-      if(!allocate(candidate,remaining,rate).shortfall) return trimSchedule(candidate,remaining,rate,false,previous,extraHolidays);
-    }
-    return candidate;
-  }
   function balanceSchedule(days, remaining, rate, previous, extraHolidays) {
-    let balanced=fillWeekdays(days,remaining,rate,previous,extraHolidays);
-    const reliefDates=new Set();
-    const relieveWeeks=()=>{
-      const weeks=tenHourWeeks(allocate(balanced,remaining,rate).schedule,previous,extraHolidays);
-      for(const {week} of weeks) {
-        const saturday=balanced.find(day=>day.type==='weekend' && new Date(`${day.date}T00:00:00Z`).getUTCDay()===6 && weekStart(day.date)===week);
-        if(!saturday || reliefDates.has(saturday.date)) continue;
-        saturday.minutes=Math.max(480,saturday.minutes);saturday.floor=480;reliefDates.add(saturday.date);
-        balanced=fillWeekdays(balanced,remaining,rate,previous,extraHolidays);
-        return true;
-      }
-      return false;
+    const saturday=day=>day.type==='weekend' && new Date(`${day.date}T00:00:00Z`).getUTCDay()===6;
+    let balanced=days.map(day=>({...day}));
+    const fits=candidate=>allocate(candidate,remaining,rate).shortfall===0;
+    const result=candidate=>{
+      const schedule=allocate(candidate,remaining,rate).schedule;
+      return {days:candidate,saturdayReliefDates:schedule.filter(day=>saturday(day) && day.hours===8).map(day=>day.date),
+        fatigueWeeks:tenHourWeeks(schedule,previous,extraHolidays)};
     };
-    while(relieveWeeks()) { /* Each pass can add only an available Saturday inside the deadline. */ }
-    // Saturdays come before Sundays; public holidays remain the final capacity tier.
-    for(const kind of ['saturday','sunday','holiday']) {
-      if(!allocate(balanced,remaining,rate).shortfall) break;
-      const matches=day=>kind==='holiday'?day.type==='holiday':day.type==='weekend'
-        && new Date(`${day.date}T00:00:00Z`).getUTCDay()===(kind==='saturday'?6:0);
-      for(let minutes=480;minutes<=600;minutes+=30) {
-        balanced=balanced.map(day=>matches(day)?{...day,minutes:Math.max(day.floor||0,minutes)}:day);
-        if(kind==='saturday') balanced=fillWeekdays(balanced,remaining,rate,previous,extraHolidays);
-        else if(!allocate(balanced,remaining,rate).shortfall) balanced=trimSchedule(balanced,remaining,rate,true,previous,extraHolidays);
-        while(relieveWeeks()) {}
-        if(!allocate(balanced,remaining,rate).shortfall) break;
+    if(fits(balanced)) return result(balanced);
+    // Add Saturday attendance before asking anyone to extend an eight-hour day.
+    for(const day of balanced.filter(saturday)) {
+      day.minutes=480;
+      if(fits(balanced)) return result(trimSchedule(balanced,remaining,rate,false,previous,extraHolidays));
+    }
+    const extend=()=>{
+      for(const minutes of [480,540,600]) {
+        const candidate=balanced.map(day=>({...day,minutes:day.type==='weekday' || day.minutes>0?minutes:0}));
+        if(fits(candidate)) return trimSchedule(candidate,remaining,rate,false,previous,extraHolidays);
+      }
+      return null;
+    };
+    const extended=extend();
+    if(extended) return result(extended);
+    // Sundays and holidays are still avoided unless Saturday and ten-hour capacity cannot meet the due date.
+    for(const kind of ['sunday','holiday']) {
+      const matches=day=>kind==='holiday'?day.type==='holiday':day.type==='weekend' && !saturday(day);
+      for(const day of balanced.filter(matches)) {
+        day.minutes=480;
+        const candidate=extend();
+        if(candidate) return result(candidate);
       }
     }
-    const planned=allocate(balanced,remaining,rate);
-    return {days:balanced,saturdayReliefDates:[...reliefDates].filter(date=>planned.schedule.some(day=>day.date===date && day.hours===8)),
-      fatigueWeeks:tenHourWeeks(planned.schedule,previous,extraHolidays)};
+    balanced=balanced.map(day=>({...day,minutes:day.type==='weekday' || day.minutes>0?600:0}));
+    return result(balanced);
   }
   function plan({orderQuantity, hourlyRate, completedProduction = 0, startDate, dueDate,
     deliveryType = 'date', dailyMinimumQuantity, extraHolidays = [], previousWorkSchedule = []}) {
@@ -187,7 +182,7 @@
       if(type!=='weekday') return {...result,targetQuantity:0,hours:0,shortfall:0,mode:'rest',message:type==='holiday'?'공휴일 휴무':'주말 휴무'};
       const required=Math.min(remaining,Math.ceil(minimum/500)*500);
       let minutes=480;
-      while(minutes<600 && dayTarget(remaining,rate,minutes)<required) minutes+=30;
+      while(minutes<600 && dayTarget(remaining,rate,minutes)<required) minutes+=60;
       const target=dayTarget(remaining,rate,minutes),shortfall=Math.max(0,Math.min(remaining,minimum)-target);
       const schedule=[{date:startDate,type,hours:minutes/60,targetQuantity:target}];
       const fatigueWeeks=tenHourWeeks(schedule,previous,extraHolidays);
@@ -215,7 +210,7 @@
     const hasOvertime=planned.schedule.some(day=>day.type==='weekday' && day.hours>8);
     mode=hasHoliday?'holiday':hasWeekend?'weekend':hasOvertime?'overtime':'regular';
     let message=hasHoliday?'납기 대응 공휴일 근무 필요':hasWeekend?'납기 대응 주말 근무 필요':hasOvertime?'납기 대응 연장근무':'';
-    if(balance.saturdayReliefDates.length && !hasHoliday) message='평일 10시간 집중 완화 · 토요일 8시간 주말 근무';
+    if(balance.saturdayReliefDates.length && !hasHoliday) message='평일 8시간 우선 · 토요일 8시간 주말 근무';
     if(balance.fatigueWeeks.length) message+=(message?' · ':'')+'주 3일 이상 10시간 근무 필요 · 납기/물량 조정 검토';
     if(!today) message=type==='weekday'?'오늘 배정 없음':type==='holiday'?'공휴일 휴무':'주말 휴무';
     if(noDue) message=type==='weekday'?'납기일 미입력 · 평일 8시간 기준':message;
