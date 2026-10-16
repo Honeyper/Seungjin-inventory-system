@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "출고 결산 정리·발주 조회 오류 표시 개선", items: ["출고 결산의 상단 상태 카드 3개를 제거하고 검사 수량 대신 선택 기간·목록 필터에 해당하는 출고대기 박스 수를 표시합니다.", "발주 조회 응답이 잘못되거나 조회가 실패하면 기존 목록을 유지하고 오류를 표시합니다."] },
   { date: "2026-10-16", title: "발주 화면 입력·버튼 크기 통일", items: ["PC 발주 화면의 검색·상태 선택·버튼 글자를 14px, 높이를 42px로 맞춰 다른 목록과 비슷한 크기로 정리했습니다."] },
   { date: "2026-10-16", title: "승진 심볼·블루 포인트 적용", items: ["로그인·관리자·모바일 화면과 앱 아이콘을 제공된 승진 심볼로 통일하고 금색 브랜드 포인트를 블루로 변경했습니다. 작업시간·경고 등 업무 상태색은 유지합니다."] },
   { date: "2026-10-16", title: "아이콘 선 두께 1px 통일", items: ["사이드바·검색·저장·인쇄·팝업·모바일 아이콘을 1px 선으로 정리했습니다. 웹폰트와 모바일 이미지 아이콘을 같은 계열의 SVG 아이콘으로 교체해 상태별 색상과 기존 동작을 유지합니다."] },
@@ -1096,7 +1097,7 @@ const shippingSettlementFields = {
   totalQuantity: document.querySelector("#shippingSettlementTotalQuantity"),
   totalBoxes: document.querySelector("#shippingSettlementTotalBoxes"),
   remainder: document.querySelector("#shippingSettlementRemainder"),
-  inspectedQuantity: document.querySelector("#shippingSettlementInspectedQuantity"),
+  pendingBoxes: document.querySelector("#shippingSettlementPendingBoxes"),
   defectQuantity: document.querySelector("#shippingSettlementDefectQuantity"),
   defectRate: document.querySelector("#shippingSettlementDefectRate"),
   inspectionShare: document.querySelector("#shippingSettlementInspectionShare")
@@ -6663,6 +6664,11 @@ function updateShippingSettlementSummary() {
   const rows = getShippingSettlementItems();
   const boxItems = getShippingSettlementBoxItems();
   const completedBoxItems = boxItems.filter((item) => item.status === "출고완료");
+  const pendingBoxes = boxItems.reduce((total, item) => (
+    normalizeInventoryStockStatus(item.status) === "출고대기"
+      ? total + Math.max(0, parseShippingSettlementNumber(item.boxes))
+      : total
+  ), 0);
   let totalQuantity = 0;
   let totalBoxes = 0;
   let remainder = 0;
@@ -6719,7 +6725,7 @@ function updateShippingSettlementSummary() {
   setShippingSettlementText("totalQuantity", formatShippingSettlementNumber(totalQuantity));
   setShippingSettlementText("totalBoxes", formatShippingSettlementNumber(totalBoxes));
   setShippingSettlementText("remainder", formatShippingSettlementNumber(remainder));
-  setShippingSettlementText("inspectedQuantity", formatShippingSettlementNumber(inspectedQuantity));
+  setShippingSettlementText("pendingBoxes", formatShippingSettlementNumber(pendingBoxes));
   setShippingSettlementText("defectQuantity", formatShippingSettlementNumber(defectQuantity));
   setShippingSettlementText("defectRate", formatShippingSettlementPercent(defectRate));
   setShippingSettlementText("inspectionShare", formatShippingSettlementPercent(inspectionShare));
@@ -8362,16 +8368,17 @@ async function loadPurchaseOrders() {
 
   try {
     const result = await requestApi("getPurchaseOrders");
-    state.purchaseOrders = Array.isArray(result?.purchaseOrders) ? result.purchaseOrders : [];
+    if (!Array.isArray(result?.purchaseOrders)) {
+      throw new Error("발주 조회 응답을 확인할 수 없습니다. 새로고침해 주세요.");
+    }
+    state.purchaseOrders = result.purchaseOrders;
     state.purchaseOrdersLoaded = true;
     applyPurchaseOrderFilters();
     populateInboundPurchaseOrders(inboundProductId?.value.trim());
     if (getCurrentView() === "production-plan") loadProductionPlanDraft();
     return true;
   } catch (error) {
-    state.purchaseOrders = [];
-    state.filteredPurchaseOrders = [];
-    state.purchaseOrdersLoaded = false;
+    // Keep the last successful list when a refresh fails.
     renderPurchaseOrders(error.message || "발주 정보를 불러오지 못했습니다.");
     populateInboundPurchaseOrders(inboundProductId?.value.trim());
     return false;
