@@ -88,6 +88,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-16", title: "8·9시간 우선 생산계획 및 30분 단위 근무", items: ["평일 8시간과 9시간 이내 분산을 먼저 검토하고 9시간 30분·10시간은 필요한 경우에만 배정합니다. 근무계획은 모두 30분 단위로 계산합니다.", "같은 주에 평일 10시간 근무가 3일 이상 필요하면 납기 안의 토요일 8시간으로 분산해 평일 부담을 줄입니다. 같은 공장·작업자의 이전 근무시간을 발주와 공정에 걸쳐 반영합니다. 실 근무시간을 우선하고 미입력 시 기계가 배정된 저장 계획을 참고하며 일일 필수 생산량은 유지합니다."] },
   { date: "2026-10-16", title: "날짜 이동 시 생산계획 세부사항 유지", items: ["이전·다음·오늘 버튼이나 날짜 선택으로 이동해도 세부사항의 열림·닫힘 상태를 유지합니다. 각 날짜의 저장된 실적과 계획을 새로 표시합니다."] },
   { date: "2026-10-16", title: "생산계획 발주 선택", items: ["제품명 아래에서 같은 제품의 44차·45차 등 진행 중인 발주를 선택할 수 있습니다. 발주별 목표·누적 생산량·잔여 수량을 구분하고 같은 날짜에 입력한 다른 발주의 실적도 함께 보관합니다."] },
   { date: "2026-10-16", title: "재고 목록 가로 스크롤 제거", items: ["재고 표의 14개 열을 화면 너비에 맞춰 배치했습니다. 긴 관리 ID·제품명·상태는 줄바꿈하고 QR·상세·삭제 버튼도 열 안에 배치합니다."] },
@@ -2697,6 +2698,37 @@ function getProductionPlanActiveJobs() {
 }
 
 
+function getProductionPlanPreviousWorkSchedule(job) {
+  const worker = job.worker || "";
+  if (!worker) return [];
+  return (readProductionPlanActualLedger() || [])
+    .filter(snapshot => snapshot.factory === state.productionPlanFactory && snapshot.date < state.productionPlanDate)
+    .map(snapshot => {
+      const groups = new Set();
+      let hundredths = 0;
+      for (const owner of snapshot.jobs.filter(item => item?.purchaseOrderId)) {
+        for (const stage of new Set([String(owner.stage), ...Object.keys(owner.stageDrafts || {})])) {
+          const source = stage === String(owner.stage) ? owner : owner.stageDrafts[stage];
+          if (!source) continue;
+          const target = {...owner, stage:Number(stage), stageGroup:Array.isArray(source.stageGroup) && source.stageGroup.length ? source.stageGroup : [Number(stage)]};
+          const process = ["실크", "실크인쇄", "자동화"].includes(String(owner.process || "").replace(/\s/g, "")) ? "실크" : owner.process;
+          const key = JSON.stringify([owner.purchaseOrderId, owner.productId, process, [...target.stageGroup].sort((a,b)=>a-b)]);
+          if (groups.has(key)) continue;
+          groups.add(key);
+          const ids = new Set();
+          for (const item of getProductionPlanActualSources(snapshot.jobs, target)) {
+            if (item.worker !== worker || item.planRowId && ids.has(item.planRowId)) continue;
+            if (item.planRowId) ids.add(item.planRowId);
+            let hours = window.SeungjinProductionPlanner.number(item.actualWorkHours);
+            if (hours === null && (PRODUCTION_MACHINE_OPTIONS[target.process] || []).includes(item.machine)) hours = window.SeungjinProductionPlanner.number(item.hours);
+            if (hours !== null) hundredths += Math.round(hours * 100);
+          }
+        }
+      }
+      return {date:snapshot.date, hours:hundredths / 100};
+    }).filter(day => day.hours > 0).sort((a,b) => a.date.localeCompare(b.date));
+}
+
 function getProductionPlanCalculations(job) {
   const order = state.purchaseOrders.find(item => item.purchaseOrderId === job?.purchaseOrderId);
   const product = getProductionPlanProduct(job?.productId);
@@ -2707,6 +2739,7 @@ function getProductionPlanCalculations(job) {
     completedProduction:getProductionPlanCumulativeActual(job, "actualProduction", {beforeDateOnly:true}),
     startDate:state.productionPlanDate, dueDate:order?.endDate, deliveryType:order?.deliveryType || "date",
     dailyMinimumQuantity:order?.dailyMinimumQuantity,
+    previousWorkSchedule:getProductionPlanPreviousWorkSchedule(job),
     extraHolidays:window.SEUNGJIN_CONFIG?.PRODUCTION_PLAN_HOLIDAYS || []};
   const cacheKey = JSON.stringify(input);
   if (productionPlanCalculationCache.has(cacheKey)) return productionPlanCalculationCache.get(cacheKey);
@@ -3118,7 +3151,7 @@ function renderProductionPlanMetrics(job) {
   const metrics = getProductionPlanDetailMetrics(job);
   const fields = [
     {key:"workDays",label:"잔여 작업일",title:"(발주량 − 누적 생산량) ÷ 시간당 생산량 ÷ 하루 8시간 (최소 0일, 소수점 한 자리까지 올림)"},
-    {key:"dailyTargetHours",label:"일일 목표 시간",title:"평일 8시간을 우선하고 납기 부족 시 최대 10시간으로 조정한 오늘 계획 근무시간"},
+    {key:"dailyTargetHours",label:"일일 목표 시간",title:"평일 8~9시간 우선, 30분 단위 근무계획. 주 3일 이상 10시간이 필요하면 납기 내 토요일 8시간으로 분산"},
     {key:"totalExpectedHours",label:"총 소요 시간(예상)",title:"전체 발주량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"orderQuantity",label:"발주량"},
     {key:"loss",label:"최대 허용 LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},

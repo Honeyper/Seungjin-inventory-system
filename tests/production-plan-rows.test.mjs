@@ -591,8 +591,8 @@ test('매일 납기는 12·13·14일 실적 24000개를 뺀 예상 완료일까�
 test('매일 납기 최초 배정일은 고정하고 일일 최소량 연장근무·마지막 잔량·완료 실적을 반영한다',()=>{
  const c=setup();c.state.purchaseOrders=[{...order,deliveryType:'daily',dailyMinimumQuantity:7000,totalOrderQuantity:14001,endDate:''}];
  c.state.products[0].processHourlyProductionRates['2도']=800;c.setProductionPlanDate('2026-10-12');
- c.state.productionPlanJobs[0].machine='3호기';c.saveProductionPlanDraft();assert.equal(c.getProductionPlanDailyCompletionDate(c.state.purchaseOrders[0]),'2026-10-14');
- c.setProductionPlanDate('2026-10-13');c.saveProductionPlanDraft();assert.equal(c.getProductionPlanDailyCompletionDate(c.state.purchaseOrders[0]),'2026-10-14');
+ c.state.productionPlanJobs[0].machine='3호기';c.saveProductionPlanDraft();assert.equal(c.getProductionPlanDailyCompletionDate(c.state.purchaseOrders[0]),'2026-10-13');
+ c.setProductionPlanDate('2026-10-13');c.saveProductionPlanDraft();assert.equal(c.getProductionPlanDailyCompletionDate(c.state.purchaseOrders[0]),'2026-10-13');
  c.setProductionPlanDate('2026-10-15');assert.equal(c.getProductionPlanActiveJobs().length,0);
  c.setProductionPlanDate('2026-10-13');Object.assign(c.state.productionPlanJobs[0],{actualProduction:15000,actualWorkHours:10});c.saveProductionPlanDraft();
  assert.equal(c.getProductionPlanDailyCompletionDate(c.state.purchaseOrders[0]),'2026-10-13');
@@ -638,4 +638,39 @@ test('발주 선택은 다른 제품·완료·취소·잔량 0·납기 이후 �
   {...order,purchaseOrderId:'EXPIRED',endDate:'2026-10-14'}, {...order,purchaseOrderId:'OTHER',productId:'OTHER'}];
  const job=c.state.productionPlanJobs[0];assert.deepEqual(plain(c.getProductionPlanOrderOptions(job).map(item=>item.purchaseOrderId)),[order.purchaseOrderId,'PO-45']);
  const before=plain(job);assert.equal(c.switchProductionPlanOrder(job,'EXPIRED'),false);assert.deepEqual(plain(job),before);
+});
+
+
+test('평일 장시간 분산은 같은 공장·작업자의 전날까지 실제 근무시간을 반영한다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:49000,endDate:'2026-10-24',deliveryType:'date'}];c.state.products[0].processHourlyProductionRates['2도']=1000;
+ for(const date of ['2026-10-19','2026-10-20']) {
+  c.setProductionPlanDate(date);const job=c.state.productionPlanJobs[0];if(date==='2026-10-20')c.changeProductionPlanPrintType(job,'자동화');
+  Object.assign(job,{actualProduction:10000,actualWorkHours:10,machine:'3호기'});c.saveProductionPlanDraft();
+ }
+ const row=c.state.productionPlanJobs[0];
+ c.testStorage.set('rows-test:selected-job:2공장:2026-10-20',JSON.stringify({jobs:[{...row,actualProduction:0,actualWorkHours:10}]}));
+ c.testStorage.set('rows-test:selected-job:1공장:2026-10-18',JSON.stringify({jobs:[{...row,purchaseOrderId:'OTHER',worker:'다른 작업자',actualProduction:0,actualWorkHours:10}]}));
+ c.setProductionPlanDate('2026-10-21');const job=c.state.productionPlanJobs[0],before=new Map(c.testStorage);
+ assert.deepEqual(plain(c.getProductionPlanPreviousWorkSchedule(job)),[{date:'2026-10-19',hours:10},{date:'2026-10-20',hours:10}]);
+ let p=c.getProductionPlanCalculations(job);assert.equal(p.remainingQuantity,29000);assert.equal(p.hours,8);assert.equal(p.schedule.find(day=>day.date==='2026-10-24').hours,8);
+ job.actualWorkHours=10;assert.equal(c.getProductionPlanCalculations(job).hours,8);assert.deepEqual([...c.testStorage],[...before]);
+});
+
+
+test('44차에서 45차로 바뀌어도 같은 작업자의 이전 10시간 근무를 주간 부담에 반영한다',()=>{
+ const c=setup();c.state.purchaseOrders=[{...order,totalOrderQuantity:29000,endDate:'2026-10-24',deliveryType:'date'}];c.state.products[0].processHourlyProductionRates['2도']=1000;c.setProductionPlanDate('2026-10-21');
+ const job=c.state.productionPlanJobs[0],prior={...job,purchaseOrderId:'PREVIOUS-ORDER',actualProduction:10000,actualWorkHours:10,stageDrafts:{}};
+ for(const date of ['2026-10-19','2026-10-20'])c.testStorage.set(`rows-test:selected-job:1공장:${date}`,JSON.stringify({jobs:[prior]}));
+ c.loadProductionPlanDraft();const current=c.state.productionPlanJobs[0];
+ assert.equal(c.getProductionPlanCumulativeProduction(current),0);assert.equal(c.getProductionPlanPreviousWorkSchedule(current).length,2);
+ const plan=c.getProductionPlanCalculations(current);assert.equal(plan.hours,8);assert.equal(plan.schedule.find(day=>day.date==='2026-10-24').hours,8);
+});
+
+
+test('실 근무시간 미입력 시 기계 배정된 이전 계획을 참고하되 실제 0시간을 덮어쓰지 않는다',()=>{
+ const c=setup();c.setProductionPlanDate('2026-10-21');const row=c.state.productionPlanJobs[0];
+ c.testStorage.set('rows-test:selected-job:1공장:2026-10-19',JSON.stringify({jobs:[{...row,machine:'3호기',hours:10,actualWorkHours:null}]}));
+ c.testStorage.set('rows-test:selected-job:1공장:2026-10-20',JSON.stringify({jobs:[{...row,machine:'3호기',hours:10,actualWorkHours:0}]}));
+ c.testStorage.set('rows-test:selected-job:1공장:2026-10-18',JSON.stringify({jobs:[{...row,machine:'',hours:10,actualWorkHours:null}]}));
+ c.invalidateProductionPlanActualLedger();assert.deepEqual(plain(c.getProductionPlanPreviousWorkSchedule(row)),[{date:'2026-10-19',hours:10}]);
 });
