@@ -69,7 +69,7 @@ const SCAN_COMPLETE_VIBRATION = [180, 60, 120];
 // Canonical inventory writes share one state version. Keep mobile batch writes
 // sequential so scanned product groups do not conflict with each other.
 const SHIPPING_ACTION_CONCURRENCY = 1;
-const SHIPPING_BOX_ICON_SRC = "../assets/mobile-shipping-box-icon-2d.png?v=20260712-shipping-box-icon";
+const SHIPPING_BOX_ICON_SRC = "../assets/line-icons/package.svg?v=20261016-thin-r116";
 const INVENTORY_STORAGE_OPTIONS = [
   "미지정",
   "현장",

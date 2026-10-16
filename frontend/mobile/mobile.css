@@ -80,7 +80,7 @@ svg {
   display: block;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -283,7 +283,7 @@ img {
 .login-lock svg {
   width: 40px;
   height: 40px;
-  stroke-width: 2.2;
+  stroke-width: 1;
 }
 
 .login-card h2 {
@@ -707,7 +707,7 @@ img {
 .nav-icon-button svg {
   width: 28px;
   height: 28px;
-  stroke-width: 2.6;
+  stroke-width: 1;
 }
 
 .scan-button {
@@ -1097,7 +1097,7 @@ img {
   width: 100%;
   height: 100%;
   color: #5f7fcb;
-  stroke-width: 1.6;
+  stroke-width: 1;
 }
 
 .empty-state h2 {
@@ -1307,7 +1307,7 @@ img {
 .bottom-nav .bottom-nav-icon {
   width: 23px;
   height: 23px;
-  stroke-width: 1.85;
+  stroke-width: 1;
   vector-effect: non-scaling-stroke;
   transition: color 160ms ease, transform 160ms ease;
 }
@@ -1933,7 +1933,7 @@ img {
   width: 18px;
   height: 18px;
   stroke: currentColor;
-  stroke-width: 2.4;
+  stroke-width: 1;
   stroke-linecap: round;
 }
 
@@ -2598,7 +2598,7 @@ img {
 .secondary-action svg {
   width: 26px;
   height: 26px;
-  stroke-width: 2.2;
+  stroke-width: 1;
 }
 
 .mobile-home-header {
@@ -4276,7 +4276,7 @@ img {
   height: 26px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.85;
+  stroke-width: 1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -4307,7 +4307,7 @@ img {
   color: var(--navy);
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.4;
+  stroke-width: 1;
 }
 
 #shippingScreen .manual-shipping-open-button:active {
@@ -4402,7 +4402,7 @@ img {
   height: 21px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -5306,7 +5306,7 @@ img {
   height: 36px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.9;
+  stroke-width: 1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -5789,7 +5789,7 @@ img {
   stroke: var(--gold-dark);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2;
+  stroke-width: 1;
 }
 
 .scanner-move-route .scanner-current-storage,
@@ -6326,7 +6326,7 @@ img {
   stroke: #718198;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2;
+  stroke-width: 1;
   transition: transform 160ms ease;
 }
 
@@ -7241,7 +7241,7 @@ body {
 #loginScreen .field-valid svg {
   width: 13px;
   height: 13px;
-  stroke-width: 2.4;
+  stroke-width: 1;
 }
 
 #loginScreen .field-control.is-filled .field-valid {
@@ -11196,7 +11196,7 @@ button.shipping-product-visual.has-photo:focus-visible {
   font-size: 20px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1;
   stroke-linecap: round;
 }
 
@@ -12060,7 +12060,7 @@ button.shipping-product-visual.has-photo:focus-visible {
 .scanner-camera-actions { display: flex; align-items: center; gap: 8px; }
 .scanner-camera-actions .scanner-flash { min-width: 54px; }
 .scanner-camera-switch { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; color: #fff; font-size: 21px; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; background: rgba(255,255,255,.12); }
-.scanner-camera-switch svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.scanner-camera-switch svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
 .scanner-camera-switch[hidden] { display: none; }
 .scanner-camera-switch:disabled { opacity: .5; }
 @media (max-height: 700px) { .scanner-header { grid-template-columns: 38px minmax(0, 1fr) auto; } }
