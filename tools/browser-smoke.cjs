@@ -655,9 +655,9 @@ async function verifyProductionPlanScheduling(page,fixture) {
   await scenario(24000,'2026-10-19','2026-10-23');
   assert.equal(await row.locator('[data-plan-target]').textContent(),'8,000 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
   await scenario(17500,'2026-10-19','2026-10-20');
-  assert.equal(await row.locator('[data-plan-target]').textContent(),'9,500 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'9시간 30분');
-  await openDetails();assert.equal(await details.locator('[data-plan-detail-value=dailyTargetHours]').textContent(),'9시간 30분');
-  assert.equal(await details.locator('[data-plan-detail-value=dailyRequired]').textContent(),'9,500 ea');
+  assert.equal(await row.locator('[data-plan-target]').textContent(),'9,000 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'9시간');
+  await openDetails();assert.equal(await details.locator('[data-plan-detail-value=dailyTargetHours]').textContent(),'9시간');
+  assert.equal(await details.locator('[data-plan-detail-value=dailyRequired]').textContent(),'9,000 ea');
   for(const width of [2560,1920,1440,1280,1024,960]) {
     await page.setViewportSize({width,height:900});
     const bounds=await page.locator('.production-plan-table-wrap').evaluate(wrap=>({width:wrap.clientWidth,scroll:wrap.scrollWidth,height:wrap.querySelector('[data-plan-row-id]').getBoundingClientRect().height}));
@@ -684,15 +684,28 @@ async function verifyProductionPlanScheduling(page,fixture) {
   assert.equal(await input.inputValue(),'300');assert.equal(await page.evaluate(()=>window.scheduleInputBefore===document.activeElement),true);await other.close();
   await page.evaluate(()=>setProductionPlanDate('2026-10-20'));assert.equal(await row.locator('[data-plan-target]').textContent(),'1,200 ea');
   await scenario(19000,'2026-10-17','2026-10-20');assert.equal(await row.locator('[data-plan-hours]').textContent(),'휴무');assert.equal(await row.locator('[data-plan-target]').textContent(),'0 ea');
-  await scenario(13000,'2026-10-16','2026-10-18');assert.match(await row.locator('[data-plan-message]').textContent(),/주말/);assert.equal(await row.locator('[data-plan-hours]').textContent(),'10시간');
+  await scenario(13000,'2026-10-16','2026-10-18');assert.match(await row.locator('[data-plan-message]').textContent(),/주말/);assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
   await scenario(12000,'2026-10-09','2026-10-10');assert.match(await row.locator('[data-plan-message]').textContent(),/공휴일/);assert.equal(await row.locator('[data-plan-hours]').textContent(),'2시간');
   await scenario(11000,'2026-10-09','2026-10-09');assert.match(await row.locator('[data-plan-message]').textContent(),/1,000개 부족/);
   await scenario(250,'2026-10-19','2026-10-20');assert.equal(await row.locator('[data-plan-target]').textContent(),'250 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
   await scenario(99100,'2026-10-19','2026-11-30',751);assert.equal(await row.locator('[data-plan-target]').textContent(),'6,000 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
   await scenario(10000,'2026-10-19','2028-01-01');assert.equal(await row.locator('[data-plan-target]').textContent(),'계산 확인 필요');assert.equal(await row.locator('[data-plan-hours]').textContent(),'—');
+  await scenario(45000,'2026-10-19','2026-10-23');assert.equal(await row.locator('[data-plan-hours]').textContent(),'9시간');
+  await scenario(49000,'2026-10-19','2026-10-24');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간 30분');assert.match(await row.locator('[data-plan-message]').textContent(),/토요일 8시간/);
+  const balanced=await page.evaluate(()=>getProductionPlanCalculations(state.productionPlanJobs[0]).schedule);
+  assert.equal(balanced.find(day=>day.date==='2026-10-24').hours,8);assert.ok(balanced.filter(day=>day.type==='weekday').every(day=>day.hours<=9));
+  await scenario(10000,'2026-10-19','2026-10-19',1023);assert.equal(await row.locator('[data-plan-hours]').textContent(),'10시간');
+  await scenario(49000,'2026-10-21','2026-10-24');
+  await page.evaluate(()=>{
+    const job=state.productionPlanJobs[0];
+    for(const date of ['2026-10-19','2026-10-20'])localStorage.setItem(`${PRODUCTION_PLAN_STORAGE_PREFIX}:selected-job:${state.productionPlanFactory}:${date}`,JSON.stringify({jobs:[{...job,actualProduction:10000,actualWorkHours:10,stageDrafts:{}}]}));
+    invalidateProductionPlanActualLedger();renderProductionPlan();
+  });
+  assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');assert.match(await row.locator('[data-plan-message]').textContent(),/토요일 8시간/);
+  assert.ok(await page.evaluate(()=>getProductionPlanCalculations(state.productionPlanJobs[0]).schedule.every(day=>Number.isInteger(day.hours*2))));
   Object.assign(order,previousOrder);product.processHourlyProductionRates['2도']=previousRate;
   await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded && !state.productsLoadPromise);
-  console.log(JSON.stringify({costAwareScheduling:true,regular8Hours:true,onlyRequiredOvertime:true,weekendsBeforeHolidays:true,shortfallVisible:true,finalRemainder250:true,historyDeduplicated:true,currentTargetStable:true,crossTabTargetRefresh:true,focusPreserved:true,widths:[2560,1920,1440,1280,1024,960]}));
+  console.log(JSON.stringify({halfHourShifts:true,weekdayNineFirst:true,saturdayEightForThreeTenDays:true,actualHoursHistory:true,costAwareScheduling:true,regular8Hours:true,onlyRequiredOvertime:true,weekendsBeforeHolidays:true,shortfallVisible:true,finalRemainder250:true,historyDeduplicated:true,currentTargetStable:true,crossTabTargetRefresh:true,focusPreserved:true,widths:[2560,1920,1440,1280,1024,960]}));
 }
 
 async function verifyProductionPlanThreeSavedDays(page,fixture) {
