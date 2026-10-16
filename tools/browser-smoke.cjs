@@ -685,7 +685,11 @@ async function verifyProductionPlanScheduling(page,fixture) {
   await page.evaluate(()=>setProductionPlanDate('2026-10-20'));assert.equal(await row.locator('[data-plan-target]').textContent(),'1,200 ea');
   await scenario(19000,'2026-10-17','2026-10-20');assert.equal(await row.locator('[data-plan-hours]').textContent(),'휴무');assert.equal(await row.locator('[data-plan-target]').textContent(),'0 ea');
   await scenario(13000,'2026-10-16','2026-10-18');assert.match(await row.locator('[data-plan-message]').textContent(),/주말/);assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
-  await scenario(12000,'2026-10-09','2026-10-10');assert.match(await row.locator('[data-plan-message]').textContent(),/공휴일/);assert.equal(await row.locator('[data-plan-hours]').textContent(),'2시간');
+  const weekendShift=await page.evaluate(()=>getProductionPlanCalculations(state.productionPlanJobs[0]).schedule);
+  assert.equal(weekendShift.filter(day=>day.type==='weekend').length,1);
+  assert.ok(weekendShift.every(day=>day.hours===8));
+  await scenario(13000,'2026-10-17','2026-10-18');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
+  await scenario(12000,'2026-10-09','2026-10-10');assert.match(await row.locator('[data-plan-message]').textContent(),/공휴일/);assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
   await scenario(11000,'2026-10-09','2026-10-09');assert.match(await row.locator('[data-plan-message]').textContent(),/1,000개 부족/);
   await scenario(250,'2026-10-19','2026-10-20');assert.equal(await row.locator('[data-plan-target]').textContent(),'250 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');
   await scenario(99100,'2026-10-19','2026-11-30',751);assert.equal(await row.locator('[data-plan-target]').textContent(),'6,000 ea');assert.equal(await row.locator('[data-plan-hours]').textContent(),'8시간');

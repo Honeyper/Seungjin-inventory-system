@@ -94,8 +94,10 @@
           const day=candidate[index],weekday=new Date(`${day.date}T00:00:00Z`).getUTCDay();
           if(!(kind==='holiday'?day.type==='holiday':day.type==='weekend' && weekday===(kind==='saturday'?6:0))) continue;
           while(day.minutes>(day.floor||0)) {
-            day.minutes-=30;
-            if(allocate(candidate,remaining,rate).shortfall) {day.minutes+=30;break;}
+            const before=day.minutes;
+            // Attendance is a full shift: remove an unnecessary rest-day shift as a whole.
+            day.minutes=before>480?before-30:0;
+            if(allocate(candidate,remaining,rate).shortfall) {day.minutes=before;break;}
           }
         }
       };
