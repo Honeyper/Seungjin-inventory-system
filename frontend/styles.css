@@ -15673,3 +15673,30 @@ small, em {
   background: #fef2f2;
   border-color: #fecaca;
 }
+
+/* Match purchase tools to the compact text scale used by other desktop lists. */
+@media (min-width: 1101px) {
+  #purchaseOrderView .purchase-order-tools input,
+  #purchaseOrderView .purchase-order-tools select,
+  #purchaseOrderView .purchase-order-tools .secondary-action,
+  #purchaseOrderView .page-heading .primary-action {
+    min-height: 42px;
+    height: 42px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  #purchaseOrderView .purchase-order-tools .search-field input {
+    padding-left: 42px;
+  }
+
+  #purchaseOrderView .purchase-order-tools .search-field > .ti {
+    left: 14px;
+    font-size: 18px;
+  }
+
+  #purchaseOrderView .table-status,
+  #purchaseOrderView .table-footer {
+    font-size: 14px;
+  }
+}
