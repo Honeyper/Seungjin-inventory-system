@@ -441,7 +441,7 @@ img {
   height: 20px;
   margin-right: 10px;
   border: 3px solid rgba(255, 255, 255, 0.38);
-  border-top-color: var(--accent);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: adminLoginSpin 0.75s linear infinite;
 }
@@ -5294,7 +5294,7 @@ img {
   margin-bottom: 2px;
   border: 1px solid rgba(37, 99, 235, 0.56);
   border-radius: 20px;
-  color: var(--accent);
+  color: #fff;
   background: rgba(255, 255, 255, 0.08);
   box-shadow:
     0 18px 36px rgba(0, 0, 0, 0.28),
@@ -5448,7 +5448,8 @@ img {
   justify-content: center;
   gap: 3px;
   border-radius: 999px;
-  color: var(--accent);
+  color: #fff;
+  background: rgba(6, 31, 76, 0.82);
   font-size: 12px;
 }
 
@@ -5457,14 +5458,14 @@ img {
 }
 
 .scanner-flash.is-on {
-  color: #061f4c;
+  color: #fff;
   border-color: var(--accent);
   background: var(--accent);
 }
 
 .scanner-flash.is-unavailable,
 .scanner-flash:disabled {
-  opacity: 0.5;
+  opacity: 0.72;
 }
 
 .scanner-tip {
@@ -5709,7 +5710,7 @@ img {
 }
 
 .scanner-list-header .scanner-mode-toggle span.active svg {
-  color: var(--accent);
+  color: inherit;
 }
 
 .scanner-scanned-list {
@@ -7355,7 +7356,7 @@ body {
   height: 17px;
   margin-right: 8px;
   border: 2px solid rgba(255, 255, 255, 0.42);
-  border-top-color: var(--mobile-accent);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: adminLoginSpin 0.75s linear infinite;
   content: "";
@@ -12076,11 +12077,17 @@ button.shipping-product-visual.has-photo:focus-visible {
   line-height: 1.3;
 }
 
-#shippingScreen .scan-button svg,
-#inventoryMoveScreen .scan-button svg,
-#shippingScreen .manual-shipping-open-button svg {
-  color: #fff;
+/* Icons on solid action surfaces follow the same foreground as their labels. */
+#mobileApp :is(.primary-action, .secondary-action.is-loading, .scan-button,
+  .manual-shipping-open-button, .box-add-button, .ship-now-button, .shipping-primary-action,
+  .scanner-bottom button, .scanner-mode-toggle span.active, .scanner-flash,
+  .hardware-scanner-icon) :is(svg, .ti) {
+  color: inherit;
   stroke: currentColor;
+}
+
+#scannerScreen .scanner-bottom button {
+  color: #fff;
 }
 
 #shippingScreen .manual-shipping-open-button .manual-shipping-open-icon {
