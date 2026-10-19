@@ -90,6 +90,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-19", title: "재고 목록 초기 필터 오류 수정", items: ["‘전체’와 ‘보관 위치 검색’ 안내 문구가 실제 필터 값으로 유지되어 재고 목록이 비어 보이던 오류를 수정했습니다. 기본 필터는 빈 값으로 처리하고 사용자가 직접 선택한 거래처·보관 위치는 유지합니다."] },
   { date: "2026-10-19", title: "PC 주요 목록 자동 갱신", items: ["입고·발주·재고·출고·제품 목록을 30초마다 자동 확인하고 창 복귀·메뉴 전환·연결 복구 시에도 갱신합니다. 입력·팝업·저장 중에는 갱신을 미루고 기존 검색·정렬·페이지를 유지합니다. 조회가 실패해도 마지막 정상 목록을 유지합니다."] },
   { date: "2026-10-19", title: "설치 앱 아이콘 로고 크기 축소", items: ["휴대폰 앱 아이콘 안의 로고를 약 30% 줄이고 흰 여백을 넓혔습니다. Android 아이콘 마스크와 Apple 홈 화면 아이콘에서도 균형 있게 표시하도록 새 아이콘 파일을 적용했습니다."] },
   { date: "2026-10-19", title: "모바일 전체 동작 버튼·QR 스캔 대비 개선", items: ["파란 배경의 동작 버튼 아이콘이 글자색을 따르도록 통일했습니다. QR 카메라·외부 스캐너 선택 아이콘과 플래시 OFF·ON 글자·아이콘을 밝게 표시하고 비활성 상태의 가독성을 개선했습니다."] },
@@ -9814,7 +9815,9 @@ function renderSelectOptions(select, values = [], defaultLabel = "전체") {
     return;
   }
 
-  const currentValue = select.value;
+  // Legacy markup without a value attribute is a prompt, not a saved filter.
+  const selectedOption = select.selectedOptions?.[0];
+  const currentValue = selectedOption && !selectedOption.hasAttribute("value") ? "" : select.value;
   if (currentValue && !values.includes(currentValue)) values = [...values, currentValue];
   select.innerHTML = [
     `<option value="">${escapeHtml(defaultLabel)}</option>`,
