@@ -26,7 +26,8 @@ function runtime(selects) {
   let displayedRows = [];
   const rows = Array.from({length:1183}, (_, index) => ({ managementId:'IN-'+index, productName:'제품 '+index,
     clientName:'거래처', storage:'A', stockStatus:'보관', processStatus:'1도', currentTotalQuantity:100 }));
-  const h = loadFunctions(adminSource, ['renderSelectOptions', 'renderInventoryFilterOptions', 'syncInventoryFilterState', 'applyInventoryFilters'], {
+  const h = loadFunctions(adminSource, ['renderSelectOptions', 'renderInventoryFilterOptions', 'syncInventoryFilterState', 'applyInventoryFilters', ...(adminSource.includes('function matchesInventoryStockFilter(') ? ['normalizeInventoryCategory','matchesInventoryStockFilter'] : [])], {
+    INVENTORY_CATEGORY_FILTERS:['자사재고','사출 보관재고'],
     ...Object.fromEntries(ids.map((id,i) => [id,selects[i]])), inventorySearch:{value:''},
     state:{inventoryRows:rows,inventoryFilters:{},filteredInventoryRows:[]},
     escapeHtml:String,escapeAttribute:String,normalizeSearchText:value=>String(value||'').toLowerCase(),
