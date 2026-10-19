@@ -152,3 +152,14 @@ test('request tracking releases busy state after failure and invalidates backgro
   await assert.rejects(h.requestApi('updateInbound', {}));
   assert.equal(h.adminListPendingRequests, 0); assert.equal(h.adminListRequestRevision, 1);
 });
+
+
+test('a selected inventory/shipping filter stays selected even after its final matching row disappears', () => {
+  let value = 'previous client', html = '';
+  const select = { get value() { return value; }, set value(next) { value = next; },
+    get innerHTML() { return html; }, set innerHTML(next) { html = next; value = ''; } };
+  const h = loadFunctions(adminSource, ['renderSelectOptions'], { escapeHtml: String, escapeAttribute: String });
+  h.renderSelectOptions(select, ['new client']);
+  assert.equal(select.value, 'previous client');
+  assert.match(select.innerHTML, /previous client/);
+});
