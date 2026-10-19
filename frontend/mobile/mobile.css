@@ -12148,3 +12148,106 @@ button.shipping-product-visual.has-photo:focus-visible {
   color: #fff;
   background: transparent;
 }
+
+
+/* A single row per card replaces the old two-column home grid's inherited rows. */
+#homeScreen .mobile-menu-list {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: none;
+  grid-auto-rows: 128px;
+  gap: 12px;
+}
+
+#homeScreen .mobile-menu-card,
+#homeScreen .mobile-menu-card.locked {
+  grid-template-columns: 32px minmax(0, 1fr) 48px 12px;
+  grid-template-rows: minmax(0, 1fr);
+  grid-auto-rows: auto;
+  align-content: center;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 0;
+  height: 128px;
+  min-height: 128px;
+  padding: 18px 16px;
+  text-align: center;
+}
+
+#homeScreen .mobile-menu-card .menu-icon {
+  grid-area: 1 / 1;
+  place-self: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+}
+
+#homeScreen .mobile-menu-card .menu-copy {
+  grid-area: 1 / 2;
+  display: grid;
+  grid-template-rows: 22px 32px;
+  align-content: center;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+#homeScreen .mobile-menu-card .menu-copy strong {
+  display: block;
+  height: 22px;
+  margin: 0;
+  font-size: 17px;
+  line-height: 22px;
+  text-align: center;
+}
+
+#homeScreen .mobile-menu-card .menu-copy small {
+  height: 32px;
+  max-width: none;
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  -webkit-line-clamp: 2;
+}
+
+#homeScreen .mobile-menu-card .status-pill {
+  position: static;
+  inset: auto;
+  grid-area: 1 / 3;
+  place-self: center;
+  width: 48px;
+  line-height: 16px;
+  font-size: 11px;
+  text-align: center;
+}
+
+#homeScreen .mobile-menu-card .menu-arrow {
+  display: grid;
+  grid-area: 1 / 4;
+  place-self: center;
+  place-items: center;
+  width: 12px;
+  height: 16px;
+  margin: 0;
+}
+
+.bottom-nav button {
+  display: grid;
+  grid-template-rows: 28px 16px;
+  align-content: center;
+  align-items: center;
+  justify-items: center;
+  row-gap: 6px;
+}
+
+.bottom-nav button span {
+  min-height: 16px;
+  line-height: 16px;
+}
+
+@media (max-width: 370px) {
+  #homeScreen .mobile-menu-card .menu-copy strong { font-size: clamp(14px, 4.3vw, 16px); }
+}
