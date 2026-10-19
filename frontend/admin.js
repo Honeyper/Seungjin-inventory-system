@@ -66,6 +66,8 @@ const INVENTORY_CLIENT_FALLBACK_ACCENTS = ["#2583c5", "#7c63c6", "#2f9a78", "#d3
 const session = readAdminSession();
 const SHIPPING_BOX_DRAFTS_STORAGE_KEY = "seungjinShippingBoxDrafts";
 const ADMIN_CACHE_PREFIX = `seungjinAdminCache:v3:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
+let adminListPendingRequests = 0;
+let adminListRequestRevision = 0;
 const ADMIN_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const ADMIN_LOCAL_CACHE_MAX_BYTES = 1024 * 1024;
 const ADMIN_LARGE_CACHE_DB_NAME = `${ADMIN_CACHE_PREFIX}:large`;
@@ -91,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-19", title: "PC 주요 목록 자동 갱신", items: ["입고·발주·재고·출고·제품 목록을 30초마다 자동 확인하고 창 복귀·메뉴 전환·연결 복구 시에도 갱신합니다. 입력·팝업·저장 중에는 갱신을 미루고 기존 검색·정렬·페이지를 유지합니다. 조회가 실패해도 마지막 정상 목록을 유지합니다."] },
   { date: "2026-10-19", title: "설치 앱 아이콘 로고 크기 축소", items: ["휴대폰 앱 아이콘 안의 로고를 약 30% 줄이고 흰 여백을 넓혔습니다. Android 아이콘 마스크와 Apple 홈 화면 아이콘에서도 균형 있게 표시하도록 새 아이콘 파일을 적용했습니다."] },
   { date: "2026-10-19", title: "모바일 전체 동작 버튼·QR 스캔 대비 개선", items: ["파란 배경의 동작 버튼 아이콘이 글자색을 따르도록 통일했습니다. QR 카메라·외부 스캐너 선택 아이콘과 플래시 OFF·ON 글자·아이콘을 밝게 표시하고 비활성 상태의 가독성을 개선했습니다."] },
   { date: "2026-10-19", title: "모바일 메뉴 중앙 정렬·시작 아이콘 갱신", items: ["이전 그리드의 남은 행 설정을 제거하고 메뉴 높이·간격·아이콘·제목·설명·상태 문구를 같은 기준으로 중앙 정렬했습니다. 설치 앱의 시작 아이콘을 새 파일명으로 갱신하고 기존 manifest 주소를 유지합니다."] },
@@ -2663,6 +2666,13 @@ document.fonts?.addEventListener("loadingdone", () => {
   syncProductTableColumnWidths();
 });
 
+const adminListAutoRefresh = window.SeungjinAdminListRefresh?.create({
+  getContext: getAdminListRefreshContext,
+  isPaused: isAdminListRefreshPaused,
+  refresh: refreshActiveAdminList,
+  onError: error => console.warn("목록 자동 갱신을 다음 주기에 다시 시도합니다.", error)
+});
+
 setCurrentInboundDate();
 setCurrentInboundListDateRange();
 setCurrentShippingSettlementDate();
@@ -2677,6 +2687,7 @@ setActiveView(getCurrentView());
 updateInboundSummary();
 updateShippingSettlementSummary();
 renderInboundDefectReasons();
+adminListAutoRefresh?.start();
 if (window.SeungjinDataGateway?.canRead("getSheetBackupNotifications")) {
   loadBackupNotifications();
   window.setInterval(() => {
@@ -3789,6 +3800,81 @@ function saveProductionPlanDraft() {
 function printProductionPlan() {
   document.body.classList.add("printing-production-plan");
   window.print();
+}
+
+function getAdminListRefreshContext() {
+  const view = getCurrentView();
+  if (!["products", "purchase-orders", "inbound", "inventory", "shipping"].includes(view)) return null;
+  if (view !== "inbound") return { view };
+  const startDate = inboundListStartDate?.value || getLocalDateInputValue();
+  return { view, startDate, endDate: inboundListEndDate?.value || startDate };
+}
+
+function isAdminListRefreshPaused() {
+  const active = document.activeElement;
+  if (active?.matches("input, select, textarea, [contenteditable]:not([contenteditable='false'])")) return true;
+  if (document.body.classList.contains("modal-open")
+    || document.querySelector('.modal-backdrop:not([hidden]), dialog[open], [role="menu"]:not([hidden]), details[open].shipping-action-menu')) return true;
+  return adminListPendingRequests > 0 || Object.entries(state).some(([key, value]) =>
+    value === true && /^is(Saving|Deleting|Refreshing|InventoryAuditBulkSaving)/.test(key));
+}
+
+async function readAdminListRefreshSnapshot(action, payload, canApply) {
+  const pending = requestApi(action, payload);
+  const requestRevision = adminListRequestRevision;
+  const result = await pending;
+  // Manual reads/writes, navigation and editing take precedence over this response.
+  return requestRevision === adminListRequestRevision && canApply() ? result : null;
+}
+
+async function refreshActiveAdminList(context, canApply) {
+  const { view } = context;
+  if (view === "inventory" || view === "shipping") {
+    let version = null;
+    if (state.inventoryStateVersion !== null && state.inventoryStateVersion !== undefined) {
+      version = await readAdminListRefreshSnapshot("getInventoryVersion", {}, canApply);
+      if (!version) return false;
+    }
+    if (state.inventoryLoaded && version && version.stateVersion !== null && version.stateVersion !== undefined
+      && Number(version.stateVersion) === Number(state.inventoryStateVersion)
+      && version.qrStatusVersion !== null && version.qrStatusVersion !== undefined
+      && version.qrStatusVersion === state.inventoryQrStatusVersion) return true;
+    const result = await readAdminListRefreshSnapshot("getInventoryDashboard", {}, canApply);
+    if (!result) return false;
+    if (!Array.isArray(result.rows)) throw new Error("재고 자동 갱신 응답을 확인할 수 없습니다.");
+    result.qrStatusVersion = version?.qrStatusVersion ?? null;
+    applyInventoryDashboardResult(result);
+    writeAdminCache(INVENTORY_DASHBOARD_CACHE_KEY, result);
+    return true;
+  }
+
+  const action = { products: "getProducts", "purchase-orders": "getPurchaseOrders", inbound: "getTodayInbounds" }[view];
+  const result = await readAdminListRefreshSnapshot(action,
+    view === "inbound" ? { startDate: context.startDate, endDate: context.endDate } : {}, canApply);
+  if (!result) return false;
+  const field = { products: "products", "purchase-orders": "purchaseOrders", inbound: "inbounds" }[view];
+  if (!Array.isArray(result[field])) throw new Error("목록 자동 갱신 응답을 확인할 수 없습니다.");
+  const previous = view === "inbound" ? state.todayInbounds : state[field];
+  if (JSON.stringify(previous) !== JSON.stringify(result[field])) {
+    if (view === "products") {
+      // Update the list without touching an unfinished inbound/product form.
+      const clientFilter = state.clientFilter;
+      state.products = result.products;
+      renderClientFilterOptions();
+      state.clientFilter = clientFilter;
+      if (clientFilter) setSelectValue(productClientFilter, clientFilter);
+      applyFilters();
+    } else if (view === "purchase-orders") {
+      state.purchaseOrders = result.purchaseOrders;
+      state.purchaseOrdersLoaded = true;
+      applyPurchaseOrderFilters();
+    } else {
+      applyTodayInboundsResult(result);
+    }
+  }
+  if (view === "products") writeAdminCache("products", result);
+  if (view === "inbound") writeAdminCache(`inbounds:${context.startDate}:${context.endDate}`, result);
+  return true;
 }
 
 function getCurrentView() {
@@ -10532,6 +10618,7 @@ function renderSelectOptions(select, values = [], defaultLabel = "전체") {
   }
 
   const currentValue = select.value;
+  if (currentValue && !values.includes(currentValue)) values = [...values, currentValue];
   const optionsHtml = [
     `<option value="">${escapeHtml(defaultLabel)}</option>`,
     ...values.map((value) => `<option value="${escapeAttribute(value)}">${escapeHtml(value)}</option>`)
@@ -11160,6 +11247,18 @@ function readAdminSession() {
 }
 
 async function requestApi(action, payload = {}) {
+  adminListPendingRequests++;
+  if (!action.startsWith("get") || ["getProducts", "getPurchaseOrders", "getTodayInbounds", "getInventoryVersion", "getInventoryDashboard"].includes(action)) {
+    adminListRequestRevision++;
+  }
+  try {
+    return await performAdminApiRequest(action, payload);
+  } finally {
+    adminListPendingRequests--;
+  }
+}
+
+async function performAdminApiRequest(action, payload = {}) {
   if (window.SeungjinCommonShipping) {
     payload = await window.SeungjinCommonShipping.prepare(action, payload, requestApi);
   }
