@@ -10,13 +10,13 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "../assets/seungjin-app-192-r121.png",
+      "src": "../assets/seungjin-app-192-r123.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "../assets/seungjin-app-512-r121.png",
+      "src": "../assets/seungjin-app-512-r123.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
