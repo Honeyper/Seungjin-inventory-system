@@ -15701,3 +15701,7 @@ small, em {
     font-size: 14px;
   }
 }
+
+/* Production plan context actions use the shared thin icon menu. */
+#productionPlanRowMenu { width: 13rem; }
+#productionPlanRowMenu::before { display: none; }
