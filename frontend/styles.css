@@ -15706,33 +15706,16 @@ small, em {
 #productionPlanRowMenu { width: 13rem; }
 #productionPlanRowMenu::before { display: none; }
 
-/* Row reordering leaves native fields and dropdowns interactive. */
-#productionPlanView .production-plan-process { position: relative; }
-.production-plan-drag-handle {
-  position: absolute;
-  left: 0.25rem;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 0.9rem;
-  height: 1.45rem;
-  padding: 0;
-  border: 0;
-  border-radius: 0.2rem;
-  background: transparent;
-  color: #8b99ad;
-  cursor: grab;
-  user-select: none;
-}
-.production-plan-drag-handle:hover,
-.production-plan-drag-handle:focus-visible { color: #2563eb; background: #eff6ff; outline: 1px solid #b8cef4; }
-.production-plan-drag-handle:active { cursor: grabbing; }
+/* Drag the whole row while leaving native fields and dropdowns interactive. */
+.production-plan-table [data-plan-row-id][draggable="true"] { cursor: grab; user-select: none; }
+.production-plan-table [data-plan-row-id][draggable="true"]:active { cursor: grabbing; }
+.production-plan-table [data-plan-row-id] input,
+.production-plan-table [data-plan-row-id] textarea { cursor: text; user-select: text; }
+.production-plan-table [data-plan-row-id] select,
+.production-plan-table [data-plan-row-id] button { cursor: pointer; }
 .production-plan-table .is-plan-dragging { opacity: 0.4; }
 #productionPlanView .production-plan-table .plan-drop-before > td { box-shadow: inset 0 2px #3b82f6; }
 #productionPlanView .production-plan-table .plan-drop-after > td { box-shadow: inset 0 -2px #3b82f6; }
-@media print { .production-plan-drag-handle { display: none !important; } }
 
 /* Allow selection and editing without an empty action column. */
 .picker-product-row { display: flex; }
