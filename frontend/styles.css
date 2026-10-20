@@ -15007,6 +15007,7 @@ small, em {
   body.printing-production-plan .admin-sidebar,
   body.printing-production-plan .page-view:not(#productionPlanView),
   body.printing-production-plan .production-plan-heading-actions,
+  body.printing-production-plan #addProductionPlanButton,
   body.printing-production-plan .production-plan-add-button,
   body.printing-production-plan .production-plan-delete-button,
   body.printing-production-plan .production-plan-tabs,
