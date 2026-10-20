@@ -15425,3 +15425,8 @@ small, em {
 #productionPlanView .production-plan-table .plan-drop-before > td { box-shadow: inset 0 2px #3b82f6; }
 #productionPlanView .production-plan-table .plan-drop-after > td { box-shadow: inset 0 -2px #3b82f6; }
 @media print { .production-plan-drag-handle { display: none !important; } }
+
+/* Allow selection and editing without an empty action column. */
+.picker-product-row { display: flex; }
+.picker-product-row > .picker-product { flex: 1 1 0; min-width: 0; }
+.picker-product-row > .picker-product-edit { flex: 0 0 auto; }

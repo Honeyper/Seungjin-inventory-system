@@ -851,3 +851,15 @@ test('같은 위치·없는 행·잘못된 이동 요청은 계획을 수정하�
  for(const args of [[a,a,'before'],[a,b,'before'],[b,a,'after'],['missing',b,'before'],[a,'missing','after'],[a,b,'sideways']]) assert.equal(c.moveProductionPlanRow(...args),false);
  assert.deepEqual(plain(c.state.productionPlanJobs),before);
 });
+
+test('제품명·시간당 생산량 갱신은 계획 입력과 순서를 유지하며 화면·접근성 이름에 즉시 반영한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ Object.assign(job,{machine:'5호기',actualProduction:8000,actualWorkHours:8});c.addProductionPlanRow();
+ const ids=plain(c.state.productionPlanJobs.map(row=>row.planRowId));
+ Object.assign(c.state.products[0],{productName:'수정한 제품명',clientName:'수정 거래처',processHourlyProductionRates:{'1도':1000,'2도':1500}});
+ c.refreshProductionPlanTargets();c.renderProductionPlanTable();
+ assert.deepEqual(plain(c.state.productionPlanJobs.map(row=>row.planRowId)),ids);
+ assert.equal(c.state.productionPlanJobs[0].actualProduction,8000);assert.equal(c.state.productionPlanJobs[0].actualWorkHours,8);assert.equal(c.state.productionPlanJobs[0].machine,'5호기');
+ assert.equal(c.getProductionPlanDetailMetrics(c.state.productionPlanJobs[0]).hourlyRate,1500);
+ assert.match(c.productionPlanTableBody.innerHTML,/수정한 제품명 변경/);assert.match(c.productionPlanTableBody.innerHTML,/수정한 제품명 금일 생산량/);assert.match(c.productionPlanTableBody.innerHTML,/수정 거래처/);
+});
