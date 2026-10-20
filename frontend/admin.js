@@ -93,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-20", title: "생산계획 제품 선택에서 바로 수정", items: ["생산계획 제품 선택 목록에 수정 버튼을 추가했습니다. 저장·취소 후 검색어·정렬·스크롤 위치를 유지하며, 제품 정보 갱신 시 작성 중인 계획 행·순서·실적을 유지합니다."] },
   { date: "2026-10-20", title: "생산계획 행 드래그 정렬", items: ["각 행 왼쪽 손잡이를 끌어 작업 순서를 바꿀 수 있습니다. 이동 위치를 선으로 표시하며 세부정보와 입력값을 유지합니다. 계획 저장 후에도 순서가 유지되고 손잡이에서 Alt+위·아래 방향키로도 이동할 수 있습니다."] },
   { date: "2026-10-20", title: "생산계획 행 우클릭 복사·삭제", items: ["작업 행을 우클릭하면 생산계획 복사·삭제 메뉴가 열립니다. 복사는 작업 설정을 가져오고 금일 생산량·실 근무시간은 비웁니다. 삭제한 행은 계획 저장 후 다시 불러와도 제거된 상태를 유지합니다."] },
   { date: "2026-10-20", title: "다른 영역 클릭 시 생산계획 세부사항 접기", items: ["다른 작업 행이나 표 밖을 클릭하면 열린 세부사항이 접힙니다. 같은 작업 행·세부사항 안에서 입력하거나 제품 선택 팝업을 사용할 때는 열린 상태를 유지합니다."] },
@@ -3513,6 +3514,7 @@ function formatProductionPlanDetailValue(key, value) {
 }
 
 function renderProductionPlanMetrics(job) {
+  const productName = getProductionPlanProduct(job.productId)?.productName || job.productName || "제품";
   const metrics = getProductionPlanDetailMetrics(job);
   const fields = [
     {key:"workDays",label:"잔여 작업일",title:"(발주량 − 누적 생산량) ÷ 시간당 생산량 ÷ 하루 8시간 (최소 0일, 소수점 한 자리까지 올림)"},
@@ -3530,7 +3532,7 @@ function renderProductionPlanMetrics(job) {
     {key:"achievementRate",label:"달성률",title:"금일 생산량 ÷ 일일 필수 생산량 × 100"}
   ];
   return `<dl class="production-plan-details-metrics">${fields.map(field => `<div title="${escapeAttribute(field.title || "")}"><dt>${escapeHtml(field.label)}</dt><dd>${field.unit
-    ? `<label class="production-plan-detail-input"><input type="number" inputmode="${field.step ? "decimal" : "numeric"}" min="${field.min || 0}" step="${field.step || 1}" data-plan-field="${field.key}" data-plan-detail-input value="${escapeAttribute(window.SeungjinProductionPlanner.number(job[field.key]) ?? "")}" aria-label="${escapeAttribute((job.productName || "제품") + " " + field.label)}" placeholder="입력"><span>${field.unit}</span></label>`
+    ? `<label class="production-plan-detail-input"><input type="number" inputmode="${field.step ? "decimal" : "numeric"}" min="${field.min || 0}" step="${field.step || 1}" data-plan-field="${field.key}" data-plan-detail-input value="${escapeAttribute(window.SeungjinProductionPlanner.number(job[field.key]) ?? "")}" aria-label="${escapeAttribute(productName + " " + field.label)}" placeholder="입력"><span>${field.unit}</span></label>`
     : `<strong data-plan-detail-value="${field.key}">${escapeHtml(formatProductionPlanDetailValue(field.key, metrics[field.key]))}</strong>`}</dd></div>`).join("")}</dl>`;
 }
 
@@ -3575,7 +3577,8 @@ function refreshProductionPlanTargets() {
 function renderProductionPlanTable() {
   if (!productionPlanTableBody) return;
   productionPlanTableBody.innerHTML = getProductionPlanFilteredJobs().map((job, index) => {
-    const label = job.productName || "제품 선택", empty = !job.purchaseOrderId;
+    const product = getProductionPlanProduct(job.productId);
+    const label = product?.productName || job.productName || "제품 선택", empty = !job.purchaseOrderId;
     const orderOptions = getProductionPlanOrderOptions(job);
     const detailsId = `production-plan-details-${index}`;
     const expanded = state.productionPlanExpandedRows?.has(job.planRowId) || false;
@@ -3584,7 +3587,7 @@ function renderProductionPlanTable() {
         <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><circle cx="4" cy="4" r="0.8"/><circle cx="8" cy="4" r="0.8"/><circle cx="4" cy="9" r="0.8"/><circle cx="8" cy="9" r="0.8"/><circle cx="4" cy="14" r="0.8"/><circle cx="8" cy="14" r="0.8"/></svg></button><select data-plan-field="process" aria-label="${escapeAttribute(label)} 인쇄 유형">
         ${PRODUCTION_PROCESS_ORDER.map(process => `<option value="${process}" ${process === job.process ? "selected" : ""}>${escapeHtml(process === "박 인쇄" ? "박" : process === "실크 인쇄" ? "실크" : process)}</option>`).join("")}</select></td>
       <td><select data-plan-field="machine" aria-label="${escapeAttribute(label)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
-      <td>${escapeHtml(job.clientName || "—")}</td>
+      <td>${escapeHtml(product?.clientName || job.clientName || "—")}</td>
       <td class="production-plan-product"><button class="production-plan-product-trigger" type="button" data-plan-product-picker aria-label="${escapeAttribute(label)} 변경">
         <span><strong>${escapeHtml(label)}</strong></span><i class="ti ti-search" aria-hidden="true"></i></button>
         <div class="production-plan-product-fields"><label class="production-plan-stage-field production-plan-order-field"><span>발주</span><select data-plan-field="purchaseOrderId" aria-label="${escapeAttribute(label)} 발주 선택" ${orderOptions.length < 2 ? "disabled" : ""}>
@@ -8876,10 +8879,36 @@ async function openPurchaseOrderProductPicker() {
   openInboundProductPicker("purchaseOrder");
 }
 
-function openInboundProductPicker(target = "inbound") {
+function editProductFromPicker(productCode) {
+  const product = getProductByCode(productCode);
+  if (!product) { showToast("수정할 제품 정보를 찾을 수 없습니다."); return; }
+  state.productFormReturnTarget = state.inboundProductPickerTarget;
+  state.productPickerReturnState = {
+    target: state.inboundProductPickerTarget,
+    query: state.inboundProductPickerQuery,
+    searchText: inboundProductPickerSearch.value,
+    sort: state.inboundProductPickerSort,
+    direction: state.inboundProductPickerSortDirection,
+    scrollTop: inboundProductPickerList.scrollTop
+  };
+  inboundProductPickerModal.hidden = true;
+  openProductModal("edit", product);
+}
+
+function resumeInboundProductPicker(target) {
+  const restore = state.productPickerReturnState;
+  state.productPickerReturnState = null;
+  openInboundProductPicker(target, {restore: restore?.target === target ? restore : null});
+}
+
+function openInboundProductPicker(target = "inbound", {restore = null} = {}) {
   state.inboundProductPickerTarget = target;
-  state.inboundProductPickerQuery = "";
-  inboundProductPickerSearch.value = "";
+  state.inboundProductPickerQuery = restore?.query || "";
+  inboundProductPickerSearch.value = restore?.searchText || "";
+  if (restore) {
+    state.inboundProductPickerSort = restore.sort;
+    state.inboundProductPickerSortDirection = restore.direction;
+  }
   inboundProductPickerSort.value = state.inboundProductPickerSort;
   inboundProductPickerSortDirection.value = state.inboundProductPickerSortDirection;
   const isExistingStockTarget = target === "existingStock";
@@ -8905,7 +8934,8 @@ function openInboundProductPicker(target = "inbound") {
   if (createProductFromPickerButton) createProductFromPickerButton.hidden = isProductionPlanTarget;
   renderInboundProductPicker();
   inboundProductPickerModal.hidden = false;
-  resetModalScrollPosition(inboundProductPickerModal);
+  if (restore) inboundProductPickerList.scrollTop = restore.scrollTop;
+  else resetModalScrollPosition(inboundProductPickerModal);
   document.body.classList.add("modal-open");
   window.setTimeout(() => inboundProductPickerSearch.focus(), 0);
 }
@@ -8974,7 +9004,6 @@ function renderInboundProductPicker() {
         <em class="picker-product-code">${escapeHtml(product.productCode)}</em>
         <i class="ti ti-chevron-right picker-product-chevron" aria-hidden="true"></i>
       </button>
-      ${state.inboundProductPickerTarget === "productionPlan" ? "" : `
       <button
         class="picker-product-edit"
         type="button"
@@ -8984,6 +9013,7 @@ function renderInboundProductPicker() {
         <i class="ti ti-pencil" aria-hidden="true"></i>
         <span>수정</span>
       </button>
+      ${state.inboundProductPickerTarget === "productionPlan" ? "" : `
       <button
         class="picker-product-edit picker-product-copy"
         type="button"
@@ -9023,15 +9053,7 @@ function renderInboundProductPicker() {
 
   inboundProductPickerList.querySelectorAll("[data-edit-picker-product]").forEach((button) => {
     button.addEventListener("click", () => {
-      const product = getProductByCode(button.dataset.editPickerProduct);
-      if (!product) {
-        showToast("수정할 제품 정보를 찾을 수 없습니다.");
-        return;
-      }
-
-      state.productFormReturnTarget = state.inboundProductPickerTarget;
-      inboundProductPickerModal.hidden = true;
-      openProductModal("edit", product);
+      editProductFromPicker(button.dataset.editPickerProduct);
     });
   });
 
@@ -9330,35 +9352,40 @@ function getInboundListDatePayload() {
   };
 }
 
-async function loadProducts() {
+async function loadProducts({preserveProductionPlan = false} = {}) {
   const cachedResult = state.products.length ? null : readAdminCache("products");
 
   if (cachedResult) {
-    applyProductsResult(cachedResult);
+    applyProductsResult(cachedResult, {preserveProductionPlan});
   } else {
     setStatus("제품 정보를 불러오는 중입니다.");
   }
 
   try {
     const result = await requestApi("getProducts");
-    applyProductsResult(result);
+    applyProductsResult(result, {preserveProductionPlan});
     writeAdminCache("products", result);
   } catch (error) {
     if (!cachedResult) {
-      applyProductsResult({ products: [] });
+      if (!preserveProductionPlan) applyProductsResult({ products: [] });
       setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
     }
   }
 }
 
-function applyProductsResult(result) {
+function applyProductsResult(result, {preserveProductionPlan = false} = {}) {
   state.products = Array.isArray(result?.products) ? result.products : [];
   renderClientOptions();
   renderClientFilterOptions();
   renderInboundProductPicker();
   applyFilters();
   syncRegisteredFinalProcessesFromProducts();
-  if (getCurrentView() === "production-plan") loadProductionPlanDraft();
+  if (getCurrentView() === "production-plan") {
+    if (preserveProductionPlan) {
+      refreshProductionPlanTargets();
+      renderProductionPlanTable();
+    } else loadProductionPlanDraft();
+  }
 }
 
 function findMasterProductForRegisteredRow(row) {
@@ -14490,7 +14517,7 @@ function closeProductModal() {
       return;
     }
 
-    openInboundProductPicker(returnTarget);
+    resumeInboundProductPicker(returnTarget);
     return;
   }
 
@@ -14675,7 +14702,7 @@ async function saveProduct() {
     const productId = result?.productId ? ` (${result.productId})` : "";
 
     setFormMessage(isEdit ? "제품이 수정되었습니다." : "제품이 저장되었습니다.", "success");
-    await loadProducts();
+    await loadProducts({preserveProductionPlan: isEdit && returnTarget === "productionPlan"});
     const createdProduct = !isEdit && returnTarget
       ? getProductByCode(result?.productId)
         || state.products.find((product) => (
@@ -14708,7 +14735,7 @@ async function saveProduct() {
       document.body.classList.add("modal-open");
       openInboundProductPicker("existingStock");
     } else if (returnTarget) {
-      openInboundProductPicker(returnTarget);
+      resumeInboundProductPicker(returnTarget);
     }
     showToast(isEdit ? `제품 정보가 수정되었습니다.${productId}` : `신규 제품이 등록되었습니다.${productId}`);
   } catch (error) {
