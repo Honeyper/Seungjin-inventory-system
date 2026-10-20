@@ -90,6 +90,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-20", title: "생산계획 행 드래그 정렬", items: ["각 행 왼쪽 손잡이를 끌어 작업 순서를 바꿀 수 있습니다. 이동 위치를 선으로 표시하며 세부정보와 입력값을 유지합니다. 계획 저장 후에도 순서가 유지되고 손잡이에서 Alt+위·아래 방향키로도 이동할 수 있습니다."] },
   { date: "2026-10-20", title: "생산계획 행 우클릭 복사·삭제", items: ["작업 행을 우클릭하면 생산계획 복사·삭제 메뉴가 열립니다. 복사는 작업 설정을 가져오고 금일 생산량·실 근무시간은 비웁니다. 삭제한 행은 계획 저장 후 다시 불러와도 제거된 상태를 유지합니다."] },
   { date: "2026-10-20", title: "다른 영역 클릭 시 생산계획 세부사항 접기", items: ["다른 작업 행이나 표 밖을 클릭하면 열린 세부사항이 접힙니다. 같은 작업 행·세부사항 안에서 입력하거나 제품 선택 팝업을 사용할 때는 열린 상태를 유지합니다."] },
   { date: "2026-10-20", title: "생산계획 추가 버튼 위치 조정", items: ["생산계획 추가 버튼을 일일 생산계획표 제목과 같은 줄의 맨 오른쪽으로 옮겼습니다."] },
@@ -679,6 +680,7 @@ const state = {
   productionPlanSelectedJobId: "",
   productionPlanExpandedRows: new Set(),
   productionPlanMenuRowId: "",
+  productionPlanDragRowId: "",
   productionPlanDeletedRowKeys: new Set(),
   productionPlanExplicitRows: ""
 };
@@ -1629,6 +1631,11 @@ productionPlanTableBody?.addEventListener("change", handleProductionPlanFieldCha
 productionPlanTableBody?.addEventListener("click", handleProductionPlanTableClick);
 document.addEventListener("click", collapseProductionPlanDetailsOutside);
 productionPlanTableBody?.addEventListener("contextmenu", openProductionPlanRowMenu);
+productionPlanTableBody?.addEventListener("dragstart", startProductionPlanRowDrag);
+productionPlanTableBody?.addEventListener("dragover", dragOverProductionPlanRow);
+productionPlanTableBody?.addEventListener("drop", dropProductionPlanRow);
+productionPlanTableBody?.addEventListener("dragend", finishProductionPlanRowDrag);
+productionPlanTableBody?.addEventListener("keydown", handleProductionPlanRowMoveKeydown);
 productionPlanRowMenu?.addEventListener("click", handleProductionPlanRowMenuAction);
 productionPlanRowMenu?.addEventListener("keydown", handleProductionPlanRowMenuKeydown);
 document.addEventListener("click", event => {
@@ -3336,7 +3343,8 @@ function renderProductionPlanTable() {
     const detailsId = `production-plan-details-${index}`;
     const expanded = state.productionPlanExpandedRows?.has(job.planRowId) || false;
     return `<tr class="${job.planRowId === state.productionPlanSelectedJobId ? "is-selected" : ""}" data-plan-row-id="${escapeAttribute(job.planRowId)}" tabindex="0" aria-haspopup="menu">
-      <td class="production-plan-process"><select data-plan-field="process" aria-label="${escapeAttribute(label)} 인쇄 유형">
+      <td class="production-plan-process"><button class="production-plan-drag-handle" type="button" draggable="true" data-plan-drag-handle aria-label="${escapeAttribute(label)} 행 순서 변경" title="끌어서 순서 변경 · Alt+↑/↓">
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><circle cx="4" cy="4" r="0.8"/><circle cx="8" cy="4" r="0.8"/><circle cx="4" cy="9" r="0.8"/><circle cx="8" cy="9" r="0.8"/><circle cx="4" cy="14" r="0.8"/><circle cx="8" cy="14" r="0.8"/></svg></button><select data-plan-field="process" aria-label="${escapeAttribute(label)} 인쇄 유형">
         ${PRODUCTION_PROCESS_ORDER.map(process => `<option value="${process}" ${process === job.process ? "selected" : ""}>${escapeHtml(process === "박 인쇄" ? "박" : process === "실크 인쇄" ? "실크" : process)}</option>`).join("")}</select></td>
       <td><select data-plan-field="machine" aria-label="${escapeAttribute(label)} 기계 번호">${getProductionPlanMachineOptions(job)}</select></td>
       <td>${escapeHtml(job.clientName || "—")}</td>
@@ -3554,6 +3562,100 @@ function handleProductionPlanRowMenuKeydown(event) {
   const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1
     : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
   items[next]?.focus();
+}
+
+function moveProductionPlanRow(sourceId, targetId, placement = "before") {
+  if (sourceId === targetId || !["before", "after"].includes(placement)) return false;
+  const sourceIndex = state.productionPlanJobs.findIndex(job => job.planRowId === sourceId);
+  if (sourceIndex < 0 || !state.productionPlanJobs.some(job => job.planRowId === targetId)) return false;
+  const jobs = [...state.productionPlanJobs];
+  const [job] = jobs.splice(sourceIndex, 1);
+  const targetIndex = jobs.findIndex(item => item.planRowId === targetId);
+  jobs.splice(targetIndex + (placement === "after" ? 1 : 0), 0, job);
+  if (jobs.every((item, index) => item === state.productionPlanJobs[index])) return false;
+  state.productionPlanJobs = jobs;
+  jobs.forEach(item => { item.planRowVersion = 1; });
+  state.productionPlanSelectedJobId = sourceId;
+  renderProductionPlanTable();
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = "생산계획 순서를 변경했습니다. 계획 저장을 눌러 반영해주세요.";
+    productionPlanStatus.dataset.type = "";
+  }
+  return true;
+}
+
+function clearProductionPlanDropMarkers() {
+  productionPlanTableBody?.querySelectorAll(".plan-drop-before, .plan-drop-after").forEach(row => {
+    row.classList.remove("plan-drop-before", "plan-drop-after");
+  });
+}
+
+function finishProductionPlanRowDrag() {
+  state.productionPlanDragRowId = "";
+  clearProductionPlanDropMarkers();
+  productionPlanTableBody?.querySelectorAll(".is-plan-dragging").forEach(row => row.classList.remove("is-plan-dragging"));
+}
+
+function startProductionPlanRowDrag(event) {
+  const handle = event.target.closest("[data-plan-drag-handle]");
+  const rowId = handle?.closest("[data-plan-row-id]")?.dataset.planRowId;
+  if (!event.dataTransfer || !state.productionPlanJobs.some(job => job.planRowId === rowId)) {
+    event.preventDefault();
+    return;
+  }
+  closeProductionPlanRowMenu();
+  state.productionPlanDragRowId = rowId;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", rowId);
+  productionPlanTableBody.querySelectorAll("[data-plan-row-id], [data-plan-details-row]").forEach(row => {
+    if ((row.dataset.planRowId || row.dataset.planDetailsRow) === rowId) row.classList.add("is-plan-dragging");
+  });
+}
+
+function getProductionPlanDropTarget(event) {
+  if (!state.productionPlanDragRowId) return null;
+  const hovered = event.target.closest("[data-plan-row-id], [data-plan-details-row]");
+  const rowId = hovered?.dataset.planRowId || hovered?.dataset.planDetailsRow;
+  if (!rowId || rowId === state.productionPlanDragRowId) return null;
+  const row = [...productionPlanTableBody.querySelectorAll("[data-plan-row-id]")].find(item => item.dataset.planRowId === rowId);
+  if (!row) return null;
+  const details = [...productionPlanTableBody.querySelectorAll("[data-plan-details-row]")].find(item => item.dataset.planDetailsRow === rowId && !item.hidden);
+  const rect = row.getBoundingClientRect();
+  const bottom = details ? details.getBoundingClientRect().bottom : rect.bottom;
+  const placement = event.clientY < (rect.top + bottom) / 2 ? "before" : "after";
+  return {rowId, placement, marker: placement === "after" && details ? details : row};
+}
+
+function dragOverProductionPlanRow(event) {
+  const target = getProductionPlanDropTarget(event);
+  clearProductionPlanDropMarkers();
+  if (!target) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  target.marker.classList.add(`plan-drop-${target.placement}`);
+}
+
+function dropProductionPlanRow(event) {
+  const target = getProductionPlanDropTarget(event);
+  const sourceId = state.productionPlanDragRowId;
+  finishProductionPlanRowDrag();
+  if (!target) return;
+  event.preventDefault();
+  event.stopPropagation();
+  moveProductionPlanRow(sourceId, target.rowId, target.placement);
+}
+
+function handleProductionPlanRowMoveKeydown(event) {
+  if (!event.altKey || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+  const handle = event.target.closest("[data-plan-drag-handle]");
+  const rowId = handle?.closest("[data-plan-row-id]")?.dataset.planRowId;
+  const index = state.productionPlanJobs.findIndex(job => job.planRowId === rowId);
+  if (index < 0) return;
+  event.preventDefault();
+  const next = state.productionPlanJobs[index + (event.key === "ArrowUp" ? -1 : 1)];
+  if (!next || !moveProductionPlanRow(rowId, next.planRowId, event.key === "ArrowUp" ? "before" : "after")) return;
+  [...productionPlanTableBody.querySelectorAll("[data-plan-row-id]")].find(row => row.dataset.planRowId === rowId)
+    ?.querySelector("[data-plan-drag-handle]")?.focus();
 }
 
 function addProductionPlanRow() {
