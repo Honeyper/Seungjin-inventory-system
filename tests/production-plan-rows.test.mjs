@@ -710,3 +710,66 @@ test('다른 기계에 배정된 발주를 자동으로 이어 붙이지 않는�
  c.getProductionPlanOrderDraftCache().jobs.push({...job,purchaseOrderId:'PO-45',machine:'4호기'});c.updateProductionPlanTargets([job]);
  assert.equal(job.shiftParts.length,0);assert.equal(job.targetQuantity,3000);assert.equal(job.hours,8);
 });
+
+test('생산계획 추가는 기존 실적·상세 열림을 유지하고 빈 행을 하나씩 붙인다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ const first=c.state.productionPlanJobs[0];Object.assign(first,{machine:'5호기',actualProduction:8000,actualWorkHours:8,note:'기존 작업'});
+ c.state.productionPlanExpandedRows=new Set([first.planRowId]);let opened=0;c.openInboundProductPicker=()=>{opened++;};
+ for(let i=1;i<=3;i++) {
+  c.addProductionPlanRow();assert.equal(c.state.productionPlanJobs.length,i+1);
+  const added=c.state.productionPlanJobs.at(-1);assert.equal(added.purchaseOrderId,'');assert.equal(added.productId,'');
+  assert.equal(added.productName,'');assert.equal(added.machine,'');assert.equal(added.actualProduction??null,null);
+  assert.equal(added.actualWorkHours??null,null);assert.equal(added.worker,'');
+  assert.equal(c.state.productionPlanSelectedJobId,added.planRowId);
+ }
+ assert.equal(new Set(c.state.productionPlanJobs.map(job=>job.planRowId)).size,4);
+ assert.equal(c.state.productionPlanExpandedRows.has(first.planRowId),true);assert.equal(opened,0);
+ assert.equal(c.state.productionPlanJobs[0].actualProduction,8000);assert.equal(c.state.productionPlanJobs[0].note,'기존 작업');
+ assert.equal(c.getProductionPlanActiveJobs().length,1);
+ assert.equal((c.productionPlanTableBody.innerHTML.match(/<tr class="[^"]*" data-plan-row-id=/g)||[]).length,4);
+});
+
+test('추가 행의 제품·공정 선택은 해당 행만 바꾸며 저장·날짜 복귀·발주 새로고침 후 유지된다',async()=>{
+ const c=setup();const products=addPrintProducts(c);c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ Object.assign(c.state.productionPlanJobs[0],{machine:'5호기',actualProduction:8000,actualWorkHours:8,note:'오브제 유지'});
+ c.addProductionPlanRow();const added=c.state.productionPlanJobs[1];
+ c.state.productionPlanPickerJobId=added.planRowId;c.selectProductionPlanProduct(products[1]);
+ assert.equal(c.state.productionPlanJobs[0].productId,'NP-0001');assert.equal(c.state.productionPlanJobs[1].productId,'SILK');
+ c.changeProductionPlanPrintType(c.state.productionPlanJobs[1],'자동화');c.renderProductionPlan();
+ Object.assign(c.state.productionPlanJobs[1],{machine:'3호기',actualProduction:4000,actualWorkHours:8,note:'두 번째 작업'});
+ c.addProductionPlanRow();const ids=c.state.productionPlanJobs.map(job=>job.planRowId);
+ assert.equal(c.getProductionPlanActiveJobs().length,2);assert.equal(c.saveProductionPlanDraft(),true);
+ c.setProductionPlanDate('2026-09-12');c.setProductionPlanDate('2026-09-11');await c.syncProductionPlanOrders();
+ assert.deepEqual(plain(c.state.productionPlanJobs.map(job=>job.planRowId)),plain(ids));
+ const [first,second,blank]=c.state.productionPlanJobs;
+ assert.equal(first.actualProduction,8000);assert.equal(first.machine,'5호기');assert.equal(first.note,'오브제 유지');
+ assert.equal(second.actualProduction,4000);assert.equal(second.process,'자동화');assert.equal(second.machine,'3호기');assert.equal(second.note,'두 번째 작업');
+ assert.equal(blank.purchaseOrderId,'');assert.equal(c.getProductionPlanCumulativeProduction(first),8000);
+ assert.equal(c.getProductionPlanCumulativeProduction(second),4000);
+});
+
+test('추가 행에서 이미 표시된 발주를 선택해도 다른 행의 저장 실적을 복사하지 않는다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ Object.assign(c.state.productionPlanJobs[0],{actualProduction:8000,actualWorkHours:8});c.saveProductionPlanDraft();
+ c.addProductionPlanRow();const added=c.state.productionPlanJobs[1];
+ c.state.productionPlanPickerJobId=added.planRowId;c.selectProductionPlanProduct(c.state.products[0]);
+ assert.equal(c.state.productionPlanJobs.length,2);assert.equal(c.state.productionPlanJobs[1].actualProduction??null,null);
+ assert.equal(c.state.productionPlanJobs[1].actualWorkHours??null,null);
+ c.changeProductionPlanStage(c.state.productionPlanJobs[1],1);
+ c.state.productionPlanJobs[1].actualProduction=3000;c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ assert.equal(c.state.productionPlanJobs.length,2);assert.equal(c.state.productionPlanJobs[0].stage,2);assert.equal(c.state.productionPlanJobs[1].stage,1);
+ assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),8000);
+ assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[1]),3000);
+});
+
+test('여러 작업 행과 선택을 바꿔 둔 발주 실적은 화면 행과 별개로 보관한다',()=>{
+ const c=setup();c.state.purchaseOrders.push({...order,purchaseOrderId:'PO-45',totalOrderQuantity:20000});
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();const first=c.state.productionPlanJobs[0];
+ first.actualProduction=8000;c.switchProductionPlanOrder(first,'PO-45');first.actualProduction=3000;
+ c.addProductionPlanRow();c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ assert.equal(c.state.productionPlanJobs.length,2);assert.equal(c.state.productionPlanJobs[0].purchaseOrderId,'PO-45');
+ assert.equal(c.state.productionPlanJobs[1].purchaseOrderId,'');
+ assert.equal(JSON.parse(c.testStorage.get(c.getProductionPlanStorageKey())).jobs.length,3);
+ c.switchProductionPlanOrder(c.state.productionPlanJobs[0],order.purchaseOrderId);c.renderProductionPlan();
+ assert.equal(c.state.productionPlanJobs.length,2);assert.equal(c.state.productionPlanJobs[0].actualProduction,8000);
+});

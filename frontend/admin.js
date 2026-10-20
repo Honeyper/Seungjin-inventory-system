@@ -93,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-20", title: "생산계획 작업 행 추가", items: ["생산계획 추가 버튼을 누르면 기존 일일 생산계획표에 빈 작업 행이 하나씩 추가됩니다. 행별 제품·발주·공정과 입력값을 구분해 저장하고 다시 불러오거나 발주를 새로고침해도 유지합니다."] },
   { date: "2026-10-19", title: "재고 목록 초기 필터 오류 수정", items: ["‘전체’와 ‘보관 위치 검색’ 안내 문구가 실제 필터 값으로 유지되어 재고 목록이 비어 보이던 오류를 수정했습니다. 기본 필터는 빈 값으로 처리하고 사용자가 직접 선택한 거래처·보관 위치는 유지합니다."] },
   { date: "2026-10-19", title: "PC 주요 목록 자동 갱신", items: ["입고·발주·재고·출고·제품 목록을 30초마다 자동 확인하고 창 복귀·메뉴 전환·연결 복구 시에도 갱신합니다. 입력·팝업·저장 중에는 갱신을 미루고 기존 검색·정렬·페이지를 유지합니다. 조회가 실패해도 마지막 정상 목록을 유지합니다."] },
   { date: "2026-10-19", title: "설치 앱 아이콘 로고 크기 축소", items: ["휴대폰 앱 아이콘 안의 로고를 약 30% 줄이고 흰 여백을 넓혔습니다. Android 아이콘 마스크와 Apple 홈 화면 아이콘에서도 균형 있게 표시하도록 새 아이콘 파일을 적용했습니다."] },
@@ -1006,6 +1007,7 @@ const previousProductionPlanDate = document.querySelector("#previousProductionPl
 const nextProductionPlanDate = document.querySelector("#nextProductionPlanDate");
 const todayProductionPlanDate = document.querySelector("#todayProductionPlanDate");
 const syncProductionPlanButton = document.querySelector("#syncProductionPlanButton");
+const addProductionPlanButton = document.querySelector("#addProductionPlanButton");
 const saveProductionPlanButton = document.querySelector("#saveProductionPlanButton");
 const printProductionPlanButton = document.querySelector("#printProductionPlanButton");
 const newPurchaseOrderButton = document.querySelector("#newPurchaseOrderButton");
@@ -1790,6 +1792,7 @@ previousProductionPlanDate?.addEventListener("click", () => changeProductionPlan
 nextProductionPlanDate?.addEventListener("click", () => changeProductionPlanDate(1));
 todayProductionPlanDate?.addEventListener("click", () => setProductionPlanDate(getLocalDateInputValue()));
 syncProductionPlanButton?.addEventListener("click", syncProductionPlanOrders);
+addProductionPlanButton?.addEventListener("click", addProductionPlanRow);
 saveProductionPlanButton?.addEventListener("click", saveProductionPlanDraft);
 printProductionPlanButton?.addEventListener("click", printProductionPlan);
 window.addEventListener("afterprint", () => document.body.classList.remove("printing-production-plan"));
@@ -2836,8 +2839,9 @@ function changeProductionPlanPrintType(job, process) {
   }
   const staff = getProductionPlanStaffAssignments(job);
   const planRowId = job.planRowId;
+  const planRowVersion = job.planRowVersion;
   Object.keys(job).forEach(key => delete job[key]);
-  Object.assign(job, next, staff, {planRowId});
+  Object.assign(job, next, staff, {planRowId, planRowVersion});
   return true;
 }
 
@@ -2920,6 +2924,15 @@ function isProductionPlanWithinDeadline(record, job) {
 }
 
 function ensureProductionPlanRows(jobs) {
+  // Explicit rows stay separate; older plans also contain inactive order/stage drafts.
+  const rows = jobs.filter(job => job.planRowVersion === 1);
+  if (!rows.length) return normalizeProductionPlanRows(jobs);
+  return rows.flatMap(job => normalizeProductionPlanRows([job]).map(row => ({
+    ...row, planRowId: job.planRowId || row.planRowId, planRowVersion: 1
+  })));
+}
+
+function normalizeProductionPlanRows(jobs) {
   const valid = jobs.filter(item => {
     const order = state.purchaseOrders?.find(order => order.purchaseOrderId === item.purchaseOrderId);
     const productId = order?.productId || item.productId;
@@ -2959,7 +2972,7 @@ function ensureProductionPlanRows(jobs) {
 function getProductionPlanActiveJobs() {
   return state.productionPlanJobs.filter(job => Boolean(job.purchaseOrderId)
     && isProductionPlanProductAllowed(getProductionPlanProduct(job.productId), job.process)
-    && isProductionPlanWithinDeadline(state.purchaseOrders.find(order => order.purchaseOrderId === job.purchaseOrderId) || job, job)).slice(0, 1);
+    && isProductionPlanWithinDeadline(state.purchaseOrders.find(order => order.purchaseOrderId === job.purchaseOrderId) || job, job));
 }
 
 
@@ -3170,6 +3183,7 @@ function inheritProductionPlanSetup(jobs) {
 }
 
 function buildProductionPlanJobs({ preserve = [] } = {}) {
+  if (preserve.length) return updateProductionPlanTargets(ensureProductionPlanRows(excludeUnassignedProductionPlanHistory(preserve)));
   const process = PRODUCTION_PROCESS_ORDER.includes(preserve[0]?.process) ? preserve[0].process : "실크 인쇄";
   const orders = getProductionPlanOpenOrders().filter(order => isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process));
   const previousOrderId = (readProductionPlanActualLedger() || [])
@@ -3299,13 +3313,16 @@ function switchProductionPlanOrder(job, purchaseOrderId) {
     cache.jobs = cache.jobs.filter(item => item.purchaseOrderId !== job.purchaseOrderId);
     cache.jobs.push(JSON.parse(JSON.stringify(job)));
   }
-  const cached = cache.jobs.filter(item => item.purchaseOrderId === purchaseOrderId);
-  const saved = (readProductionPlanDraft() || []).filter(item => item?.purchaseOrderId === purchaseOrderId);
+  const otherRowIds = new Set(state.productionPlanJobs.filter(item => item !== job).map(item => item.planRowId));
+  const available = item => item?.purchaseOrderId === purchaseOrderId && !otherRowIds.has(item.planRowId);
+  const cached = cache.jobs.filter(available);
+  const saved = (readProductionPlanDraft() || []).filter(available);
   const restored = cached.length || saved.length ? ensureProductionPlanRows(cached.length ? cached : saved)[0]
     : inheritProductionPlanSetup([next])[0];
   const planRowId = job.planRowId;
+  const planRowVersion = job.planRowVersion;
   Object.keys(job).forEach(key => delete job[key]);
-  Object.assign(job, restored, {planRowId});
+  Object.assign(job, restored, {planRowId, planRowVersion});
   return true;
 }
 
@@ -3318,7 +3335,9 @@ function getProductionPlanJobsForSave() {
   for (const job of [...getProductionPlanOrderDraftCache().jobs, ...state.productionPlanJobs]) edited.set(job.purchaseOrderId || job.planRowId, job);
   const selected = new Set(state.productionPlanJobs.map(job => job.purchaseOrderId || job.planRowId));
   const archived = (readProductionPlanDraft() || []).filter(job => job && !edited.has(job.purchaseOrderId || job.planRowId));
-  return [...state.productionPlanJobs, ...[...edited].filter(([key]) => !selected.has(key)).map(([,job]) => job), ...archived];
+  const inactive = [...[...edited].filter(([key]) => !selected.has(key)).map(([,job]) => job), ...archived]
+    .map(({planRowVersion, ...job}) => job);
+  return [...state.productionPlanJobs.map(job => ({...job, planRowVersion: 1})), ...inactive];
 }
 
 function replaceProductionPlanJobOrder(job, purchaseOrderId) {
@@ -3637,6 +3656,19 @@ function updateProductionPlanWeekday() {
   weekday.textContent = valid ? `(${'일월화수목금토'[date.getUTCDay()]})` : "";
 }
 
+function addProductionPlanRow() {
+  state.productionPlanJobs.forEach(job => { job.planRowVersion = 1; });
+  const job = {...createProductionPlanEmptyJob(1, "실크 인쇄", ""), planRowVersion: 1,
+    worker: "", workerType: "", packagingWorker: "", packagingWorkerType: ""};
+  state.productionPlanJobs.push(job);
+  state.productionPlanSelectedJobId = job.planRowId;
+  renderProductionPlan();
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = "작업 행을 추가했습니다. 계획 저장을 눌러 반영해주세요.";
+    productionPlanStatus.dataset.type = "";
+  }
+}
+
 function renderProductionPlan() {
   updateProductionPlanWeekday();
   state.productionPlanJobs = ensureProductionPlanRows(state.productionPlanJobs);
@@ -3722,7 +3754,7 @@ function selectProductionPlanProduct(product) {
   const unusedOrder = matchingOrders.find((order) => !state.productionPlanJobs.some((item) => item !== job && item.purchaseOrderId === order.purchaseOrderId));
   const selectedOrder = currentOrder || unusedOrder || matchingOrders[0];
   if (job.purchaseOrderId !== selectedOrder.purchaseOrderId) {
-    state.productionPlanJobs.forEach(row => replaceProductionPlanJobOrder(row, selectedOrder.purchaseOrderId));
+    replaceProductionPlanJobOrder(job, selectedOrder.purchaseOrderId);
   }
   state.productionPlanJobs = ensureProductionPlanRows(state.productionPlanJobs);
   state.productionPlanPickerJobId = job.planRowId;
