@@ -90,6 +90,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-20", title: "다른 영역 클릭 시 생산계획 세부사항 접기", items: ["다른 작업 행이나 표 밖을 클릭하면 열린 세부사항이 접힙니다. 같은 작업 행·세부사항 안에서 입력하거나 제품 선택 팝업을 사용할 때는 열린 상태를 유지합니다."] },
   { date: "2026-10-20", title: "생산계획 추가 버튼 위치 조정", items: ["생산계획 추가 버튼을 일일 생산계획표 제목과 같은 줄의 맨 오른쪽으로 옮겼습니다."] },
   { date: "2026-10-20", title: "생산계획 작업 행 추가", items: ["생산계획 추가 버튼을 누르면 기존 일일 생산계획표에 빈 작업 행이 하나씩 추가됩니다. 행별 제품·발주·공정과 입력값을 구분해 저장하고 다시 불러오거나 발주를 새로고침해도 유지합니다."] },
   { date: "2026-10-19", title: "재고 목록 초기 필터 오류 수정", items: ["‘전체’와 ‘보관 위치 검색’ 안내 문구가 실제 필터 값으로 유지되어 재고 목록이 비어 보이던 오류를 수정했습니다. 기본 필터는 빈 값으로 처리하고 사용자가 직접 선택한 거래처·보관 위치는 유지합니다."] },
@@ -1621,6 +1622,7 @@ window.addEventListener("afterprint", () => document.body.classList.remove("prin
 productionPlanTableBody?.addEventListener("input", handleProductionPlanFieldChange);
 productionPlanTableBody?.addEventListener("change", handleProductionPlanFieldChange);
 productionPlanTableBody?.addEventListener("click", handleProductionPlanTableClick);
+document.addEventListener("click", collapseProductionPlanDetailsOutside);
 
 viewLinks.forEach((link) => {
   link.addEventListener("click", (event) => {
@@ -3386,6 +3388,18 @@ function toggleProductionPlanDetails(button) {
   animateProductionPlanDetails(details, expanded);
   button.setAttribute("aria-expanded", String(expanded));
   button.querySelector(".production-plan-details-toggle-label").textContent = `세부사항 ${expanded ? "닫기" : "열기"}`;
+}
+
+function collapseProductionPlanDetailsOutside(event) {
+  if (!state.productionPlanExpandedRows?.size) return;
+  // Product pickers and other floating editors belong to the row being edited.
+  if (event.target.closest?.(".modal-backdrop, dialog")) return;
+  const row = event.target.closest?.("[data-plan-row-id], [data-plan-details-row]");
+  const keepRowId = row?.dataset.planRowId || row?.dataset.planDetailsRow;
+  productionPlanTableBody?.querySelectorAll('[data-plan-details-toggle][aria-expanded="true"]').forEach(button => {
+    const planRowId = button.dataset.planDetailsToggle;
+    if (planRowId !== keepRowId && state.productionPlanExpandedRows.has(planRowId)) toggleProductionPlanDetails(button);
+  });
 }
 
 function handleProductionPlanTableClick(event) {
