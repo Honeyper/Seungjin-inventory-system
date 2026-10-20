@@ -863,3 +863,47 @@ test('제품명·시간당 생산량 갱신은 계획 입력과 순서를 유지
  assert.equal(c.getProductionPlanDetailMetrics(c.state.productionPlanJobs[0]).hourlyRate,1500);
  assert.match(c.productionPlanTableBody.innerHTML,/수정한 제품명 변경/);assert.match(c.productionPlanTableBody.innerHTML,/수정한 제품명 금일 생산량/);assert.match(c.productionPlanTableBody.innerHTML,/수정 거래처/);
 });
+
+function setupSelectedOvercapOrder() {
+ const c=setup();const product={...c.state.products[0],productCode:'NP-0002',productName:'오브제 파운데이션 오버캡',finalProcess:'1도',processGroups:[[1]],processHourlyProductionRates:{'1도':11000}};
+ c.state.products=[product];c.state.productionPlanDate='2026-10-20';
+ c.state.purchaseOrders=[44,45].map(round=>({...order,productId:product.productCode,productName:product.productName,purchaseOrderId:`OVERCAP-${round}`,orderRound:`${round}차 발주`,deliveryType:'daily',dailyMinimumQuantity:11000,totalOrderQuantity:round===44?99100:130000,endDate:''}));
+ const job={...c.createProductionPlanEmptyJob(1,'실크 인쇄',product.productCode),purchaseOrderId:'OVERCAP-45',machine:'3호기',actualProduction:11000,actualWorkHours:8};
+ c.state.productionPlanJobs=[job];return {c,job};
+}
+
+test('선택한 오브제 45차를 이전 44차의 잔량 때문에 휴무로 계산하지 않는다',()=>{
+ const {c,job}=setupSelectedOvercapOrder();const before=plain(c.state.purchaseOrders);
+ c.updateProductionPlanTargets([job]);
+ assert.equal(job.hours,8);assert.equal(job.targetQuantity,88000);assert.equal(c.formatProductionPlanWorkHours(job),'8시간');
+ assert.equal(c.getProductionPlanDetailMetrics(job).dailyTargetHours,8);
+ assert.equal(c.getProductionPlanCumulativeProduction(job),11000);assert.equal(c.getProductionPlanDetailMetrics(job).remainingProduction,119000);
+ assert.equal(job.actualWorkHours,8);assert.equal(job.actualProduction,11000);assert.deepEqual(plain(c.state.purchaseOrders),before);
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].hours,8);
+ c.setProductionPlanDate('2026-10-21');const next=c.state.productionPlanJobs[0];
+ assert.equal(next.purchaseOrderId,'OVERCAP-45');assert.equal(next.hours,8);assert.equal(c.getProductionPlanCalculations(next).remainingQuantity,119000);
+});
+
+test('선택한 발주는 실적 입력 전에도 계산하며 이전 발주로 전환하면 그 발주를 계산한다',()=>{
+ const {c,job}=setupSelectedOvercapOrder();job.actualProduction=null;job.actualWorkHours=null;c.updateProductionPlanTargets([job]);
+ assert.equal(job.hours,8);assert.equal(job.targetQuantity,88000);
+ assert.equal(c.switchProductionPlanOrder(job,'OVERCAP-44'),true);c.updateProductionPlanTargets([job]);
+ assert.equal(job.hours,8);assert.equal(job.orderQuantity,99100);assert.equal(job.targetQuantity,88000);
+ c.state.productionPlanDate='2026-10-24';c.updateProductionPlanTargets([job]);assert.equal(job.hours,0);assert.equal(c.formatProductionPlanWorkHours(job),'휴무');
+});
+
+test('앞선 납기형 발주의 미래 일정 때문에 선택한 발주의 오늘 배정을 없애지 않는다',()=>{
+ const {c,job}=setupSelectedOvercapOrder();c.state.products[0].processHourlyProductionRates['1도']=1000;
+ for(const order of c.state.purchaseOrders){order.deliveryType='date';order.endDate='2026-11-30';}
+ c.updateProductionPlanTargets([job]);assert.equal(job.hours,8);assert.equal(job.targetQuantity,8000);
+ assert.equal(c.getProductionPlanCalculations(job).schedule[0].date,'2026-10-20');
+});
+
+test('0시간 작업 대기와 평일 배정 없음은 휴무와 구분한다',()=>{
+ const c=setup(),job={purchaseOrderId:'CHECK',hours:0};
+ assert.equal(c.formatProductionPlanWorkHours({...job,planMode:'waiting'}),'대기');
+ assert.equal(c.formatProductionPlanWorkHours({...job,planMode:'regular'}),'배정 없음');
+ assert.equal(c.formatProductionPlanWorkHours({...job,planMode:'complete'}),'완료');
+ assert.equal(c.formatProductionPlanWorkHours({...job,planMode:'rest'}),'휴무');
+ assert.equal(c.formatProductionPlanWorkHours({...job,planMissing:true}),'—');
+});

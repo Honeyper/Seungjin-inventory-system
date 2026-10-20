@@ -90,6 +90,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-20", title: "선택한 발주의 작업시간 계산 수정", items: ["이전 발주 때문에 선택한 발주의 오늘 작업이 0시간으로 막히던 오류를 수정했습니다. 같은 날 이전 발주 완료 후 이어지는 작업은 유지하며, 작업 대기·배정 없음과 휴무를 구분합니다."] },
   { date: "2026-10-20", title: "생산계획 제품 선택에서 바로 수정", items: ["생산계획 제품 선택 목록에 수정 버튼을 추가했습니다. 저장·취소 후 검색어·정렬·스크롤 위치를 유지하며, 제품 정보 갱신 시 작성 중인 계획 행·순서·실적을 유지합니다."] },
   { date: "2026-10-20", title: "생산계획 행 드래그 정렬", items: ["각 행 왼쪽 손잡이를 끌어 작업 순서를 바꿀 수 있습니다. 이동 위치를 선으로 표시하며 세부정보와 입력값을 유지합니다. 계획 저장 후에도 순서가 유지되고 손잡이에서 Alt+위·아래 방향키로도 이동할 수 있습니다."] },
   { date: "2026-10-20", title: "생산계획 행 우클릭 복사·삭제", items: ["작업 행을 우클릭하면 생산계획 복사·삭제 메뉴가 열립니다. 복사는 작업 설정을 가져오고 금일 생산량·실 근무시간은 비웁니다. 삭제한 행은 계획 저장 후 다시 불러와도 제거된 상태를 유지합니다."] },
@@ -2817,9 +2818,16 @@ function getProductionPlanCalculations(job) {
   const sequence = getProductionPlanSequenceOrders(job);
   const cacheKey = JSON.stringify({input,sequence,selected:job?.purchaseOrderId});
   if (productionPlanCalculationCache.has(cacheKey)) return productionPlanCalculationCache.get(cacheKey);
-  const values = sequence.length > 1
+  let values = sequence.length > 1
     ? window.SeungjinProductionPlanner.planOrders({...input,orders:sequence}).orders.find(item => item.purchaseOrderId === job.purchaseOrderId)
     : window.SeungjinProductionPlanner.plan(input);
+  const selectedIndex = sequence.findIndex(item => item.purchaseOrderId === job?.purchaseOrderId);
+  // Keep a shared completion-day shift, but never let an unselected older order
+  // prevent today's work on the explicitly selected order.
+  if (selectedIndex > 0 && values.hours === 0 && values.remainingQuantity > 0) {
+    values = window.SeungjinProductionPlanner.planOrders({...input,orders:sequence.slice(selectedIndex)})
+      .orders.find(item => item.purchaseOrderId === job.purchaseOrderId);
+  }
   if (values.shiftParts?.length > 1) {
     const parts=values.shiftParts.map(part => `${part.orderRound || part.purchaseOrderId} ${formatProductionPlanHours(part.allocatedHours)} · ${formatNumber(part.targetQuantity)}개`).join(" → ");
     values.message=`총 ${formatProductionPlanHours(values.hours)} · ${parts}${values.mode === "shortfall" ? ` · ${values.message}` : ""}`;
@@ -3308,7 +3316,12 @@ function refreshProductionPlanMetrics(row, job) {
 
 function formatProductionPlanWorkHours(job) {
   if (!job.purchaseOrderId || job.planMissing) return "—";
-  if (job.hours === 0) return job.planMode === "complete" ? "완료" : "휴무";
+  if (job.hours === 0) {
+    if (job.planMode === "complete") return "완료";
+    if (job.planMode === "waiting") return "대기";
+    const type = window.SeungjinProductionPlanner.dayType(state.productionPlanDate, window.SEUNGJIN_CONFIG?.PRODUCTION_PLAN_HOLIDAYS || []);
+    return job.planMode === "rest" || type === "weekend" || type === "holiday" ? "휴무" : "배정 없음";
+  }
   return formatProductionPlanHours(job.hours);
 }
 
