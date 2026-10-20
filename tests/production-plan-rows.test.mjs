@@ -824,3 +824,30 @@ test('마지막 빈 행 삭제와 복사는 안전하며 없는 행에 대한 �
  for(const job of [...c.state.productionPlanJobs]) c.deleteProductionPlanRow(job.planRowId);
  c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs.length,0);
 });
+
+test('행 순서만 바꾸고 실적·공정·기계·열린 세부정보를 유지하며 저장 후 같은 순서로 불러온다',async()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const first=c.state.productionPlanJobs[0];
+ Object.assign(first,{machine:'5호기',actualProduction:8000,actualWorkHours:8,note:'기존 작업'});
+ c.state.productionPlanExpandedRows=new Set([first.planRowId]);c.addProductionPlanRow();c.addProductionPlanRow();
+ c.state.productionPlanJobs[1].note='둘째';c.state.productionPlanJobs[2].note='셋째';
+ const [a,b,d]=c.state.productionPlanJobs.map(job=>job.planRowId);
+ const original=plain(c.state.productionPlanJobs);
+ assert.equal(c.moveProductionPlanRow(a,d,'after'),true);
+ assert.deepEqual(plain(c.state.productionPlanJobs.map(job=>job.planRowId)),[b,d,a]);
+ assert.deepEqual(plain(c.state.productionPlanJobs.find(job=>job.planRowId===a)),original[0]);
+ assert.equal(c.state.productionPlanExpandedRows.has(a),true);
+ assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[2]),8000);
+ assert.equal(c.saveProductionPlanDraft(),true);c.loadProductionPlanDraft();await c.syncProductionPlanOrders();
+ assert.deepEqual(plain(c.state.productionPlanJobs.map(job=>job.planRowId)),[b,d,a]);
+ c.setProductionPlanDate('2026-09-12');c.setProductionPlanDate('2026-09-11');
+ assert.deepEqual(plain(c.state.productionPlanJobs.map(job=>job.planRowId)),[b,d,a]);
+ assert.equal(c.state.productionPlanJobs[2].actualProduction,8000);assert.equal(c.state.productionPlanJobs[2].machine,'5호기');
+ assert.equal(c.moveProductionPlanRow(a,b,'before'),true);assert.deepEqual(plain(c.state.productionPlanJobs.map(job=>job.planRowId)),[a,b,d]);
+});
+
+test('같은 위치·없는 행·잘못된 이동 요청은 계획을 수정하지 않는다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();c.addProductionPlanRow();
+ const [a,b]=c.state.productionPlanJobs.map(job=>job.planRowId),before=plain(c.state.productionPlanJobs);
+ for(const args of [[a,a,'before'],[a,b,'before'],[b,a,'after'],['missing',b,'before'],[a,'missing','after'],[a,b,'sideways']]) assert.equal(c.moveProductionPlanRow(...args),false);
+ assert.deepEqual(plain(c.state.productionPlanJobs),before);
+});
