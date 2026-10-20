@@ -26,6 +26,7 @@ function setup() {
       getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     productionPlanTableBody: { innerHTML: "", querySelectorAll: () => [] },
     productionPlanStatus: { textContent: "", dataset: {} },
+    productionPlanRowMenu: null,
     productionPlanWorkspace: null, productionPlanDetailPanel: null, productionPlanDetailToggle: null,
     productionPlanDetailBody: null, machineScheduleBoard: null, machineScheduleStatus: null,
     productionPlanJobCount: {}, productionPlanTargetQuantity: {}, productionPlanDueSoonCount: {}, productionPlanUnassignedCount: {},
@@ -772,4 +773,54 @@ test('여러 작업 행과 선택을 바꿔 둔 발주 실적은 화면 행과 �
  assert.equal(JSON.parse(c.testStorage.get(c.getProductionPlanStorageKey())).jobs.length,3);
  c.switchProductionPlanOrder(c.state.productionPlanJobs[0],order.purchaseOrderId);c.renderProductionPlan();
  assert.equal(c.state.productionPlanJobs.length,2);assert.equal(c.state.productionPlanJobs[0].actualProduction,8000);
+});
+
+test('행 복사는 바로 아래에 설정을 복제하고 모든 당일 실적과 공정별 실적은 비운다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const original=c.state.productionPlanJobs[0];
+ Object.assign(original,{machine:'5호기',note:'같은 설정',actualProduction:8000,actualWorkHours:8,loss:0,lossMode:'manual',productionReferenceId:'old',stageDrafts:{1:{machine:'3호기',actualProduction:4000,actualWorkHours:4}}});
+ c.addProductionPlanRow();const otherId=c.state.productionPlanJobs[1].planRowId;
+ assert.equal(c.copyProductionPlanRow(original.planRowId),true);assert.equal(c.state.productionPlanJobs.length,3);
+ const [first,copy,last]=c.state.productionPlanJobs;
+ assert.notEqual(copy.planRowId,first.planRowId);assert.equal(last.planRowId,otherId);
+ for(const field of ['purchaseOrderId','productId','process','stage','machine','worker','packagingWorker','note','loss','lossMode']) assert.equal(copy[field],first[field]);
+ assert.equal(copy.actualProduction??null,null);assert.equal(copy.actualWorkHours??null,null);assert.equal(copy.productionReferenceId,undefined);
+ assert.equal(copy.stageDrafts[1],undefined);assert.equal(Object.values(copy.stageDrafts).every(draft=>!draft.actualProduction&&!draft.actualWorkHours),true);assert.equal(first.actualProduction,8000);assert.equal(first.stageDrafts[1].actualProduction,4000);
+ assert.equal(c.getProductionPlanCumulativeProduction(copy),8000);assert.equal(c.saveProductionPlanDraft(),true);
+ c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs.length,3);assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),8000);
+ assert.equal(c.state.productionPlanJobs[1].actualProduction??null,null);
+});
+
+test('저장된 한 행만 삭제하고 다른 행과 과거 날짜 실적은 유지하며 삭제 행을 다시 불러오지 않는다',async()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ c.state.productionPlanJobs[0].actualProduction=8000;c.saveProductionPlanDraft();const pastKey=c.getProductionPlanStorageKey(),past=c.testStorage.get(pastKey);
+ c.setProductionPlanDate('2026-09-12');const first=c.state.productionPlanJobs[0];Object.assign(first,{actualProduction:2000,actualWorkHours:2});
+ c.copyProductionPlanRow(first.planRowId);const copy=c.state.productionPlanJobs[1];Object.assign(copy,{actualProduction:3000,actualWorkHours:3});
+ c.saveProductionPlanDraft();assert.equal(c.deleteProductionPlanRow(first.planRowId),true);
+ assert.equal(c.state.productionPlanJobs.length,1);assert.equal(c.state.productionPlanJobs[0].planRowId,copy.planRowId);
+ assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),11000);
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();await c.syncProductionPlanOrders();
+ assert.equal(c.state.productionPlanJobs.length,1);assert.equal(c.state.productionPlanJobs[0].planRowId,copy.planRowId);
+ assert.equal(c.state.productionPlanJobs[0].actualProduction,3000);assert.equal(c.testStorage.get(pastKey),past);
+});
+
+test('마지막 행 삭제 후 빈 계획을 저장·날짜 복귀·발주 새로고침해도 삭제 행이나 비활성 발주가 나타나지 않는다',async()=>{
+ const c=setup();c.state.purchaseOrders.push({...order,purchaseOrderId:'PO-45',totalOrderQuantity:20000});
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();let job=c.state.productionPlanJobs[0];job.actualProduction=8000;
+ c.switchProductionPlanOrder(job,'PO-45');job.actualProduction=3000;c.saveProductionPlanDraft();
+ assert.equal(c.deleteProductionPlanRow(job.planRowId),true);assert.equal(c.state.productionPlanJobs.length,0);
+ assert.equal(c.saveProductionPlanDraft(),true);let saved=JSON.parse(c.testStorage.get(c.getProductionPlanStorageKey()));
+ assert.equal(saved.rowSelectionVersion,1);assert.equal(saved.jobs.length,1);assert.equal(saved.jobs[0].purchaseOrderId,order.purchaseOrderId);assert.equal(saved.jobs[0].actualProduction,8000);
+ c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs.length,0);await c.syncProductionPlanOrders();assert.equal(c.state.productionPlanJobs.length,0);
+ c.setProductionPlanDate('2026-09-12');c.setProductionPlanDate('2026-09-11');assert.equal(c.state.productionPlanJobs.length,0);
+ c.addProductionPlanRow();assert.equal(c.state.productionPlanJobs.length,1);assert.equal(c.state.productionPlanJobs[0].purchaseOrderId,'');
+});
+
+test('마지막 빈 행 삭제와 복사는 안전하며 없는 행에 대한 작업은 무시한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ assert.equal(c.copyProductionPlanRow('missing'),false);assert.equal(c.deleteProductionPlanRow('missing'),false);
+ c.deleteProductionPlanRow(c.state.productionPlanJobs[0].planRowId);c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ assert.equal(c.state.productionPlanJobs.length,0);c.addProductionPlanRow();c.copyProductionPlanRow(c.state.productionPlanJobs[0].planRowId);
+ assert.equal(c.state.productionPlanJobs.length,2);assert.equal(c.state.productionPlanJobs.every(job=>job.purchaseOrderId===''),true);
+ for(const job of [...c.state.productionPlanJobs]) c.deleteProductionPlanRow(job.planRowId);
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs.length,0);
 });
