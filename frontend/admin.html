@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260918-audit-bulk-v1-dev-invoice-preview-r18-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-stage-picker-r65-simple-plan-r71-plan-fit-r72-product-cell-r73-plan-density-r74-plan-details-r76-plan-delivery-r77-plan-no-stripe-r78-plan-metrics-r80-details-slide-r81-cost-aware-r90-control-center-r88-no-blue-lines-r87-work-hours-r86-chevron-center-r98-remaining-quantity-r100-weekday-r101-inventory-fit-r102-order-picker-r103-inline-selectors-r106-weekday-position-r107-order-continuation-r109-selector-spacing-r110-target-caption-r112-hours-highlight-r113-thin-icons-r116-blue-symbol-r117-purchase-compact-r118" />
+    <link rel="stylesheet" href="./styles.css?v=20260918-audit-bulk-v1-dev-invoice-preview-r18-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-stage-picker-r65-simple-plan-r71-plan-fit-r72-product-cell-r73-plan-density-r74-plan-details-r76-plan-delivery-r77-plan-no-stripe-r78-plan-metrics-r80-details-slide-r81-cost-aware-r90-control-center-r88-no-blue-lines-r87-work-hours-r86-chevron-center-r98-remaining-quantity-r100-weekday-r101-inventory-fit-r102-order-picker-r103-inline-selectors-r106-weekday-position-r107-order-continuation-r109-selector-spacing-r110-target-caption-r112-hours-highlight-r113-thin-icons-r116-blue-symbol-r117-purchase-compact-r118-plan-button-position-r127" />
     <link rel="stylesheet" href="./qr-dev-label.css?v=20260909-qr-worker-hint-dev" />
     <link rel="stylesheet" href="./qr-process-groups.css?v=20260918-process-font-r19" />
       <link rel="stylesheet" href="./common-container-shipping.css?v=20260922-common-shipping-v1">
@@ -292,10 +292,6 @@
                     <option value="2공장">2공장</option>
                   </select>
                 </label>
-                <button class="production-plan-button secondary" type="button" id="addProductionPlanButton">
-                  <i class="ti ti-plus" aria-hidden="true"></i>
-                  생산계획 추가
-                </button>
                 <button class="production-plan-button secondary" type="button" id="printProductionPlanButton">
                   <i class="ti ti-printer" aria-hidden="true"></i>
                   인쇄
@@ -323,6 +319,10 @@
                 <div>
                   <h2 id="productionPlanTitle">일일 생산계획표</h2>
                 </div>
+                <button class="production-plan-button secondary" type="button" id="addProductionPlanButton">
+                  <i class="ti ti-plus" aria-hidden="true"></i>
+                  생산계획 추가
+                </button>
 
               </div>
               <div class="production-plan-table-wrap">
@@ -3123,6 +3123,6 @@
     <script src="./inventory-audit-cards.js?v=20260917-audit-card-drag-v1"></script>
     <script src="./common-container-shipping.js?v=20260922-common-shipping-v1"></script>
     <script src="./admin-list-refresh.js?v=20261019-auto-refresh-r124"></script>
-    <script src="./admin.js?v=20260918-audit-bulk-v1-dev-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-employee-label-r64-stage-picker-r65-stage-label-r66-print-types-r67-caption-r68-auto-machines-r69-plan-save-r70-simple-plan-r71-cost-aware-r90-max-loss-r89-control-center-r88-no-blue-lines-r87-work-hours-r86-remaining-days-r85-daily-total-r84-loss-default-r83-auto-workdays-r82-details-slide-r81-plan-metrics-r80-worktime-label-r79-plan-no-stripe-r78-plan-delivery-r77-plan-details-r76-target-floor500-r75-plan-density-r74-product-cell-r73-remaining-production-r91-mixed-print-progress-r92-setup-carryover-r93-no-unassigned-history-r94-row-details-r95-row-toggle-r96-popup-escape-r97-chevron-center-r98-deadline-window-r99-remaining-quantity-r100-weekday-r101-inventory-fit-r102-order-picker-r103-date-details-r104-balanced-hours-r105-inline-selectors-r106-weekday-position-r107-minimum-shift-r108-order-continuation-r109-selector-spacing-r110-saturday-first-r111-target-caption-r112-hours-highlight-r113-login-minimal-r114-thin-icons-r116-blue-symbol-r117-purchase-compact-r118-shipping-pending-boxes-r119-mobile-icons-r120-home-align-r121-action-contrast-r122-app-icon-padding-r123-auto-refresh-r124-filter-placeholder-r125-add-plan-row-r126"></script>
+    <script src="./admin.js?v=20260918-audit-bulk-v1-dev-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-employee-label-r64-stage-picker-r65-stage-label-r66-print-types-r67-caption-r68-auto-machines-r69-plan-save-r70-simple-plan-r71-cost-aware-r90-max-loss-r89-control-center-r88-no-blue-lines-r87-work-hours-r86-remaining-days-r85-daily-total-r84-loss-default-r83-auto-workdays-r82-details-slide-r81-plan-metrics-r80-worktime-label-r79-plan-no-stripe-r78-plan-delivery-r77-plan-details-r76-target-floor500-r75-plan-density-r74-product-cell-r73-remaining-production-r91-mixed-print-progress-r92-setup-carryover-r93-no-unassigned-history-r94-row-details-r95-row-toggle-r96-popup-escape-r97-chevron-center-r98-deadline-window-r99-remaining-quantity-r100-weekday-r101-inventory-fit-r102-order-picker-r103-date-details-r104-balanced-hours-r105-inline-selectors-r106-weekday-position-r107-minimum-shift-r108-order-continuation-r109-selector-spacing-r110-saturday-first-r111-target-caption-r112-hours-highlight-r113-login-minimal-r114-thin-icons-r116-blue-symbol-r117-purchase-compact-r118-shipping-pending-boxes-r119-mobile-icons-r120-home-align-r121-action-contrast-r122-app-icon-padding-r123-auto-refresh-r124-filter-placeholder-r125-add-plan-row-r126-plan-button-position-r127"></script>
   </body>
 </html>
