@@ -376,7 +376,7 @@ async function loadCanonicalState(action: string, payload: JsonRecord) {
   if (action === "getInboundBoxQrs") {
     return loadInboundQrState(payload);
   }
-  if (action === "createInbound" || action === "updateInbound") {
+  if (action === "createInbound" || action === "updateInbound" || action === "deleteInbound") {
     return loadInboundUpdateState(payload);
   }
   if (["createProduct", "updateProduct", "deleteProduct"].includes(action)) {
