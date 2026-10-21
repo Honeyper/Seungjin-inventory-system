@@ -21,7 +21,7 @@ test("출고대기 저장은 전체 재고 대신 해당 관리 ID 데이터만 
 
 test("재고 위치 수정은 전체 상태 대신 해당 제품 데이터만 불러온다", () => {
   assert.match(gatewaySource, /action === "updateInbound"/);
-  assert.match(gatewaySource, /loadInboundUpdateState\(payload\)/);
+  assert.match(gatewaySource, /loadInboundUpdateState\(payload(?:,|\))/);
   assert.match(gatewaySource, /dev_inbounds\?product_id=eq\.\$\{encodedProductId\}/);
   assert.match(gatewaySource, /dev_inventory_records\?product_id=eq\.\$\{encodedProductId\}/);
   assert.match(gatewaySource, /dev_inventory_boxes\?product_id=eq\.\$\{encodedProductId\}/);

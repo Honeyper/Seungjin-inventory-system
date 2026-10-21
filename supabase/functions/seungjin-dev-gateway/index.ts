@@ -1,3 +1,4 @@
+import { compactInventoryDashboard, createJsonResponse } from "./inventory-transport.js";
 import { createInventoryReadCache } from "./inventory-read-cache.js";
 import { compactMobileDashboard } from "./state-engine.js";
 import { commonContainerInfo } from "./common-container-shipping.js";
@@ -112,10 +113,7 @@ function getCorsHeaders(request: Request) {
 }
 
 function jsonResponse(request: Request, body: JsonRecord, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: getCorsHeaders(request)
-  });
+  return createJsonResponse(request, body, status, getCorsHeaders(request));
 }
 
 function getNamedKey(environmentName: string, legacyName: string) {
@@ -296,27 +294,41 @@ function mapInventoryBoxRows(rows: JsonRecord[]) {
   }));
 }
 
-async function loadInboundUpdateState(payload: JsonRecord) {
+async function loadInboundUpdateState(payload: JsonRecord, creating = false) {
   const productId = String(payload.productId || "").trim();
   if (!productId) return loadFullCanonicalState();
 
   const version = await loadStateVersion();
   const encodedProductId = encodeURIComponent(productId);
-  const [productRows, orderRows, inboundRows, recordRows, boxRows] = await Promise.all([
+  const boxPath = `dev_inventory_boxes?product_id=eq.${encodedProductId}&select=box_id,management_id,product_id,storage,box_number`;
+  const boxFields = creating
+    ? ",quantity:data->>quantity,status:data->>status,raw_status:data->>rawStatus,shipping_type:data->>shippingType"
+    : ",data";
+  const [productRows, orderRows, inboundRows, recordRows, loadedBoxRows] = await Promise.all([
     databaseRows(`dev_products?product_id=eq.${encodedProductId}&select=product_id,data`),
     databaseRows(`dev_purchase_orders?product_id=eq.${encodedProductId}&select=purchase_order_id,product_id,data`),
     databaseRows(`dev_inbounds?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,inbound_date,data`),
     databaseRows(`dev_inventory_records?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,storage,data`),
-    databaseRows(`dev_inventory_boxes?product_id=eq.${encodedProductId}&select=box_id,management_id,product_id,storage,box_number,data`)
+    databaseRows(boxPath + boxFields)
   ]);
 
+  const knownIds = new Set([...inboundRows, ...recordRows].map(row => String(row.management_id || "")));
+  // Legacy orphan boxes may collide with a generated ID. Preserve their full
+  // state and processed-box protections instead of using projected references.
+  const referencesOnly = creating && loadedBoxRows.every(row => knownIds.has(String(row.management_id || "")));
+  const boxRows = creating && !referencesOnly ? await databaseRows(boxPath + ",data") : loadedBoxRows;
+  const boxes = referencesOnly ? boxRows.map(row => ({
+    boxId:row.box_id, managementId:row.management_id, productId:row.product_id,
+    storage:row.storage, number:row.box_number, quantity:row.quantity,
+    status:row.status, rawStatus:row.raw_status, shippingType:row.shipping_type
+  })) : mapInventoryBoxRows(boxRows);
   return {
     version,
     products: productRows.map((row) => row.data),
     orders: orderRows.map((row) => row.data),
     inbounds: inboundRows.map((row) => row.data),
     records: mapInventoryRecordRows(recordRows),
-    boxes: mapInventoryBoxRows(boxRows)
+    boxes
   };
 }
 
@@ -377,7 +389,7 @@ async function loadCanonicalState(action: string, payload: JsonRecord) {
     return loadInboundQrState(payload);
   }
   if (action === "createInbound" || action === "updateInbound" || action === "deleteInbound") {
-    return loadInboundUpdateState(payload);
+    return loadInboundUpdateState(payload, action === "createInbound" && !String(payload.managementId || "").trim());
   }
   if (["createProduct", "updateProduct", "deleteProduct"].includes(action)) {
     return loadProductMutationState();
@@ -528,7 +540,8 @@ async function readCanonicalAction(action: string, payload: JsonRecord): Promise
         stateVersion: version.stateVersion
       };
     });
-    return payload.responseFormat === "mobile-box-table-v1" ? compactMobileDashboard(dashboard) : dashboard;
+    return payload.responseFormat === "inventory-box-table-v1" ? compactInventoryDashboard(dashboard)
+      : payload.responseFormat === "mobile-box-table-v1" ? compactMobileDashboard(dashboard) : dashboard;
   }
   if (action === "getInventoryVersion") {
     const [stateRows, qrRows] = await Promise.all([

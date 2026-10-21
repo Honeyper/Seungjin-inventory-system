@@ -8,7 +8,7 @@ const gatewaySource = fs.readFileSync(
 );
 
 test("입고 등록과 수정은 해당 제품 범위만 읽는다", () => {
-  assert.match(gatewaySource, /return loadInbound(?:Mutation|Update)State\(payload\)/);
+  assert.match(gatewaySource, /return loadInbound(?:Mutation|Update)State\(payload(?:,|\))/);
   assert.match(gatewaySource, /dev_inventory_boxes\?product_id=eq\.\$\{encodedProductId\}/);
 });
 

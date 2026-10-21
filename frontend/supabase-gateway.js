@@ -123,6 +123,24 @@
     return enabled && config.SUPABASE_CANONICAL_WRITES === true && mutationActions.has(action);
   }
 
+  function expandInventoryResponse(data) {
+    if (data?.format !== "inventory-box-table-v1") return data;
+    if (!Array.isArray(data.rows) || !Array.isArray(data.boxTable)) throw new GatewayError("재고 응답을 다시 확인해주세요.");
+    const rows = data.rows.map(source => {
+      const row = {...source};
+      for (const field of ["allShippingBoxes", "activeShippingBoxes", "shippedShippingBoxes"]) {
+        if (!Array.isArray(source[field])) continue;
+        row[field] = source[field].map(index => {
+          if (!Number.isInteger(index) || index < 0 || !data.boxTable[index]) throw new GatewayError("재고 응답을 다시 확인해주세요.");
+          return data.boxTable[index];
+        });
+      }
+      return row;
+    });
+    const {format, boxTable, ...dashboard} = data;
+    return {...dashboard, rows};
+  }
+
   async function requestRead(action, payload = {}) {
     const pendingRefresh = pendingRefreshes.get(action);
     if (pendingRefresh) {
@@ -137,10 +155,13 @@
     if (!session) {
       throw new GatewayError("로그인이 만료되었습니다. 다시 로그인해주세요.", 401);
     }
-    const key = JSON.stringify([session.supabaseSessionToken, action, payload]);
+    const compactInventory = action === "getInventoryDashboard" && !payload.responseFormat;
+    const readPayload = compactInventory ? {...payload, responseFormat:"inventory-box-table-v1"} : payload;
+    const key = JSON.stringify([session.supabaseSessionToken, action, readPayload]);
     let pendingRead = pendingReads.get(key);
     if (!pendingRead) {
-      pendingRead = callGateway(action, payload, session.supabaseSessionToken).then((result) => result.data);
+      pendingRead = callGateway(action, readPayload, session.supabaseSessionToken)
+        .then((result) => compactInventory ? expandInventoryResponse(result.data) : result.data);
       pendingReads.set(key, pendingRead);
     }
     try {

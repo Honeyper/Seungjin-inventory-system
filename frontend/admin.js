@@ -93,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-21", title: "등록·재고 조회 전송 최적화", items: ["재고 조회의 중복 박스 정보를 한 번만 전송하고 큰 응답을 압축합니다. 신규 입고는 과거 박스의 집계에 필요한 값만 읽고, 명세서·불량사진 첨부를 함께 처리합니다. 발주 출고량 조회도 제한된 동시 조회로 대기를 줄였습니다."] },
   { date: "2026-10-21", title: "입고 삭제 속도·오류 개선", items: ["삭제할 제품의 자료만 조회해 전체 재고 조회로 인한 서버 시간 초과를 줄였습니다. 서버에서 삭제가 확인되면 목록에 바로 반영하며, 후속 목록 갱신 실패와 삭제 실패를 구분합니다."] },
   { date: "2026-10-20", title: "생산계획 행 전체 드래그", items: ["행의 빈 영역을 잡아 끌면 행 전체가 반투명하게 따라오고 놓은 위치로 이동합니다. 작은 손잡이를 제거했으며 입력칸·선택 메뉴의 조작과 저장된 실적을 유지합니다."] },
   { date: "2026-10-20", title: "선택한 발주의 작업시간 계산 수정", items: ["이전 발주 때문에 선택한 발주의 오늘 작업이 0시간으로 막히던 오류를 수정했습니다. 같은 날 이전 발주 완료 후 이어지는 작업은 유지하며, 작업 대기·배정 없음과 휴무를 구분합니다."] },
@@ -8084,12 +8085,7 @@ async function saveInbound() {
       getInboundInvoicePayload(),
       getInboundDefectFilePayloads()
     ]);
-    if (invoiceFile) {
-      payload.invoiceFileUrl = await uploadInboundInvoiceFile(payload, invoiceFile);
-    }
-    if (defectFiles.length) {
-      payload.defectPhotoUrls = await uploadInboundDefectFiles(payload, defectFiles);
-    }
+    await uploadInboundAttachments(payload, invoiceFile, defectFiles);
     const result = await requestApi("createInbound", payload);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
     void refreshInboundMutationDataAfterMutation();
@@ -8163,6 +8159,17 @@ async function getInboundInvoicePayload() {
 
 async function optimizeInboundInvoiceImage(file) {
   return window.SeungjinAttachments.optimizeInvoice(file);
+}
+
+async function uploadInboundAttachments(payload, invoiceFile, defectFiles = []) {
+  const results = await Promise.allSettled([
+    invoiceFile ? uploadInboundInvoiceFile(payload, invoiceFile) : Promise.resolve(null),
+    defectFiles.length ? uploadInboundDefectFiles(payload, defectFiles) : Promise.resolve(null)
+  ]);
+  const failure = results.find(result => result.status === "rejected");
+  if (failure) throw failure.reason;
+  if (results[0].value) payload.invoiceFileUrl = results[0].value;
+  if (results[1].value) payload.defectPhotoUrls = results[1].value;
 }
 
 async function uploadInboundInvoiceFile(payload, invoiceFile) {
@@ -14078,12 +14085,7 @@ async function saveInboundEdit() {
       return;
     }
 
-    if (payload.invoiceFile) {
-      payload.invoiceFileUrl = await uploadInboundInvoiceFile(payload, payload.invoiceFile);
-    }
-    if (payload.defectFiles?.length) {
-      payload.defectPhotoUrls = await uploadInboundDefectFiles(payload, payload.defectFiles);
-    }
+    await uploadInboundAttachments(payload, payload.invoiceFile, payload.defectFiles || []);
     delete payload.invoiceFile;
     delete payload.defectFiles;
     await requestApi("updateInbound", payload);
