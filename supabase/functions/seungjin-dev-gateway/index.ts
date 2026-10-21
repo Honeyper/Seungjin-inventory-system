@@ -283,8 +283,8 @@ async function loadInboundMutationState(payload: JsonRecord) {
   }
 
   const encodedProductId = encodeURIComponent(productId);
-  const [version, productRows, orderRows, inboundRows, recordRows, boxRows] = await Promise.all([
-    loadStateVersion(),
+  const version = await loadStateVersion();
+  const [productRows, orderRows, inboundRows, recordRows, boxRows] = await Promise.all([
     databaseRows(`dev_products?product_id=eq.${encodedProductId}&select=product_id,data`),
     databaseRows(`dev_purchase_orders?product_id=eq.${encodedProductId}&select=purchase_order_id,product_id,data`),
     databaseRows(`dev_inbounds?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,inbound_date,data`),
@@ -322,7 +322,7 @@ async function loadCanonicalState(action = "", payload: JsonRecord = {}) {
   if (action === "getInboundBoxQrs") {
     return loadInboundQrState(payload);
   }
-  if (action === "createInbound" || action === "updateInbound") {
+  if (action === "createInbound" || action === "updateInbound" || action === "deleteInbound") {
     return loadInboundMutationState(payload);
   }
   if (["createProduct", "updateProduct", "deleteProduct"].includes(action)) {

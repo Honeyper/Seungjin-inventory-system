@@ -90,6 +90,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-21", title: "입고 삭제 속도·오류 개선", items: ["삭제할 제품의 자료만 조회해 전체 재고 조회로 인한 서버 시간 초과를 줄였습니다. 서버에서 삭제가 확인되면 목록에 바로 반영하며, 후속 목록 갱신 실패와 삭제 실패를 구분합니다."] },
   { date: "2026-10-20", title: "생산계획 행 전체 드래그", items: ["행의 빈 영역을 잡아 끌면 행 전체가 반투명하게 따라오고 놓은 위치로 이동합니다. 작은 손잡이를 제거했으며 입력칸·선택 메뉴의 조작과 저장된 실적을 유지합니다."] },
   { date: "2026-10-20", title: "선택한 발주의 작업시간 계산 수정", items: ["이전 발주 때문에 선택한 발주의 오늘 작업이 0시간으로 막히던 오류를 수정했습니다. 같은 날 이전 발주 완료 후 이어지는 작업은 유지하며, 작업 대기·배정 없음과 휴무를 구분합니다."] },
   { date: "2026-10-20", title: "생산계획 제품 선택에서 바로 수정", items: ["생산계획 제품 선택 목록에 수정 버튼을 추가했습니다. 저장·취소 후 검색어·정렬·스크롤 위치를 유지하며, 제품 정보 갱신 시 작성 중인 계획 행·순서·실적을 유지합니다."] },
@@ -9146,10 +9147,11 @@ function applySelectedInboundPurchaseOrder() {
   inboundDueDate.value = order?.endDate || "";
 }
 
-async function loadTodayInbounds() {
+async function loadTodayInbounds({ useCache = true } = {}) {
+  const revision = state.inboundMutationRevision || 0;
   const datePayload = getInboundListDatePayload();
   const cacheName = `inbounds:${datePayload.startDate}:${datePayload.endDate}`;
-  const cachedResult = readAdminCache(cacheName);
+  const cachedResult = useCache ? readAdminCache(cacheName) : null;
 
   if (cachedResult) {
     applyTodayInboundsResult(cachedResult);
@@ -9157,11 +9159,14 @@ async function loadTodayInbounds() {
 
   try {
     const result = await requestApi("getTodayInbounds", datePayload);
+    if (revision !== (state.inboundMutationRevision || 0)
+      || JSON.stringify(datePayload) !== JSON.stringify(getInboundListDatePayload())) return false;
     applyTodayInboundsResult(result);
     writeAdminCache(cacheName, result);
     return true;
   } catch (error) {
-    if (!cachedResult) {
+    if (revision !== (state.inboundMutationRevision || 0)) return false;
+    if (!cachedResult && useCache) {
       applyTodayInboundsResult({ inbounds: [] }, "입고 목록을 불러오지 못했습니다.");
     }
     return false;
@@ -9174,10 +9179,11 @@ function applyTodayInboundsResult(result, message = "") {
 }
 
 async function refreshInboundMutationData({
+  freshInbounds = false,
   includeProducts = false,
   includeInventory = ["inventory", "shipping"].includes(getCurrentView())
 } = {}) {
-  const refreshTasks = [loadTodayInbounds(), loadPurchaseOrders()];
+  const refreshTasks = [loadTodayInbounds({ useCache: !freshInbounds }), loadPurchaseOrders()];
 
   if (includeProducts) {
     refreshTasks.push(loadProducts());
@@ -11090,32 +11096,54 @@ async function deleteActiveProduct() {
   }
 }
 
+function applyConfirmedInboundDeletion(managementId, productId) {
+  state.inboundMutationRevision = (state.inboundMutationRevision || 0) + 1;
+  state.todayInbounds = state.todayInbounds.filter(item => !(
+    String(item.managementId || "").trim() === managementId
+    && String(item.productId || item.productCode || "").trim() === productId
+  ));
+  // A cached date range must not bring a confirmed deletion back into the list.
+  try {
+    getAdminResponseCacheKeys(localStorage).filter(key => key.startsWith(`${ADMIN_CACHE_PREFIX}:inbounds:`))
+      .forEach(key => localStorage.removeItem(key));
+  } catch (_error) {}
+  const dates = getInboundListDatePayload();
+  writeAdminCache(`inbounds:${dates.startDate}:${dates.endDate}`, { ...dates, inbounds: state.todayInbounds });
+  renderTodayInbounds();
+}
+
 async function deleteActiveInbound(managementId = state.activeInboundMenuRecord, productId = state.activeInboundMenuProductId) {
-  if (state.isDeletingInbound || !managementId) {
-    return;
-  }
-
+  if (state.isDeletingInbound || !managementId) return;
+  managementId = String(managementId).trim();
   const inbound = getInboundByManagementId(managementId, productId);
-  const inboundLabel = inbound?.productName
-    ? `${inbound.productName} (${managementId})`
-    : managementId;
-
-  if (!window.confirm(`${inboundLabel} 입고 내역을 삭제하시겠습니까?\n재고 DB와 박스관리 DB에서도 같이 삭제됩니다.`)) {
+  productId = String(productId || inbound?.productId || inbound?.productCode || "").trim();
+  if (!productId) {
+    showToast("삭제할 제품 정보를 확인할 수 없습니다. 입고 목록을 새로고침해주세요.");
     return;
   }
+  const inboundLabel = inbound?.productName ? `${inbound.productName} (${managementId})` : managementId;
+  if (!window.confirm(`${inboundLabel} 입고 내역을 삭제하시겠습니까?\n재고 DB와 박스관리 DB에서도 같이 삭제됩니다.`)) return;
 
   state.isDeletingInbound = true;
-  if (managementId === state.activeInboundMenuRecord) {
-    closeInboundRowActionMenu();
-  }
-
+  if (managementId === state.activeInboundMenuRecord) closeInboundRowActionMenu();
+  showToast("입고 내역을 삭제하는 중입니다.");
   try {
-    const result = await requestApi("deleteInbound", { managementId, productId });
-    await refreshInboundMutationData();
+    let result;
+    try {
+      result = await requestApi("deleteInbound", { managementId, productId });
+    } catch (error) {
+      showToast(error.message || "입고 내역 삭제에 실패했습니다.");
+      return;
+    }
+    applyConfirmedInboundDeletion(managementId, productId);
     const deletedBoxes = Number(result?.deletedBoxRows || 0);
     showToast(`입고 내역이 삭제되었습니다. 박스 ${deletedBoxes.toLocaleString("ko-KR")}건 삭제`);
-  } catch (error) {
-    showToast(error.message || "입고 내역 삭제에 실패했습니다.");
+    try {
+      const refreshed = await refreshInboundMutationData({ freshInbounds: true });
+      if (refreshed.some(value => value === false)) throw new Error("refresh_failed");
+    } catch (_error) {
+      showToast("입고 삭제는 완료됐지만 목록 갱신을 마치지 못했습니다. 새로고침해주세요.");
+    }
   } finally {
     state.isDeletingInbound = false;
   }
