@@ -52,9 +52,14 @@ export async function readPurchaseOrdersWithShipping(databaseRows) {
   const managementIds = [...new Set([...links].filter(([, id]) => id).map(([key]) => JSON.parse(key)[0]))];
   const boxes = [];
   // Fetch only the linked boxes and small scalar fields; databaseRows handles pagination.
-  for (let offset = 0; offset < managementIds.length; offset += 50) {
-    const ids = managementIds.slice(offset, offset + 50).map((id) => `"${String(id).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
-    boxes.push(...await databaseRows(`dev_inventory_boxes?management_id=in.(${encodeURIComponent(ids)})&select=box_id,management_id,product_id,quantity:data->>quantity,status:data->>status,raw_status:data->>rawStatus,shipping_type:data->>shippingType&order=box_id.asc`));
-  }
+  let cursor = 0;
+  await Promise.all(Array.from({length:Math.min(3, Math.ceil(managementIds.length / 50))}, async () => {
+    while (cursor < managementIds.length) {
+      const offset = cursor;
+      cursor += 50;
+      const ids = managementIds.slice(offset, offset + 50).map((id) => `"${String(id).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+      boxes.push(...await databaseRows(`dev_inventory_boxes?management_id=in.(${encodeURIComponent(ids)})&select=box_id,management_id,product_id,quantity:data->>quantity,status:data->>status,raw_status:data->>rawStatus,shipping_type:data->>shippingType&order=box_id.asc`));
+    }
+  }));
   return { purchaseOrders: summarizePurchaseOrderShipping(orders, links, boxes) };
 }

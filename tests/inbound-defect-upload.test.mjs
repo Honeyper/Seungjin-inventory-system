@@ -18,7 +18,7 @@ function frontendHarness(requestApi, payload = {}) {
     refreshInboundMutationDataAfterMutation:()=>{}, refreshInboundMutationData:async()=>{}, resetInboundDefectDefaults:()=>{}, updateInboundSummary:()=>{},
     showToast:message=>notices.push(message)});
   vm.runInContext(fs.readFileSync(new URL("../frontend/attachments.js", import.meta.url), "utf8"),context);
-  vm.runInContext(uploader+create+edit,context);
+  vm.runInContext(section(admin,'async function uploadInboundAttachments(', 'async function uploadInboundInvoiceFile(')+uploader+create+edit,context);
   return {context,notices};
 }
 test('first photo initializes the folder; createInbound receives URLs without binary data',async()=>{

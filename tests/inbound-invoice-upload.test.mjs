@@ -9,7 +9,7 @@ const gasSource = await readFile(new URL("../gas/Code.js", import.meta.url), "ut
 
 test("거래명세서는 입고 저장 전에 Google Drive에 즉시 업로드한다", () => {
   assert.match(adminSource, /requestApi\("uploadInboundInvoice"/);
-  assert.match(adminSource, /payload\.invoiceFileUrl = await uploadInboundInvoiceFile\(payload, invoiceFile\)/);
+  assert.match(adminSource, /await uploadInboundAttachments\(payload, invoiceFile, defectFiles\)/);
   assert.doesNotMatch(adminSource, /payload\.invoiceFile = await getInboundInvoicePayload\(\)/);
   assert.match(gasSource, /function uploadInboundInvoice\(payload\)/);
   assert.match(gasSource, /return \{ invoiceFileUrl \}/);
@@ -33,7 +33,7 @@ test("신규 등록과 수정 화면이 같은 거래명세서 최적화 모듈�
 
 test("거래명세서 최적화와 불량사진 읽기를 병렬로 준비한다", () => {
   assert.match(adminSource, /const \[invoiceFile, defectFiles\] = await Promise\.all\(\[[\s\S]*?getInboundInvoicePayload\(\),[\s\S]*?getInboundDefectFilePayloads\(\)[\s\S]*?\]\)/);
-  assert.match(adminSource, /payload\.defectPhotoUrls = await uploadInboundDefectFiles\(payload, defectFiles\)/);
+  assert.match(adminSource, /await uploadInboundAttachments\(payload, invoiceFile, defectFiles\)/);
 });
 
 test("즉시 업로드된 거래명세서 URL은 Supabase 입고와 재고 레코드에 보존된다", () => {
