@@ -83,3 +83,9 @@ test('QR 인쇄 상태만 바뀌면 박스 전체를 다시 읽지 않고 QR 집
  const delta=await readInventoryDelta({deltaSinceVersion:10},{stateVersion:10,qrStatusVersion:'qr-new'},db(latest,[],paths),build);
  assert.equal(paths.length,1);assert.match(paths[0],/^dev_inbounds/);const expected=dashboard(latest);expected.qrStatusVersion='qr-new';assert.deepEqual(sorted(merge(dashboard(before),delta)),sorted(expected));
 });
+
+test('위치 저장 전에 시작된 느린 조회가 나중에 도착해도 확정한 화면을 되돌리지 않는다',async()=>{
+ const pending=Promise.withResolvers(),state={inventoryLoaded:true,inventoryStateVersion:1},applied=[];
+ const c=loadFunctions(adminSource,['loadInventoryDashboardRequest'],{state,refreshInventoryConfirmationStatus(){},window:{SeungjinDataGateway:{canRead:()=>true}},requestApi:async action=>action==='getInventoryVersion'?{stateVersion:2,qrStatusVersion:'qr2'}:pending.promise,applyInventoryDashboardResult:r=>applied.push(r),showToast(){},writeAdminLargeCache(){}});
+ const load=c.loadInventoryDashboardRequest(false);await new Promise(r=>setImmediate(r));state.inventoryMutationRevision=1;pending.resolve({rows:[],stateVersion:2});assert.equal(await load,false);assert.equal(applied.length,0);
+});

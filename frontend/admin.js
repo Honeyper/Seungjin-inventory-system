@@ -9998,6 +9998,7 @@ async function refreshInventoryDashboardAfterMutation() {
 }
 
 async function loadInventoryDashboardRequest(showLoadingToast = true) {
+  const mutationRevision = Number(state.inventoryMutationRevision) || 0;
   refreshInventoryConfirmationStatus();
   const hadLoadedData = state.inventoryLoaded;
   const cachedResult = state.inventoryLoaded ? null : await readAdminLargeCache("inventory-dashboard:v2");
@@ -10025,6 +10026,7 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
       if (checkedVersion !== null && currentStateVersion !== null && currentStateVersion !== undefined
         && Number(versionResult?.stateVersion) === Number(currentStateVersion)
         && checkedQrStatusVersion !== null && checkedQrStatusVersion === currentQrStatusVersion) {
+        if (mutationRevision !== (Number(state.inventoryMutationRevision) || 0)) return false;
         if (showLoadingToast) {
           showToast("최신 재고 정보를 표시했습니다.");
         }
@@ -10036,6 +10038,7 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
       knownStateVersion: checkedVersion,
       ...(state.inventoryDashboardSnapshot && window.SeungjinInventoryIncremental ? {allowInventoryDelta:true,deltaSinceVersion:currentStateVersion} : {})
     });
+    if (mutationRevision !== (Number(state.inventoryMutationRevision) || 0)) return false;
     const result = response.inventoryDelta
       ? window.SeungjinInventoryIncremental.merge(state.inventoryDashboardSnapshot, response) : response;
     // The pre-read version prevents a simultaneous write from making older rows appear current.
@@ -14098,6 +14101,7 @@ async function saveInboundEdit() {
     delete payload.defectFiles;
     const result = await requestApi("updateInbound", {...payload, returnInventoryRows:true});
     saved = true;
+    state.inventoryMutationRevision = (Number(state.inventoryMutationRevision) || 0) + 1;
     const base = state.inventoryDashboardSnapshot;
     if (base && window.SeungjinInventoryIncremental && Array.isArray(result?.savedInventoryRows)
       && Number(base.stateVersion) <= Number(result.stateVersion)) {
