@@ -1,3 +1,4 @@
+import { readInventoryDelta } from "./inventory-incremental.js";
 import { compactInventoryDashboard, createJsonResponse } from "./inventory-transport.js";
 import { createInventoryReadCache } from "./inventory-read-cache.js";
 import { compactMobileDashboard } from "./state-engine.js";
@@ -294,22 +295,24 @@ function mapInventoryBoxRows(rows: JsonRecord[]) {
   }));
 }
 
-async function loadInboundUpdateState(payload: JsonRecord, creating = false) {
+async function loadInboundUpdateState(payload: JsonRecord, creating = false, projectHistory = false) {
   const productId = String(payload.productId || "").trim();
   if (!productId) return loadFullCanonicalState();
 
   const version = await loadStateVersion();
   const encodedProductId = encodeURIComponent(productId);
   const boxPath = `dev_inventory_boxes?product_id=eq.${encodedProductId}&select=box_id,management_id,product_id,storage,box_number`;
-  const boxFields = creating
+  const scopedManagementId = projectHistory && !creating ? String(payload.managementId || "").trim() : "";
+  const boxFields = creating || scopedManagementId
     ? ",quantity:data->>quantity,status:data->>status,raw_status:data->>rawStatus,shipping_type:data->>shippingType"
     : ",data";
-  const [productRows, orderRows, inboundRows, recordRows, loadedBoxRows] = await Promise.all([
+  const [productRows, orderRows, inboundRows, recordRows, loadedBoxRows, targetRows] = await Promise.all([
     databaseRows(`dev_products?product_id=eq.${encodedProductId}&select=product_id,data`),
     databaseRows(`dev_purchase_orders?product_id=eq.${encodedProductId}&select=purchase_order_id,product_id,data`),
     databaseRows(`dev_inbounds?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,inbound_date,data`),
     databaseRows(`dev_inventory_records?product_id=eq.${encodedProductId}&select=record_key,management_id,product_id,storage,data`),
-    databaseRows(boxPath + boxFields)
+    databaseRows(boxPath + boxFields),
+    scopedManagementId ? databaseRows(boxPath + `,data&management_id=eq.${encodeURIComponent(scopedManagementId)}`) : Promise.resolve([])
   ]);
 
   const knownIds = new Set([...inboundRows, ...recordRows].map(row => String(row.management_id || "")));
@@ -317,11 +320,15 @@ async function loadInboundUpdateState(payload: JsonRecord, creating = false) {
   // state and processed-box protections instead of using projected references.
   const referencesOnly = creating && loadedBoxRows.every(row => knownIds.has(String(row.management_id || "")));
   const boxRows = creating && !referencesOnly ? await databaseRows(boxPath + ",data") : loadedBoxRows;
-  const boxes = referencesOnly ? boxRows.map(row => ({
+  let boxes = referencesOnly || scopedManagementId ? boxRows.map(row => ({
     boxId:row.box_id, managementId:row.management_id, productId:row.product_id,
     storage:row.storage, number:row.box_number, quantity:row.quantity,
     status:row.status, rawStatus:row.raw_status, shippingType:row.shipping_type
   })) : mapInventoryBoxRows(boxRows);
+  if (scopedManagementId) {
+    // Read the target's complete state, but retain only aggregation references for other inbounds.
+    boxes = [...boxes.filter(box => String(box.managementId) !== scopedManagementId), ...mapInventoryBoxRows(targetRows)];
+  }
   return {
     version,
     products: productRows.map((row) => row.data),
@@ -389,7 +396,7 @@ async function loadCanonicalState(action: string, payload: JsonRecord) {
     return loadInboundQrState(payload);
   }
   if (action === "createInbound" || action === "updateInbound" || action === "deleteInbound") {
-    return loadInboundUpdateState(payload, action === "createInbound" && !String(payload.managementId || "").trim());
+    return loadInboundUpdateState(payload, action === "createInbound" && !String(payload.managementId || "").trim(), action === "updateInbound");
   }
   if (["createProduct", "updateProduct", "deleteProduct"].includes(action)) {
     return loadProductMutationState();
@@ -418,6 +425,7 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
     const mutation = applyMutation(action, payload, state, new Date()) as {
       changes: JsonRecord;
       result: JsonRecord;
+      state: {records: JsonRecord[]; boxes: JsonRecord[]; products: JsonRecord[]; inbounds: JsonRecord[]};
     };
 
     // A retry of an already saved adjustment must not enqueue or write it again.
@@ -438,8 +446,14 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
           p_enqueue_sheet: true
         })
       });
+      const savedInventoryRows = action === "updateInbound" && payload.returnInventoryRows === true
+        ? buildInventoryDashboard(
+          mutation.state.records.filter(row => row.managementId === payload.managementId && row.productId === payload.productId),
+          mutation.state.boxes.filter(box => box.managementId === payload.managementId && box.productId === payload.productId),
+          mutation.state.products, new Date(), mutation.state.inbounds).rows : undefined;
       return {
         ...mutation.result,
+        ...(savedInventoryRows ? {savedInventoryRows} : {}),
         stateVersion: (commit as JsonRecord)?.version,
         sheetOutboxId: (commit as JsonRecord)?.outboxId
       };
@@ -500,6 +514,11 @@ async function readCanonicalAction(action: string, payload: JsonRecord): Promise
   }
   if (action === "getInventoryDashboard") {
     const version = await readCanonicalAction("getInventoryVersion", {});
+    if (payload.allowInventoryDelta === true) {
+      const delta = await readInventoryDelta(payload, version, databaseRows, (records, boxes, products, qrRows) =>
+        buildInventoryDashboard(mapInventoryRecordRows(records), mapInventoryBoxRows(boxes), products.map(row => row.data), new Date(), qrRows.map(row => ({managementId:row.management_id,productId:row.product_id,qrGeneratedCount:row.qr_generated_count}))));
+      if (delta) return compactInventoryDashboard(delta);
+    }
     const dateKey = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const key = JSON.stringify([version.stateVersion, version.qrStatusVersion, dateKey]);
     const dashboard = await readInventorySnapshotCached(key, async () => {

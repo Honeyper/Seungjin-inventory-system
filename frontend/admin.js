@@ -93,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date: "2026-10-23", title: "재고 변경분 조회", items: ["재고 변경 이력이 연속으로 확인되는 경우 바뀐 제품만 조회합니다. 위치 수정 저장 완료를 먼저 표시하고 후속 목록 갱신을 진행합니다."] },
   { date: "2026-10-21", title: "등록·재고 조회 전송 최적화", items: ["재고 조회의 중복 박스 정보를 한 번만 전송하고 큰 응답을 압축합니다. 신규 입고는 과거 박스의 집계에 필요한 값만 읽고, 명세서·불량사진 첨부를 함께 처리합니다. 발주 출고량 조회도 제한된 동시 조회로 대기를 줄였습니다."] },
   { date: "2026-10-21", title: "입고 삭제 속도·오류 개선", items: ["삭제할 제품의 자료만 조회해 전체 재고 조회로 인한 서버 시간 초과를 줄였습니다. 서버에서 삭제가 확인되면 목록에 바로 반영하며, 후속 목록 갱신 실패와 삭제 실패를 구분합니다."] },
   { date: "2026-10-20", title: "생산계획 행 전체 드래그", items: ["행의 빈 영역을 잡아 끌면 행 전체가 반투명하게 따라오고 놓은 위치로 이동합니다. 작은 손잡이를 제거했으며 입력칸·선택 메뉴의 조작과 저장된 실적을 유지합니다."] },
@@ -10031,7 +10032,12 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
       }
     }
 
-    const result = await requestApi("getInventoryDashboard", { knownStateVersion: checkedVersion });
+    const response = await requestApi("getInventoryDashboard", {
+      knownStateVersion: checkedVersion,
+      ...(state.inventoryDashboardSnapshot && window.SeungjinInventoryIncremental ? {allowInventoryDelta:true,deltaSinceVersion:currentStateVersion} : {})
+    });
+    const result = response.inventoryDelta
+      ? window.SeungjinInventoryIncremental.merge(state.inventoryDashboardSnapshot, response) : response;
     // The pre-read version prevents a simultaneous write from making older rows appear current.
     result.stateVersion = checkedVersion;
     result.qrStatusVersion = checkedQrStatusVersion;
@@ -10098,6 +10104,7 @@ async function refreshInventoryDashboard() {
 
 function applyInventoryDashboardResult(result) {
   state.inventoryLoaded = true;
+  state.inventoryDashboardSnapshot = result;
   state.inventoryStateVersion = Number(result?.stateVersion) || null;
   state.inventoryQrStatusVersion = result?.qrStatusVersion ?? null;
   state.inventoryRows = normalizeInventoryRows(Array.isArray(result?.rows) ? result.rows : [])
@@ -14076,6 +14083,7 @@ async function saveInboundEdit() {
     saveInboundEditButton.textContent = "저장 중";
   }
 
+  let saved = false;
   try {
     const payload = await getInboundEditPayload();
     const validationMessage = validateInboundEditPayload(payload);
@@ -14088,8 +14096,26 @@ async function saveInboundEdit() {
     await uploadInboundAttachments(payload, payload.invoiceFile, payload.defectFiles || []);
     delete payload.invoiceFile;
     delete payload.defectFiles;
-    await requestApi("updateInbound", payload);
-    await refreshInboundMutationData();
+    const result = await requestApi("updateInbound", {...payload, returnInventoryRows:true});
+    saved = true;
+    const base = state.inventoryDashboardSnapshot;
+    if (base && window.SeungjinInventoryIncremental && Array.isArray(result?.savedInventoryRows)
+      && Number(base.stateVersion) <= Number(result.stateVersion)) {
+      applyInventoryDashboardResult(window.SeungjinInventoryIncremental.merge(base, {
+        inventoryDelta:{fromVersion:Number(base.stateVersion),managementKeys:[`${payload.managementId}\u0000${payload.productId}`]},
+        rows:result.savedInventoryRows, stateVersion:base.stateVersion, qrStatusVersion:base.qrStatusVersion
+      }));
+    }
+    // A successful write is complete; unrelated list refreshes run after releasing the editor.
+    refreshInboundMutationDataAfterMutation().then(() => {
+      if (state.activeDetailInboundId !== payload.managementId || state.activeDetailInboundProductId !== payload.productId
+        || state.isSavingInboundEdit || inboundDetailModal?.classList.contains("is-editing")) return;
+      const latest = getInventoryRecordByManagementId(payload.managementId, payload.productId);
+      if (latest && state.activeDetailInboundSource === "inventory" && inboundDetailModal?.hidden === false) {
+        state.activeDetailInboundRecord = normalizeInboundDetailRecord(latest);
+        renderInboundDetail(state.activeDetailInboundRecord);
+      }
+    }).catch(() => showToast("수정은 저장됐습니다. 최신 목록 갱신은 다시 시도해주세요."));
     state.activeDetailInboundId = payload.managementId;
     state.activeDetailInboundProductId = payload.productId || state.activeDetailInboundProductId || "";
     setInboundDetailMode("view");
@@ -14106,7 +14132,7 @@ async function saveInboundEdit() {
 
     showToast("입고 내역이 수정되었습니다.");
   } catch (error) {
-    showToast(error.message || "입고 내역 수정에 실패했습니다.");
+    showToast(saved ? "수정은 저장됐습니다. 최신 목록을 다시 불러와주세요." : (error.message || "입고 내역 수정에 실패했습니다."));
   } finally {
     state.isSavingInboundEdit = false;
 

@@ -1,6 +1,6 @@
 // A version change bypasses the cache immediately. Concurrent readers of the
 // same version share one build; failures are never retained.
-export function createInventoryReadCache({ maxAgeMs = 15000, clock = Date.now } = {}) {
+export function createInventoryReadCache({ maxAgeMs = 10 * 60 * 1000, clock = Date.now } = {}) {
   let cached = null;
   const pending = new Map();
   let latestRequest = null;
