@@ -234,3 +234,12 @@ test("camera mode keeps its existing cooldown and immediate list persistence", a
   assert.equal(state.isProcessingScan, true);
   assert.ok(calls.delays.includes(380));
 });
+
+test('소진된 공용용기 QR은 재출고 목록이나 출고 재등록에 추가하지 않는다',async(t)=>{
+ const {app,state,calls,ids,scan}=scannerRuntime(t);
+ const find=app.findShippingByQrValue;
+ app.parseNumber=value=>Number(value);
+ app.findShippingByQrValue=value=>{const row=find(value);row.scannedBox.commonContainerSource=true;row.scannedBox.quantity=0;return row;};
+ scan(globalThis.SeungjinQrPayload.create(ids[0]));await app.processHardwareScannerQueue();
+ assert.equal(state.scannedShippingRows.length,0);assert.equal(app.isHardwareScannerBusy(),false);assert.match(calls.messages.at(-1),/남은 수량이 없습니다/);
+});

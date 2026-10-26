@@ -49,3 +49,9 @@ test('보관 박스의 출고대기 등록과 동일 요청 재시도는 정상 
  const first=applyMutation('updateShippingStatus',payload,state);const retry=applyMutation('updateShippingStatus',payload,first.state);
  assert.equal(first.result.updatedBoxRows,1);assert.equal(retry.result.updatedBoxRows,1);assert.equal(retry.state.boxes[0].quantity,480);
 });
+
+test('소진된 공용용기 원래 박스는 갱신 후 미출고 스캔 목록에 남기지 않는다',()=>{
+ const app=runtime();app.parseNumber=Number;
+ const source=app.state.dashboard[0].allShippingBoxes[0];source.commonContainerSource=true;source.quantity=0;source.status=source.rawStatus='보관';
+ app.syncPendingShippingRowsFromDashboard();assert.equal(app.state.scannedShippingRows.some(row=>row.scannedBoxId===source.boxId),false);assert.equal(app.state.scannedShippingRows.length,3);
+});

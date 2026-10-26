@@ -6723,7 +6723,7 @@ async function handleQrValue(rawValue, options = {}) {
       return;
     }
 
-    const matchedBox = getScannedBox(matched);
+    const matchedBox = matched.scannedBox;
     if (state.activeWorkflow === "shipping" && matchedBox?.commonContainerSource
       && parseNumber(matchedBox.quantity ?? matchedBox.currentQuantity) <= 0) {
       showToast("이 박스는 남은 수량이 없습니다. 다른 박스를 스캔해주세요.");
