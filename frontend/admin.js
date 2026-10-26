@@ -93,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-10-26", title:"등록 완료 즉시 반영", items:["입고·발주·제품 신규 등록의 확정 결과를 재조회 전에 표시하고, 첨부파일 준비와 Drive 폴더 탐색의 반복 작업을 줄였습니다."] },
   { date: "2026-10-23", title: "재고 변경분 조회", items: ["재고 변경 이력이 연속으로 확인되는 경우 바뀐 제품만 조회합니다. 위치 수정 저장 완료를 먼저 표시하고 후속 목록 갱신을 진행합니다."] },
   { date: "2026-10-21", title: "등록·재고 조회 전송 최적화", items: ["재고 조회의 중복 박스 정보를 한 번만 전송하고 큰 응답을 압축합니다. 신규 입고는 과거 박스의 집계에 필요한 값만 읽고, 명세서·불량사진 첨부를 함께 처리합니다. 발주 출고량 조회도 제한된 동시 조회로 대기를 줄였습니다."] },
   { date: "2026-10-21", title: "입고 삭제 속도·오류 개선", items: ["삭제할 제품의 자료만 조회해 전체 재고 조회로 인한 서버 시간 초과를 줄였습니다. 서버에서 삭제가 확인되면 목록에 바로 반영하며, 후속 목록 갱신 실패와 삭제 실패를 구분합니다."] },
@@ -2222,6 +2223,8 @@ inboundInvoiceFile?.addEventListener("change", () => {
     key: "invoice",
     clearButton: inboundInvoiceClearButton
   });
+  // Prepare locally while the remaining form fields are being filled.
+  getInboundInvoicePayload().catch(() => null);
 });
 inboundDefectFiles?.addEventListener("change", () => {
   renderInboundFilePreview({
@@ -2231,6 +2234,7 @@ inboundDefectFiles?.addEventListener("change", () => {
     key: "defect",
     badge: inboundDefectCount
   });
+  getInboundDefectFilePayloads().catch(() => null);
 });
 bindFileDropZone(inboundInvoiceUploadButton, inboundInvoiceFile);
 bindFileDropZone(inboundDefectUploadButton, inboundDefectFiles);
@@ -8081,20 +8085,25 @@ async function saveInbound() {
 
   setInboundSaving(true);
 
+  let saved = false;
   try {
     const [invoiceFile, defectFiles] = await Promise.all([
       getInboundInvoicePayload(),
       getInboundDefectFilePayloads()
     ]);
+    setInboundSaveStage(invoiceFile || defectFiles.length ? "첨부파일 업로드 중" : "등록 중");
     await uploadInboundAttachments(payload, invoiceFile, defectFiles);
-    const result = await requestApi("createInbound", payload);
+    setInboundSaveStage("등록 저장 중");
+    const result = await requestApi("createInbound", {...payload,returnSavedRecord:true});
+    saved = true;
+    if (result?.savedRecord) applyConfirmedInboundRegistration(result.savedRecord);
     const managementId = result?.managementId ? ` (${result.managementId})` : "";
-    void refreshInboundMutationDataAfterMutation();
+    refreshInboundMutationDataAfterMutation({freshInbounds:true}).catch(() => showToast("입고는 등록됐습니다. 목록 갱신은 다시 시도해주세요."));
     resetInboundDefectDefaults();
     updateInboundSummary();
     showToast(`입고 등록이 저장되었습니다.${managementId}`);
   } catch (error) {
-    showToast(error.message || "입고 등록 저장에 실패했습니다.");
+    showToast(saved ? "입고는 등록됐습니다. 최신 목록을 다시 불러와주세요." : (error.message || "입고 등록 저장에 실패했습니다."));
   } finally {
     setInboundSaving(false);
   }
@@ -8510,6 +8519,27 @@ function validateInboundPayload(payload) {
   }
 
   return "";
+}
+
+function setInboundSaveStage(label) {
+  const text = inboundSubmitButton?.querySelector("span:last-child");
+  if (text && state.isSavingInbound) text.textContent = label;
+}
+
+function applyConfirmedInboundRegistration(record) {
+  if (!record?.managementId || !record.productId) return false;
+  state.inboundMutationRevision = (state.inboundMutationRevision || 0) + 1;
+  const dates = getInboundListDatePayload();
+  state.todayInbounds = state.todayInbounds.filter(row => !(row.managementId === record.managementId && row.productId === record.productId));
+  if (record.inboundDate >= dates.startDate && record.inboundDate <= dates.endDate) {
+    state.todayInbounds.unshift(applyMasterFinalProcess(record));
+  }
+  try {
+    getAdminResponseCacheKeys(localStorage).filter(key=>key.startsWith(`${ADMIN_CACHE_PREFIX}:inbounds:`)).forEach(key=>localStorage.removeItem(key));
+  } catch (_error) {}
+  writeAdminCache(`inbounds:${dates.startDate}:${dates.endDate}`, {...dates,inbounds:state.todayInbounds});
+  renderTodayInbounds();
+  return true;
 }
 
 function setInboundSaving(isSaving) {
@@ -9385,6 +9415,7 @@ function getInboundListDatePayload() {
 }
 
 async function loadProducts({preserveProductionPlan = false} = {}) {
+  const revision = state.productMutationRevision || 0;
   const cachedResult = state.products.length ? null : readAdminCache("products");
 
   if (cachedResult) {
@@ -9395,9 +9426,11 @@ async function loadProducts({preserveProductionPlan = false} = {}) {
 
   try {
     const result = await requestApi("getProducts");
+    if (revision !== (state.productMutationRevision || 0)) return;
     applyProductsResult(result, {preserveProductionPlan});
     writeAdminCache("products", result);
   } catch (error) {
+    if (revision !== (state.productMutationRevision || 0)) return;
     if (!cachedResult) {
       if (!preserveProductionPlan) applyProductsResult({ products: [] });
       setStatus("제품 DB를 불러오지 못했습니다. Apps Script 배포 권한을 확인해주세요.", "error");
@@ -9510,6 +9543,7 @@ async function loadPurchaseOrders() {
 }
 
 async function loadPurchaseOrdersRequest() {
+  const revision = state.purchaseOrderMutationRevision || 0;
   if (purchaseOrderListStatus) {
     purchaseOrderListStatus.textContent = "발주 정보를 불러오는 중입니다.";
     purchaseOrderListStatus.dataset.type = "";
@@ -9517,6 +9551,7 @@ async function loadPurchaseOrdersRequest() {
 
   try {
     const result = await requestApi("getPurchaseOrders");
+    if (revision !== (state.purchaseOrderMutationRevision || 0)) return false;
     if (!Array.isArray(result?.purchaseOrders)) {
       throw new Error("발주 조회 응답을 확인할 수 없습니다. 새로고침해 주세요.");
     }
@@ -9527,6 +9562,7 @@ async function loadPurchaseOrdersRequest() {
     if (getCurrentView() === "production-plan") loadProductionPlanDraft();
     return true;
   } catch (error) {
+    if (revision !== (state.purchaseOrderMutationRevision || 0)) return false;
     // Keep the last successful list when a refresh fails.
     renderPurchaseOrders(error.message || "발주 정보를 불러오지 못했습니다.");
     populateInboundPurchaseOrders(inboundProductId?.value.trim());
@@ -9799,14 +9835,25 @@ async function savePurchaseOrder() {
   state.isSavingPurchaseOrder = true;
   savePurchaseOrderButton.disabled = true;
   purchaseOrderFormMessage.textContent = "";
+  let saved = false;
   try {
     const action = state.purchaseOrderFormMode === "edit" ? "updatePurchaseOrder" : "createPurchaseOrder";
-    await requestApi(action, payload);
-    await loadPurchaseOrders();
+    const result = await requestApi(action, {...payload,returnSavedRecord:true});
+    saved = true;
+    if (action === "createPurchaseOrder" && result?.savedRecord?.purchaseOrderId) {
+      state.purchaseOrderMutationRevision = (state.purchaseOrderMutationRevision || 0) + 1;
+      state.purchaseOrders = [result.savedRecord,...state.purchaseOrders.filter(row=>row.purchaseOrderId !== result.savedRecord.purchaseOrderId)];
+      state.purchaseOrdersLoaded = true;
+      applyPurchaseOrderFilters();
+      populateInboundPurchaseOrders(inboundProductId?.value.trim());
+      const active = state.purchaseOrdersLoadPromise;
+      Promise.resolve(active).catch(()=>null).then(()=>loadPurchaseOrders()).catch(()=>null);
+    } else await loadPurchaseOrders();
     closePurchaseOrderModal();
     showToast(state.purchaseOrderFormMode === "edit" ? "발주 정보를 수정했습니다." : "신규 발주를 등록했습니다.");
   } catch (error) {
-    purchaseOrderFormMessage.textContent = error.message || "발주 저장에 실패했습니다.";
+    if (saved) { closePurchaseOrderModal(); showToast("발주는 저장됐습니다. 최신 목록을 다시 불러와주세요."); }
+    else purchaseOrderFormMessage.textContent = error.message || "발주 저장에 실패했습니다.";
   } finally {
     state.isSavingPurchaseOrder = false;
     savePurchaseOrderButton.disabled = false;
@@ -14770,6 +14817,7 @@ async function saveProduct() {
   setProductSaving(true);
   setFormMessage("");
 
+  let saved = false;
   try {
     const isEdit = state.productFormMode === "edit";
     const returnTarget = state.productFormReturnTarget;
@@ -14780,12 +14828,18 @@ async function saveProduct() {
     payload["제품 이미지"] = productImageUrls[0] || "";
     const result = await requestApi(
       isEdit ? "updateProduct" : "createProduct",
-      isEdit ? { ...payload, productId: state.editingProductCode } : payload
+      isEdit ? { ...payload, productId: state.editingProductCode } : {...payload,returnSavedRecord:true}
     );
+    saved = true;
     const productId = result?.productId ? ` (${result.productId})` : "";
 
     setFormMessage(isEdit ? "제품이 수정되었습니다." : "제품이 저장되었습니다.", "success");
-    await loadProducts({preserveProductionPlan: isEdit && returnTarget === "productionPlan"});
+    if (!isEdit && result?.savedRecord?.productCode) {
+      state.productMutationRevision = (state.productMutationRevision || 0) + 1;
+      applyProductsResult({products:[...state.products.filter(row=>row.productCode !== result.savedRecord.productCode),result.savedRecord]});
+      writeAdminCache("products",{products:state.products});
+      loadProducts({preserveProductionPlan:true}).catch(()=>null);
+    } else await loadProducts({preserveProductionPlan: isEdit && returnTarget === "productionPlan"});
     const createdProduct = !isEdit && returnTarget
       ? getProductByCode(result?.productId)
         || state.products.find((product) => (
@@ -14822,7 +14876,8 @@ async function saveProduct() {
     }
     showToast(isEdit ? `제품 정보가 수정되었습니다.${productId}` : `신규 제품이 등록되었습니다.${productId}`);
   } catch (error) {
-    setFormMessage(error.message || "제품 저장에 실패했습니다.");
+    if (saved) { closeProductModal(); showToast("제품은 저장됐습니다. 최신 목록을 다시 불러와주세요."); }
+    else setFormMessage(error.message || "제품 저장에 실패했습니다.");
   } finally {
     setProductSaving(false);
   }

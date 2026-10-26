@@ -6667,11 +6667,35 @@ function setSheetCellByHeader_(sheet, rowIndex, indexes, names, value) {
 }
 
 function getOrCreateDriveFolderPath_(rootFolder, folderNames) {
-  return folderNames.reduce((parentFolder, folderName) => {
-    const safeName = sanitizeDriveName_(folderName);
-    const folders = parentFolder.getFoldersByName(safeName);
-    return folders.hasNext() ? folders.next() : parentFolder.createFolder(safeName);
+  const names = folderNames.map(sanitizeDriveName_);
+  if (!names.length) return rootFolder;
+  let cache = null;
+  let key = '';
+  try {
+    const pathKey = JSON.stringify([rootFolder.getId(), names]);
+    key = 'drive-folder:v1:' + Utilities.base64EncodeWebSafe(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pathKey)
+    );
+    cache = CacheService.getScriptCache();
+    const cachedId = cache.get(key);
+    if (cachedId) {
+      try {
+        const folder = DriveApp.getFolderById(cachedId);
+        if (!folder.isTrashed() && folder.getName() === names[names.length - 1]) return folder;
+      } catch (_error) {}
+      cache.remove(key);
+    }
+  } catch (_error) {
+    // Cache availability must never change the destination or block an upload.
+  }
+  const folder = names.reduce((parentFolder, name) => {
+    const folders = parentFolder.getFoldersByName(name);
+    return folders.hasNext() ? folders.next() : parentFolder.createFolder(name);
   }, rootFolder);
+  if (cache && key) {
+    try { cache.put(key, folder.getId(), 120); } catch (_error) {}
+  }
+  return folder;
 }
 
 function sanitizeDriveName_(value) {

@@ -14,8 +14,8 @@ const folder = 'https://drive.google.com/drive/folders/defects';
 function frontendHarness(requestApi, payload = {}) {
   const notices=[];
   const context=vm.createContext({window:{},setTimeout,clearTimeout,requestApi, state:{}, getInboundPayload:()=>({...payload}), validateInboundPayload:()=>'',
-    setInboundSaving:()=>{}, getInboundInvoicePayload:async()=>null, getInboundDefectFilePayloads:async()=>[photo,photo],
-    refreshInboundMutationDataAfterMutation:()=>{}, refreshInboundMutationData:async()=>{}, resetInboundDefectDefaults:()=>{}, updateInboundSummary:()=>{},
+    setInboundSaveStage:()=>{}, setInboundSaving:()=>{}, getInboundInvoicePayload:async()=>null, getInboundDefectFilePayloads:async()=>[photo,photo],
+    refreshInboundMutationDataAfterMutation:async()=>{}, refreshInboundMutationData:async()=>{}, resetInboundDefectDefaults:()=>{}, updateInboundSummary:()=>{},
     showToast:message=>notices.push(message)});
   vm.runInContext(fs.readFileSync(new URL("../frontend/attachments.js", import.meta.url), "utf8"),context);
   vm.runInContext(section(admin,'async function uploadInboundAttachments(', 'async function uploadInboundInvoiceFile(')+uploader+create+edit,context);

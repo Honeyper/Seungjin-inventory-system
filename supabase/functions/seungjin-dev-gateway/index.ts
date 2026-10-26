@@ -1,3 +1,4 @@
+import { savedRegistrationRecord } from "./registration-result.js";
 import { readInventoryDelta } from "./inventory-incremental.js";
 import { compactInventoryDashboard, createJsonResponse } from "./inventory-transport.js";
 import { createInventoryReadCache } from "./inventory-read-cache.js";
@@ -421,7 +422,9 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
+    const readStarted = Date.now();
     const state = await loadCanonicalState(action, payload);
+    const readFinished = Date.now();
     const mutation = applyMutation(action, payload, state, new Date()) as {
       changes: JsonRecord;
       result: JsonRecord;
@@ -435,6 +438,7 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
     }
 
     try {
+      const commitStarted = Date.now();
       const commit = await databaseRequest("rpc/commit_dev_state_mutation", {
         method: "POST",
         body: JSON.stringify({
@@ -446,6 +450,11 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
           p_enqueue_sheet: true
         })
       });
+      if (Date.now() - readStarted > 1000) console.info(JSON.stringify({
+        event:"registration_timing",action,attempt:attempt+1,
+        readMs:Math.round(readFinished-readStarted),commitMs:Math.round(Date.now()-commitStarted)
+      }));
+      const savedRecord = payload.returnSavedRecord === true ? savedRegistrationRecord(action, mutation.changes, mutation.result) : undefined;
       const savedInventoryRows = action === "updateInbound" && payload.returnInventoryRows === true
         ? buildInventoryDashboard(
           mutation.state.records.filter(row => row.managementId === payload.managementId && row.productId === payload.productId),
@@ -454,6 +463,7 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
       return {
         ...mutation.result,
         ...(savedInventoryRows ? {savedInventoryRows} : {}),
+        ...(savedRecord ? {savedRecord} : {}),
         stateVersion: (commit as JsonRecord)?.version,
         sheetOutboxId: (commit as JsonRecord)?.outboxId
       };
