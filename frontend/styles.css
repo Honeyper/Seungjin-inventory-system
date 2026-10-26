@@ -6765,7 +6765,7 @@ small, em {
 
 .common-container-config {
   display: grid;
-  grid-template-columns: minmax(12.5rem, 15rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.85rem 1rem;
   padding: 0.85rem;
   border: 1px solid #bfdbfe;
@@ -6777,13 +6777,23 @@ small, em {
   display: none;
 }
 
-.common-container-count-field {
-  align-self: start;
+.common-container-config-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
 }
+.common-container-config-toolbar > span { font-size: 0.8rem; font-weight: 600; }
+#productShippingProductTotal { margin-left: 0.4rem; color: #65758b; font-weight: 400; }
+.common-container-add-row { display: flex; justify-content: flex-end; }
+.common-container-name-row { display: grid; grid-template-columns: minmax(0, 1fr) 2.25rem; gap: 0.4rem; align-items: end; }
+.common-container-remove { height: 2.65rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #d8e0ec; border-radius: 0.4rem; background: #fff; color: #687b96; cursor: pointer; }
+.common-container-remove:disabled { opacity: 0.35; cursor: default; }
+.common-container-remove:hover:not(:disabled) { color: #9f3333; border-color: #d8a9a9; }
 
 .common-container-name-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.7rem 0.85rem;
 }
 

@@ -93,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-10-26", title:"공용용기 제품명 추가", items:["제품 종류 수 선택을 제품명 추가·삭제 버튼으로 바꾸고, 20개를 넘는 출고 제품명을 등록할 수 있도록 했습니다."] },
   { date:"2026-10-26", title:"등록 완료 즉시 반영", items:["입고·발주·제품 신규 등록의 확정 결과를 재조회 전에 표시하고, 첨부파일 준비와 Drive 폴더 탐색의 반복 작업을 줄였습니다."] },
   { date: "2026-10-23", title: "재고 변경분 조회", items: ["재고 변경 이력이 연속으로 확인되는 경우 바뀐 제품만 조회합니다. 위치 수정 저장 완료를 먼저 표시하고 후속 목록 갱신을 진행합니다."] },
   { date: "2026-10-21", title: "등록·재고 조회 전송 최적화", items: ["재고 조회의 중복 박스 정보를 한 번만 전송하고 큰 응답을 압축합니다. 신규 입고는 과거 박스의 집계에 필요한 값만 읽고, 명세서·불량사진 첨부를 함께 처리합니다. 발주 출고량 조회도 제한된 동시 조회로 대기를 줄였습니다."] },
@@ -883,7 +884,8 @@ const productProcessJoins = document.querySelectorAll("[data-product-process-joi
 const productProcessSummary = document.querySelector("#productProcessSummary");
 const productCommonContainer = document.querySelector("#productCommonContainer");
 const productCommonContainerFields = document.querySelector("#productCommonContainerFields");
-const productShippingProductCount = document.querySelector("#productShippingProductCount");
+const addProductShippingName = document.querySelector("#addProductShippingName");
+const productShippingProductTotal = document.querySelector("#productShippingProductTotal");
 const productShippingProductNames = document.querySelector("#productShippingProductNames");
 const productOrderQuantity = document.querySelector("#productOrderQuantity");
 const productDueDate = document.querySelector("#productDueDate");
@@ -2311,8 +2313,10 @@ pageSizeSelect.addEventListener("change", (event) => {
 });
 
 productCommonContainer?.addEventListener("change", syncCommonContainerFields);
-productShippingProductCount?.addEventListener("change", () => {
-  renderCommonContainerProductNameFields(Number(productShippingProductCount.value) || 1);
+addProductShippingName?.addEventListener("click", addCommonContainerProductName);
+productShippingProductNames?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-shipping-product-name]");
+  if (button) removeCommonContainerProductName(Number(button.dataset.removeShippingProductName));
 });
 inboundSummaryProductImage?.addEventListener("error", () => {
   inboundSummaryProductVisual?.classList.remove("has-image");
@@ -14571,7 +14575,6 @@ function openProductModal(mode = "create", product = null) {
   state.productImageUrls = mode === "edit" || mode === "copy" ? getProductImageUrls(product) : [];
 
   productForm.reset();
-  ensureCommonContainerCountOption(1);
   renderCommonContainerProductNameFields(1, []);
   syncCommonContainerFields();
   productFormMessage.textContent = "";
@@ -14599,7 +14602,7 @@ function openProductModal(mode = "create", product = null) {
       || shippingProductNames.length > 0;
     const shippingProductTypeCount = Math.max(
       1,
-      Number(product.shippingProductTypeCount) || shippingProductNames.length || 1
+      Number(product.shippingProductTypeCount) || 1, shippingProductNames.length
     );
     productCommonContainer.checked = isCommonContainer;
     renderCommonContainerProductNameFields(shippingProductTypeCount, shippingProductNames);
@@ -14744,21 +14747,6 @@ function normalizeCommonContainerProductNames(value) {
   return normalized.split(/\r?\n|\|/).map((name) => name.trim()).filter(Boolean);
 }
 
-function ensureCommonContainerCountOption(count) {
-  const normalizedCount = Math.max(1, Number(count) || 1);
-  const hasOption = Array.from(productShippingProductCount.options)
-    .some((option) => Number(option.value) === normalizedCount);
-
-  if (!hasOption) {
-    productShippingProductCount.insertAdjacentHTML(
-      "beforeend",
-      `<option value="${normalizedCount}">${normalizedCount}개</option>`
-    );
-  }
-
-  productShippingProductCount.value = String(normalizedCount);
-}
-
 function getCommonContainerProductNameValues() {
   return Array.from(productShippingProductNames.querySelectorAll("input"))
     .map((input) => input.value.trim());
@@ -14766,28 +14754,48 @@ function getCommonContainerProductNameValues() {
 
 function renderCommonContainerProductNameFields(count, values = null) {
   const previousValues = Array.isArray(values) ? values : getCommonContainerProductNameValues();
-  const normalizedCount = Math.max(1, Number(count) || 1);
-  ensureCommonContainerCountOption(normalizedCount);
+  const normalizedCount = Math.max(1, Math.floor(Number(count) || 1), previousValues.length);
   productShippingProductNames.innerHTML = Array.from({ length: normalizedCount }, (_, index) => `
-    <label class="form-field">
-      <span>출고 시 제품명 ${index + 1} <b>*</b></span>
-      <input
-        type="text"
-        data-common-container-product-name="${index}"
-        value="${escapeHtml(previousValues[index] || "")}"
-        placeholder="출고할 제품명을 입력하세요."
-        autocomplete="off"
-      />
-    </label>
+    <div class="common-container-name-row">
+      <label class="form-field">
+        <span>출고 시 제품명 ${index + 1} <b>*</b></span>
+        <input type="text" data-common-container-product-name="${index}"
+          value="${escapeHtml(previousValues[index] || "")}"
+          placeholder="출고할 제품명을 입력하세요." autocomplete="off" />
+      </label>
+      <button class="common-container-remove" type="button" data-remove-shipping-product-name="${index}"
+        aria-label="출고 시 제품명 ${index + 1} 삭제"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+    </div>
   `).join("");
+  if (productShippingProductTotal) productShippingProductTotal.textContent = `${normalizedCount}종`;
+  syncCommonContainerFields();
+}
+
+function addCommonContainerProductName() {
+  if (state.isSavingProduct || !productCommonContainer?.checked) return;
+  const values = getCommonContainerProductNameValues();
+  renderCommonContainerProductNameFields(values.length + 1, [...values, ""]);
+  const inputs = productShippingProductNames.querySelectorAll("input");
+  inputs[inputs.length - 1]?.focus();
+}
+
+function removeCommonContainerProductName(index) {
+  if (state.isSavingProduct || !productCommonContainer?.checked) return;
+  const values = getCommonContainerProductNameValues();
+  if (values.length <= 1 || !Number.isInteger(index) || index < 0 || index >= values.length) return;
+  values.splice(index, 1);
+  renderCommonContainerProductNameFields(values.length, values);
+  productShippingProductNames.querySelectorAll("input")[Math.min(index, values.length - 1)]?.focus();
 }
 
 function syncCommonContainerFields() {
   const isEnabled = Boolean(productCommonContainer?.checked);
   productCommonContainerFields.hidden = !isEnabled;
-  productShippingProductCount.disabled = !isEnabled || state.isSavingProduct;
-  productShippingProductNames.querySelectorAll("input").forEach((input) => {
-    input.disabled = !isEnabled || state.isSavingProduct;
+  if (addProductShippingName) addProductShippingName.disabled = !isEnabled || state.isSavingProduct;
+  const inputs = productShippingProductNames.querySelectorAll("input");
+  inputs.forEach(input => { input.disabled = !isEnabled || state.isSavingProduct; });
+  productShippingProductNames.querySelectorAll("button").forEach(button => {
+    button.disabled = !isEnabled || state.isSavingProduct || inputs.length <= 1;
   });
 }
 
@@ -14891,8 +14899,8 @@ function getProductFormPayload() {
   const flameTreatment = productForm.querySelector('input[name="productFlameTreatment"]:checked')?.value || "무";
   const usage = productForm.querySelector('input[name="productUsage"]:checked')?.value || "사용중";
   const isCommonContainer = Boolean(productCommonContainer?.checked);
-  const shippingProductTypeCount = Math.max(1, Number(productShippingProductCount?.value) || 1);
   const shippingProductNames = getCommonContainerProductNameValues();
+  const shippingProductTypeCount = shippingProductNames.length;
   const processStage1 = productProcessType.value === "print"
     ? normalizeProductProcessMethod(productProcessStage1.value)
     : "";
@@ -14976,7 +14984,7 @@ function validateProductPayload(payload) {
     const shippingProductNames = normalizeCommonContainerProductNames(payload["출고시 제품명 목록"]);
 
     if (!shippingProductTypeCount || shippingProductNames.length !== shippingProductTypeCount) {
-      return "출고 시 제품 종류 수만큼 제품명을 모두 입력해주세요.";
+      return "추가한 출고 제품명을 모두 입력해주세요.";
     }
 
     if (shippingProductNames.some((name) => !name)) {
