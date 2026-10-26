@@ -10,7 +10,7 @@ export function commonContainerInfo(product = {}) {
   return { isCommonContainer: enabled, shippingProductNames: Array.isArray(names) ? [...new Set(names.map(name => String(name).trim()).filter(Boolean))] : [] };
 }
 
-// Allocations describe contents of a physical box; they never create another stock SKU.
+// Allocations describe a shipment from a source box; the stock product ID stays unchanged.
 export function planCommonContainerShipping(products, boxes, payload, quantityMap) {
   const status = String(payload.status || "");
   const type = String(payload.shippingType || payload["출고유형"] || "정상출고");
@@ -29,15 +29,27 @@ export function planCommonContainerShipping(products, boxes, payload, quantityMa
     const info = commonContainerInfo(product);
     const entry = entries.get(box.boxId);
     if (!info.isCommonContainer) {
+      if (payload.commonContainerPartialShipment === true) throw new ValidationError("공용용기 설정이 변경되었습니다. 다시 확인해주세요.");
       if (entry) throw new ValidationError("공용용기 설정이 변경되었습니다. 제품 정보를 다시 확인해주세요.");
       continue;
+    }
+    const requested = quantityMap.get(Number(box.number));
+    if (["출고대기", "출고완료"].includes(status) && payload.commonContainerPartialShipment !== true
+      && ((status === "출고완료" && box.commonContainerSource) || (requested !== undefined && requested !== Number(box.quantity)))) {
+      throw new ValidationError(`${box.number}번 공용용기 박스의 수량이 변경되었습니다. 최신 수량으로 출고 제품·수량을 지정해주세요.`);
     }
     if (!normalCompletion && !(status === "출고대기" && entry)) continue;
     if (!info.shippingProductNames.length) throw new ValidationError("제품 관리에서 공용용기의 출고 제품명을 먼저 등록해주세요.");
     const allocation = entry?.products ?? box.shippingAllocations;
     const expected = quantityMap.has(Number(box.number)) ? quantityMap.get(Number(box.number)) : Number(box.quantity);
-    // A quantity edit must not silently remove the remainder of a common-container box.
-    if (!Number.isSafeInteger(expected) || expected <= 0 || expected !== Number(box.quantity)) {
+    const partial = payload.commonContainerPartialShipment === true;
+    if (partial && (!normalCompletion || box.sourceBoxId || !entry
+      || entry.expectedQuantity !== Number(box.quantity)
+      || String(entry.expectedShippingUpdatedAt || "") !== String(box.shippingUpdatedAt || ""))) {
+      throw new ValidationError(`${box.number}번 박스의 잔량이나 상태가 변경되었습니다. 다시 스캔해주세요.`);
+    }
+    // Legacy requests may only ship whole boxes; partial shipments need a fresh snapshot.
+    if (!Number.isSafeInteger(expected) || expected <= 0 || (partial ? expected > Number(box.quantity) : expected !== Number(box.quantity))) {
       throw new ValidationError(`${box.number}번 공용용기 박스의 수량이 변경되었습니다. 최신 박스 수량으로 다시 출고해주세요.`);
     }
     if (!Array.isArray(allocation) || !allocation.length) throw new ValidationError(`${box.number}번 박스의 실제 출고 제품을 선택해주세요.`);

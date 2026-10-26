@@ -29,7 +29,7 @@
       seen.add(item.productName);
       total += item.quantity;
     }
-    return total === box.quantity ? "" : `${box.number}번 박스: ${format(box.quantity - total)} ea를 조정해주세요.`;
+    return total > 0 && total <= box.quantity ? "" : `${box.number}번 박스: 출고 수량은 잔량 ${format(box.quantity)} ea 이하여야 합니다.`;
   }
 
   function choose(product, names, boxes, payload) {
@@ -39,18 +39,19 @@
       dialog.className = "common-shipping-dialog";
       dialog.setAttribute("aria-labelledby", "commonShippingTitle");
       const drafts = boxes.map(box => ({
-        boxId: box.boxId, number: box.number,
+        boxId: box.boxId, number: box.number, expectedQuantity: box.quantity, expectedShippingUpdatedAt: text(box.shippingUpdatedAt),
         products: box.shippingAllocations?.length
           ? box.shippingAllocations.map(item => ({ ...item }))
-          : [{ productName: "", quantity: box.quantity }]
+          : [{ productName: "", quantity: box.requestedQuantity ?? box.quantity }]
       }));
       const options = selected => '<option value="">제품 선택</option>' + names.map(name => `<option value="${escape(name)}" ${name === selected ? "selected" : ""}>${escape(name)}</option>`).join("");
       dialog.innerHTML = `
         <form class="common-shipping-form">
-          <header><div><span>공용용기 출고</span><h2 id="commonShippingTitle">실제 출고 제품 지정</h2></div><button type="button" data-cancel aria-label="출고 제품 지정 닫기">×</button></header>
+          <header><div><span>공용용기 출고</span><h2 id="commonShippingTitle">출고 제품·수량 지정</h2></div><button type="button" data-cancel aria-label="출고 제품 지정 닫기">×</button></header>
           <div class="common-shipping-body">
             <div class="common-shipping-source"><strong>${escape(product.productName || payload.productName)}</strong><span>${escape(payload.managementId)} · ${boxes.length} box · ${format(boxes.reduce((sum, box) => sum + box.quantity, 0))} ea</span></div>
             <div class="common-shipping-bulk"><label>전체 박스에 같은 제품 지정<select data-bulk aria-label="전체 박스 출고 제품">${options("")}</select></label><button type="button" data-apply>전체 적용</button></div>
+            <p class="common-shipping-help">원래 박스에서 출고할 수량을 제품별로 입력하세요. 남은 수량은 기존 QR에 재고로 유지됩니다.</p>
             <div data-boxes></div>
           </div>
           <footer><p role="status" aria-live="polite" data-summary></p><p role="alert" data-error></p><div><button type="button" data-cancel>취소</button><button type="submit" class="common-shipping-submit">지정 완료 · 출고 진행</button></div></footer>
@@ -58,19 +59,27 @@
       const boxList = dialog.querySelector("[data-boxes]");
       function render() {
         boxList.innerHTML = drafts.map((draft, index) => `<section class="common-shipping-box" data-box="${index}">
-          <div class="common-shipping-box-heading"><strong>${draft.number}번 박스</strong><span>${format(boxes[index].quantity)} ea</span></div>
+          <div class="common-shipping-box-heading"><strong>원래 ${draft.number}번 박스</strong><span>현재 잔량 ${format(boxes[index].quantity)} ea</span></div>
           <div>${draft.products.map((item, line) => `<div class="common-shipping-line" data-line="${line}">
             <label><span>출고 제품</span><select data-name aria-label="${draft.number}번 박스 출고 제품 ${line + 1}">${options(item.productName)}</select></label>
             <label><span>수량 (ea)</span><input data-quantity type="number" min="1" step="1" inputmode="numeric" value="${escape(item.quantity)}" aria-label="${draft.number}번 박스 ${line + 1} 제품 수량"></label>
             <button type="button" data-remove ${draft.products.length === 1 ? "disabled" : ""} aria-label="${draft.number}번 박스 제품 ${line + 1} 삭제">×</button>
           </div>`).join("")}</div><button type="button" data-add ${draft.products.length >= names.length ? "disabled" : ""}>+ 다른 제품 나누기</button>
+          <p class="common-shipping-balance" data-balance></p>
         </section>`).join("");
         updateSummary();
       }
       function updateSummary() {
         const error = drafts.map((draft, index) => allocationError(boxes[index], draft.products, names)).find(Boolean);
         const count = drafts.filter((draft, index) => !allocationError(boxes[index], draft.products, names)).length;
-        dialog.querySelector("[data-summary]").textContent = `${count} / ${boxes.length}개 박스 지정 완료`;
+        let shipped = 0;
+        drafts.forEach((draft, index) => {
+          const total = draft.products.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+          shipped += total;
+          boxList.querySelector(`[data-box="${index}"] [data-balance]`).textContent = `이번 출고 ${format(total)} ea · 출고 후 잔량 ${format(boxes[index].quantity - total)} ea`;
+        });
+        const remaining = boxes.reduce((sum, box) => sum + box.quantity, 0) - shipped;
+        dialog.querySelector("[data-summary]").textContent = `${count} / ${boxes.length}개 박스 지정 · 출고 ${format(shipped)} ea · 잔량 ${format(remaining)} ea`;
         dialog.querySelector("[data-error]").textContent = error || "";
         dialog.querySelector('[type="submit"]').disabled = Boolean(error);
       }
@@ -91,7 +100,7 @@
         if (event.target.closest("[data-apply]")) {
           const selected = dialog.querySelector("[data-bulk]").value;
           if (!selected) return;
-          drafts.forEach((draft, index) => { draft.products = [{ productName: selected, quantity: boxes[index].quantity }]; });
+          drafts.forEach((draft, index) => { draft.products = [{ productName: selected, quantity: boxes[index].requestedQuantity ?? boxes[index].quantity }]; });
           render();
           return;
         }
@@ -144,12 +153,19 @@
       const numbers = new Set((payload.selectedBoxes || []).map(Number));
       const boxes = (result.boxes || []).filter(box => ids.has(text(box.boxId)) || numbers.has(Number(box.number)))
         .map(box => ({ ...box, quantity: Number(box.quantity), number: Number(box.number) }));
-      if (!boxes.length || boxes.some(box => /출고완료|폐기/.test(box.rawStatus || box.status))) throw new Error("출고 대상 박스의 상태가 변경되었습니다. 목록을 새로고침해주세요.");
+      if (!boxes.length || boxes.some(box => box.sourceBoxId || box.quantity <= 0 || /출고완료|폐기|보류/.test(box.rawStatus || box.status))) throw new Error("출고 대상 박스의 상태가 변경되었습니다. 목록을 새로고침해주세요.");
       const quantityMap = payload.boxQuantities || payload.selectedBoxQuantities || {};
-      if (boxes.some(box => quantityMap[box.number] !== undefined && Number(quantityMap[box.number]) !== box.quantity)) {
-        throw new Error("공용용기는 현재 박스 수량 전체를 제품별로 나눠 출고해주세요. 최신 수량으로 다시 선택해주세요.");
-      }
-      return { ...payload, shippingAllocations: await choose(product, names, boxes, payload) };
+      boxes.forEach(box => {
+        const requested = quantityMap[box.number] === undefined ? box.quantity : Number(quantityMap[box.number]);
+        if (!Number.isSafeInteger(requested) || requested <= 0 || requested > box.quantity) throw new Error(`${box.number}번 박스의 출고 수량은 현재 잔량 ${format(box.quantity)} ea 이하여야 합니다.`);
+        box.requestedQuantity = requested;
+      });
+      const shippingAllocations = await choose(product, names, boxes, payload);
+      return { ...payload, commonContainerPartialShipment: true,
+        commonContainerShipmentId: root.crypto?.randomUUID?.() || `shipment-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        shippingAllocations,
+        boxQuantities: Object.fromEntries(shippingAllocations.map(entry => [entry.number, entry.products.reduce((sum, item) => sum + item.quantity, 0)]))
+      };
     });
     queue = next;
     return next;

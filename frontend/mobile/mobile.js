@@ -3938,7 +3938,7 @@ async function handleConfirmShipping() {
       if (action === "pending") {
         markShippingItemsPending(targetItems, result.failedItems);
       } else if (action === "complete") {
-        markShippingItemsCompleted(targetItems, result.failedItems);
+        markShippingItemsCompleted(targetItems, result.failedItems, result.remainingBoxes);
       } else if (action === "cancelCompleted") {
         markShippingItemsAvailable(targetItems, result.failedItems);
       } else {
@@ -3987,14 +3987,14 @@ async function handleCompleteScannedShipping(action = "complete") {
   }
 
   try {
-    const { completedCount, failedItems, errors } = await completeShippingItems(items, action);
+    const { completedCount, failedItems, errors, remainingBoxes } = await completeShippingItems(items, action);
 
     if (completedCount > 0) {
       triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
       if (isPendingAction) {
         markShippingItemsPending(items, failedItems);
       } else {
-        markShippingItemsCompleted(items, failedItems);
+        markShippingItemsCompleted(items, failedItems, remainingBoxes);
       }
       state.scannerSessionShippingKeys = failedItems.map(getShippingKey);
       saveScannedShippingRows();
@@ -4081,7 +4081,7 @@ async function completeShippingItems(items, action = "complete") {
         throw new Error("서버에서 처리된 박스를 확인하지 못했습니다.");
       }
       invalidateShippingDashboardRead();
-      return { completedCount: updatedCount, failedItems: [], errors: [] };
+      return { completedCount: updatedCount, failedItems: [], errors: [], remainingBoxes: result.remainingBoxes || [] };
     } catch (error) {
       return {
         completedCount: 0,
@@ -4095,8 +4095,9 @@ async function completeShippingItems(items, action = "complete") {
     summary.completedCount += result.completedCount;
     summary.failedItems.push(...result.failedItems);
     summary.errors.push(...(result.errors || []));
+    summary.remainingBoxes.push(...(result.remainingBoxes || []));
     return summary;
-  }, { completedCount: 0, failedItems: [], errors: [] });
+  }, { completedCount: 0, failedItems: [], errors: [], remainingBoxes: [] });
 }
 
 function invalidateShippingDashboardRead({ retainLoadedSnapshot = false } = {}) {
@@ -4131,11 +4132,23 @@ function markShippingItemsPending(items, failedItems = []) {
   });
 }
 
-function markShippingItemsCompleted(items, failedItems = []) {
+function markShippingItemsCompleted(items, failedItems = [], remainingBoxes = []) {
   items = getSuccessfulShippingRows(items, failedItems);
 
   items.forEach((item) => {
     const box = getScannedBox(item);
+    const remaining = remainingBoxes.find(source => source.boxId === box?.boxId);
+    if (remaining) {
+      setScannedBoxQuantity(item, remaining.quantity);
+      Object.assign(item.scannedBox, remaining);
+      item.stockStatus = remaining.quantity > 0 ? remaining.status : "출고완료";
+      item.processStatus = item.stockStatus;
+      item.scannedBox.status = item.stockStatus;
+      item.scannedBox.rawStatus = item.stockStatus;
+      item.syncedFromPending = false;
+      item.scannedQuantityEdited = false;
+      return;
+    }
     if (box) {
       box.status = "출고완료";
       box.rawStatus = "출고완료";
@@ -6710,6 +6723,12 @@ async function handleQrValue(rawValue, options = {}) {
       return;
     }
 
+    const matchedBox = getScannedBox(matched);
+    if (state.activeWorkflow === "shipping" && matchedBox?.commonContainerSource
+      && parseNumber(matchedBox.quantity ?? matchedBox.currentQuantity) <= 0) {
+      showToast("이 박스는 남은 수량이 없습니다. 다른 박스를 스캔해주세요.");
+      return;
+    }
     if (state.activeWorkflow === "shipping" && isCompletedShippingItem(matched)) {
       matched = await reopenCompletedShippingScan(matched);
       if (!matched) return;
@@ -6965,6 +6984,8 @@ function syncPendingShippingRowsFromDashboard() {
   state.scannedShippingRows.forEach((row) => {
     const key = getShippingCompositeBoxKey(row);
     const currentRow = pendingByKey.get(key) || currentByKey.get(key);
+    const currentBox = getScannedBox(currentRow);
+    if (currentBox?.commonContainerSource && parseNumber(currentBox.quantity ?? currentBox.currentQuantity) <= 0) return;
     // Keep scans missing from this response; a failed/partial read is not a deletion.
     if (currentRow) {
       const editable = !/출고완료|폐기/.test(normalizeText(getScannedBox(currentRow)?.rawStatus || getScannedBox(currentRow)?.status));
@@ -8028,6 +8049,8 @@ function compactScannedBoxRow(row) {
     number: box.number || box.sequence || row?.scannedBoxNumber || "",
     status: box.status || "",
     rawStatus: box.rawStatus || "",
+    commonContainerSource: box.commonContainerSource === true,
+    sourceBoxId: box.sourceBoxId || "",
     storage: box.storage || row?.moveCurrentStorage || row?.storage || "",
     currentQuantity: box.currentQuantity || "",
     quantity: box.quantity || "",

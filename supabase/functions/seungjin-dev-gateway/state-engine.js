@@ -366,6 +366,7 @@ function selectBoxes(state, payload, { allowEmpty = false, requireSelection = fa
 }
 
 function upsertBoxes(boxes, changes) {
+  boxes.filter(box => box.commonContainerSource).forEach(box => { box.currentQuantity = formatEa(box.quantity); });
   boxes.forEach((box) => changes.inventoryBoxes.upserts.push({
     box_id: box.boxId,
     management_id: box.managementId,
@@ -374,6 +375,95 @@ function upsertBoxes(boxes, changes) {
     box_number: integer(box.number),
     data: box
   }));
+}
+
+function applyCommonContainerQuantityShipping(state, boxes, payload, changes, parts, plans, completesWithInspection) {
+  const cancelling = payload.status === "보관";
+  const touched = new Map();
+  const shippedBoxes = [];
+  const remainingBoxes = [];
+  if (!cancelling && !/^[A-Za-z0-9-]{8,100}$/.test(text(payload.commonContainerShipmentId))) {
+    throw new ValidationError("출고 요청을 다시 확인해주세요.");
+  }
+  for (const box of boxes) {
+    if (cancelling) {
+      if (!payload.allowCancelCompleted || !box.sourceBoxId || normalizeStatus(box.rawStatus || box.status) !== "출고완료") {
+        throw new ValidationError("수량 출고 내역을 선택해 출고 취소해주세요.");
+      }
+      const source = state.boxes.find(item => item.boxId === box.sourceBoxId && item.managementId === box.managementId && item.productId === box.productId);
+      if (!source || /출고완료|폐기|보류/.test(normalizeStatus(source.rawStatus || source.status))) {
+        throw new ValidationError("원래 박스 상태를 확인한 후 출고를 취소해주세요.");
+      }
+      source.quantity = number(source.quantity) + number(box.quantity);
+      source.currentQuantity = formatEa(source.quantity);
+      source.shippingUpdatedAt = parts.timestamp;
+      source.commonContainerShippingHistory = [...(source.commonContainerShippingHistory || []), {
+        action: "출고취소", at: parts.timestamp, actor: text(payload.userName || payload.shipper || "Admin"),
+        shipmentBoxId: box.boxId, products: clone(box.shippingAllocations || []), remainingQuantity: source.quantity
+      }];
+      touched.set(source.boxId, source);
+      changes.inventoryBoxes.deletes.push(box.boxId);
+      state.boxes = state.boxes.filter(item => item.boxId !== box.boxId);
+      continue;
+    }
+    const status = normalizeStatus(box.rawStatus || box.status);
+    if (/출고완료|폐기|보류/.test(status) || box.sourceBoxId || number(box.quantity) <= 0) {
+      throw new ShippingStateConflict(`${box.number}번 박스는 출고할 잔량이 없거나 출고할 수 없는 상태입니다.`);
+    }
+    if (status !== "출고대기" && !completesWithInspection) throw new ValidationError(`${box.number}번 박스는 출고 검수가 완료되지 않았습니다.`);
+    if ((box.commonContainerShippingHistory || []).some(item => item.shipmentId === payload.commonContainerShipmentId)) {
+      throw new ShippingStateConflict("이미 처리된 출고 요청입니다. 최신 잔량을 확인해주세요.");
+    }
+    const allocations = plans.get(box.boxId);
+    if (!allocations) throw new ValidationError("공용용기 출고 제품을 다시 지정해주세요.");
+    const quantity = allocations.reduce((sum, item) => sum + item.quantity, 0);
+    const shipment = { ...clone(box),
+      boxId: `${box.boxId}-S-${payload.commonContainerShipmentId}`,
+      number: Math.max(0, ...state.boxes.filter(item => item.managementId === box.managementId && item.productId === box.productId).map(item => integer(item.number))) + 1,
+      sourceBoxId: box.boxId, sourceBoxNumber: box.number, commonContainerShipmentId: payload.commonContainerShipmentId,
+      quantity, currentQuantity: formatEa(quantity), boxQuantity: formatEa(quantity),
+      status: "출고완료", rawStatus: "출고완료", shippingUpdatedAt: parts.timestamp,
+      shippingDate: text(payload.shippingDate || parts.date), shippingTime: text(payload.shippingTime || parts.time),
+      shippingType: "정상출고", shipper: text(payload.shipper || payload.userName || "Admin"),
+      qrData: "", qrGeneratedAt: "", shippingAllocations: clone(allocations), commonContainerShippingHistory: []
+    };
+    delete shipment.commonContainerSource;
+    delete shipment.originalCommonContainerQuantity;
+    if (state.boxes.some(item => item.boxId === shipment.boxId)) throw new ShippingStateConflict("이미 처리된 출고 요청입니다.");
+    if (payload.autoShippingInspection) Object.assign(shipment, {
+      inspectionDate: text(payload.inspectionDate || parts.date), inspectionTime: text(payload.inspectionTime || parts.time),
+      inspector: text(payload.inspector || payload.shipper || "Admin"), inspectionQuantity: number(payload.inspectionQuantity),
+      defectQuantity: number(payload.defectQuantity), defectRate: number(payload.defectRate), defectReason: text(payload.defectReason || "양호")
+    });
+    recordCommonContainerShipping(shipment, allocations, "출고완료", parts, payload);
+    box.originalCommonContainerQuantity ??= number(box.quantity);
+    box.commonContainerSource = true;
+    box.quantity = number(box.quantity) - quantity;
+    box.currentQuantity = formatEa(box.quantity);
+    box.shippingUpdatedAt = parts.timestamp;
+    box.shippingAllocations = [];
+    if (box.quantity === 0) { box.status = "보관"; box.rawStatus = "보관"; clearShippingInspection(box); }
+    // Even an exhausted source retains its identity. Only shipment rows count as shipped stock.
+    box.commonContainerShippingHistory = [...(box.commonContainerShippingHistory || []), {
+      action: "출고완료", at: parts.timestamp, actor: shipment.shipper,
+      shipmentId: payload.commonContainerShipmentId, shipmentBoxId: shipment.boxId,
+      products: clone(allocations), remainingQuantity: box.quantity
+    }];
+    touched.set(box.boxId, box);
+    touched.set(shipment.boxId, shipment);
+    state.boxes.push(shipment);
+    shippedBoxes.push(shipment);
+  }
+  for (const box of touched.values()) if (!box.sourceBoxId) remainingBoxes.push(clone(box));
+  upsertBoxes([...touched.values()], changes);
+  touchInventoryRecords(state, boxes.map(box => box.managementId), changes);
+  const related = state.boxes.filter(box => box.managementId === payload.managementId && (!payload.productId || box.productId === payload.productId));
+  return {
+    managementId: payload.managementId, status: resolveAggregateStockStatus(related), updatedBoxRows: boxes.length,
+    isPartialShipping: related.some(box => number(box.quantity) > 0 && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))),
+    selectedBoxes: boxes.map(box => box.number), remainingBoxes, shippedBoxes,
+    commonContainerBoxChanges: { upserts: [...touched.values()].map(box => clone(box)), deletes: [...changes.inventoryBoxes.deletes] }
+  };
 }
 
 function touchInventoryRecords(state, managementIds, changes) {
@@ -1081,6 +1171,10 @@ function mutateInventory(action, payload, state, changes, now) {
       && number(payload.inspectionQuantity) > 0;
     const quantityMap = getBoxQuantityMap(payload);
     const allocationPlans = planCommonContainerShipping(state.shippingProductReferences ?? state.products, boxes, payload, quantityMap);
+    if (payload.commonContainerPartialShipment === true || (status === "보관" && boxes.some(box => box.sourceBoxId))) {
+      return applyCommonContainerQuantityShipping(state, boxes, payload, changes, parts, allocationPlans, completesWithInspection);
+    }
+    if (boxes.some(box => box.sourceBoxId)) throw new ValidationError("수량 출고 기록은 출고 취소로만 변경할 수 있습니다.");
     const reopensCompleted = payload.allowReopenCompleted === true;
     if (reopensCompleted && (status !== "출고대기" || boxes.length !== 1)) {
       throw new ValidationError("QR로 확인한 출고 완료 박스 한 개만 출고대기로 변경할 수 있습니다.");
@@ -1413,10 +1507,11 @@ export function buildInventoryDashboard(records, boxes, products = [], now = new
     // Inventory records may still contain the earlier "미인쇄" snapshot.
     const recordedQrCount = Math.max(qrCountsByInbound.get(relatedKey) || 0, number(row.qrGeneratedCount));
     row.qrGeneratedCount = Math.max(
-      all.filter((box) => box.qrData || box.qrGeneratedAt).length,
+      all.filter((box) => !box.sourceBoxId && (box.qrData || box.qrGeneratedAt)).length,
       recordedQrCount
     );
-    row.qrPrintStatus = all.length > 0 && row.qrGeneratedCount >= all.length ? "QR 생성" : "미인쇄";
+    const qrBoxCount = all.filter(box => !box.sourceBoxId).length;
+    row.qrPrintStatus = qrBoxCount > 0 && row.qrGeneratedCount >= qrBoxCount ? "QR 생성" : "미인쇄";
     row.shippingInspectionCount = active.filter((box) => box.inspectionDate || number(box.inspectionQuantity) > 0).length;
     row.shippingInspectionQuantity = formatEa(active.reduce((sum, box) => sum + number(box.inspectionQuantity), 0));
     row.shippingDefectQuantity = formatEa(active.reduce((sum, box) => sum + number(box.defectQuantity), 0));

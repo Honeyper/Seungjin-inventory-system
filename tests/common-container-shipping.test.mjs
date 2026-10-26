@@ -97,7 +97,8 @@ vm.runInContext(readFileSync(new URL('../frontend/common-container-shipping.js',
 const ui = context.SeungjinCommonShipping;
 test('공통 입력 검증·이력 요약은 혼합 박스에서도 중복 수량 없이 합산한다', () => {
   assert.equal(ui.allocationError({ number: 1, quantity: 100 }, [{ productName: 'A', quantity: 40 }, { productName: 'B', quantity: 60 }], ['A', 'B']), '');
-  assert.match(ui.allocationError({ number: 1, quantity: 100 }, [{ productName: 'A', quantity: 90 }], ['A']), /10 ea/);
+  assert.equal(ui.allocationError({ number: 1, quantity: 100 }, [{ productName: 'A', quantity: 90 }], ['A']), '');
+  assert.match(ui.allocationError({ number: 1, quantity: 100 }, [{ productName: 'A', quantity: 101 }], ['A']), /잔량/);
   assert.equal(ui.summary([{ shippingAllocations: [{ productName: 'A', quantity: 100 }] }, { shippingAllocations: [{ productName: 'A', quantity: 30 }, { productName: 'B', quantity: 70 }] }]), 'A · 130 ea / B · 70 ea');
 });
 test('일반 제품은 제품 지정 팝업 없이 기존 요청 유지; 취소·반출에는 읽기도 추가하지 않는다', async () => {

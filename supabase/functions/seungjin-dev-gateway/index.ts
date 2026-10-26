@@ -234,7 +234,7 @@ async function readInboundBoxQrs(payload: JsonRecord) {
   const boxRows = await databaseRows(
     `dev_inventory_boxes?${query}&select=box_id,management_id,product_id,storage,box_number,data&order=box_number.asc`
   );
-  const boxes = mapInventoryBoxRows(boxRows).map((box) => {
+  const boxes = mapInventoryBoxRows(boxRows).filter(box => !box.sourceBoxId).map((box) => {
     const quantity = box.currentQuantity ?? box.quantity ?? box.boxQuantity ?? 0;
     return {
       ...box,

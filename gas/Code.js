@@ -314,7 +314,10 @@ function applySupabaseOutbox(payload) {
     }
 
     try {
-      const data = routes[action](buildSupabaseReplayPayload_(item));
+      const canonical = item.canonical_result || item.canonicalResult || {};
+      const data = action === 'updateShippingStatus' && canonical.commonContainerBoxChanges
+        ? replayCommonContainerBoxChanges_(buildSupabaseReplayPayload_(item), canonical)
+        : routes[action](buildSupabaseReplayPayload_(item));
       lastSyncedId = id;
       properties.setProperty(propertyName, String(id));
       results.push({ id, ok: true, data: data || {} });
@@ -2356,6 +2359,9 @@ function getInboundBoxQrs(payload) {
     }
 
     const row = sourceRow.slice(0, headers.length);
+    let commonShipping = {};
+    try { commonShipping = JSON.parse(pickCell_(row, indexes, ['공용용기 출고 정보']) || '{}'); } catch (_) {}
+    if (commonShipping.sourceBoxId) continue;
     const boxId = pickCell_(row, indexes, ['박스ID']);
     const sequenceText = pickCell_(row, indexes, ['박스순번', '박스 순번', '박스 번호']);
     const sequence = Number(sequenceText) || boxes.length + 1;
@@ -5506,7 +5512,75 @@ function cancelDiscardedBoxes(payload) {
   };
 }
 
+// Only authenticated Supabase outbox replay calls this; never trust a client snapshot.
+function replayCommonContainerBoxChanges_(payload, canonical) {
+  const sheet = getSheetByNameOrId_(CONFIG.SHEETS.BOX_DB, CONFIG.SHEET_IDS.BOX_DB, '박스관리 DB');
+  let values = sheet.getDataRange().getDisplayValues();
+  let header = findHeaderRow_(values, ['박스ID', '관리ID', '제품명']);
+  if (!header) throw new Error('박스관리 DB 헤더를 확인해주세요.');
+  if (!header.headers.includes('공용용기 출고 정보')) {
+    ensureSheetWriteCapacity_(sheet, header.rowIndex + 1, header.headers.length + 1);
+    sheet.getRange(header.rowIndex + 1, header.headers.length + 1).setValue('공용용기 출고 정보');
+    values = sheet.getDataRange().getDisplayValues();
+    header = findHeaderRow_(values, ['박스ID', '관리ID', '제품명']);
+  }
+  const indexes = indexHeaders_(header.headers);
+  const idColumn = findHeaderIndex_(indexes, ['박스ID', '박스 ID']);
+  const snapshots = canonical.commonContainerBoxChanges;
+  const rows = new Map();
+  values.slice(header.rowIndex + 1).forEach((row, index) => rows.set(String(row[idColumn] || ''), { row, index: header.rowIndex + 2 + index }));
+  const pending = [];
+  (snapshots.upserts || []).forEach(box => {
+    const existing = rows.get(box.boxId);
+    const original = existing || rows.get(box.sourceBoxId);
+    if (!original) throw new Error('부분출고 원래 박스의 시트 행을 찾지 못했습니다.');
+    const row = original.row.slice(0, header.headers.length);
+    const set = (names, value) => setRowValue_(row, indexes, names, value == null ? '' : value);
+    set(['박스ID', '박스 ID'], box.boxId);
+    set(['박스순번', '박스 순번', '박스 번호'], box.number);
+    set(['현재 수량', '현재수량'], formatEa_(box.quantity));
+    set(['상태', '재고 상태'], box.rawStatus || box.status);
+    const shippingTypeColumn = findShippingTypeHeaderIndex_(indexes);
+    if (shippingTypeColumn >= 0) row[shippingTypeColumn] = box.shippingType || '';
+    set(['출고일'], box.shippingDate);
+    set(['출고시간'], box.shippingTime);
+    set(['출고자'], box.shipper);
+    set(['출고 수정일시', '출고수정일시'], box.shippingUpdatedAt);
+    set(['출고 검수일', '검수일'], box.inspectionDate);
+    set(['출고 검수시간', '검수시간'], box.inspectionTime);
+    set(['출고 검수자', '검수자'], box.inspector);
+    set(['출고 검수 수량', '출고검수수량', '검수수량'], box.inspectionQuantity || '');
+    set(['불량 수량', '불량수량'], box.defectQuantity || '');
+    set(['불량 사유', '불량사유', '불량내역'], box.defectReason);
+    set(['불량률'], box.defectRate || '');
+    set(['공용용기 출고 정보'], JSON.stringify({ sourceBoxId: box.sourceBoxId || '', sourceBoxNumber: box.sourceBoxNumber,
+      commonContainerSource: box.commonContainerSource, originalCommonContainerQuantity: box.originalCommonContainerQuantity,
+      commonContainerShipmentId: box.commonContainerShipmentId, shippingAllocations: box.shippingAllocations || [],
+      commonContainerShippingHistory: box.commonContainerShippingHistory || [] }));
+    if (box.sourceBoxId) {
+      set(['박스당 수량', '박스당수량'], formatEa_(box.quantity));
+      set(['QR 데이터'], ''); set(['QR 생성 여부', 'QR 출력 여부'], ''); set(['QR 생성 일시'], '');
+      set(['비고', '메모', '참고'], `원래 ${box.sourceBoxNumber}번 박스에서 수량 출고 · ${(box.shippingAllocations || []).map(item => `${item.productName} ${item.quantity}개`).join(' / ')}`);
+    }
+    pending.push({ row, index: existing ? existing.index : null });
+  });
+  // Validate all templates before writing. Replays write snapshots and are idempotent.
+  pending.filter(item => item.index).forEach(item => sheet.getRange(item.index, 1, 1, header.headers.length).setValues([item.row]));
+  const additions = pending.filter(item => !item.index).map(item => item.row);
+  if (additions.length) {
+    const first = sheet.getLastRow() + 1;
+    ensureSheetWriteCapacity_(sheet, first + additions.length - 1, header.headers.length);
+    sheet.getRange(first, 1, additions.length, header.headers.length).setValues(additions);
+  }
+  (snapshots.deletes || []).map(id => rows.get(id)?.index).filter(Boolean).sort((a, b) => b - a).forEach(index => sheet.deleteRow(index));
+  const stock = getSheetByNameOrId_(CONFIG.SHEETS.STOCK_DB, CONFIG.SHEET_IDS.STOCK_DB, '재고 DB');
+  updateStockStatusRows_(stock, payload.managementId, canonical.status, { ...payload, ignoreStorage: true });
+  SpreadsheetApp.flush();
+  return { updatedBoxRows: canonical.updatedBoxRows, status: canonical.status };
+}
+
 function updateShippingStatus(payload) {
+  if (payload.commonContainerPartialShipment === true) throw new Error('공용용기 수량 출고는 최신 서버 연결에서 진행해주세요.');
   const managementId = String(payload.managementId || '').trim();
   const status = String(payload.status || '').trim();
   const allowedStatuses = ['보관', '검수완료', '보류', '출고대기', '출고대기(검수완료)', '출고완료'];
@@ -7294,6 +7368,7 @@ function buildInventoryBoxSummaryMap_(boxRows) {
       status,
       storage
     };
+    try { Object.assign(boxInfo, JSON.parse(getObjectCell_(row, ['공용용기 출고 정보']) || '{}')); } catch (_) {}
     if (lastInventoryCheckedAt && lastInventoryCheckedAt !== '-') boxInfo.lastInventoryCheckedAt = lastInventoryCheckedAt;
     if (inventoryCategory && inventoryCategory !== '-') boxInfo.inventoryCategory = inventoryCategory;
     if (inventoryClassifiedAt && inventoryClassifiedAt !== '-') boxInfo.inventoryClassifiedAt = inventoryClassifiedAt;
