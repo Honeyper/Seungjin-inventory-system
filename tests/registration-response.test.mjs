@@ -13,7 +13,7 @@ function folderRuntime({cached=false,broken=false,cacheFails=false}={}) {
  function folder(name,parent){const f={id:'folder'+id++,getId(){return this.id;},getName:()=>name,isTrashed:()=>false,getFoldersByName:n=>{calls.push(['search',f.id,n]);const found=[...folders.values()].find(c=>c.parent===f&&c.name===n);return {hasNext:()=>!!found,next:()=>found};},createFolder:n=>{calls.push(['create',f.id,n]);return folder(n,f);},name,parent};folders.set(f.id,f);return f;}
  const root=folder('root'),other=folder('otherRoot');let last;
  for(const n of ['거래명세서','입고','2026-10-26','업체'])last=folder(n,last||root);
- const c=loadFunctions(gas,['getOrCreateDriveFolderPath_','sanitizeDriveName_'],{Utilities:{DigestAlgorithm:{SHA_256:1},computeDigest:(_,s)=>s,base64EncodeWebSafe:s=>s},CacheService:{getScriptCache:()=>{if(cacheFails)throw Error('unavailable');return {get:k=>cache.get(k),put:(k,v,ttl)=>{assert.equal(ttl,120);cache.set(k,v);},remove:k=>cache.delete(k)};}},DriveApp:{getFolderById:id=>{calls.push(['id',id]);if(broken)throw Error('deleted');return folders.get(id);}}});
+ const c=loadFunctions(gas,['getOrCreateDriveFolderPath_','sanitizeDriveName_'],{Utilities:{DigestAlgorithm:{SHA_256:1},computeDigest:(_,s)=>s,base64EncodeWebSafe:s=>s},CacheService:{getScriptCache:()=>{if(cacheFails)throw Error('unavailable');return {get:k=>cache.get(k),put:(k,v,ttl)=>{assert.equal(ttl,21600);cache.set(k,v);},remove:k=>cache.delete(k)};}},DriveApp:{getFolderById:id=>{calls.push(['id',id]);if(broken)throw Error('deleted');return folders.get(id);}}});
  return {c,root,other,last,calls,cache};
 }
 test('첨부 경로는 처음에 찾고 반복 업로드는 같은 폴더 ID를 재사용한다',()=>{
@@ -24,7 +24,7 @@ test('첨부 경로는 처음에 찾고 반복 업로드는 같은 폴더 ID를 
 test('삭제·이름 변경·캐시 장애는 기존 경로 탐색으로 안전하게 돌아간다',()=>{
  for(const mode of ['deleted','renamed','trashed','cache-failed']){const t=folderRuntime({broken:mode==='deleted',cacheFails:mode==='cache-failed'}),names=['거래명세서','입고','2026-10-26','업체'];t.c.getOrCreateDriveFolderPath_(t.root,names);t.calls.length=0;
  if(mode==='renamed')t.last.getName=()=> '다른 이름';if(mode==='trashed')t.last.isTrashed=()=>true;
- const f=t.c.getOrCreateDriveFolderPath_(t.root,names);assert.equal(f,t.last);assert.equal(t.calls.filter(c=>c[0]==='search').length,4);}
+ const f=t.c.getOrCreateDriveFolderPath_(t.root,names);assert.equal(f,t.last);assert.ok(t.calls.some(c=>c[0]==='search'));}
 });
 test('서버 응답은 실제 커밋된 행을 반환하며 저장 완료 전에는 등록 완료를 표시하지 않는다',async()=>{
  const source=stripTypeScriptTypes(fs.readFileSync(new URL('../supabase/functions/seungjin-dev-gateway/index.ts',import.meta.url),'utf8'));

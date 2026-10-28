@@ -43,7 +43,8 @@
     let prepared = preparedFiles.get(file);
     if (!prepared) {
       prepared = readDataUrl(file).then(dataUrl => ({
-        name: file.name, mimeType: file.type, data: dataUrl.slice(dataUrl.indexOf(",") + 1)
+        name: file.name, mimeType: file.type, data: dataUrl.slice(dataUrl.indexOf(",") + 1),
+        uploadId: window.crypto?.randomUUID?.() || `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`
       }));
       preparedFiles.set(file, prepared);
     }
@@ -109,6 +110,20 @@
     return [first, ...await mapLimit(items.slice(1), (item, index) => worker(item, index + 1))];
   }
 
+  function groupUploadFiles(files, maxFiles = 4, maxEncodedBytes = 8 * 1024 * 1024) {
+    const groups = [];
+    let group = [], bytes = 0;
+    for (const file of files) {
+      const size = String(file?.data || "").length;
+      if (group.length && (group.length >= maxFiles || bytes + size > maxEncodedBytes)) {
+        groups.push(group); group = []; bytes = 0;
+      }
+      group.push(file); bytes += size;
+    }
+    if (group.length) groups.push(group);
+    return groups;
+  }
+
   function uploadOnce(action, payload, send) {
     const resultField = uploadFields[action];
     if (!resultField) return send(payload);
@@ -154,5 +169,5 @@
     return entry.promise;
   }
 
-  window.SeungjinAttachments = { validateImage, readDataUrl, readImage, optimizeInvoice, mapLimit, uploadBatch, uploadOnce };
+  window.SeungjinAttachments = { validateImage, readDataUrl, readImage, optimizeInvoice, mapLimit, uploadBatch, groupUploadFiles, uploadOnce };
 })();

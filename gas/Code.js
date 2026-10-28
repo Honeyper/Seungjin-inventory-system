@@ -4576,6 +4576,25 @@ function getProductSheet_() {
   return sheet;
 }
 
+function inboundUploadCacheKey_(kind, payload, file) {
+  const id = String(file && file.uploadId || '');
+  if (!/^[A-Za-z0-9-]{8,100}$/.test(id)) return '';
+  try {
+    const context = [CONFIG.ENV, kind, payload.managementId || '', payload.inboundDate || '', payload.clientName || '', payload.productName || '', id, file.mimeType, file.name, file.data];
+    return 'inbound-file:v1:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, JSON.stringify(context)));
+  } catch (_) { return ''; }
+}
+
+function readInboundUploadCache_(key) {
+  if (!key) return null;
+  try { return JSON.parse(CacheService.getScriptCache().get(key) || 'null'); } catch (_) { return null; }
+}
+
+function rememberInboundUpload_(key, result) {
+  if (!key) return;
+  try { CacheService.getScriptCache().put(key, JSON.stringify(result), 21600); } catch (_) {}
+}
+
 function uploadInboundInvoice_(payload, context) {
   const file = payload.invoiceFile;
 
@@ -4583,12 +4602,15 @@ function uploadInboundInvoice_(payload, context) {
     return '';
   }
 
+  const uploadKey = inboundUploadCacheKey_('invoice', payload, file);
+  const existing = readInboundUploadCache_(uploadKey);
+  if (existing && existing.fileUrl) return existing.fileUrl;
   const productName = dash_(payload.productName);
   const clientName = dash_(payload.clientName);
   const dateFolderName = sanitizeDriveName_(dash_(payload.inboundDate || context.registeredDate));
   const extension = getFileExtension_(file.name, file.mimeType);
   const fileName = `${sanitizeDriveName_(productName)}${extension}`;
-  const bytes = Utilities.base64Decode(String(file.data).trim());
+  const bytes = context.invoiceBytes || Utilities.base64Decode(String(file.data).trim());
   const mimeType = String(file.mimeType || 'application/octet-stream').trim();
   const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
   const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
@@ -4601,10 +4623,13 @@ function uploadInboundInvoice_(payload, context) {
   const createdFile = targetFolder.createFile(blob);
 
   createdFile.setDescription(`관리ID: ${context.managementId}`);
-  return createdFile.getUrl();
+  const fileUrl = createdFile.getUrl();
+  rememberInboundUpload_(uploadKey, { fileUrl });
+  return fileUrl;
 }
 
 function uploadInboundInvoice(payload) {
+  const started = Date.now();
   const file = payload && payload.invoiceFile;
   const encodedData = String(file && file.data || '').trim();
   const mimeType = String(file && file.mimeType || '').trim().toLowerCase();
@@ -4621,7 +4646,9 @@ function uploadInboundInvoice(payload) {
     throw new Error('거래명세서는 10MB 이하로 등록해주세요.');
   }
 
+  const validatedAt = Date.now();
   const invoiceFileUrl = uploadInboundInvoice_(payload, {
+    invoiceBytes: bytes,
     managementId: String(payload.managementId || '').trim() || '-',
     registeredDate: Utilities.formatDate(
       new Date(),
@@ -4633,65 +4660,68 @@ function uploadInboundInvoice(payload) {
     throw new Error('거래명세서 링크를 생성하지 못했습니다.');
   }
 
-  return { invoiceFileUrl };
+  const timingMs = { validation: validatedAt - started, drive: Date.now() - validatedAt, total: Date.now() - started };
+  console.info(JSON.stringify({ event: 'inbound_attachment_upload', kind: 'invoice', fileCount: 1, bytes: bytes.length, timingMs }));
+  return { invoiceFileUrl, timingMs };
 }
 
 function uploadInboundDefectPhotos(payload) {
+  const started = Date.now();
   const files = payload && Array.isArray(payload.defectFiles) ? payload.defectFiles : [];
   if (!files.length) throw new Error('업로드할 불량사진이 없습니다.');
   // Validate the whole request before writing any files.
-  files.forEach((file) => {
+  const preparedBytes = files.map((file) => {
     const data = String(file && file.data || '').trim();
     const mimeType = String(file && file.mimeType || '').trim().toLowerCase();
     if (!data) throw new Error('불량사진 데이터를 읽지 못했습니다.');
     if (!/^image\//.test(mimeType)) throw new Error('불량사진은 이미지 파일만 등록할 수 있습니다.');
-    if (Utilities.base64Decode(data).length > 10 * 1024 * 1024) {
+    const bytes = Utilities.base64Decode(data);
+    if (bytes.length > 10 * 1024 * 1024) {
       throw new Error('불량사진은 개별 10MB 이하로 등록해주세요.');
     }
+    return bytes;
   });
+  const validatedAt = Date.now();
   const defectPhotoUrls = uploadInboundDefectPhotos_(payload, {
+    preparedBytes,
     managementId: String(payload.managementId || '').trim() || '-',
     registeredDate: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd')
   });
   if (!defectPhotoUrls) throw new Error('불량사진 링크를 생성하지 못했습니다.');
-  return { defectPhotoUrls, uploadedCount: files.length };
+  const timingMs = { validation: validatedAt - started, drive: Date.now() - validatedAt, total: Date.now() - started };
+  console.info(JSON.stringify({ event: 'inbound_attachment_upload', kind: 'defect', fileCount: files.length, bytes: preparedBytes.reduce((sum, bytes) => sum + bytes.length, 0), timingMs }));
+  return { defectPhotoUrls, uploadedCount: files.length, timingMs };
 }
 
 function uploadInboundDefectPhotos_(payload, context) {
   const files = Array.isArray(payload.defectFiles) ? payload.defectFiles : [];
-
-  if (!files.length) {
-    return '';
+  if (!files.length) return '';
+  const entries = files.map(file => {
+    const key = inboundUploadCacheKey_('defect', payload, file);
+    return { file, key, cached: readInboundUploadCache_(key) };
+  });
+  let targetFolder = null;
+  if (entries.some(entry => !entry.cached?.folderUrl)) {
+    const dateFolderName = sanitizeDriveName_(dash_(payload.inboundDate || context.registeredDate));
+    const rootFolder = DriveApp.getFolderById(CONFIG.DEFECT_PHOTO_ROOT_FOLDER_ID);
+    targetFolder = getOrCreateDriveFolderPath_(rootFolder, ['입고', dateFolderName, sanitizeDriveName_(dash_(payload.clientName))]);
   }
-
-  const productName = dash_(payload.productName);
-  const clientName = dash_(payload.clientName);
-  const dateFolderName = sanitizeDriveName_(dash_(payload.inboundDate || context.registeredDate));
-  const rootFolder = DriveApp.getFolderById(CONFIG.DEFECT_PHOTO_ROOT_FOLDER_ID);
-  const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
-    '입고',
-    dateFolderName,
-    sanitizeDriveName_(clientName)
-  ]);
-  const baseFileName = sanitizeDriveName_(productName);
-
-  const uploadedUrls = files.map((file, index) => {
-    if (!file || !String(file.data || '').trim()) {
-      return '';
-    }
-
+  const baseFileName = sanitizeDriveName_(dash_(payload.productName));
+  const folders = entries.map((entry, index) => {
+    if (entry.cached?.folderUrl) return entry.cached.folderUrl;
+    const file = entry.file;
+    if (!file || !String(file.data || '').trim()) return '';
     const extension = getFileExtension_(file.name, file.mimeType);
     const fileName = `${baseFileName}_${index + 1}${extension}`;
-    const bytes = Utilities.base64Decode(String(file.data).trim());
-    const mimeType = String(file.mimeType || 'application/octet-stream').trim();
-    const blob = Utilities.newBlob(bytes, mimeType, fileName);
+    const bytes = context.preparedBytes?.[index] || Utilities.base64Decode(String(file.data).trim());
+    const blob = Utilities.newBlob(bytes, String(file.mimeType || 'application/octet-stream').trim(), fileName);
     const createdFile = targetFolder.createFile(blob);
-
     createdFile.setDescription(`관리ID: ${context.managementId}, 불량사진 ${index + 1}`);
-    return createdFile.getUrl();
+    const folderUrl = targetFolder.getUrl();
+    rememberInboundUpload_(entry.key, { folderUrl });
+    return folderUrl;
   }).filter(Boolean);
-
-  return uploadedUrls.length ? targetFolder.getUrl() : '';
+  return [...new Set(folders)].join(' ');
 }
 
 function uploadShippingDefectPhotos(payload) {
@@ -6743,33 +6773,38 @@ function setSheetCellByHeader_(sheet, rowIndex, indexes, names, value) {
 function getOrCreateDriveFolderPath_(rootFolder, folderNames) {
   const names = folderNames.map(sanitizeDriveName_);
   if (!names.length) return rootFolder;
-  let cache = null;
-  let key = '';
+  let cache = null, keys = [], cached = {};
+  let parent = rootFolder, start = 0;
   try {
-    const pathKey = JSON.stringify([rootFolder.getId(), names]);
-    key = 'drive-folder:v1:' + Utilities.base64EncodeWebSafe(
-      Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pathKey)
-    );
+    const rootId = rootFolder.getId();
+    keys = names.map((_, index) => 'drive-folder:v2:' + Utilities.base64EncodeWebSafe(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, JSON.stringify([rootId, names.slice(0, index + 1)]))
+    ));
     cache = CacheService.getScriptCache();
-    const cachedId = cache.get(key);
-    if (cachedId) {
+    cached = typeof cache.getAll === 'function' ? cache.getAll(keys) : Object.fromEntries(keys.map(key => [key, cache.get(key)]));
+    // Reuse the longest valid prefix, including the shared date folder for a new client.
+    for (let index = names.length - 1; index >= 0; index -= 1) {
+      if (!cached[keys[index]]) continue;
       try {
-        const folder = DriveApp.getFolderById(cachedId);
-        if (!folder.isTrashed() && folder.getName() === names[names.length - 1]) return folder;
-      } catch (_error) {}
-      cache.remove(key);
+        const folder = DriveApp.getFolderById(cached[keys[index]]);
+        if (!folder.isTrashed() && folder.getName() === names[index]) { parent = folder; start = index + 1; break; }
+      } catch (_) {}
+      cache.remove(keys[index]);
     }
-  } catch (_error) {
-    // Cache availability must never change the destination or block an upload.
+  } catch (_) { cache = null; parent = rootFolder; start = 0; }
+  const discovered = {};
+  for (let index = start; index < names.length; index += 1) {
+    const folders = parent.getFoldersByName(names[index]);
+    parent = folders.hasNext() ? folders.next() : parent.createFolder(names[index]);
+    if (cache && keys[index]) discovered[keys[index]] = parent.getId();
   }
-  const folder = names.reduce((parentFolder, name) => {
-    const folders = parentFolder.getFoldersByName(name);
-    return folders.hasNext() ? folders.next() : parentFolder.createFolder(name);
-  }, rootFolder);
-  if (cache && key) {
-    try { cache.put(key, folder.getId(), 120); } catch (_error) {}
+  if (cache && Object.keys(discovered).length) {
+    try {
+      if (typeof cache.putAll === 'function') cache.putAll(discovered, 21600);
+      else Object.entries(discovered).forEach(([key, value]) => cache.put(key, value, 21600));
+    } catch (_) {}
   }
-  return folder;
+  return parent;
 }
 
 function sanitizeDriveName_(value) {

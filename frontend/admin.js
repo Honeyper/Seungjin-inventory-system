@@ -93,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-10-28", title:"입고 첨부파일 업로드 개선", items:["불량사진을 크기에 맞춰 묶어 전송하고 폴더 경로를 더 오래 재사용합니다. 서버에서 완료한 파일은 재시도 시 중복 업로드하지 않도록 하고, 파일 데이터의 중복 해독을 줄였습니다."] },
   { date:"2026-10-26", title:"공용용기 수량 출고", items:["원래 박스에서 제품별로 수량을 나눠 출고하고, 잔량을 기존 QR에 유지합니다. 출고 취소 시 원래 박스에 수량을 복구합니다."] },
   { date:"2026-10-26", title:"공용용기 제품명 추가", items:["제품 종류 수 선택을 제품명 추가·삭제 버튼으로 바꾸고, 20개를 넘는 출고 제품명을 등록할 수 있도록 했습니다."] },
   { date:"2026-10-26", title:"등록 완료 즉시 반영", items:["입고·발주·제품 신규 등록의 확정 결과를 재조회 전에 표시하고, 첨부파일 준비와 Drive 폴더 탐색의 반복 작업을 줄였습니다."] },
@@ -8203,20 +8204,21 @@ async function uploadInboundInvoiceFile(payload, invoiceFile) {
 }
 
 async function uploadInboundDefectFiles(payload, files) {
-  const urls = await window.SeungjinAttachments.uploadBatch(files, async (file, index) => {
+  const groups = window.SeungjinAttachments.groupUploadFiles(files);
+  const urls = await window.SeungjinAttachments.uploadBatch(groups, async (group, index) => {
     try {
       const result = await requestApi("uploadInboundDefectPhotos", {
         managementId: payload.managementId || "",
         productName: payload.productName || "",
         clientName: payload.clientName || "",
         inboundDate: payload.inboundDate || "",
-        defectFiles: [file]
+        defectFiles: group
       });
       const url = String(result?.defectPhotoUrls || "").trim();
       if (!url) throw new Error("사진 링크를 생성하지 못했습니다.");
       return url;
     } catch (error) {
-      throw new Error(`불량사진 ${index + 1}/${files.length} 업로드 실패: ${error.message || "잠시 후 다시 시도해주세요."}`);
+      throw new Error(`불량사진 묶음 ${index + 1}/${groups.length} 업로드 실패: ${error.message || "잠시 후 다시 시도해주세요."}`);
     }
   });
   return [...new Set(urls)].join(" ");

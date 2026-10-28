@@ -21,19 +21,19 @@ function frontendHarness(requestApi, payload = {}) {
   vm.runInContext(section(admin,'async function uploadInboundAttachments(', 'async function uploadInboundInvoiceFile(')+uploader+create+edit,context);
   return {context,notices};
 }
-test('first photo initializes the folder; createInbound receives URLs without binary data',async()=>{
+test('photos share one upload request; createInbound receives URLs without binary data',async()=>{
   const calls=[];let active=0;
   const {context,notices}=frontendHarness(async(action,payload)=>{
     calls.push({action,payload});
     if(action==='uploadInboundDefectPhotos') {
-      active++;assert.equal(active,1);assert.equal(payload.defectFiles.length,1);
+      active++;assert.equal(active,1);assert.equal(payload.defectFiles.length,2);
       await new Promise(resolve=>setTimeout(resolve,1));active--;
       return {defectPhotoUrls:folder};
     }
     assert.equal(action,'createInbound');assert.equal(payload.defectPhotoUrls,folder);
     assert.equal('defectFiles' in payload,false);return {managementId:'TEST'};
   },{productName:'제품',clientName:'업체',inboundDate:'2026-09-15'});
-  await context.saveInbound();assert.equal(calls.length,3);
+  await context.saveInbound();assert.equal(calls.length,2);
   assert.match(notices.at(-1),/입고 등록이 저장되었습니다/);
   assert.equal(calls[0].payload.productName,'제품');
 });
@@ -41,12 +41,11 @@ test('failed second photo blocks inbound creation and preserves the form',async(
   let attempts=0;let resets=0;
   const {context,notices}=frontendHarness(async action=>{
     assert.equal(action,'uploadInboundDefectPhotos');
-    if(++attempts===2) throw new Error('업로드 연결 실패');
-    return {defectPhotoUrls:folder};
+    attempts++; throw new Error('불량사진 2/2 업로드 연결 실패');
   });
   context.resetInboundDefectDefaults=()=>resets++;
-  await context.saveInbound();assert.equal(attempts,2);assert.equal(resets,0);
-  assert.match(notices[0],/불량사진 2\/2 업로드 실패: 업로드 연결 실패/);
+  await context.saveInbound();assert.equal(attempts,1);assert.equal(resets,0);
+  assert.match(notices[0],/불량사진 묶음 1\/1 업로드 실패: 불량사진 2\/2 업로드 연결 실패/);
 });
 test('missing upload URL is a failure and cannot save an unattached inbound',async()=>{
   const {context,notices}=frontendHarness(async action=>{assert.equal(action,'uploadInboundDefectPhotos');return {};});
