@@ -16,7 +16,7 @@ function runtime({cacheUnavailable=false}={}) {
   };folders.set(id,value);return value;
  }
  folder('root',null,'root');
- const c=loadFunctions(gas,['inboundUploadCacheKey_','readInboundUploadCache_','rememberInboundUpload_','uploadInboundInvoice_','uploadInboundInvoice','uploadInboundDefectPhotos','uploadInboundDefectPhotos_','getOrCreateDriveFolderPath_','sanitizeDriveName_','getFileExtension_'],{
+ const c=loadFunctions(gas,['makeInboundDriveUploadRequest_','createInboundDriveFiles_','inboundUploadCacheKey_','readInboundUploadCache_','rememberInboundUpload_','uploadInboundInvoice_','uploadInboundInvoice','uploadInboundDefectPhotos','uploadInboundDefectPhotos_','getOrCreateDriveFolderPath_','sanitizeDriveName_','getFileExtension_'],{
   CONFIG:{ENV:'dev',DRIVE_ROOT_FOLDER_ID:'root',DEFECT_PHOTO_ROOT_FOLDER_ID:'root'},Session:{getScriptTimeZone:()=> 'Asia/Seoul'},console:{info(){}},
   dash_:value=>String(value||'-'),Utilities:{DigestAlgorithm:{SHA_256:1},computeDigest:(_,s)=>[...createHash('sha256').update(s).digest()],base64EncodeWebSafe:value=>Buffer.from(value).toString('base64url'),
    base64Decode:data=>{decodes.push(data);return [...Buffer.from(data,'base64')];},newBlob:(bytes,mimeType,name)=>({bytes,mimeType,name}),formatDate:()=> '2026-10-28'},

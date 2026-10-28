@@ -4595,6 +4595,70 @@ function rememberInboundUpload_(key, result) {
   try { CacheService.getScriptCache().put(key, JSON.stringify(result), 21600); } catch (_) {}
 }
 
+function makeInboundDriveUploadRequest_(job, token) {
+  if (!/^[a-z0-9.+-]+\/[a-z0-9.+-]+$/i.test(job.mimeType)) throw new Error('첨부파일 형식을 확인해주세요.');
+  const boundary = 'sj_' + Utilities.getUuid().replace(/-/g, '');
+  const metadata = { name: job.name, parents: [job.folder.getId()], description: job.description };
+  const head = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'
+    + JSON.stringify(metadata) + '\r\n--' + boundary + '\r\nContent-Type: ' + job.mimeType + '\r\n\r\n';
+  const bytes = Utilities.newBlob(head).getBytes().concat(job.bytes, Utilities.newBlob('\r\n--' + boundary + '--\r\n').getBytes());
+  return {
+    url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+    method: 'post', contentType: 'multipart/related; boundary=' + boundary,
+    headers: { Authorization: 'Bearer ' + token }, payload: bytes, muteHttpExceptions: true
+  };
+}
+
+function createInboundDriveFiles_(jobs) {
+  if (!jobs.length) return [];
+  const results = new Array(jobs.length);
+  const disabledKey = 'inbound-drive-multipart-disabled:' + CONFIG.ENV;
+  let disabled = false;
+  try { disabled = CacheService.getScriptCache().get(disabledKey) === '1'; } catch (_) {}
+  const native = (job, index) => {
+    const file = job.folder.createFile(Utilities.newBlob(job.bytes, job.mimeType, job.name));
+    file.setDescription(job.description);
+    const result = { fileUrl: file.getUrl() };
+    results[index] = result;
+    if (job.saved) job.saved(result);
+  };
+  const canUpload = typeof UrlFetchApp !== 'undefined' && typeof ScriptApp !== 'undefined';
+  let next = 0;
+  while (next < jobs.length) {
+    if (!canUpload || disabled || jobs[next].bytes.length > 5 * 1024 * 1024) { native(jobs[next], next++); continue; }
+    const indexes = []; let size = 0;
+    while (next < jobs.length && indexes.length < 4 && jobs[next].bytes.length <= 5 * 1024 * 1024
+      && (!indexes.length || size + jobs[next].bytes.length <= 4 * 1024 * 1024)) {
+      indexes.push(next); size += jobs[next].bytes.length; next += 1;
+    }
+    const token = ScriptApp.getOAuthToken();
+    const requests = indexes.map(index => makeInboundDriveUploadRequest_(jobs[index], token));
+    // File and metadata are written in one request. Never retry an uncertain write here.
+    const responses = UrlFetchApp.fetchAll(requests);
+    let failure = null;
+    responses.forEach((response, offset) => {
+      const index = indexes[offset], job = jobs[index], status = response.getResponseCode();
+      let data = {}; try { data = JSON.parse(response.getContentText() || '{}'); } catch (_) {}
+      try {
+        if (status >= 200 && status < 300 && data.id) {
+          const result = { fileUrl: data.webViewLink || 'https://drive.google.com/file/d/' + encodeURIComponent(data.id) + '/view' };
+          results[index] = result;
+          if (job.saved) job.saved(result);
+        } else if (status === 403 && ((data.error?.errors || []).some(error => ['accessNotConfigured', 'serviceDisabled'].includes(error.reason))
+          || (data.error?.details || []).some(detail => detail.reason === 'SERVICE_DISABLED'))) {
+          disabled = true;
+          try { CacheService.getScriptCache().put(disabledKey, '1', 21600); } catch (_) {}
+          native(job, index);
+        } else {
+          throw new Error('Drive에 첨부파일을 저장하지 못했습니다. 잠시 후 다시 확인해주세요.');
+        }
+      } catch (error) { if (!failure) failure = error; }
+    });
+    if (failure) throw failure;
+  }
+  return results;
+}
+
 function uploadInboundInvoice_(payload, context) {
   const file = payload.invoiceFile;
 
@@ -4619,13 +4683,11 @@ function uploadInboundInvoice_(payload, context) {
     dateFolderName,
     sanitizeDriveName_(clientName)
   ]);
-  const blob = Utilities.newBlob(bytes, mimeType, fileName);
-  const createdFile = targetFolder.createFile(blob);
-
-  createdFile.setDescription(`관리ID: ${context.managementId}`);
-  const fileUrl = createdFile.getUrl();
-  rememberInboundUpload_(uploadKey, { fileUrl });
-  return fileUrl;
+  const result = createInboundDriveFiles_([{
+    bytes, mimeType, name: fileName, folder: targetFolder, description: `관리ID: ${context.managementId}`,
+    saved: value => rememberInboundUpload_(uploadKey, value)
+  }])[0];
+  return result.fileUrl;
 }
 
 function uploadInboundInvoice(payload) {
@@ -4707,21 +4769,21 @@ function uploadInboundDefectPhotos_(payload, context) {
     targetFolder = getOrCreateDriveFolderPath_(rootFolder, ['입고', dateFolderName, sanitizeDriveName_(dash_(payload.clientName))]);
   }
   const baseFileName = sanitizeDriveName_(dash_(payload.productName));
-  const folders = entries.map((entry, index) => {
-    if (entry.cached?.folderUrl) return entry.cached.folderUrl;
+  const jobs = entries.flatMap((entry, index) => {
+    if (entry.cached?.folderUrl) return [];
     const file = entry.file;
-    if (!file || !String(file.data || '').trim()) return '';
+    if (!file || !String(file.data || '').trim()) return [];
     const extension = getFileExtension_(file.name, file.mimeType);
-    const fileName = `${baseFileName}_${index + 1}${extension}`;
-    const bytes = context.preparedBytes?.[index] || Utilities.base64Decode(String(file.data).trim());
-    const blob = Utilities.newBlob(bytes, String(file.mimeType || 'application/octet-stream').trim(), fileName);
-    const createdFile = targetFolder.createFile(blob);
-    createdFile.setDescription(`관리ID: ${context.managementId}, 불량사진 ${index + 1}`);
     const folderUrl = targetFolder.getUrl();
-    rememberInboundUpload_(entry.key, { folderUrl });
-    return folderUrl;
-  }).filter(Boolean);
-  return [...new Set(folders)].join(' ');
+    return [{
+      bytes: context.preparedBytes?.[index] || Utilities.base64Decode(String(file.data).trim()),
+      mimeType: String(file.mimeType || 'application/octet-stream').trim(), name: `${baseFileName}_${index + 1}${extension}`,
+      folder: targetFolder, description: `관리ID: ${context.managementId}, 불량사진 ${index + 1}`,
+      saved: value => { entry.cached = { folderUrl }; rememberInboundUpload_(entry.key, { folderUrl, fileUrl: value.fileUrl }); }
+    }];
+  });
+  createInboundDriveFiles_(jobs);
+  return [...new Set(entries.map(entry => entry.cached?.folderUrl).filter(Boolean))].join(' ');
 }
 
 function uploadShippingDefectPhotos(payload) {
