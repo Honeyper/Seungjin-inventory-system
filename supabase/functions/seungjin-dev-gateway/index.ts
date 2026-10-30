@@ -408,6 +408,11 @@ async function loadCanonicalState(action: string, payload: JsonRecord) {
   if (action === "adjustRemainingInventory") {
     return loadShippingMutationState(payload);
   }
+  if (action === "saveShippingInspection") {
+    // Inspection/disposal only changes boxes and summaries in this inbound.
+    // Ignore shipping-status fields so they cannot widen this read to a product.
+    return loadShippingMutationState({ managementId: payload.managementId, productId: payload.productId });
+  }
   if (action === "updateShippingStatus" || action === "updateInventoryBoxMove") {
     return loadShippingMutationState(payload);
   }
