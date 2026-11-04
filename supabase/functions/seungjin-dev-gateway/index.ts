@@ -538,8 +538,11 @@ async function readCanonicalAction(action: string, payload: JsonRecord): Promise
     const key = JSON.stringify([version.stateVersion, version.qrStatusVersion, dateKey]);
     const dashboard = await readInventorySnapshotCached(key, async () => {
       const [state, productRows, qrInboundRows] = await Promise.all([
-        databaseRequest("rpc/read_dev_inventory_snapshot", {
+        databaseRequest("rpc/read_dev_inventory_snapshot_bytes", {
           method: "POST",
+          // The snapshot is already JSON. PostgREST's raw bytea handler avoids
+          // aggregating and parsing the entire JSON document a second time.
+          headers: { Accept: "application/vnd.seungjin.inventory+json" },
           body: "{}"
         }) as Promise<{
           records?: JsonRecord[];

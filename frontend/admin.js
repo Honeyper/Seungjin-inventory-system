@@ -93,6 +93,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-04", title:"재고 조회·자동 갱신 개선", items:["PC·모바일 공통 재고 조회에서 대용량 JSON의 중복 변환을 제거했습니다. PC 자동 갱신도 변경된 재고만 받아 합치고, 다음 접속에서 재사용할 캐시를 갱신합니다."] },
   { date:"2026-10-30", title:"모바일 박스 폐기 오류 수정", items:["박스 폐기·출고 검수 시 전체 재고 대신 해당 입고 건만 조회하도록 바꿔, 전체 조회 시간 초과로 저장하지 못하던 문제를 수정했습니다."] },
   { date:"2026-10-28", title:"첨부파일 Drive 저장 개선", items:["명세서와 불량사진의 파일·설명을 한 번에 저장하고, 작은 사진 여러 장은 제한된 동시 저장으로 대기를 줄였습니다. 완료된 파일은 재시도 시 재사용합니다."] },
   { date:"2026-10-28", title:"입고 첨부파일 업로드 개선", items:["불량사진을 크기에 맞춰 묶어 전송하고 폴더 경로를 더 오래 재사용합니다. 서버에서 완료한 파일은 재시도 시 중복 업로드하지 않도록 하고, 파일 데이터의 중복 해독을 줄였습니다."] },
@@ -4154,12 +4155,21 @@ async function refreshActiveAdminList(context, canApply) {
       && Number(version.stateVersion) === Number(state.inventoryStateVersion)
       && version.qrStatusVersion !== null && version.qrStatusVersion !== undefined
       && version.qrStatusVersion === state.inventoryQrStatusVersion) return true;
-    const result = await readAdminListRefreshSnapshot("getInventoryDashboard", {}, canApply);
-    if (!result) return false;
-    if (!Array.isArray(result.rows)) throw new Error("재고 자동 갱신 응답을 확인할 수 없습니다.");
+    const baseline = state.inventoryDashboardSnapshot;
+    const response = await readAdminListRefreshSnapshot("getInventoryDashboard", {
+      ...(baseline && window.SeungjinInventoryIncremental ? {allowInventoryDelta:true,deltaSinceVersion:baseline.stateVersion} : {})
+    }, canApply);
+    if (!response) return false;
+    if (!Array.isArray(response.rows)) throw new Error("재고 자동 갱신 응답을 확인할 수 없습니다.");
+    // A manual refresh can replace the baseline even without a navigation.
+    if (state.inventoryDashboardSnapshot !== baseline) return false;
+    const result = response.inventoryDelta
+      ? window.SeungjinInventoryIncremental.merge(baseline, response) : response;
+    result.stateVersion = version?.stateVersion ?? result.stateVersion;
     result.qrStatusVersion = version?.qrStatusVersion ?? null;
+    result.versionCheckedBeforeRead = version?.stateVersion !== null && version?.stateVersion !== undefined;
     applyInventoryDashboardResult(result);
-    writeAdminCache(INVENTORY_DASHBOARD_CACHE_KEY, result);
+    writeAdminLargeCache("inventory-dashboard:v2", result);
     return true;
   }
 

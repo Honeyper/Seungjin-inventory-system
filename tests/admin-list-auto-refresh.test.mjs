@@ -93,7 +93,9 @@ function adapter(responses = {}) {
   const globals = { adminListRequestRevision: 0, INVENTORY_DASHBOARD_CACHE_KEY: 'inventory',
     state: { products: [{ productId: 'old' }], purchaseOrders: [{ purchaseOrderId: 'old' }], todayInbounds: [{ managementId: 'old' }], clientFilter: 'selected', inventoryLoaded: true, inventoryStateVersion: 5, inventoryQrStatusVersion: 'qr-1', inventoryPage: 3, shippingPage: 2 },
     applyInventoryDashboardResult: result => applied.push(result),
+    window: {},
     writeAdminCache: (key, result) => caches.push({ key, result }),
+    writeAdminLargeCache: (key, result) => caches.push({ key, result }),
     applyTodayInboundsResult: result => { context.state.todayInbounds = result.inbounds; applied.push(result); },
     applyPurchaseOrderFilters: () => applied.push('orders'),
     renderClientFilterOptions: () => { context.state.clientFilter = ''; },
@@ -112,6 +114,40 @@ test('inventory polls only its lightweight version when unchanged; QR changes fe
   await changed.context.refreshActiveAdminList({ view: 'shipping' }, () => true);
   assert.equal(changed.applied[0].qrStatusVersion, 'qr-2');
   assert.equal(changed.context.state.inventoryPage, 3); assert.equal(changed.context.state.shippingPage, 2);
+  assert.equal(changed.caches[0].key, 'inventory-dashboard:v2');
+  assert.equal(changed.caches[0].result.versionCheckedBeforeRead, true);
+});
+
+test('자동 갱신도 변경분을 요청하고 기존 재고와 합친 결과를 캐시에 저장한다', async () => {
+  const scope = vm.createContext({window:{}});
+  vm.runInContext(readFileSync(new URL('../frontend/inventory-incremental.js', import.meta.url), 'utf8'), scope);
+  const keep = {managementId:'KEEP',productId:'P2',allShippingBoxes:[]};
+  const base = {stateVersion:5,rows:[{managementId:'DELETE',productId:'P1',allShippingBoxes:[]},keep]};
+  const h = adapter({getInventoryVersion:{stateVersion:6,qrStatusVersion:'qr-2'},
+    getInventoryDashboard:{stateVersion:6,rows:[],inventoryDelta:{fromVersion:5,productIds:['P1']}}});
+  h.context.state.inventoryDashboardSnapshot = base;
+  h.context.window.SeungjinInventoryIncremental = scope.window.SeungjinInventoryIncremental;
+  await h.context.refreshActiveAdminList({view:'inventory'},()=>true);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls[1].payload)),{allowInventoryDelta:true,deltaSinceVersion:5});
+  assert.equal(h.applied[0].rows.length,1);
+  assert.equal(h.applied[0].rows[0].managementId,'KEEP');
+  assert.equal(h.applied[0].stateVersion,6);
+  assert.equal(h.caches[0].result,h.applied[0]);
+  assert.equal(base.rows.length,2,'기준 자료는 수정하지 않는다');
+});
+
+test('자동 조회 중 기준 재고가 교체되면 뒤늦은 변경분을 적용하지 않는다', async () => {
+  const pending=Promise.withResolvers();
+  const h=adapter({getInventoryVersion:{stateVersion:6,qrStatusVersion:'qr-2'},getInventoryDashboard:()=>pending.promise});
+  h.context.state.inventoryDashboardSnapshot={stateVersion:5,rows:[]};
+  h.context.window.SeungjinInventoryIncremental={merge:()=>assert.fail('오래된 기준 병합 금지')};
+  const reading=h.context.refreshActiveAdminList({view:'inventory'},()=>true);
+  await new Promise(resolve=>setImmediate(resolve));
+  h.context.state.inventoryDashboardSnapshot={stateVersion:7,rows:[]};
+  pending.resolve({stateVersion:6,rows:[],inventoryDelta:{fromVersion:5,productIds:['P1']}});
+  assert.equal(await reading,false);
+  assert.equal(h.applied.length,0);
+  assert.equal(h.caches.length,0);
 });
 
 test('a stale background read cannot overwrite a newer manual read or mutation', async () => {

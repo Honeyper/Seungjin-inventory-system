@@ -56,10 +56,11 @@ test("gateway invalidates by stock, QR updates and Korean date; mobile and PC sh
   const context = vm.createContext({
     Date: TestDate,
     readInventorySnapshotCached: createInventoryReadCache({ clock: () => now }),
-    databaseRequest: async (path) => {
+    databaseRequest: async (path, options) => {
       if (path.startsWith("dev_state?")) return [{ version }];
       if (path.startsWith("dev_inbounds?")) return [{ updated_at: qrVersion }];
-      assert.equal(path, "rpc/read_dev_inventory_snapshot");
+      assert.equal(path, "rpc/read_dev_inventory_snapshot_bytes");
+      assert.equal(options.headers.Accept, "application/vnd.seungjin.inventory+json");
       loads++;
       return { recordRows: [{ record_key: "R1", data: {} }], boxRows: [{ box_id: "B1", data: box }] };
     },
