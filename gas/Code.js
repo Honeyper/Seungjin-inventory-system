@@ -9,7 +9,7 @@ const APP_ENVIRONMENTS = {
   dev: {
     label: 'DEV',
     scriptId: '1_hEv8hS-RslSbT4J1hYHMvdHwoHgRvs2vLsNBdXrbyxZFiUgbfT_5c4T',
-    spreadsheetId: '1__av_Ww7cuUeVrqPgtDRwGsbI0gmfqppxcULpI4WIhg',
+    spreadsheetId: '1quaK1qbEur466lj01_tGCTHobhtn1J9lovfox5tkBfc',
     driveRootFolderId: '1nHvct8X2B7cX9cPHgq7F3A8x8EAlDQo3',
     defectPhotoRootFolderId: '1nHvct8X2B7cX9cPHgq7F3A8x8EAlDQo3'
   }
