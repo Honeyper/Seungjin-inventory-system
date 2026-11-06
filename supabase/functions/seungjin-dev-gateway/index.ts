@@ -34,6 +34,8 @@ const APPS_SCRIPT_URL = APPS_SCRIPT_URLS[PROJECT_REF] || "";
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_CACHE_TTL_MS = 60 * 1000;
 const readInventorySnapshotCached = createInventoryReadCache();
+// Access remains behind the session checks; coalesce repeated reads of the shared staff sheet.
+const readProductionPlanStaffCached = createInventoryReadCache({maxAgeMs:60 * 1000});
 const FREE_DATABASE_LIMIT_BYTES = 500 * 1024 * 1024;
 const ALLOWED_ORIGINS = new Set([
   "https://honeyper.github.io",
@@ -976,8 +978,12 @@ async function handleRequest(request: Request) {
   }
 
   if (action === "getProductionPlanReference" || action === "getProductionPlanStaff") {
-    const token = await createSheetSyncToken("apps_script", 60 * 1000);
-    return jsonResponse(request, { ok: true, data: await fetchAppsScript(action, { token }) });
+    const read = async () => {
+      const token = await createSheetSyncToken("apps_script", 60 * 1000);
+      return await fetchAppsScript(action, { token });
+    };
+    const data = action === "getProductionPlanStaff" ? await readProductionPlanStaffCached("staff-sheet", read) : await read();
+    return jsonResponse(request, { ok: true, data });
   }
 
   if (action === "getSheetBackupNotifications") {

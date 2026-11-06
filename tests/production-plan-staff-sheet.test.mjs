@@ -34,9 +34,11 @@ test('서버 토큰을 검증한 뒤 지정한 원본 직원 탭만 읽는다',(
 });
 function client(requestApi){
   const jobs=[{planRowId:'R1',worker:'저장된 담당자',workerType:'employee',packagingWorker:'진성',packagingWorkerType:'company',machine:'5호기',actualProduction:8000,note:'입력 유지'}];
-  const c=loadFunctions(adminSource,['loadProductionPlanStaff','getProductionPlanStaffAssignments','getProductionPlanStaffLabel','renderProductionPlanStaffOptions','refreshProductionPlanStaffControls'],{
+  const c=loadFunctions(adminSource,['loadProductionPlanStaff','getProductionPlanStaffAssignments','getProductionPlanStaffLabel','renderProductionPlanStaffOptions','refreshProductionPlanStaffControls','normalizeProductionPlanStaff','restoreProductionPlanStaffCache','renderProductionPlanStaffPicker','getProductionPlanStaffPickerGroups','selectProductionPlanStaff'],{
     window:{SeungjinDataGateway:{canRead:()=>true}},PRODUCTION_PLAN_STAFF:{worker:[],packagingWorker:[]},
     productionPlanStaffPromise:null,productionPlanStaffLoadedAt:0,productionPlanTableBody:null,
+    productionPlanStaffHasRoster:false,productionPlanStaffCacheChecked:false,productionPlanStaffError:false,productionPlanStaffPicker:null,
+    session:{name:'test'},ADMIN_CACHE_MAX_AGE_MS:12*60*60*1000,readAdminCache:()=>null,writeAdminCache(){},
     state:{productionPlanJobs:jobs},requestApi,console:{warn(){}},showToast(){},escapeHtml:x=>String(x).replaceAll('<','&lt;'),escapeAttribute:x=>String(x).replaceAll('"','&quot;')
   });return {c,jobs};
 }
@@ -58,4 +60,54 @@ test('목록 갱신 실패·잘못된 응답은 기존 선택 목록과 작성 �
   for(const request of [async()=>{throw Error('network');},async()=>({rows:[]}),async()=>({staff:[{name:'A',type:'unknown'}]})]){
     c.requestApi=request;assert.equal(await c.loadProductionPlanStaff({force:true}),false);assert.deepEqual(plain(c.PRODUCTION_PLAN_STAFF),before);assert.deepEqual(jobs,saved);
   }
+});
+
+test('이전 접속의 목록을 요청 완료 전에 표시하며 새 응답으로 교체한다',async()=>{
+  const pending=Promise.withResolvers();const {c}=client(()=>pending.promise);
+  c.readAdminCache=()=>({staff:people,loadedAt:Date.now()-120000});
+  const request=c.loadProductionPlanStaff();
+  assert.equal(c.productionPlanStaffHasRoster,true);assert.equal(c.PRODUCTION_PLAN_STAFF.worker.length,3);
+  assert.ok(c.productionPlanStaffLoadedAt<Date.now()-60000);
+  pending.resolve({staff:[{name:'새 직원',type:'employee'}]});await request;
+  assert.equal(c.PRODUCTION_PLAN_STAFF.worker[0].name,'새 직원');
+});
+test('새로고침 후 유효한 1분 목록은 추가 서버 요청 없이 사용한다',async()=>{
+  let calls=0;const {c}=client(async()=>{calls++;return {staff:people};});
+  c.readAdminCache=()=>({staff:people,loadedAt:Date.now()-1000});
+  assert.equal(await c.loadProductionPlanStaff(),true);assert.equal(calls,0);
+  assert.equal(c.PRODUCTION_PLAN_STAFF.worker.length,3);
+});
+test('잘못된 캐시는 무시하며 갱신 실패 때 최근 목록을 유지한다',async()=>{
+  const {c}=client(async()=>{throw Error('offline');});
+  c.readAdminCache=()=>({staff:[{name:'오류',type:'unknown'}],loadedAt:Date.now()});
+  assert.equal(await c.loadProductionPlanStaff(),false);assert.equal(c.productionPlanStaffHasRoster,false);
+  c.productionPlanStaffCacheChecked=false;c.readAdminCache=()=>({staff:people,loadedAt:Date.now()-120000});
+  await c.loadProductionPlanStaff();assert.equal(c.productionPlanStaffHasRoster,true);
+  assert.equal(c.productionPlanStaffError,true);assert.equal(c.PRODUCTION_PLAN_STAFF.worker.length,3);
+});
+test('검색어와 직원 구분을 함께 적용하고 타업체는 회사명만 보여준다',async()=>{
+  const {c}=client(async()=>({staff:people}));await c.loadProductionPlanStaff();
+  c.productionPlanStaffPicker={query:'직원 a',filter:'all'};
+  assert.deepEqual(plain(c.getProductionPlanStaffPickerGroups()).map(g=>g.type),['employee']);
+  c.productionPlanStaffPicker={query:'',filter:'outsourcing'};
+  assert.equal(c.getProductionPlanStaffPickerGroups()[0].people[0].name,'아웃소싱 B');
+  c.productionPlanStaffPicker={query:'진 성',filter:'company'};
+  assert.deepEqual(plain(c.getProductionPlanStaffPickerGroups())[0].people,[{name:'진성',type:'company',label:'타업체'}]);
+  c.productionPlanStaffPicker={query:'없음',filter:'all'};assert.equal(c.getProductionPlanStaffPickerGroups().length,0);
+});
+test('팝업 선택은 해당 역할만 수정하고 날짜 변경·삭제된 행·제외된 사람의 선택은 막는다',async()=>{
+  const {c,jobs}=client(async()=>({staff:people}));await c.loadProductionPlanStaff();
+  c.getProductionPlanStorageKey=()=> 'today';c.renderProductionPlan=()=>{};
+  c.closeProductionPlanStaffPicker=()=>{c.productionPlanStaffPicker=null;};c.productionPlanStatus={dataset:{}};
+  const original=structuredClone(jobs[0]);
+  c.productionPlanStaffPicker={planRowId:'R1',role:'worker',storageKey:'yesterday'};
+  c.selectProductionPlanStaff('진성');assert.deepEqual(jobs[0],original);
+  c.productionPlanStaffPicker={planRowId:'missing',role:'worker',storageKey:'today'};
+  c.selectProductionPlanStaff('진성');assert.deepEqual(jobs[0],original);
+  c.productionPlanStaffPicker={planRowId:'R1',role:'worker',storageKey:'today'};
+  c.selectProductionPlanStaff('제외된 사람');assert.deepEqual(jobs[0],original);
+  c.selectProductionPlanStaff('진성');assert.equal(jobs[0].worker,'진성');assert.equal(jobs[0].workerType,'company');
+  assert.equal(jobs[0].note,original.note);assert.equal(jobs[0].actualProduction,original.actualProduction);
+  c.productionPlanStaffPicker={planRowId:'R1',role:'worker',storageKey:'today'};
+  c.selectProductionPlanStaff('');assert.equal(jobs[0].worker,'');assert.equal(jobs[0].workerType,'');
 });

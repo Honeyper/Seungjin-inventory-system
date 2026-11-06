@@ -15731,3 +15731,44 @@ small, em {
 .picker-product-row { display: flex; }
 .picker-product-row > .picker-product { flex: 1 1 0; min-width: 0; }
 .picker-product-row > .picker-product-edit { flex: 0 0 auto; }
+
+/* Searchable staff selection, keeping daily plan rows compact. */
+#productionPlanView .production-plan-staff-trigger {
+  display:flex; align-items:center; justify-content:space-between; gap:.4rem;
+  width:100%; min-width:0; min-height:1.5rem; padding:.12rem .45rem;
+  border:1px solid #dbe4ef; border-radius:.25rem; background:#fff;
+  color:var(--navy-dark); font:inherit; font-size:.75rem; cursor:pointer;
+}
+.production-plan-staff-trigger span {flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;}
+.production-plan-staff-trigger i {font-size:.85rem; color:#657eaa;}
+.production-plan-staff-trigger:hover {border-color:#7b9dd9;}
+.plan-staff-modal {width:min(38rem,calc(100vw - 2.5rem)); display:flex; flex-direction:column; overflow:hidden;}
+.plan-staff-modal .modal-header {flex-shrink:0; align-items:center; padding:1.25rem 1.5rem;}
+.plan-staff-modal h2 {margin:0; font-size:1.15rem;}
+.plan-staff-toolbar {padding:1rem 1.5rem 0; flex-shrink:0;}
+.plan-staff-search {display:flex; align-items:center; gap:.65rem; padding:0 .8rem; border:1px solid #dbe4ef; border-radius:.4rem; background:#fff;}
+.plan-staff-search:focus-within {outline:2px solid #3b6ed3; outline-offset:1px;}
+.plan-staff-search input {width:100%; min-width:0; padding:.7rem 0; border:0; outline:none; background:transparent; color:var(--navy-dark); font:inherit; font-size:.9rem;}
+.plan-staff-filters {display:flex; gap:.4rem; margin-top:.9rem; flex-wrap:wrap;}
+.plan-staff-filters button {padding:.45rem .85rem; border:1px solid #dbe4ef; border-radius:.35rem; background:#fff; color:#61708b; font:inherit; font-size:.8rem; cursor:pointer;}
+.plan-staff-filters button[aria-pressed="true"] {background:#edf3ff; border-color:#92b2ed; color:#17489d;}
+.plan-staff-toolbar p {margin:.8rem 0 .4rem; font-size:.75rem; color:#718099; min-height:1.2em;}
+.plan-staff-list {overflow:auto; overscroll-behavior:contain; padding:.25rem 1.5rem 1.25rem; min-height:6rem; max-height:50dvh;}
+.plan-staff-group + .plan-staff-group {margin-top:1.2rem;}
+.plan-staff-group h3 {display:flex; gap:.45rem; margin:.5rem 0; font-size:.8rem; font-weight:600; color:#65748c;}
+.plan-staff-group h3 span {font-weight:400; color:#8692a5;}
+.plan-staff-grid {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem;}
+.plan-staff-grid button {display:flex; align-items:center; justify-content:space-between; gap:.4rem; min-height:2.7rem; padding:.65rem .8rem; border:1px solid #e0e7ef; border-radius:.35rem; background:#fff; color:var(--navy-dark); font:inherit; font-size:.9rem; text-align:left; cursor:pointer;}
+.plan-staff-grid button span {overflow-wrap:anywhere;}
+.plan-staff-grid button:hover {border-color:#84a7e2; background:#f7faff;}
+.plan-staff-grid button[aria-pressed="true"] {border-color:#6b96df; background:#edf3ff; color:#17489d;}
+.plan-staff-empty {padding:2rem 0; text-align:center; color:#718099; font-size:.85rem;}
+.plan-staff-footer {border-top:1px solid #e3e9f1; padding:.8rem 1.5rem; flex-shrink:0;}
+.plan-staff-footer button {border:0; background:transparent; padding:.4rem 0; color:#64738c; font:inherit; font-size:.8rem; cursor:pointer;}
+.plan-staff-modal button:focus-visible {outline:2px solid #3b6ed3; outline-offset:2px;}
+@media(max-width:480px) {
+  .plan-staff-modal .modal-header {padding:1rem;}
+  .plan-staff-toolbar {padding:1rem 1rem 0;}
+  .plan-staff-list {padding:.25rem 1rem 1rem;}
+  .plan-staff-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+}

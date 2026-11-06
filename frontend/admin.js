@@ -90,11 +90,16 @@ const PRODUCTION_PLAN_STAFF = {
 };
 let productionPlanStaffPromise = null;
 let productionPlanStaffLoadedAt = 0;
+let productionPlanStaffHasRoster = false;
+let productionPlanStaffCacheChecked = false;
+let productionPlanStaffError = false;
+let productionPlanStaffPicker = null;
 const PRODUCTION_MACHINE_OPTIONS = {
   ...Object.fromEntries(PRODUCTION_PROCESS_ORDER.map(process => [process, Array.from({ length: process === "자동화" ? 4 : 12 }, (_, index) => `${index + 1}호기`)]))
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-06", title:"작업자 검색 팝업·목록 로딩 개선", items:["인쇄·포장 작업자를 검색 팝업에서 선택하며 직원·아웃소싱·타업체별로 볼 수 있습니다. 최근 목록은 즉시 표시하고 뒤에서 갱신하며, 서버의 반복 시트 조회를 줄였습니다."] },
   { date:"2026-11-06", title:"생산계획 작업자를 직원정보 시트와 연결", items:["직원정보 시트에서 활성화된 직원·아웃소싱을 인쇄·포장 작업자로 선택합니다. 타업체는 직원명 없이 업체명으로 표시해 진성을 양쪽에서 선택할 수 있습니다. 저장된 작업자와 작성 중인 계획은 유지합니다."] },
   { date:"2026-11-04", title:"재고 조회·자동 갱신 개선", items:["PC·모바일 공통 재고 조회에서 대용량 JSON의 중복 변환을 제거했습니다. PC 자동 갱신도 변경된 재고만 받아 합치고, 다음 접속에서 재사용할 캐시를 갱신합니다."] },
   { date:"2026-10-30", title:"모바일 박스 폐기 오류 수정", items:["박스 폐기·출고 검수 시 전체 재고 대신 해당 입고 건만 조회하도록 바꿔, 전체 조회 시간 초과로 저장하지 못하던 문제를 수정했습니다."] },
@@ -1824,10 +1829,30 @@ printProductionPlanButton?.addEventListener("click", printProductionPlan);
 window.addEventListener("afterprint", () => document.body.classList.remove("printing-production-plan"));
 productionPlanTableBody?.addEventListener("input", handleProductionPlanFieldChange);
 productionPlanTableBody?.addEventListener("change", handleProductionPlanFieldChange);
-productionPlanTableBody?.addEventListener("focusout", event => {
-  if (event.target.matches('[data-plan-field="worker"], [data-plan-field="packagingWorker"]')) {
-    window.setTimeout(refreshProductionPlanStaffControls, 0);
+const productionPlanStaffModal = document.querySelector("#productionPlanStaffPickerModal");
+productionPlanStaffModal?.querySelector(".modal-close")?.addEventListener("click", closeProductionPlanStaffPicker);
+productionPlanStaffModal?.addEventListener("click", event => {
+  if (event.target === productionPlanStaffModal) { closeProductionPlanStaffPicker(); return; }
+  const filter = event.target.closest("[data-staff-filter]");
+  if (filter && productionPlanStaffPicker) {
+    productionPlanStaffPicker.filter = filter.dataset.staffFilter;
+    renderProductionPlanStaffPicker();
+    return;
   }
+  const choice = event.target.closest("[data-staff-name]");
+  if (choice) selectProductionPlanStaff(choice.dataset.staffName);
+});
+productionPlanStaffModal?.querySelector("input")?.addEventListener("input", event => {
+  if (!productionPlanStaffPicker) return;
+  productionPlanStaffPicker.query = event.target.value;
+  renderProductionPlanStaffPicker();
+});
+productionPlanStaffModal?.addEventListener("keydown", event => {
+  if (event.key !== "Tab") return;
+  const controls = Array.from(productionPlanStaffModal.querySelectorAll('button:not([disabled]), input:not([disabled])')).filter(item => item.getClientRects().length);
+  const first = controls[0], last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 });
 productionPlanTableBody?.addEventListener("click", handleProductionPlanTableClick);
 document.addEventListener("click", collapseProductionPlanDetailsOutside);
@@ -2546,6 +2571,7 @@ document.addEventListener("click", (event) => {
 
 function getTopAdminFloatingPopup() {
   const modalClosers = {
+    productionPlanStaffPickerModal: closeProductionPlanStaffPicker,
     shippingInspectionModal: closeShippingInspectionModal, remainingInventoryModal: closeRemainingInventoryModal,
     shippingCompletionModal: closeShippingCompletionModal,
     ...(typeof closeShippingCancelModal === "function" ? {shippingCancelModal: closeShippingCancelModal} : {}),
@@ -2915,46 +2941,144 @@ function getProductionPlanStaffAssignments(job) {
   };
 }
 
+function normalizeProductionPlanStaff(people) {
+  if (!Array.isArray(people) || people.some(person => !person || typeof person.name !== "string"
+    || !person.name.trim() || !["employee", "outsourcing", "company"].includes(person.type))) {
+    throw new Error("직원 목록 응답을 확인해주세요.");
+  }
+  const seen = new Set();
+  return people.filter(person => {
+    if (seen.has(person.name.trim())) return false;
+    seen.add(person.name.trim()); return true;
+  }).map(person => ({name:person.name.trim(),type:person.type,
+    label:person.type === "employee" ? "직원" : person.type === "outsourcing" ? "아웃소싱" : "타업체"}));
+}
+
+function restoreProductionPlanStaffCache() {
+  if (productionPlanStaffCacheChecked) return;
+  productionPlanStaffCacheChecked = true;
+  try {
+    const cached = readAdminCache(`production-plan-staff:v1:${session?.name || "admin"}`);
+    if (!cached || !Number.isFinite(cached.loadedAt) || cached.loadedAt > Date.now()
+      || Date.now() - cached.loadedAt > ADMIN_CACHE_MAX_AGE_MS) return;
+    const people = normalizeProductionPlanStaff(cached.staff);
+    PRODUCTION_PLAN_STAFF.worker = PRODUCTION_PLAN_STAFF.packagingWorker = people;
+    productionPlanStaffLoadedAt = cached.loadedAt;
+    productionPlanStaffHasRoster = true;
+    refreshProductionPlanStaffControls();
+  } catch (error) { /* Ignore an expired or invalid browser cache. */ }
+}
+
 async function loadProductionPlanStaff({force = false} = {}) {
   if (!window.SeungjinDataGateway?.canRead("getProductionPlanStaff")) return false;
+  restoreProductionPlanStaffCache();
   if (productionPlanStaffPromise) return productionPlanStaffPromise;
   if (!force && productionPlanStaffLoadedAt && Date.now() - productionPlanStaffLoadedAt < 60000) return true;
+  productionPlanStaffError = false;
   const pending = (async () => {
     try {
       const result = await requestApi("getProductionPlanStaff");
-      if (!Array.isArray(result?.staff) || result.staff.some(person => !person || typeof person.name !== "string"
-        || !person.name.trim() || !["employee", "outsourcing", "company"].includes(person.type))) {
-        throw new Error("직원 목록 응답을 확인해주세요.");
-      }
-      const seen = new Set();
-      const people = result.staff.filter(person => {
-        if (seen.has(person.name.trim())) return false;
-        seen.add(person.name.trim()); return true;
-      }).map(person => ({name:person.name.trim(),type:person.type,
-        label:person.type === "employee" ? "직원" : person.type === "outsourcing" ? "아웃소싱" : "타업체"}));
-      PRODUCTION_PLAN_STAFF.worker = people;
-      PRODUCTION_PLAN_STAFF.packagingWorker = people;
+      const people = normalizeProductionPlanStaff(result?.staff);
+      PRODUCTION_PLAN_STAFF.worker = PRODUCTION_PLAN_STAFF.packagingWorker = people;
       productionPlanStaffLoadedAt = Date.now();
+      productionPlanStaffHasRoster = true;
+      writeAdminCache(`production-plan-staff:v1:${session?.name || "admin"}`, {staff:people,loadedAt:productionPlanStaffLoadedAt});
       refreshProductionPlanStaffControls();
       return true;
     } catch (error) {
+      productionPlanStaffError = true;
       console.warn("직원 목록을 갱신하지 못했습니다.", error);
       if (force) showToast("직원 목록을 불러오지 못했습니다. 잠시 후 새로고침해주세요.");
       return false;
     }
   })();
   productionPlanStaffPromise = pending;
+  renderProductionPlanStaffPicker();
   try { return await pending; }
-  finally { if (productionPlanStaffPromise === pending) productionPlanStaffPromise = null; }
+  finally {
+    if (productionPlanStaffPromise === pending) productionPlanStaffPromise = null;
+    renderProductionPlanStaffPicker();
+  }
 }
 
 function refreshProductionPlanStaffControls() {
-  productionPlanTableBody?.querySelectorAll('[data-plan-field="worker"], [data-plan-field="packagingWorker"]').forEach(select => {
-    if (document.activeElement === select) return;
-    const row = select.closest("[data-plan-row-id]");
+  productionPlanTableBody?.querySelectorAll("[data-plan-staff-picker]").forEach(button => {
+    const row = button.closest("[data-plan-row-id]");
     const job = state.productionPlanJobs.find(item => item.planRowId === row?.dataset.planRowId);
-    if (job) select.innerHTML = renderProductionPlanStaffOptions(job, select.dataset.planField);
+    if (job) button.querySelector("span").textContent = getProductionPlanStaffLabel(job, button.dataset.planStaffPicker);
   });
+  renderProductionPlanStaffPicker();
+}
+
+function openProductionPlanStaffPicker(button) {
+  const row = button.closest("[data-plan-row-id]");
+  const role = button.dataset.planStaffPicker;
+  const job = state.productionPlanJobs.find(item => item.planRowId === row?.dataset.planRowId);
+  const modal = document.querySelector("#productionPlanStaffPickerModal");
+  if (!job || !PRODUCTION_PLAN_STAFF[role] || !modal) return;
+  productionPlanStaffPicker = {planRowId:job.planRowId,role,storageKey:getProductionPlanStorageKey(),query:"",filter:"all"};
+  modal.querySelector("h2").textContent = `${role === "worker" ? "인쇄" : "포장"} 작업자 선택`;
+  modal.querySelector("input").value = "";
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  renderProductionPlanStaffPicker();
+  modal.querySelector("input").focus({preventScroll:true});
+  void loadProductionPlanStaff();
+}
+
+function closeProductionPlanStaffPicker() {
+  const picker = productionPlanStaffPicker;
+  productionPlanStaffPicker = null;
+  const modal = document.querySelector("#productionPlanStaffPickerModal");
+  if (modal) modal.hidden = true;
+  if (!document.querySelector(".modal-backdrop:not([hidden])")) document.body.classList.remove("modal-open");
+  if (picker?.storageKey === getProductionPlanStorageKey()) {
+    const row = Array.from(productionPlanTableBody?.querySelectorAll("[data-plan-row-id]") || []).find(row => row.dataset.planRowId === picker.planRowId);
+    row?.querySelector(`[data-plan-staff-picker="${picker.role}"]`)?.focus({preventScroll:true});
+  }
+}
+
+function getProductionPlanStaffPickerGroups() {
+  if (!productionPlanStaffPicker || !productionPlanStaffHasRoster) return [];
+  const {query,filter} = productionPlanStaffPicker;
+  const search = query.trim().toLocaleLowerCase().replace(/\s+/g, "");
+  return ["employee", "outsourcing", "company"].filter(type => filter === "all" || filter === type).map(type => ({
+    type, label: type === "employee" ? "직원" : type === "outsourcing" ? "아웃소싱" : "타업체",
+    people: PRODUCTION_PLAN_STAFF.worker.filter(person => person.type === type && person.name.toLocaleLowerCase().replace(/\s+/g, "").includes(search))
+  })).filter(group => group.people.length);
+}
+
+function renderProductionPlanStaffPicker() {
+  if (!productionPlanStaffPicker) return;
+  const modal = document.querySelector("#productionPlanStaffPickerModal");
+  if (!modal || modal.hidden) return;
+  const picker = productionPlanStaffPicker;
+  const job = state.productionPlanJobs.find(item => item.planRowId === picker.planRowId);
+  if (!job || picker.storageKey !== getProductionPlanStorageKey()) { closeProductionPlanStaffPicker(); return; }
+  modal.querySelectorAll("[data-staff-filter]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.staffFilter === picker.filter)));
+  const groups = getProductionPlanStaffPickerGroups();
+  const count = groups.reduce((total,group) => total + group.people.length, 0);
+  modal.querySelector("[data-staff-status]").textContent = productionPlanStaffError
+    ? productionPlanStaffHasRoster ? "목록 갱신에 실패했습니다. 최근 목록을 표시합니다." : "목록을 불러오지 못했습니다. 닫은 뒤 다시 열어주세요."
+    : !productionPlanStaffHasRoster ? "직원정보를 불러오는 중입니다…"
+    : `${count}개 항목${productionPlanStaffPromise ? " · 최근 목록 표시 중, 갱신하고 있습니다…" : ""}`;
+  modal.querySelector("[data-staff-list]").innerHTML = groups.map(group => `<section class="plan-staff-group"><h3>${group.label}<span>${group.people.length}</span></h3><div class="plan-staff-grid">${group.people.map(person => `<button type="button" data-staff-name="${escapeAttribute(person.name)}" aria-pressed="${job[picker.role] === person.name}"><span>${escapeHtml(person.name)}</span>${job[picker.role] === person.name ? '<i class="ti ti-check" aria-hidden="true"></i>' : ""}</button>`).join("")}</div></section>`).join("") || (productionPlanStaffHasRoster ? '<p class="plan-staff-empty">검색 결과가 없습니다.</p>' : "");
+}
+
+function selectProductionPlanStaff(name) {
+  const picker = productionPlanStaffPicker;
+  if (!picker || picker.storageKey !== getProductionPlanStorageKey()) { closeProductionPlanStaffPicker(); return; }
+  const job = state.productionPlanJobs.find(item => item.planRowId === picker.planRowId);
+  const person = PRODUCTION_PLAN_STAFF[picker.role].find(item => item.name === name);
+  if (!job || (name && (!productionPlanStaffHasRoster || !person))) return;
+  job[picker.role] = name;
+  job[picker.role === "worker" ? "workerType" : "packagingWorkerType"] = person?.type || "";
+  renderProductionPlan();
+  closeProductionPlanStaffPicker();
+  if (productionPlanStatus) {
+    productionPlanStatus.textContent = "수정된 내용이 있습니다. 계획 저장을 눌러 반영해주세요.";
+    productionPlanStatus.dataset.type = "";
+  }
 }
 
 function getProductionPlanStaffLabel(job, role) {
@@ -3687,8 +3811,8 @@ function renderProductionPlanTable() {
       <td class="production-plan-auto production-plan-delivery"><strong>${escapeHtml(getProductionPlanDeliveryLabel(job))}</strong></td>
       <td class="production-plan-auto"><strong data-plan-target title="${escapeAttribute(job.planMessage)}">${escapeHtml(formatProductionPlanTarget(job))}</strong></td>
       <td class="production-plan-staff-cell"><div class="production-plan-staff-fields">
-        <label><span>인쇄</span><select data-plan-field="worker" aria-label="${escapeAttribute(label)} 인쇄 작업자">${renderProductionPlanStaffOptions(job,"worker")}</select></label>
-        <label><span>포장</span><select data-plan-field="packagingWorker" aria-label="${escapeAttribute(label)} 포장 작업자">${renderProductionPlanStaffOptions(job,"packagingWorker")}</select></label></div></td>
+        <label><span>인쇄</span><button type="button" class="production-plan-staff-trigger" data-plan-staff-picker="worker" aria-haspopup="dialog" aria-label="${escapeAttribute(label)} 인쇄 작업자 선택"><span>${escapeHtml(getProductionPlanStaffLabel(job,"worker"))}</span><i class="ti ti-search" aria-hidden="true"></i></button></label>
+        <label><span>포장</span><button type="button" class="production-plan-staff-trigger" data-plan-staff-picker="packagingWorker" aria-haspopup="dialog" aria-label="${escapeAttribute(label)} 포장 작업자 선택"><span>${escapeHtml(getProductionPlanStaffLabel(job,"packagingWorker"))}</span><i class="ti ti-search" aria-hidden="true"></i></button></label></div></td>
       <td class="production-plan-auto" data-plan-hours title="${escapeAttribute(job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선")}">${renderProductionPlanWorkHours(job)}</td>
       <td><div class="production-plan-note-controls"><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(label)} 특이사항" />
         <button class="production-plan-details-toggle" type="button" data-plan-details-toggle="${escapeAttribute(job.planRowId)}" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${escapeAttribute(label)} 세부사항">
@@ -3765,6 +3889,8 @@ function collapseProductionPlanDetailsOutside(event) {
 }
 
 function handleProductionPlanTableClick(event) {
+  const staffButton = event.target.closest("[data-plan-staff-picker]");
+  if (staffButton) { openProductionPlanStaffPicker(staffButton); return; }
   const detailsButton = event.target.closest("[data-plan-details-toggle]");
   if (detailsButton) {
     toggleProductionPlanDetails(detailsButton);
