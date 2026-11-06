@@ -5,6 +5,7 @@
     && Boolean(config.SUPABASE_PUBLISHABLE_KEY);
   const readActions = new Set([
     "getProductionPlanReference",
+    "getProductionPlanStaff",
     "getProducts",
     "getPurchaseOrders",
     "getTodayInbounds",
