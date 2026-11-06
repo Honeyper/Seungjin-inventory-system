@@ -88,11 +88,14 @@ const PRODUCTION_PLAN_STAFF = {
   worker: [{ name: "유순희", type: "employee", label: "직원" }],
   packagingWorker: [{ name: "수쿠마", type: "outsourcing", label: "아웃소싱" }]
 };
+let productionPlanStaffPromise = null;
+let productionPlanStaffLoadedAt = 0;
 const PRODUCTION_MACHINE_OPTIONS = {
   ...Object.fromEntries(PRODUCTION_PROCESS_ORDER.map(process => [process, Array.from({ length: process === "자동화" ? 4 : 12 }, (_, index) => `${index + 1}호기`)]))
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-06", title:"생산계획 작업자를 직원정보 시트와 연결", items:["직원정보 시트에서 활성화된 직원·아웃소싱을 인쇄·포장 작업자로 선택합니다. 타업체는 직원명 없이 업체명으로 표시해 진성을 양쪽에서 선택할 수 있습니다. 저장된 작업자와 작성 중인 계획은 유지합니다."] },
   { date:"2026-11-06", title:"DEV 환경을 운영 기준으로 동기화", items:["DEV의 제품·발주·입고·재고·출고 데이터와 전체 시트·관리자 계정을 운영 기준으로 맞췄습니다. 같은 브라우저에 저장된 운영 생산계획도 DEV 첫 접속 시 한 번 복사하며, 기존 DEV 계획은 별도로 보관합니다."] },
   { date:"2026-11-04", title:"재고 조회·자동 갱신 개선", items:["PC·모바일 공통 재고 조회에서 대용량 JSON의 중복 변환을 제거했습니다. PC 자동 갱신도 변경된 재고만 받아 합치고, 다음 접속에서 재사용할 캐시를 갱신합니다."] },
   { date:"2026-10-30", title:"모바일 박스 폐기 오류 수정", items:["박스 폐기·출고 검수 시 전체 재고 대신 해당 입고 건만 조회하도록 바꿔, 전체 조회 시간 초과로 저장하지 못하던 문제를 수정했습니다."] },
@@ -1822,6 +1825,11 @@ printProductionPlanButton?.addEventListener("click", printProductionPlan);
 window.addEventListener("afterprint", () => document.body.classList.remove("printing-production-plan"));
 productionPlanTableBody?.addEventListener("input", handleProductionPlanFieldChange);
 productionPlanTableBody?.addEventListener("change", handleProductionPlanFieldChange);
+productionPlanTableBody?.addEventListener("focusout", event => {
+  if (event.target.matches('[data-plan-field="worker"], [data-plan-field="packagingWorker"]')) {
+    window.setTimeout(refreshProductionPlanStaffControls, 0);
+  }
+});
 productionPlanTableBody?.addEventListener("click", handleProductionPlanTableClick);
 document.addEventListener("click", collapseProductionPlanDetailsOutside);
 productionPlanTableBody?.addEventListener("contextmenu", openProductionPlanRowMenu);
@@ -2758,8 +2766,12 @@ if (window.SeungjinDataGateway?.canRead("getServerUsage")) {
 window.setInterval(() => {
   if (!document.hidden) refreshInventoryConfirmationStatus();
 }, 60000);
+window.setInterval(() => {
+  if (!document.hidden && getCurrentView() === "production-plan") void loadProductionPlanStaff();
+}, 60000);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refreshInventoryConfirmationStatus();
+  if (!document.hidden && getCurrentView() === "production-plan") void loadProductionPlanStaff();
 });
 
 window.addEventListener("storage", event => {
@@ -2859,13 +2871,16 @@ function changeProductionPlanStage(job, value) {
 
 function createProductionPlanEmptyJob(stage = PRODUCTION_PLAN_DEFAULT_STAGE, process = "실크 인쇄", productId = PRODUCTION_PLAN_PRODUCT_ID) {
   const product = getProductionPlanProduct(productId);
+  const staff = getProductionPlanStaffAssignments({
+    worker: PRODUCTION_PLAN_STAFF.worker.some(person => person.name === "유순희") ? "유순희" : "", workerType: "",
+    packagingWorker: PRODUCTION_PLAN_STAFF.packagingWorker.some(person => person.name === "수쿠마") ? "수쿠마" : "", packagingWorkerType: ""
+  });
   return {
     planRowId: `plan-${crypto.randomUUID()}`, stage, stageSelectionVersion: 1, stageDrafts: {},
     stageGroup: getProductionPlanStageOptions(productId, process).find(option => option.stage === stage)?.group || [stage],
     purchaseOrderId: "", productId, productName: product?.productName || (productId === PRODUCTION_PLAN_PRODUCT_ID ? "오브제 파운데이션 외용기" : ""),
     clientName: product?.clientName || (productId === PRODUCTION_PLAN_PRODUCT_ID ? "뉴파트너스" : ""), orderRound: "",
-    process, machine: "", worker: "유순희", workerType: "employee",
-    packagingWorker: "수쿠마", packagingWorkerType: "outsourcing", note: "", targetQuantity: 0, balance: 0,
+    process, machine: "", ...staff, note: "", targetQuantity: 0, balance: 0,
     dueDate: "", hours: PRODUCTION_STANDARD_WORK_HOURS, manualProcess: true
   };
 }
@@ -2891,18 +2906,62 @@ function changeProductionPlanPrintType(job, process) {
 }
 
 function getProductionPlanStaffAssignments(job) {
-  const worker = job?.worker === "" && !Object.prototype.hasOwnProperty.call(job, "workerType") ? "유순희" : job?.worker ?? "유순희";
-  const packagingWorker = job?.packagingWorker ?? "수쿠마";
+  const defaultWorker = PRODUCTION_PLAN_STAFF.worker.some(person => person.name === "유순희") ? "유순희" : "";
+  const defaultPackaging = PRODUCTION_PLAN_STAFF.packagingWorker.some(person => person.name === "수쿠마") ? "수쿠마" : "";
+  const worker = job?.worker === "" && !Object.prototype.hasOwnProperty.call(job, "workerType") ? defaultWorker : job?.worker ?? defaultWorker;
+  const packagingWorker = job?.packagingWorker ?? defaultPackaging;
   return { worker, packagingWorker,
-    workerType: PRODUCTION_PLAN_STAFF.worker.find(person => person.name === worker)?.type || "",
-    packagingWorkerType: PRODUCTION_PLAN_STAFF.packagingWorker.find(person => person.name === packagingWorker)?.type || ""
+    workerType: PRODUCTION_PLAN_STAFF.worker.find(person => person.name === worker)?.type || job?.workerType || "",
+    packagingWorkerType: PRODUCTION_PLAN_STAFF.packagingWorker.find(person => person.name === packagingWorker)?.type || job?.packagingWorkerType || ""
   };
+}
+
+async function loadProductionPlanStaff({force = false} = {}) {
+  if (!window.SeungjinDataGateway?.canRead("getProductionPlanStaff")) return false;
+  if (productionPlanStaffPromise) return productionPlanStaffPromise;
+  if (!force && productionPlanStaffLoadedAt && Date.now() - productionPlanStaffLoadedAt < 60000) return true;
+  const pending = (async () => {
+    try {
+      const result = await requestApi("getProductionPlanStaff");
+      if (!Array.isArray(result?.staff) || result.staff.some(person => !person || typeof person.name !== "string"
+        || !person.name.trim() || !["employee", "outsourcing", "company"].includes(person.type))) {
+        throw new Error("직원 목록 응답을 확인해주세요.");
+      }
+      const seen = new Set();
+      const people = result.staff.filter(person => {
+        if (seen.has(person.name.trim())) return false;
+        seen.add(person.name.trim()); return true;
+      }).map(person => ({name:person.name.trim(),type:person.type,
+        label:person.type === "employee" ? "직원" : person.type === "outsourcing" ? "아웃소싱" : "타업체"}));
+      PRODUCTION_PLAN_STAFF.worker = people;
+      PRODUCTION_PLAN_STAFF.packagingWorker = people;
+      productionPlanStaffLoadedAt = Date.now();
+      refreshProductionPlanStaffControls();
+      return true;
+    } catch (error) {
+      console.warn("직원 목록을 갱신하지 못했습니다.", error);
+      if (force) showToast("직원 목록을 불러오지 못했습니다. 잠시 후 새로고침해주세요.");
+      return false;
+    }
+  })();
+  productionPlanStaffPromise = pending;
+  try { return await pending; }
+  finally { if (productionPlanStaffPromise === pending) productionPlanStaffPromise = null; }
+}
+
+function refreshProductionPlanStaffControls() {
+  productionPlanTableBody?.querySelectorAll('[data-plan-field="worker"], [data-plan-field="packagingWorker"]').forEach(select => {
+    if (document.activeElement === select) return;
+    const row = select.closest("[data-plan-row-id]");
+    const job = state.productionPlanJobs.find(item => item.planRowId === row?.dataset.planRowId);
+    if (job) select.innerHTML = renderProductionPlanStaffOptions(job, select.dataset.planField);
+  });
 }
 
 function getProductionPlanStaffLabel(job, role) {
   const name = job?.[role] || "";
   const person = PRODUCTION_PLAN_STAFF[role].find(person => person.name === name);
-  return person ? (person.type === "employee" ? person.name : `${person.name} (${person.label})`) : name ? `${name} (기존 입력)` : "미지정";
+  return person ? (["employee", "company"].includes(person.type) ? person.name : `${person.name} (${person.label})`) : name ? `${name} (기존 입력)` : "미지정";
 }
 
 function renderProductionPlanStaffOptions(job, role) {
@@ -4054,11 +4113,13 @@ async function syncProductionPlanOrders() {
   if (syncProductionPlanButton) syncProductionPlanButton.disabled = true;
   const currentJobs = state.productionPlanJobs.map((job) => ({ ...job }));
   try {
-    await Promise.all([loadPurchaseOrders(), ensureProductsLoaded()]);
+    const [, , staffLoaded] = await Promise.all([loadPurchaseOrders(), ensureProductsLoaded(), loadProductionPlanStaff({force:true})]);
     state.productionPlanJobs = buildProductionPlanJobs({ preserve: currentJobs });
     renderProductionPlan();
-    if (productionPlanStatus) productionPlanStatus.textContent = "발주 정보를 새로 불러왔습니다.";
-    showToast("발주 정보를 새로 불러왔습니다.");
+    const message = staffLoaded === false && window.SeungjinDataGateway?.canRead("getProductionPlanStaff")
+      ? "발주 정보를 불러왔습니다. 직원 목록은 다시 새로고침해주세요." : "발주 정보를 새로 불러왔습니다.";
+    if (productionPlanStatus) productionPlanStatus.textContent = message;
+    showToast(message);
   } finally {
     if (syncProductionPlanButton) syncProductionPlanButton.disabled = false;
   }
@@ -4247,6 +4308,7 @@ function setActiveView(view) {
 
   if (view === "production-plan" && typeof loadProductionPlanDraft === "function") {
     loadProductionPlanDraft();
+    void loadProductionPlanStaff();
   }
 
   if (view === "shipping") {

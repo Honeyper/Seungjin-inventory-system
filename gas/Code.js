@@ -162,6 +162,7 @@ function getApiRoutes_() {
     login,
     setupSheets,
     getProductionPlanReference,
+    getProductionPlanStaff,
     getProducts: getProductsCached_,
     getPurchaseOrders: getPurchaseOrdersCached_,
     getTodayInbounds: getTodayInboundsCached_,

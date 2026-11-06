@@ -975,9 +975,9 @@ async function handleRequest(request: Request) {
     });
   }
 
-  if (action === "getProductionPlanReference") {
+  if (action === "getProductionPlanReference" || action === "getProductionPlanStaff") {
     const token = await createSheetSyncToken("apps_script", 60 * 1000);
-    return jsonResponse(request, { ok: true, data: await fetchAppsScript("getProductionPlanReference", { token }) });
+    return jsonResponse(request, { ok: true, data: await fetchAppsScript(action, { token }) });
   }
 
   if (action === "getSheetBackupNotifications") {
