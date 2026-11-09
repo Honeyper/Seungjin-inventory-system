@@ -2,6 +2,7 @@ import { savedRegistrationRecord } from "./registration-result.js";
 import { readInventoryDelta } from "./inventory-incremental.js";
 import { compactInventoryDashboard, createJsonResponse } from "./inventory-transport.js";
 import { createInventoryReadCache } from "./inventory-read-cache.js";
+import { createProductionPlanStaffReader } from "./production-plan-staff-cache.js";
 import { compactMobileDashboard } from "./state-engine.js";
 import { commonContainerInfo } from "./common-container-shipping.js";
 import { readRequestBody, publicError } from "./request-errors.js";
@@ -34,8 +35,34 @@ const APPS_SCRIPT_URL = APPS_SCRIPT_URLS[PROJECT_REF] || "";
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_CACHE_TTL_MS = 60 * 1000;
 const readInventorySnapshotCached = createInventoryReadCache();
-// Access remains behind the session checks; coalesce repeated reads of the shared staff sheet.
-const readProductionPlanStaffCached = createInventoryReadCache({maxAgeMs:60 * 1000});
+const readProductionPlanStaff = createProductionPlanStaffReader({
+  loadSnapshot: async () => (await databaseRows("production_plan_staff_cache?id=eq.staff&select=payload,fetched_at&limit=1"))[0] || null,
+  claimRefresh: async () => {
+    const started = new Date().toISOString();
+    const cutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const condition = encodeURIComponent(`(refresh_started_at.is.null,refresh_started_at.lt.${cutoff})`);
+    const rows = await databaseRequest(`production_plan_staff_cache?id=eq.staff&or=${condition}&select=refresh_started_at`, {
+      method:"PATCH",headers:{Prefer:"return=representation"},body:JSON.stringify({refresh_started_at:started})
+    }) as JsonRecord[];
+    return rows?.[0]?.refresh_started_at ? String(rows[0].refresh_started_at) : null;
+  },
+  saveSnapshot: async (row: JsonRecord, lease: string) => {
+    const rows = await databaseRequest(`production_plan_staff_cache?id=eq.staff&refresh_started_at=eq.${encodeURIComponent(lease)}&select=fetched_at`, {
+      method:"PATCH",headers:{Prefer:"return=representation"},
+      body:JSON.stringify({payload:row.payload,fetched_at:row.fetched_at,refresh_started_at:null})
+    }) as JsonRecord[];
+    return Boolean(rows?.length);
+  },
+  fetchSource: async () => {
+    const token = await createSheetSyncToken("apps_script",60 * 1000);
+    return await fetchAppsScript("getProductionPlanStaff",{token},25000);
+  },
+  runInBackground: (pending: Promise<unknown>) => {
+    const runtime = (globalThis as typeof globalThis & {EdgeRuntime?: {waitUntil?: (promise:Promise<unknown>) => void}}).EdgeRuntime;
+    if (runtime?.waitUntil) runtime.waitUntil(pending);
+  },
+  onError: (error: unknown) => console.error("Staff sheet refresh failed:",error instanceof Error ? error.message : String(error))
+});
 const FREE_DATABASE_LIMIT_BYTES = 500 * 1024 * 1024;
 const ALLOWED_ORIGINS = new Set([
   "https://honeyper.github.io",
@@ -723,14 +750,15 @@ async function readSession(request: Request) {
   return session;
 }
 
-async function fetchAppsScript(action: string, payload: JsonRecord) {
+async function fetchAppsScript(action: string, payload: JsonRecord, timeoutMs = 0) {
   if (!APPS_SCRIPT_URL) {
     throw new Error(`지원하지 않는 Supabase 프로젝트입니다: ${PROJECT_REF || "unknown"}`);
   }
 
   const response = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
-    body: JSON.stringify({ action, payload })
+    body: JSON.stringify({ action, payload }),
+    ...(timeoutMs ? {signal:AbortSignal.timeout(timeoutMs)} : {})
   });
   const result = await response.json() as { ok?: boolean; data?: JsonRecord; message?: string };
   if (!response.ok || !result.ok) {
@@ -977,13 +1005,13 @@ async function handleRequest(request: Request) {
     });
   }
 
-  if (action === "getProductionPlanReference" || action === "getProductionPlanStaff") {
-    const read = async () => {
-      const token = await createSheetSyncToken("apps_script", 60 * 1000);
-      return await fetchAppsScript(action, { token });
-    };
-    const data = action === "getProductionPlanStaff" ? await readProductionPlanStaffCached("staff-sheet", read) : await read();
-    return jsonResponse(request, { ok: true, data });
+  if (action === "getProductionPlanStaff") {
+    // Always authenticate first, including when returning an existing staff snapshot.
+    return jsonResponse(request, {ok:true,data:await readProductionPlanStaff()});
+  }
+  if (action === "getProductionPlanReference") {
+    const token = await createSheetSyncToken("apps_script",60 * 1000);
+    return jsonResponse(request, {ok:true,data:await fetchAppsScript(action,{token})});
   }
 
   if (action === "getSheetBackupNotifications") {
