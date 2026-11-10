@@ -5,16 +5,17 @@ import vm from 'node:vm';
 import {buildProductionRateBackfill} from '../tools/production-rate-defaults.mjs';
 import {applyMutation} from '../supabase/functions/seungjin-dev-gateway/state-engine.js';
 const product=(id,methods,extra={})=>({productCode:id,finalProcess:`${methods.length}도`,...Object.fromEntries(methods.map((m,i)=>[`processStage${i+1}`,m])),...extra});
-test('8시간 기준을 수동 1·2도, 자동, 박 1·2·3도별로 환산하고 기존 값은 보존한다',()=>{
+test('8시간 기준을 수동 1·2·3도, 자동, 박 1·2·3도별로 환산하고 기존 값은 보존한다',()=>{
  const rows=[product('S',['실크','실크','실크']),product('F',['박','박','박']),product('M',['박','실크']),product('GROUP',['실크','실크'],{processGroups:[[1,2]]}),
  product('OLD',['실크'],{processHourlyProductionRates:{'1도':999}}),product('LEGACY',['실크'],{hourlyProductionRate:1200}),product('UNKNOWN',['']),{productCode:'COATING',finalProcess:'코팅'}];
  const before=structuredClone(rows),p=buildProductionRateBackfill(rows);assert.deepEqual(rows,before);
  const find=id=>p.items.find(i=>i.productId===id).patch;
- assert.deepEqual(find('S'),{processHourlyProductionRates:{'1도':1250,'2도':812.5},automaticHourlyProductionRate:2250});
+ assert.deepEqual(find('S'),{processHourlyProductionRates:{'1도':1250,'2도':812.5,'3도':812.5},automaticHourlyProductionRate:2250});
  assert.deepEqual(find('F'),{processHourlyProductionRates:{'1도':700,'2도':700,'3도':700}});
  assert.deepEqual(find('M'),{processHourlyProductionRates:{'1도':700,'2도':812.5},automaticHourlyProductionRate:2250});
  assert.deepEqual(find('GROUP').processHourlyProductionRates,{'1도+2도':812.5});
- assert.deepEqual(p.existing,['OLD','LEGACY']);assert.ok(p.exceptions.some(e=>e.productId==='S'&&e.process==='3도'));
+ assert.deepEqual(p.existing,['OLD','LEGACY']);assert.equal(p.exceptions.some(e=>e.productId==='S'),false);
+ assert.ok(buildProductionRateBackfill([product('FOUR',['실크','실크','실크','실크'])]).exceptions.some(e=>e.process==='4도'));
  assert.equal(p.items.some(i=>i.productId==='UNKNOWN'||i.productId==='COATING'),false);
  assert.equal(buildProductionRateBackfill(p.items.map(i=>({...rows.find(r=>r.productCode===i.productId),...i.patch}))).items.length,0);
 });

@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-10", title:"신규 제품 생산량 자동 입력", items:["신규·복사 등록에서 선택한 박·실크 공정에 맞춰 시간당 생산량을 자동 입력합니다. 수동 실크 1도 1,250개·2·3도 812.5개, 박 1·2·3도 700개, 자동 인쇄 2,250개를 적용하며 직접 수정한 값과 기존 제품 수정 값은 유지합니다."] },
   { date:"2026-11-10", title:"다음 날 생산계획 추가 행 유지", items:["새 날짜에 별도 저장된 계획이 없으면 이전 계획의 진행 중인 모든 행을 순서대로 이어받습니다. 기계·공정·담당자를 유지하고 당일 실적은 비웁니다. 날짜·공장을 오갈 때 작성 중인 계획도 보존합니다."] },
   { date:"2026-11-10", title:"수동·자동 생산량 구분", items:["자동 인쇄 시간당 생산량을 별도로 저장하며, 생산계획에서 자동화로 선택한 실크 공정에 적용합니다. 기존 공정별 생산량과 박 공정 생산량을 유지합니다."] },
   { date:"2026-11-10", title:"박 공정 작업자 한 명으로 통합", items:["박 공정은 작업자를 한 번만 선택하며 같은 사람이 인쇄와 포장을 담당하도록 저장합니다. 실크·자동화의 인쇄·포장 선택은 유지합니다."] },
@@ -2380,6 +2381,17 @@ inboundSummaryProductVisual?.addEventListener("click", () => {
     inboundProductName?.value || "선택한 제품"
   );
 });
+document.querySelector("#productProcessHourlyRates")?.addEventListener("input", event => {
+  const field = event.target.closest("[data-process-hourly-rate]");
+  if (!field) return;
+  state.productRateManualEdits ||= new Set();
+  state.productRateManualEdits.add(field.dataset.processHourlyRate);
+  productProcessRateDraft[field.dataset.processHourlyRate] = field.value;
+});
+document.querySelector("#productAutomaticHourlyProductionRate")?.addEventListener("input", () => {
+  state.productAutomaticRateManuallyEdited = true;
+});
+
 productProcessType?.addEventListener("change", () => {
   productFinalProcess.dataset.legacyFinalProcess = "";
   syncProductProcessFields();
@@ -14804,15 +14816,45 @@ function readProductProcessHourlyRates() {
 function renderProductProcessHourlyRates() {
   const container = document.querySelector("#productProcessHourlyRates");
   if (!container) return;
+  state.productRateManualEdits ||= new Set();
+  state.productRateAutoDefaults ||= {};
   container.querySelectorAll("[data-process-hourly-rate]").forEach(input => {
-    productProcessRateDraft[input.dataset.processHourlyRate] = input.value;
+    const key = input.dataset.processHourlyRate;
+    if (state.productRateAutoDefaults[key] !== undefined && input.value !== String(state.productRateAutoDefaults[key])) state.productRateManualEdits.add(key);
+    productProcessRateDraft[key] = input.value;
   });
   const single = {coating: "코팅", label: "라벨"}[productProcessType.value];
-  const keys = single ? [single] : getProductProcessFormGroups().map(group => group.map(step => `${step}도`).join("+"));
+  const groups = getProductProcessFormGroups();
+  const keys = single ? [single] : groups.map(group => group.map(step => `${step}도`).join("+"));
+  const methods = getProductProcessStageControls().map(control => normalizeProductProcessMethod(control.value));
+  const defaults = Object.fromEntries(groups.map(group => {
+    const kind = group.map(step => methods[step - 1]), degree = group[group.length - 1];
+    const rate = kind.every(method => method === "박") && degree <= 3 ? 700
+      : kind.every(method => method === "실크") ? ({1:1250,2:812.5,3:812.5}[degree] ?? null) : null;
+    return [group.map(step => `${step}도`).join("+"),rate];
+  }));
+  const isRegistration = state.productFormMode !== "edit";
+  if (isRegistration) {
+    for (const key of keys) {
+      if (state.productRateManualEdits.has(key)) continue;
+      const priorAuto = state.productRateAutoDefaults[key] !== undefined;
+      if (priorAuto || productProcessRateDraft[key] === undefined || productProcessRateDraft[key] === null || productProcessRateDraft[key] === "") {
+        productProcessRateDraft[key] = defaults[key] ?? "";
+        if (defaults[key] !== null && defaults[key] !== undefined) state.productRateAutoDefaults[key] = defaults[key];
+        else delete state.productRateAutoDefaults[key];
+      }
+    }
+    const automaticInput = document.querySelector("#productAutomaticHourlyProductionRate");
+    if (automaticInput && !state.productAutomaticRateManuallyEdited && (!automaticInput.value || state.productAutomaticRateWasDefault)) {
+      const enabled = !single && methods.includes("실크");
+      automaticInput.value = enabled ? "2250" : "";
+      state.productAutomaticRateWasDefault = enabled;
+    }
+  }
   container.innerHTML = keys.map(key => `<label class="form-field">
     <span>${escapeHtml(key)}</span><span class="unit-input">
     <input type="number" min="0.01" step="any" data-process-hourly-rate="${escapeHtml(key)}"
-      aria-label="${escapeHtml(key)} 시간당 생산량" placeholder="예: 1200"
+      aria-label="${escapeHtml(key)} 시간당 생산량" placeholder="${isRegistration && !single && defaults[key] == null ? "기준 미설정 · 직접 입력" : "숫자를 입력하세요."}"
       value="${escapeHtml(String(productProcessRateDraft[key] ?? ""))}" ${state.isSavingProduct ? "disabled" : ""} />
     <i>개/시간</i></span></label>`).join("");
 }
@@ -14824,6 +14866,10 @@ function renderProductProcessRateDetails(product) {
 
 function setProductProcessForm(product = null) {
   productProcessRateDraft = {...(product?.processHourlyProductionRates || {})};
+  state.productRateAutoDefaults = {};
+  state.productRateManualEdits = new Set();
+  state.productAutomaticRateManuallyEdited = false;
+  state.productAutomaticRateWasDefault = false;
   const automaticInput = document.querySelector("#productAutomaticHourlyProductionRate");
   if (automaticInput) automaticInput.value = product?.automaticHourlyProductionRate ?? "";
   document.querySelector("#productProcessHourlyRates").replaceChildren();

@@ -14,9 +14,9 @@ export function buildProductionRateBackfill(rows){
   for(const group of groups){const key=group.map(n=>`${n}도`).join('+'),degree=group.at(-1),kind=group.map(n=>normalized[n-1]);
    const allFoil=kind.every(m=>m==='박'),allSilk=kind.every(m=>m==='실크');
    silk ||= allSilk;
-   const value=allFoil&&degree<=3?700:allSilk&&degree===1?1250:allSilk&&degree===2?812.5:null;
+   const value=allFoil&&degree<=3?700:allSilk&&degree===1?1250:allSilk&&[2,3].includes(degree)?812.5:null;
    if(value!==null){rates[key]=value;changed=true;}
-   else exceptions.push({productId:id,process:key,reason:allSilk?'수동 3·4도 기준 미제공':'공정 구분 미지정'});
+   else exceptions.push({productId:id,process:key,reason:allSilk?'수동 4도 이상 기준 미제공':'공정 구분 미지정'});
   }
   const patch={};if(changed)patch.processHourlyProductionRates=rates;if(silk)patch.automaticHourlyProductionRate=2250;
   if(groups.length===1&&number(rates[groups[0].map(n=>`${n}도`).join('+')]))patch.hourlyProductionRate=rates[groups[0].map(n=>`${n}도`).join('+')];

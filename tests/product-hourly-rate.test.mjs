@@ -81,5 +81,5 @@ test('editor keeps separate drafts per process group and resets them for another
  assert.equal(inputs.length,1);assert.equal(inputs[0].value,'');inputs[0].value='900';
  c.productProcessJoins[0].checked=false;c.syncProductProcessFields();assert.equal(inputs[0].value,'1500');
  c.productProcessJoins[0].checked=true;c.syncProductProcessFields();assert.equal(inputs[0].value,'900');
- c.setProductProcessForm({...product,processHourlyProductionRates:{}});assert.ok(inputs.every(i=>i.value===''));
+ c.setProductProcessForm({...product,processHourlyProductionRates:{}});assert.equal(JSON.stringify(c.readProductProcessHourlyRates()),JSON.stringify({'1도':1250,'2도':700}));
 });
