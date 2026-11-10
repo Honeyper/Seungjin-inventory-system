@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {adminSource,loadFunctions} from './helpers/frontend-runtime.mjs';
 const plain=value=>JSON.parse(JSON.stringify(value));
 
-test('생산계획 제품 선택에는 수정 버튼을 표시하고 기존 공정 필터와 선택 버튼을 유지한다',()=>{
+test('생산계획 제품 선택에는 공정 제한 없이 모든 제품과 수정 버튼을 표시한다',()=>{
  const list={innerHTML:'',querySelectorAll:()=>[]};
  const c=loadFunctions(adminSource,['renderInboundProductPicker'],{
   state:{inboundProductPickerTarget:'productionPlan',inboundProductPickerQuery:'오브제',products:[
@@ -14,7 +14,7 @@ test('생산계획 제품 선택에는 수정 버튼을 표시하고 기존 공�
   inboundProductPickerCount:{},inboundProductPickerList:list,inboundProductPickerEmpty:{}
  });
  c.renderInboundProductPicker();assert.match(list.innerHTML,/data-edit-picker-product="NP-0001"/);
- assert.match(list.innerHTML,/data-product="NP-0001"/);assert.doesNotMatch(list.innerHTML,/FOIL|data-copy-picker-product/);
+ assert.match(list.innerHTML,/data-product="NP-0001"/);assert.match(list.innerHTML,/data-product="FOIL"/);assert.doesNotMatch(list.innerHTML,/data-copy-picker-product/);
 });
 
 test('수정 버튼은 기존 제품 수정창만 열고 검색·정렬·스크롤 복귀 정보를 보관한다',()=>{
@@ -42,9 +42,11 @@ test('복귀 시 검색어·정렬·목록 스크롤을 복원하며 새로 열 
   document:{querySelector:()=>title,body:{classList:{add(){}}}},window:{setTimeout(){}}
  });
  c.openInboundProductPicker('productionPlan',{restore:{query:'오브제',searchText:'오브제',sort:'name',direction:'asc',scrollTop:240}});
+ assert.equal(title.nextElementSibling.hidden,true);assert.equal(title.nextElementSibling.textContent,'');
  assert.equal(c.state.inboundProductPickerQuery,'오브제');assert.equal(c.inboundProductPickerSearch.value,'오브제');
  assert.equal(c.inboundProductPickerSort.value,'name');assert.equal(c.inboundProductPickerSortDirection.value,'asc');assert.equal(c.inboundProductPickerList.scrollTop,240);assert.equal(resets,0);
  c.openInboundProductPicker('productionPlan');assert.equal(c.state.inboundProductPickerQuery,'');assert.equal(resets,1);
+ c.openInboundProductPicker('inbound');assert.equal(title.nextElementSibling.hidden,false);assert.match(title.nextElementSibling.textContent,/입고할 제품/);
 });
 
 test('제품 수정 저장은 기존 제품 ID를 갱신하고 생산계획을 보존한 뒤 선택 목록으로 복귀한다',async()=>{
