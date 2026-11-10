@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-10", title:"다음 날 생산계획 추가 행 유지", items:["새 날짜에 별도 저장된 계획이 없으면 이전 계획의 진행 중인 모든 행을 순서대로 이어받습니다. 기계·공정·담당자를 유지하고 당일 실적은 비웁니다. 날짜·공장을 오갈 때 작성 중인 계획도 보존합니다."] },
   { date:"2026-11-10", title:"수동·자동 생산량 구분", items:["자동 인쇄 시간당 생산량을 별도로 저장하며, 생산계획에서 자동화로 선택한 실크 공정에 적용합니다. 기존 공정별 생산량과 박 공정 생산량을 유지합니다."] },
   { date:"2026-11-10", title:"박 공정 작업자 한 명으로 통합", items:["박 공정은 작업자를 한 번만 선택하며 같은 사람이 인쇄와 포장을 담당하도록 저장합니다. 실크·자동화의 인쇄·포장 선택은 유지합니다."] },
   { date:"2026-11-10", title:"생산계획 제품 선택 제한 제거", items:["제품 선택창의 공정 제한 안내문을 제거하고 등록된 모든 제품을 검색·선택할 수 있도록 했습니다. 인쇄 유형과 관계없이 등록 공정을 선택하며, 연결할 발주가 없는 제품도 제품 선택 상태로 저장할 수 있습니다."] },
@@ -1821,6 +1822,7 @@ productionPlanDate?.addEventListener("change", () => {
   setProductionPlanDate(productionPlanDate.value);
 });
 productionPlanFactory?.addEventListener("change", () => {
+  cacheProductionPlanNavigationDraft();
   state.productionPlanFactory = productionPlanFactory.value || "1공장";
   loadProductionPlanDraft();
 });
@@ -3075,6 +3077,7 @@ function selectProductionPlanStaff(name) {
   const job = state.productionPlanJobs.find(item => item.planRowId === picker.planRowId);
   const person = PRODUCTION_PLAN_STAFF[picker.role].find(item => item.name === name);
   if (!job || (name && (!productionPlanStaffHasRoster || !person))) return;
+  state.productionPlanDirty = true;
   job[picker.role] = name;
   job[picker.role === "worker" ? "workerType" : "packagingWorkerType"] = person?.type || "";
   if (job.process === "박 인쇄") Object.assign(job,{worker:name,packagingWorker:name,workerType:person?.type || "",packagingWorkerType:person?.type || ""});
@@ -3163,7 +3166,7 @@ function isProductionPlanWithinDeadline(record, job) {
 }
 
 function ensureProductionPlanRows(jobs) {
-  if (!jobs.length && state.productionPlanExplicitRows === getProductionPlanStorageKey()) return [];
+  if (!jobs.length && (state.productionPlanExplicitRows === getProductionPlanStorageKey() || state.productionPlanAutoEmptyKey === getProductionPlanStorageKey())) return [];
   // Explicit rows stay separate; older plans also contain inactive order/stage drafts.
   const rows = jobs.filter(job => job.planRowVersion === 1);
   if (!rows.length) return normalizeProductionPlanRows(jobs);
@@ -3442,9 +3445,71 @@ function inheritProductionPlanSetup(jobs) {
   });
 }
 
+function cacheProductionPlanNavigationDraft() {
+  const key = getProductionPlanStorageKey();
+  if (state.productionPlanLoadedKey !== key || !Array.isArray(state.productionPlanJobs)) return;
+  if (!state.productionPlanDirty) {state.productionPlanNavigationDrafts?.delete(key);return;}
+  if (!state.productionPlanNavigationDrafts) state.productionPlanNavigationDrafts = new Map();
+  state.productionPlanNavigationDrafts.set(key, {date:state.productionPlanDate,factory:state.productionPlanFactory,
+    rowSelectionVersion:1,deletedRowKeys:[...(state.productionPlanDeletedRowKeys || [])],
+    jobs:JSON.parse(JSON.stringify(getProductionPlanJobsForSave()))});
+}
+
+function getProductionPlanCarryoverRows() {
+  const snapshots = new Map();
+  for (const snapshot of [...(readProductionPlanActualLedger() || []), ...(state.productionPlanNavigationDrafts?.values() || [])]) {
+    if (snapshot.factory !== state.productionPlanFactory || snapshot.date >= state.productionPlanDate
+      || !(snapshot.rowSelectionVersion === 1 || snapshot.jobs.some(job => job?.planRowVersion === 1))) continue;
+    snapshots.set(snapshot.date,snapshot);
+  }
+  const source = [...snapshots.values()].sort((a,b) => b.date.localeCompare(a.date))[0];
+  if (!source) return null;
+  const rows = source.jobs.filter(job => job?.planRowVersion === 1);
+  if (!rows.length) {state.productionPlanExplicitRows = getProductionPlanStorageKey();return [];}
+  const open = new Map(getProductionPlanOpenOrders().map(order => [order.purchaseOrderId,order]));
+  const occupied = new Set(rows.map(job => JSON.stringify([job.purchaseOrderId,job.process,job.stage])));
+  return rows.flatMap(previous => {
+    const productId = previous.productId || state.purchaseOrders.find(order => order.purchaseOrderId === previous.purchaseOrderId)?.productId || "";
+    if (productId && !getProductionPlanProduct(productId)) return [];
+    const process = PRODUCTION_PROCESS_ORDER.includes(previous.process) ? previous.process : "실크 인쇄";
+    const options = getProductionPlanStageOptions(productId,process);
+    const stage = options.find(option => option.stage === Number(previous.stage))?.stage || options[0]?.stage || 1;
+    const next = {...createProductionPlanEmptyJob(stage,process,productId),
+      planRowId:previous.planRowId || `plan-${crypto.randomUUID()}`,planRowVersion:1,
+      ...getProductionPlanStaffAssignments({...previous,process}),
+      machine:(PRODUCTION_MACHINE_OPTIONS[process] || []).includes(previous.machine) ? previous.machine : ""};
+    if (previous.purchaseOrderId) {
+      const sequence = getProductionPlanSequenceOrders({...previous,process});
+      const round = Number(String(state.purchaseOrders.find(order => order.purchaseOrderId === previous.purchaseOrderId)?.orderRound || "").match(/(\d+)\s*차/)?.[1]);
+      const candidates = [...new Set([previous.purchaseOrderId,...(previous.shiftParts || []).map(part=>part.purchaseOrderId),
+        ...sequence.filter(item=>Number(String(item.orderRound || "").match(/(\d+)\s*차/)?.[1]) > round).map(item=>item.purchaseOrderId)])];
+      const order = candidates.map(id => open.get(id)).find(order => {
+        if (!order || order.productId !== productId || !isProductionPlanWithinDeadline(order,next)) return false;
+        if (order.purchaseOrderId !== previous.purchaseOrderId && occupied.has(JSON.stringify([order.purchaseOrderId,process,stage]))) return false;
+        const completed = getProductionPlanCumulativeActual({...next,purchaseOrderId:order.purchaseOrderId},"actualProduction",{beforeDateOnly:true});
+        return completed === null || completed < Number(order.totalOrderQuantity);
+      });
+      if (!order || !changeProductionPlanOrder(next,order.purchaseOrderId)) return [];
+      occupied.add(JSON.stringify([order.purchaseOrderId,process,stage]));
+    }
+    for (const [key,draft] of Object.entries(previous.stageDrafts || {})) {
+      const option = options.find(item => item.stage === Number(key));
+      if (!option || !draft) continue;
+      next.stageDrafts[key] = {stageGroup:[...option.group],...getProductionPlanStaffAssignments({...draft,process}),
+        machine:(PRODUCTION_MACHINE_OPTIONS[process] || []).includes(draft.machine) ? draft.machine : ""};
+    }
+    return [next];
+  });
+}
+
 function buildProductionPlanJobs({ preserve = [] } = {}) {
   if (!preserve.length && state.productionPlanExplicitRows === getProductionPlanStorageKey()) return [];
   if (preserve.length) return updateProductionPlanTargets(ensureProductionPlanRows(excludeUnassignedProductionPlanHistory(preserve)));
+  const carried = getProductionPlanCarryoverRows();
+  if (carried !== null) {
+    if (!carried.length && state.productionPlanExplicitRows !== getProductionPlanStorageKey()) state.productionPlanAutoEmptyKey = getProductionPlanStorageKey();
+    return updateProductionPlanTargets(ensureProductionPlanRows(excludeUnassignedProductionPlanHistory(carried)));
+  }
   const process = PRODUCTION_PROCESS_ORDER.includes(preserve[0]?.process) ? preserve[0].process : "실크 인쇄";
   const orders = getProductionPlanOpenOrders().filter(order => isProductionPlanProductAllowed(getProductionPlanProduct(order.productId), process));
   const previousOrderId = (readProductionPlanActualLedger() || [])
@@ -3478,7 +3543,13 @@ function loadProductionPlanDraft({preserveDetails = false} = {}) {
   invalidateProductionPlanActualLedger();
   closeProductionPlanRowMenu();
   state.productionPlanDeletedRowKeys = new Set();
-  const snapshot = readProductionPlanSnapshot();
+  state.productionPlanAutoEmptyKey = "";
+  const navigationDraft = state.productionPlanNavigationDrafts?.get(getProductionPlanStorageKey());
+  const snapshot = navigationDraft || readProductionPlanSnapshot();
+  if (navigationDraft) {
+    state.productionPlanDeletedRowKeys = new Set(navigationDraft.deletedRowKeys || []);
+    state.productionPlanOrderDraftCache = {key:getProductionPlanStorageKey(),jobs:navigationDraft.jobs.filter(job => job.planRowVersion !== 1)};
+  }
   const savedJobs = snapshot?.jobs || null;
   state.productionPlanExplicitRows = snapshot?.rowSelectionVersion === 1 ? getProductionPlanStorageKey() : "";
   const visibleJobs = state.productionPlanExplicitRows ? savedJobs.filter(job => job.planRowVersion === 1) : savedJobs;
@@ -3487,10 +3558,13 @@ function loadProductionPlanDraft({preserveDetails = false} = {}) {
   if (!state.productionPlanJobs.some((job) => job.planRowId === state.productionPlanSelectedJobId)) {
     state.productionPlanSelectedJobId = getProductionPlanActiveJobs()[0]?.planRowId || "";
   }
+  state.productionPlanLoadedKey = getProductionPlanStorageKey();
+  state.productionPlanDirty = Boolean(navigationDraft);
   renderProductionPlan();
   if (productionPlanStatus) {
-    productionPlanStatus.textContent = savedJobs
-      ? "저장된 계획을 불러왔습니다."
+    productionPlanStatus.textContent = navigationDraft
+      ? "작성 중이던 계획을 불러왔습니다."
+      : savedJobs ? "저장된 계획을 불러왔습니다."
       : state.purchaseOrdersLoaded
         ? ""
         : "발주 정보를 불러오는 중입니다.";
@@ -3499,6 +3573,7 @@ function loadProductionPlanDraft({preserveDetails = false} = {}) {
 }
 
 function setProductionPlanDate(value) {
+  cacheProductionPlanNavigationDraft();
   state.productionPlanDate = value || getLocalDateInputValue();
   if (productionPlanDate) productionPlanDate.value = state.productionPlanDate;
   loadProductionPlanDraft({preserveDetails:true});
@@ -3649,7 +3724,7 @@ function readProductionPlanActualLedger() {
       let saved;
       try { saved = JSON.parse(serialized); } catch (error) { continue; }
       if (!Array.isArray(saved?.jobs)) continue;
-      snapshots.set(slot, {factory, date, priority: matched.priority, jobs: saved.jobs});
+      snapshots.set(slot, {factory, date, priority: matched.priority, rowSelectionVersion:saved.rowSelectionVersion, jobs: saved.jobs});
     }
     productionPlanActualLedgerCache = [...snapshots.values()];
     return productionPlanActualLedgerCache;
@@ -3957,6 +4032,7 @@ function copyProductionPlanRow(planRowId) {
   copy.stageDrafts = {};
   ["actualProduction", "actualWorkHours", "cumulativeProduction", "cumulativeHours", "workDays", "productionReferenceId"].forEach(key => delete copy[key]);
   state.productionPlanJobs.forEach(job => { job.planRowVersion = 1; });
+  state.productionPlanDirty = true;
   state.productionPlanJobs.splice(index + 1, 0, copy);
   state.productionPlanSelectedJobId = copy.planRowId;
   renderProductionPlan();
@@ -3970,6 +4046,7 @@ function copyProductionPlanRow(planRowId) {
 function deleteProductionPlanRow(planRowId) {
   const index = state.productionPlanJobs.findIndex(job => job.planRowId === planRowId);
   if (index < 0) return false;
+  state.productionPlanDirty = true;
   const [job] = state.productionPlanJobs.splice(index, 1);
   state.productionPlanDeletedRowKeys ||= new Set();
   state.productionPlanDeletedRowKeys.add(getProductionPlanRowDraftKey(job));
@@ -4046,6 +4123,7 @@ function moveProductionPlanRow(sourceId, targetId, placement = "before") {
   const targetIndex = jobs.findIndex(item => item.planRowId === targetId);
   jobs.splice(targetIndex + (placement === "after" ? 1 : 0), 0, job);
   if (jobs.every((item, index) => item === state.productionPlanJobs[index])) return false;
+  state.productionPlanDirty = true;
   state.productionPlanJobs = jobs;
   jobs.forEach(item => { item.planRowVersion = 1; });
   state.productionPlanSelectedJobId = sourceId;
@@ -4144,6 +4222,7 @@ function addProductionPlanRow() {
   state.productionPlanJobs.forEach(job => { job.planRowVersion = 1; });
   const job = {...createProductionPlanEmptyJob(1, "실크 인쇄", ""), planRowVersion: 1,
     worker: "", workerType: "", packagingWorker: "", packagingWorkerType: ""};
+  state.productionPlanDirty = true;
   state.productionPlanJobs.push(job);
   state.productionPlanSelectedJobId = job.planRowId;
   renderProductionPlan();
@@ -4199,6 +4278,7 @@ function handleProductionPlanFieldChange(event) {
     job[key] = field.value;
     Object.assign(job, getProductionPlanStaffAssignments(job));
   } else job[key] = field.value;
+  state.productionPlanDirty = true;
   // Keep the clicked product button in place when a text input loses focus.
   if (event.type === "change" && ["purchaseOrderId", "process", "stage", "machine", "worker", "packagingWorker"].includes(key)) renderProductionPlan();
   renderProductionPlanSummary();
@@ -4226,6 +4306,7 @@ function selectProductionPlanProduct(product) {
   }
   const productId = String(product?.productCode || product?.productId || "").trim();
   if (!productId) return;
+  state.productionPlanDirty = true;
   const matchingOrders = getProductionPlanOpenOrders(job.process).filter(order => String(order.productId || "").trim() === productId);
   const currentOrder = matchingOrders.find(order => order.purchaseOrderId === job.purchaseOrderId);
   const unusedOrder = matchingOrders.find(order => !state.productionPlanJobs.some(item => item !== job && item.purchaseOrderId === order.purchaseOrderId));
@@ -4302,6 +4383,8 @@ function saveProductionPlanDraft() {
       localStorage.setItem(key, serialized);
     }
     if (localStorage.getItem(key) !== serialized) throw new Error("PlanStorageVerificationError");
+    state.productionPlanDirty = false;
+    state.productionPlanNavigationDrafts?.delete(key);
     invalidateProductionPlanActualLedger();
     if (productionPlanStatus) {
       productionPlanStatus.textContent = `${state.productionPlanDate} ${state.productionPlanFactory} 생산계획을 저장했습니다.`;
