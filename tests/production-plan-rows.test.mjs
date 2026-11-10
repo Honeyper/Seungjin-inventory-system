@@ -106,7 +106,7 @@ test('자동화 기계는 1~4호기만 허용하며 자동 배정 없이 선택�
  c.state.productionPlanJobs[0].machine='4호기';c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].machine,'4호기');
 });
 
-test('발주 완료·취소와 유형이 맞지 않는 제품은 계획에 연결하지 않는다',()=>{
+test('발주 완료·취소 건은 계획 발주에 연결하지 않는다',()=>{
  const c=setup();for(const status of ['취소','임의 완료','발주완료']) {c.state.purchaseOrders=[{...order,status}];assert.equal(c.getProductionPlanOpenOrders().length,0);}
 });
 
@@ -122,30 +122,28 @@ function addPrintProducts(c) {
  return products;
 }
 
-test('박은 박 공정 제품만, 실크·자동화는 박 공정이 없는 인쇄 제품만 허용한다',()=>{
- const c=setup();const [foil,silk,mixed,coating]=addPrintProducts(c);
- for(const process of ['실크 인쇄','자동화']) {
-  assert.equal(c.isProductionPlanProductAllowed(foil,process),false);
-  assert.equal(c.isProductionPlanProductAllowed(mixed,process),false);
-  assert.equal(c.isProductionPlanProductAllowed(silk,process),true);
-  assert.equal(c.isProductionPlanProductAllowed(coating,process),false);
+test('박·실크·자동화 모두 공정 종류와 관계없이 등록 제품을 허용한다',()=>{
+ const c=setup();const products=addPrintProducts(c);
+ for(const process of ['박 인쇄','실크 인쇄','자동화']) for(const product of products) {
+  assert.equal(c.isProductionPlanProductAllowed(product,process),true);
+  assert.ok(c.getProductionPlanOpenOrders(process).some(order=>order.productId===product.productCode));
  }
- assert.equal(c.isProductionPlanProductAllowed(foil,'박 인쇄'),true);
- assert.equal(c.isProductionPlanProductAllowed(mixed,'박 인쇄'),true);
- assert.equal(c.isProductionPlanProductAllowed(silk,'박 인쇄'),false);
- assert.deepEqual(plain(c.getProductionPlanStageOptions('MIXED','박 인쇄').map(option=>option.label)),['2도']);
- assert.deepEqual(plain(c.getProductionPlanStageOptions('SILK','자동화').map(option=>option.label)),['1도+2도','3도']);
+ assert.equal(c.isProductionPlanProductAllowed(null,'실크 인쇄'),false);
+ for(const process of ['박 인쇄','실크 인쇄','자동화']) {
+  assert.deepEqual(plain(c.getProductionPlanStageOptions('MIXED',process).map(option=>option.label)),['1도','2도','3도']);
+  assert.deepEqual(plain(c.getProductionPlanStageOptions('SILK',process).map(option=>option.label)),['1도+2도','3도']);
+ }
 });
 
-test('예전 공정 경로와 공정 이름도 박 제품 제한에 반영한다',()=>{
+test('예전 공정 경로 제품도 유형별 선택 제한 없이 등록 공정을 유지한다',()=>{
  const c=setup();
  const legacy={productCode:'LEGACY',finalProcess:'3도',processRoute:'1도+2도 박 → 3도 실크',processGroups:[[1,2],[3]]};
  c.state.products.push(legacy);
- assert.equal(c.isProductionPlanProductAllowed(legacy,'박 인쇄'),true);
- assert.equal(c.isProductionPlanProductAllowed(legacy,'자동화'),false);
- assert.deepEqual(plain(c.getProductionPlanStageOptions('LEGACY','박 인쇄').map(option=>option.label)),['1도+2도']);
- assert.equal(c.isProductionPlanProductAllowed({finalProcess:'1도',processStage1:'박 인쇄'},'실크 인쇄'),false);
- assert.equal(c.isProductionPlanProductAllowed({finalProcess:'1도',productionProcess:'박 인쇄'},'박 인쇄'),true);
+ for(const process of ['박 인쇄','실크 인쇄','자동화']) {
+  assert.equal(c.isProductionPlanProductAllowed(legacy,process),true);
+  assert.deepEqual(plain(c.getProductionPlanStageOptions('LEGACY',process).map(option=>option.label)),['1도+2도','3도']);
+ }
+ assert.equal(c.isProductionPlanProductAllowed({finalProcess:'1도',processStage1:'박 인쇄'},'실크 인쇄'),true);
 });
 
 test('실크에서 자동화로 바꾸면 제품·공정은 유지하되 다른 유형의 실적을 재사용하지 않는다',()=>{
@@ -164,7 +162,7 @@ test('선택 제품을 바꿀 때 이전 제품의 누적 실적과 공정별 �
  c.state.productionPlanPickerJobId=job.planRowId;c.selectProductionPlanProduct(products[1]);
  const next=c.state.productionPlanJobs[0];assert.equal(next.productId,'SILK');assert.equal(next.stage,2);assert.equal(c.getProductionPlanCalculations(next).hourlyRate,null);
  assert.equal(next.stageGroup.join('+'),'1+2');assert.equal(next.stageDrafts[1],undefined);
- c.selectProductionPlanProduct(products[0]);assert.equal(c.state.productionPlanJobs[0].productId,'SILK');
+ c.selectProductionPlanProduct(products[0]);assert.equal(c.state.productionPlanJobs[0].productId,'FOIL');
 });
 
 function useQuotaStorage(c, limit) {
@@ -906,4 +904,25 @@ test('0시간 작업 대기와 평일 배정 없음은 휴무와 구분한다',(
  assert.equal(c.formatProductionPlanWorkHours({...job,planMode:'complete'}),'완료');
  assert.equal(c.formatProductionPlanWorkHours({...job,planMode:'rest'}),'휴무');
  assert.equal(c.formatProductionPlanWorkHours({...job,planMissing:true}),'—');
+});
+
+test('발주가 없는 제품도 선택·저장·재조회하며 이전 발주 실적은 별도로 보존한다',()=>{
+ const c=setup();c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];
+ const product={productCode:'NO-ORDER',productName:'발주 없는 제품',clientName:'테스트',finalProcess:'1도',processStage1:'박'};c.state.products.push(product);
+ Object.assign(job,{actualProduction:1234,actualWorkHours:8,machine:'5호기',note:'입력 유지'});
+ c.state.productionPlanPickerJobId=job.planRowId;c.selectProductionPlanProduct(product);
+ const next=c.state.productionPlanJobs[0];assert.equal(next.productId,'NO-ORDER');assert.equal(next.purchaseOrderId,'');
+ assert.equal(next.actualProduction,undefined);assert.equal(next.machine,'5호기');assert.equal(next.note,'입력 유지');
+ assert.equal(c.getProductionPlanOrderDraftCache().jobs.find(item=>item.purchaseOrderId===order.purchaseOrderId).actualProduction,1234);
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].productId,'NO-ORDER');
+ assert.equal(c.state.productionPlanJobs[0].purchaseOrderId,'');assert.match(c.productionPlanTableBody.innerHTML,/발주 없는 제품/);
+});
+
+test('공정이 미등록된 제품도 선택 후 저장·유형 변경 시 유지한다',()=>{
+ const c=setup();const product={productCode:'UNSET',productName:'공정 미등록 제품'};c.state.products.push(product);
+ c.state.purchaseOrders.push({...order,productId:'UNSET',purchaseOrderId:'PO-UNSET'});
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();c.state.productionPlanPickerJobId=c.state.productionPlanJobs[0].planRowId;
+ c.selectProductionPlanProduct(product);const job=c.state.productionPlanJobs[0];assert.equal(job.productId,'UNSET');assert.equal(job.purchaseOrderId,'PO-UNSET');
+ assert.equal(c.changeProductionPlanPrintType(job,'박 인쇄'),true);assert.equal(job.productId,'UNSET');
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].productId,'UNSET');
 });
