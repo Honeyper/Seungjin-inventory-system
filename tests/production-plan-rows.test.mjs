@@ -926,3 +926,23 @@ test('공정이 미등록된 제품도 선택 후 저장·유형 변경 시 유�
  assert.equal(c.changeProductionPlanPrintType(job,'박 인쇄'),true);assert.equal(job.productId,'UNSET');
  c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].productId,'UNSET');
 });
+
+test('생산계획은 자동 선택 시 실크 공정의 자동 생산량을 사용하고 박은 박 기준을 유지한다',()=>{
+ const c=setup();const p={productCode:'RATE',finalProcess:'3도',processStage1:'박',processStage2:'실크',processStage3:'실크',processHourlyProductionRates:{'1도':700,'2도':812.5},automaticHourlyProductionRate:2250};c.state.products.push(p);
+ assert.equal(c.getProductionPlanHourlyRate({productId:'RATE',stage:1,process:'박 인쇄'}),700);
+ assert.equal(c.getProductionPlanHourlyRate({productId:'RATE',stage:2,process:'실크 인쇄'}),812.5);
+ assert.equal(c.getProductionPlanHourlyRate({productId:'RATE',stage:2,process:'자동화'}),2250);
+ assert.equal(c.getProductionPlanHourlyRate({productId:'RATE',stage:3,process:'실크 인쇄'}),null);
+ assert.equal(c.getProductionPlanHourlyRate({productId:'RATE',stage:3,process:'자동화'}),2250);
+ assert.equal(c.getProductionPlanHourlyRate({productId:'RATE',stage:1,process:'자동화'}),700);
+});
+test('박 작업자는 새 행·공정 전환·저장·재조회와 예전 공정별 입력에서도 한 명으로 유지한다',()=>{
+ const c=setup();const row=c.createProductionPlanEmptyJob(1,'박 인쇄',order.productId);assert.equal(row.worker,row.packagingWorker);
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();const job=c.state.productionPlanJobs[0];job.worker='인쇄 담당';job.packagingWorker='포장 담당';job.workerType='employee';
+ c.changeProductionPlanPrintType(job,'박 인쇄');assert.equal(job.worker,'인쇄 담당');assert.equal(job.packagingWorker,'인쇄 담당');
+ assert.equal((c.renderProductionPlanStaffFields(job,'제품').match(/data-plan-staff-picker=/g)||[]).length,1);
+ job.stage=2;job.stageDrafts={1:{worker:'예전 담당',workerType:'employee',packagingWorker:'다른 담당',stageGroup:[1]}};
+ c.changeProductionPlanStage(job,1);assert.equal(job.packagingWorker,job.worker);
+ c.saveProductionPlanDraft();c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs[0].packagingWorker,c.state.productionPlanJobs[0].worker);
+ c.changeProductionPlanPrintType(c.state.productionPlanJobs[0],'실크 인쇄');assert.equal((c.renderProductionPlanStaffFields(c.state.productionPlanJobs[0],'제품').match(/data-plan-staff-picker=/g)||[]).length,2);
+});

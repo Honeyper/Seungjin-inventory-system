@@ -111,3 +111,13 @@ test('팝업 선택은 해당 역할만 수정하고 날짜 변경·삭제된 �
   c.productionPlanStaffPicker={planRowId:'R1',role:'worker',storageKey:'today'};
   c.selectProductionPlanStaff('');assert.equal(jobs[0].worker,'');assert.equal(jobs[0].workerType,'');
 });
+
+test('박 공정에서 한 번 선택·해제하면 작업자와 포장자 이름·구분을 함께 반영한다',async()=>{
+ const {c,jobs}=client(async()=>({staff:people}));await c.loadProductionPlanStaff();const job=jobs[0];job.process='박 인쇄';
+ c.getProductionPlanStorageKey=()=> 'today';c.renderProductionPlan=()=>{};c.closeProductionPlanStaffPicker=()=>{c.productionPlanStaffPicker=null;};c.productionPlanStatus={dataset:{}};
+ c.productionPlanStaffPicker={planRowId:'R1',role:'worker',storageKey:'today'};c.selectProductionPlanStaff('진성');
+ assert.equal(job.worker,'진성');assert.equal(job.packagingWorker,'진성');assert.equal(job.workerType,'company');assert.equal(job.packagingWorkerType,'company');
+ c.productionPlanStaffPicker={planRowId:'R1',role:'worker',storageKey:'today'};c.selectProductionPlanStaff('');assert.equal(job.worker,'');assert.equal(job.packagingWorker,'');
+ const inherited=c.getProductionPlanStaffAssignments({process:'박 인쇄',worker:'',workerType:'',packagingWorker:'외부 담당',packagingWorkerType:'outsourcing'});
+ assert.equal(inherited.worker,'외부 담당');assert.equal(inherited.workerType,'outsourcing');assert.equal(inherited.packagingWorkerType,'outsourcing');
+});
