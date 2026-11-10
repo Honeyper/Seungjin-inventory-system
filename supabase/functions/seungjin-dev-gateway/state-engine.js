@@ -521,6 +521,10 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     Object.prototype.hasOwnProperty.call(payload, "시간당 평균 생산량") ? payload["시간당 평균 생산량"]
       : Object.prototype.hasOwnProperty.call(payload, "hourlyProductionRate") ? payload.hourlyProductionRate : current?.hourlyProductionRate
   );
+  const automaticHourlyProductionRate = parseProductHourlyProductionRate(
+    Object.prototype.hasOwnProperty.call(payload, "자동 인쇄 시간당 생산량") ? payload["자동 인쇄 시간당 생산량"]
+      : Object.prototype.hasOwnProperty.call(payload, "automaticHourlyProductionRate") ? payload.automaticHourlyProductionRate : current?.automaticHourlyProductionRate
+  );
   const process = getProductProcess(payload, current || {});
   const rateKeys = process.groups.length
     ? process.groups.map(group => group.map(step => `${step}도`).join("+"))
@@ -578,6 +582,7 @@ function createOrUpdateProduct(action, payload, state, changes, now) {
     boxQuantity: formatEa(number(boxQuantity)),
     trayQuantity: formatEa(number(trayQuantity)),
     hourlyProductionRate,
+    automaticHourlyProductionRate,
     processHourlyProductionRates,
     productImageUrl: productImageUrls[0] || "",
     productImageUrls,

@@ -99,6 +99,8 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-10", title:"수동·자동 생산량 구분", items:["자동 인쇄 시간당 생산량을 별도로 저장하며, 생산계획에서 자동화로 선택한 실크 공정에 적용합니다. 기존 공정별 생산량과 박 공정 생산량을 유지합니다."] },
+  { date:"2026-11-10", title:"박 공정 작업자 한 명으로 통합", items:["박 공정은 작업자를 한 번만 선택하며 같은 사람이 인쇄와 포장을 담당하도록 저장합니다. 실크·자동화의 인쇄·포장 선택은 유지합니다."] },
   { date:"2026-11-10", title:"생산계획 제품 선택 제한 제거", items:["제품 선택창의 공정 제한 안내문을 제거하고 등록된 모든 제품을 검색·선택할 수 있도록 했습니다. 인쇄 유형과 관계없이 등록 공정을 선택하며, 연결할 발주가 없는 제품도 제품 선택 상태로 저장할 수 있습니다."] },
   { date:"2026-11-09", title:"직원정보 첫 조회 지연 개선", items:["직원·아웃소싱·타업체 목록을 서버에 보관해 처음 접속하거나 서버가 다시 시작돼도 시트 응답을 기다리지 않고 불러옵니다. 시트 변경사항은 뒤에서 갱신하며, 조회 실패 시 마지막 정상 목록을 유지합니다."] },
   { date:"2026-11-06", title:"작업자 검색 팝업·목록 로딩 개선", items:["인쇄·포장 작업자를 검색 팝업에서 선택하며 직원·아웃소싱·타업체별로 볼 수 있습니다. 최근 목록은 즉시 표시하고 뒤에서 갱신하며, 서버의 반복 시트 조회를 줄였습니다."] },
@@ -2885,13 +2887,14 @@ function changeProductionPlanStage(job, value) {
   const fields = Object.fromEntries(PRODUCTION_PLAN_STAGE_FIELDS.map(key => [key, base[key] ?? null]));
   Object.assign(job, fields, compatible ? previous : {}, {stage: option.stage, stageGroup: [...option.group], stageDrafts: drafts,
     stageSelectionVersion: 1, targetQuantity: 0, productionRemaining: null});
+  if (job.process === "박 인쇄") Object.assign(job,getProductionPlanStaffAssignments(job));
   return true;
 }
 
 function createProductionPlanEmptyJob(stage = PRODUCTION_PLAN_DEFAULT_STAGE, process = "실크 인쇄", productId = PRODUCTION_PLAN_PRODUCT_ID) {
   const product = getProductionPlanProduct(productId);
   const staff = getProductionPlanStaffAssignments({
-    worker: PRODUCTION_PLAN_STAFF.worker.some(person => person.name === "유순희") ? "유순희" : "", workerType: "",
+    process, worker: PRODUCTION_PLAN_STAFF.worker.some(person => person.name === "유순희") ? "유순희" : "", workerType: "",
     packagingWorker: PRODUCTION_PLAN_STAFF.packagingWorker.some(person => person.name === "수쿠마") ? "수쿠마" : "", packagingWorkerType: ""
   });
   return {
@@ -2916,7 +2919,7 @@ function changeProductionPlanPrintType(job, process) {
     const order = state.purchaseOrders.find(item => item.purchaseOrderId === job.purchaseOrderId);
     if (order) changeProductionPlanOrder(next, order.purchaseOrderId);
   }
-  const staff = getProductionPlanStaffAssignments(job);
+  const staff = getProductionPlanStaffAssignments({...job,process});
   const planRowId = job.planRowId;
   const planRowVersion = job.planRowVersion;
   Object.keys(job).forEach(key => delete job[key]);
@@ -2927,8 +2930,15 @@ function changeProductionPlanPrintType(job, process) {
 function getProductionPlanStaffAssignments(job) {
   const defaultWorker = PRODUCTION_PLAN_STAFF.worker.some(person => person.name === "유순희") ? "유순희" : "";
   const defaultPackaging = PRODUCTION_PLAN_STAFF.packagingWorker.some(person => person.name === "수쿠마") ? "수쿠마" : "";
-  const worker = job?.worker === "" && !Object.prototype.hasOwnProperty.call(job, "workerType") ? defaultWorker : job?.worker ?? defaultWorker;
-  const packagingWorker = job?.packagingWorker ?? defaultPackaging;
+  let worker = job?.worker === "" && !Object.prototype.hasOwnProperty.call(job, "workerType") ? defaultWorker : job?.worker ?? defaultWorker;
+  let packagingWorker = job?.packagingWorker ?? defaultPackaging;
+  if (job?.process === "박 인쇄") {
+    worker = job?.worker || job?.packagingWorker || worker;
+    packagingWorker = worker;
+    const type = PRODUCTION_PLAN_STAFF.worker.find(person => person.name === worker)?.type
+      || (worker === job?.worker ? job?.workerType : job?.packagingWorkerType) || "";
+    return {worker,packagingWorker,workerType:type,packagingWorkerType:type};
+  }
   return { worker, packagingWorker,
     workerType: PRODUCTION_PLAN_STAFF.worker.find(person => person.name === worker)?.type || job?.workerType || "",
     packagingWorkerType: PRODUCTION_PLAN_STAFF.packagingWorker.find(person => person.name === packagingWorker)?.type || job?.packagingWorkerType || ""
@@ -3011,7 +3021,7 @@ function openProductionPlanStaffPicker(button) {
   const modal = document.querySelector("#productionPlanStaffPickerModal");
   if (!job || !PRODUCTION_PLAN_STAFF[role] || !modal) return;
   productionPlanStaffPicker = {planRowId:job.planRowId,role,storageKey:getProductionPlanStorageKey(),query:"",filter:"all"};
-  modal.querySelector("h2").textContent = `${role === "worker" ? "인쇄" : "포장"} 작업자 선택`;
+  modal.querySelector("h2").textContent = job.process === "박 인쇄" ? "박 작업자 선택" : `${role === "worker" ? "인쇄" : "포장"} 작업자 선택`;
   modal.querySelector("input").value = "";
   modal.hidden = false;
   document.body.classList.add("modal-open");
@@ -3067,6 +3077,7 @@ function selectProductionPlanStaff(name) {
   if (!job || (name && (!productionPlanStaffHasRoster || !person))) return;
   job[picker.role] = name;
   job[picker.role === "worker" ? "workerType" : "packagingWorkerType"] = person?.type || "";
+  if (job.process === "박 인쇄") Object.assign(job,{worker:name,packagingWorker:name,workerType:person?.type || "",packagingWorkerType:person?.type || ""});
   renderProductionPlan();
   closeProductionPlanStaffPicker();
   if (productionPlanStatus) {
@@ -3079,6 +3090,14 @@ function getProductionPlanStaffLabel(job, role) {
   const name = job?.[role] || "";
   const person = PRODUCTION_PLAN_STAFF[role].find(person => person.name === name);
   return person ? (["employee", "company"].includes(person.type) ? person.name : `${person.name} (${person.label})`) : name ? `${name} (기존 입력)` : "미지정";
+}
+
+function renderProductionPlanStaffFields(job, label) {
+  const single = job.process === "박 인쇄";
+  return (single ? ["worker"] : ["worker","packagingWorker"]).map(role => {
+    const title = single ? "작업" : role === "worker" ? "인쇄" : "포장";
+    return `<label><span>${title}</span><button type="button" class="production-plan-staff-trigger" data-plan-staff-picker="${role}" aria-haspopup="dialog" aria-label="${escapeAttribute(label)} ${single ? "박" : title} 작업자 선택"><span>${escapeHtml(getProductionPlanStaffLabel(job,role))}</span><i class="ti ti-search" aria-hidden="true"></i></button></label>`;
+  }).join("");
 }
 
 function renderProductionPlanStaffOptions(job, role) {
@@ -3116,8 +3135,7 @@ function getProductionPlanDailyCompletionDate(order, selectedJob) {
   if (quantity === null) return null;
   if (completed >= quantity) return lastActual || firstAssigned;
   const product = getProductionPlanProduct(job.productId);
-  const rates = product?.processHourlyProductionRates || {};
-  const hourlyRate = rates[getProductionPlanStageLabel(job)] ?? (Object.keys(rates).length === 0 && getProductionPlanStageOptions(job.productId).length === 1 ? product?.hourlyProductionRate : null);
+  const hourlyRate = getProductionPlanHourlyRate(job);
   // Anchor to saved work, so simply viewing a later date cannot move completion forward.
   const start = Date.parse(`${lastActual || firstAssigned}T00:00:00Z`) + (lastActual ? 86400000 : 0);
   for (let day = 0; day <= 731; day++) {
@@ -3235,12 +3253,21 @@ function getProductionPlanPreviousWorkSchedule(job) {
     }).filter(day => day.hours > 0).sort((a,b) => a.date.localeCompare(b.date));
 }
 
+function getProductionPlanHourlyRate(job) {
+  const product = getProductionPlanProduct(job?.productId);
+  const key = getProductionPlanStageLabel(job);
+  const group = getProductionPlanStageOptions(job?.productId).find(option => option.stage === Number(job?.stage))?.group || [Number(job?.stage)];
+  const methods = getProductionPlanProductMethods(product);
+  if (job?.process === "자동화" && Number(product?.automaticHourlyProductionRate) > 0
+    && group.every(stage => methods[stage - 1] === "실크")) return Number(product.automaticHourlyProductionRate);
+  const rates = product?.processHourlyProductionRates || {};
+  return rates[key] ?? (Object.keys(rates).length === 0 && getProductionPlanStageOptions(job?.productId).length === 1 ? product?.hourlyProductionRate : null);
+}
+
 function getProductionPlanCalculations(job) {
   const order = state.purchaseOrders.find(item => item.purchaseOrderId === job?.purchaseOrderId);
   const product = getProductionPlanProduct(job?.productId);
-  const key = getProductionPlanStageLabel(job);
-  const rates = product?.processHourlyProductionRates || {};
-  const hourlyRate = rates[key] ?? (Object.keys(rates).length === 0 && getProductionPlanStageOptions(job?.productId).length === 1 ? product?.hourlyProductionRate : null);
+  const hourlyRate = getProductionPlanHourlyRate(job);
   const input = {orderQuantity:order?.totalOrderQuantity, hourlyRate,
     completedProduction:getProductionPlanCumulativeActual(job, "actualProduction", {beforeDateOnly:true}),
     startDate:state.productionPlanDate, dueDate:order?.endDate, deliveryType:order?.deliveryType || "date",
@@ -3803,9 +3830,7 @@ function renderProductionPlanTable() {
       <td class="production-plan-auto"><strong>${empty || job.orderQuantity === null ? "—" : `${formatNumber(job.orderQuantity)} ea`}</strong></td>
       <td class="production-plan-auto production-plan-delivery"><strong>${escapeHtml(getProductionPlanDeliveryLabel(job))}</strong></td>
       <td class="production-plan-auto"><strong data-plan-target title="${escapeAttribute(job.planMessage)}">${escapeHtml(formatProductionPlanTarget(job))}</strong></td>
-      <td class="production-plan-staff-cell"><div class="production-plan-staff-fields">
-        <label><span>인쇄</span><button type="button" class="production-plan-staff-trigger" data-plan-staff-picker="worker" aria-haspopup="dialog" aria-label="${escapeAttribute(label)} 인쇄 작업자 선택"><span>${escapeHtml(getProductionPlanStaffLabel(job,"worker"))}</span><i class="ti ti-search" aria-hidden="true"></i></button></label>
-        <label><span>포장</span><button type="button" class="production-plan-staff-trigger" data-plan-staff-picker="packagingWorker" aria-haspopup="dialog" aria-label="${escapeAttribute(label)} 포장 작업자 선택"><span>${escapeHtml(getProductionPlanStaffLabel(job,"packagingWorker"))}</span><i class="ti ti-search" aria-hidden="true"></i></button></label></div></td>
+      <td class="production-plan-staff-cell"><div class="production-plan-staff-fields">${renderProductionPlanStaffFields(job,label)}</div></td>
       <td class="production-plan-auto" data-plan-hours title="${escapeAttribute(job.completionDate ? `완료 예상 ${job.completionDate}` : job.planMessage || "평일 8시간 우선")}">${renderProductionPlanWorkHours(job)}</td>
       <td><div class="production-plan-note-controls"><input data-plan-field="note" type="text" value="${escapeAttribute(job.note)}" placeholder="특이사항 입력" aria-label="${escapeAttribute(label)} 특이사항" />
         <button class="production-plan-details-toggle" type="button" data-plan-details-toggle="${escapeAttribute(job.planRowId)}" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${escapeAttribute(label)} 세부사항">
@@ -14717,6 +14742,8 @@ function renderProductProcessRateDetails(product) {
 
 function setProductProcessForm(product = null) {
   productProcessRateDraft = {...(product?.processHourlyProductionRates || {})};
+  const automaticInput = document.querySelector("#productAutomaticHourlyProductionRate");
+  if (automaticInput) automaticInput.value = product?.automaticHourlyProductionRate ?? "";
   document.querySelector("#productProcessHourlyRates").replaceChildren();
   const finalProcess = normalizeEditableValue(product?.finalProcess);
   const stages = Array.from({length: 6}, (_, index) => normalizeProductProcessMethod(product?.[`processStage${index + 1}`]));
@@ -15132,6 +15159,7 @@ function getProductFormPayload() {
     "트레이 수량": trayQuantity ? `${Number(trayQuantity).toLocaleString("ko-KR")} ea` : "",
     ...(productFinalProcess.dataset.legacyFinalProcess ? {} : {processHourlyProductionRates: readProductProcessHourlyRates()}),
     "시간당 평균 생산량": productHourlyProductionRate.value.trim() === "" ? null : Number(productHourlyProductionRate.value),
+    automaticHourlyProductionRate: document.querySelector("#productAutomaticHourlyProductionRate")?.value?.trim() ? Number(document.querySelector("#productAutomaticHourlyProductionRate").value) : null,
     "제품 이미지": state.productImageUrls[0] || "",
     "제품 이미지 목록": JSON.stringify(state.productImageUrls),
     productImageUrl: state.productImageUrls[0] || "",
@@ -15172,6 +15200,8 @@ function validateProductPayload(payload) {
       return `${process} 시간당 생산량은 0보다 큰 숫자로 입력해주세요.`;
     }
   }
+  const automaticRate = payload.automaticHourlyProductionRate;
+  if (automaticRate !== null && automaticRate !== undefined && (!Number.isFinite(automaticRate) || automaticRate <= 0 || automaticRate > Number.MAX_SAFE_INTEGER)) return "자동 인쇄 시간당 생산량은 0보다 큰 숫자로 입력해주세요.";
   const hourlyRate = payload["시간당 평균 생산량"];
   if (hourlyRate !== null && hourlyRate !== undefined && (!Number.isFinite(hourlyRate) || hourlyRate <= 0 || hourlyRate > Number.MAX_SAFE_INTEGER)) {
     return "시간당 평균 생산량은 0보다 큰 숫자로 입력해주세요.";
