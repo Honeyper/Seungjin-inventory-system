@@ -14,7 +14,8 @@ test('8시간 기준을 수동 1·2·3도, 자동, 박 1·2·3도별로 환산�
  assert.deepEqual(find('F'),{processHourlyProductionRates:{'1도':700,'2도':700,'3도':700}});
  assert.deepEqual(find('M'),{processHourlyProductionRates:{'1도':700,'2도':812.5},automaticHourlyProductionRate:2250});
  assert.deepEqual(find('GROUP').processHourlyProductionRates,{'1도+2도':812.5});
- assert.deepEqual(p.existing,['OLD','LEGACY']);assert.equal(p.exceptions.some(e=>e.productId==='S'),false);
+ assert.deepEqual(find('OLD'),{automaticHourlyProductionRate:2250});
+ assert.deepEqual(find('LEGACY'),{processHourlyProductionRates:{'1도':1200},automaticHourlyProductionRate:2250});assert.equal(p.exceptions.some(e=>e.productId==='S'),false);
  assert.ok(buildProductionRateBackfill([product('FOUR',['실크','실크','실크','실크'])]).exceptions.some(e=>e.process==='4도'));
  assert.equal(p.items.some(i=>i.productId==='UNKNOWN'||i.productId==='COATING'),false);
  assert.equal(buildProductionRateBackfill(p.items.map(i=>({...rows.find(r=>r.productCode===i.productId),...i.patch}))).items.length,0);
@@ -54,4 +55,21 @@ test('기존 시트 생산량과 충돌하거나 제품이 없으면 어떤 열�
   const list=f.values[1][3]?items:[{productId:'MISSING',patch:{hourlyProductionRate:1250}}];
   assert.throws(()=>f.c.backfillProductProductionRates({token:'valid',items:list}),/충돌/);assert.equal(f.writes,0);
  }
+});
+
+test('일부 입력된 제품도 빈 항목을 보완하고 기존 양수 값과 다른 항목은 유지한다',()=>{
+ const legacy=product('HAIR',['실크'],{hourlyProductionRate:1115,processHourlyProductionRates:{'1도':null},automaticHourlyProductionRate:null});
+ const partial=product('PARTIAL',['박','실크','실크'],{hourlyProductionRate:222,processHourlyProductionRates:{'1도':650,'2도':900,'3도':null,'추가':777},automaticHourlyProductionRate:2600,note:'유지'});
+ const result=buildProductionRateBackfill([legacy,partial]);
+ const first=result.items.find(i=>i.productId==='HAIR');assert.deepEqual(first.patch,{processHourlyProductionRates:{'1도':1115},automaticHourlyProductionRate:2250});
+ const second=result.items.find(i=>i.productId==='PARTIAL');assert.deepEqual(second.patch,{processHourlyProductionRates:{'1도':650,'2도':900,'3도':812.5,'추가':777}});
+ assert.equal(partial.note,'유지');assert.equal(partial.hourlyProductionRate,222);
+ assert.equal(buildProductionRateBackfill([legacy,partial].map(p=>({...p,...result.items.find(i=>i.productId===p.productCode).patch}))).items.length,0);
+});
+test('묶음별 빈 값만 채우고 기존 자동 수량과 공정 구분 없는 제품을 유지한다',()=>{
+ const grouped=product('G',['실크','실크','실크'],{processGroups:[[1,2],[3]],processHourlyProductionRates:{'1도+2도':970,'3도':null},automaticHourlyProductionRate:2100});
+ const unknown=product('UNKNOWN',['','']);const filled=product('DONE',['박'],{hourlyProductionRate:600,processHourlyProductionRates:{'1도':600}});
+ const plan=buildProductionRateBackfill([grouped,unknown,filled]);
+ assert.deepEqual(plan.items.map(i=>i.patch),[{processHourlyProductionRates:{'1도+2도':970,'3도':812.5}}]);
+ assert.equal(plan.exceptions.length,2);assert.ok(plan.existing.includes('DONE'));assert.equal(plan.items.some(i=>i.productId==='UNKNOWN'),false);
 });
