@@ -54,8 +54,8 @@ test('캐시 장애가 있어도 정상 경로와 파일로 업로드하며 잘�
  const r=runtime({cacheUnavailable:true}),files=[file('first'),file('second')];assert.equal(r.c.uploadInboundDefectPhotos({...payload,defectFiles:files}).uploadedCount,2);
  const before=r.writes.length;assert.throws(()=>r.c.uploadInboundDefectPhotos({...payload,defectFiles:[files[0],{...files[1],mimeType:'text/plain'}]}));assert.equal(r.writes.length,before);
 });
-test('사진 여덟 장은 두 번의 서버 요청으로 전송하고 큰 파일은 별도 묶음에 둔다',async()=>{
- const api=client(),files=Array.from({length:8},(_,i)=>file('photo-'+i)),groups=api.groupUploadFiles(files);assert.equal(groups.length,2);
- let requests=0;const uploaded=await api.uploadBatch(groups,group=>{requests++;return Promise.resolve(group.length);});assert.equal(requests,2);assert.deepEqual(Array.from(uploaded),[4,4]);
+test('사진 여덟 장은 한 번의 서버 요청으로 전송하고 큰 파일은 별도 묶음에 둔다',async()=>{
+ const api=client(),files=Array.from({length:8},(_,i)=>file('photo-'+i)),groups=api.groupUploadFiles(files);assert.equal(groups.length,1);
+ let requests=0;const uploaded=await api.uploadBatch(groups,group=>{requests++;return Promise.resolve(group.length);});assert.equal(requests,1);assert.deepEqual(Array.from(uploaded),[8]);
  const large={data:'x'.repeat(5*1024*1024)};assert.deepEqual(Array.from(api.groupUploadFiles([large,large,file('small')]),g=>g.length),[1,2]);
 });

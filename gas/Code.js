@@ -4593,6 +4593,7 @@ function inboundUploadCacheKey_(kind, payload, file) {
   if (!/^[A-Za-z0-9-]{8,100}$/.test(id)) return '';
   try {
     const context = [CONFIG.ENV, kind, payload.managementId || '', payload.inboundDate || '', payload.clientName || '', payload.productName || '', id, file.mimeType, file.name, file.data];
+    if (kind === 'product' || kind === 'shipping') context.push(payload.productId || '', payload.shippingDate || payload.inspectionDate || '');
     return 'inbound-file:v1:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, JSON.stringify(context)));
   } catch (_) { return ''; }
 }
@@ -4615,7 +4616,7 @@ function makeInboundDriveUploadRequest_(job, token) {
     + JSON.stringify(metadata) + '\r\n--' + boundary + '\r\nContent-Type: ' + job.mimeType + '\r\n\r\n';
   const bytes = Utilities.newBlob(head).getBytes().concat(job.bytes, Utilities.newBlob('\r\n--' + boundary + '--\r\n').getBytes());
   return {
-    url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+    url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,resourceKey',
     method: 'post', contentType: 'multipart/related; boundary=' + boundary,
     headers: { Authorization: 'Bearer ' + token }, payload: bytes, muteHttpExceptions: true
   };
@@ -4630,7 +4631,7 @@ function createInboundDriveFiles_(jobs) {
   const native = (job, index) => {
     const file = job.folder.createFile(Utilities.newBlob(job.bytes, job.mimeType, job.name));
     file.setDescription(job.description);
-    const result = { fileUrl: file.getUrl() };
+    const result = { fileUrl: file.getUrl(), ...(job.imageLink ? {fileId:file.getId(),resourceKey:file.getResourceKey?.() || ""} : {}) };
     results[index] = result;
     if (job.saved) job.saved(result);
   };
@@ -4653,7 +4654,7 @@ function createInboundDriveFiles_(jobs) {
       let data = {}; try { data = JSON.parse(response.getContentText() || '{}'); } catch (_) {}
       try {
         if (status >= 200 && status < 300 && data.id) {
-          const result = { fileUrl: data.webViewLink || 'https://drive.google.com/file/d/' + encodeURIComponent(data.id) + '/view' };
+          const result = { fileId: data.id, resourceKey: data.resourceKey || '', fileUrl: data.webViewLink || 'https://drive.google.com/file/d/' + encodeURIComponent(data.id) + '/view' };
           results[index] = result;
           if (job.saved) job.saved(result);
         } else if (status === 403 && ((data.error?.errors || []).some(error => ['accessNotConfigured', 'serviceDisabled'].includes(error.reason))
@@ -4798,109 +4799,78 @@ function uploadInboundDefectPhotos_(payload, context) {
   return [...new Set(entries.map(entry => entry.cached?.folderUrl).filter(Boolean))].join(' ');
 }
 
+function preparePhotoUploadEntries_(files, payload, kind, label) {
+  return files.map(file => {
+    const data = String(file?.data || '').trim();
+    const mimeType = String(file?.mimeType || '').trim().toLowerCase();
+    if (!data) throw new Error(label + ' 데이터를 읽지 못했습니다.');
+    if (!/^image\//.test(mimeType)) throw new Error(label + '는 이미지 파일만 등록할 수 있습니다.');
+    const bytes = Utilities.base64Decode(data);
+    if (!bytes.length || bytes.length > 10 * 1024 * 1024) throw new Error(label + '는 개별 10MB 이하로 등록해주세요.');
+    const key = inboundUploadCacheKey_(kind, payload, file);
+    return {file, bytes, mimeType, key, cached: readInboundUploadCache_(key)};
+  });
+}
+
 function uploadShippingDefectPhotos(payload) {
+  const started = Date.now();
   const files = Array.isArray(payload.defectFiles) ? payload.defectFiles : [];
-
-  if (!files.length) {
-    return {
-      folderUrl: '',
-      uploadedCount: 0,
-      fileUrls: []
-    };
-  }
-
-  const productName = dash_(payload.productName);
-  const clientName = dash_(payload.clientName);
+  if (!files.length) return {folderUrl:'',uploadedCount:0,fileUrls:[]};
   const dateFolderName = sanitizeDriveName_(dash_(payload.shippingDate || payload.inspectionDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd')));
-  const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
-  const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
-    '불량사진',
-    '출고',
-    dateFolderName,
-    sanitizeDriveName_(clientName),
-    sanitizeDriveName_(productName)
-  ]);
-  const baseFileName = sanitizeDriveName_(productName);
-
-  const uploadedUrls = files.map((file, index) => {
-    if (!file || !String(file.data || '').trim()) {
-      return '';
-    }
-
-    const extension = getFileExtension_(file.name, file.mimeType);
-    const fileName = `${baseFileName}_${index + 1}${extension}`;
-    const bytes = Utilities.base64Decode(String(file.data).trim());
-    const mimeType = String(file.mimeType || 'application/octet-stream').trim();
-    const blob = Utilities.newBlob(bytes, mimeType, fileName);
-    const createdFile = targetFolder.createFile(blob);
-
-    createdFile.setDescription(`관리ID: ${dash_(payload.managementId)}, 출고 불량사진 ${index + 1}`);
-    return createdFile.getUrl();
-  }).filter(Boolean);
-
-  return {
-    folderUrl: uploadedUrls.length ? targetFolder.getUrl() : '',
-    uploadedCount: uploadedUrls.length,
-    fileUrls: uploadedUrls
-  };
+  const context = {...payload,shippingDate:dateFolderName};
+  const entries = preparePhotoUploadEntries_(files, context, 'shipping', '출고 불량사진');
+  const validatedAt = Date.now();
+  let targetFolder;
+  if (entries.some(entry => !entry.cached?.fileUrl)) {
+    const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+    targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
+      '불량사진','출고',dateFolderName,sanitizeDriveName_(dash_(payload.clientName)),sanitizeDriveName_(dash_(payload.productName))
+    ]);
+  }
+  const baseFileName = sanitizeDriveName_(dash_(payload.productName));
+  const jobs = entries.flatMap((entry,index) => entry.cached?.fileUrl ? [] : [{
+    bytes:entry.bytes,mimeType:entry.mimeType,name:`${baseFileName}_${index + 1}${getFileExtension_(entry.file.name,entry.mimeType)}`,
+    folder:targetFolder,description:`관리ID: ${dash_(payload.managementId)}, 출고 불량사진 ${index + 1}`,
+    saved:value => {entry.cached={...value,folderUrl:targetFolder.getUrl()};rememberInboundUpload_(entry.key,entry.cached);}
+  }]);
+  createInboundDriveFiles_(jobs);
+  const timingMs={validation:validatedAt-started,drive:Date.now()-validatedAt,total:Date.now()-started};
+  console.info(JSON.stringify({event:'photo_upload',kind:'shipping',fileCount:files.length,bytes:entries.reduce((n,e)=>n+e.bytes.length,0),timingMs}));
+  return {folderUrl:[...new Set(entries.map(e=>e.cached.folderUrl))].join(' '),uploadedCount:entries.length,fileUrls:entries.map(e=>e.cached.fileUrl),timingMs};
 }
 
 function uploadProductImage(payload) {
-  const file = payload && payload.imageFile;
-  const encodedData = String(file && file.data || '').trim();
-  const mimeType = String(file && file.mimeType || '').trim().toLowerCase();
-
-  if (!encodedData) {
-    throw new Error('업로드할 제품 이미지가 없습니다.');
-  }
-  if (!/^image\//.test(mimeType)) {
-    throw new Error('제품 이미지는 이미지 파일만 등록할 수 있습니다.');
-  }
-
-  const bytes = Utilities.base64Decode(encodedData);
-  if (bytes.length > 10 * 1024 * 1024) {
-    throw new Error('제품 이미지는 10MB 이하로 등록해주세요.');
-  }
-
+  const started = Date.now();
+  const files = Array.isArray(payload?.imageFiles) ? payload.imageFiles : [payload?.imageFile].filter(Boolean);
+  if (!files.length) throw new Error('업로드할 제품 이미지가 없습니다.');
+  const entries = preparePhotoUploadEntries_(files, payload, 'product', '제품 이미지');
+  const validatedAt = Date.now();
   const productId = String(payload.productId || '').trim();
-  const productName = dash_(payload.productName);
-  const clientName = dash_(payload.clientName);
-  const rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
-  const targetFolder = getOrCreateDriveFolderPath_(rootFolder, [
-    '제품이미지',
-    sanitizeDriveName_(clientName),
-    sanitizeDriveName_(productId || productName)
-  ]);
-  const extension = getFileExtension_(file.name, mimeType);
-  const timestamp = Utilities.formatDate(
-    new Date(),
-    Session.getScriptTimeZone() || 'Asia/Seoul',
-    'yyyyMMdd_HHmmss'
-  );
-  const baseFileName = sanitizeDriveName_(`${productId || productName}_${timestamp}`);
-  const blob = Utilities.newBlob(bytes, mimeType, `${baseFileName}${extension}`);
-  const createdFile = targetFolder.createFile(blob);
-
-  createdFile.setDescription(`제품 이미지 · ${clientName} · ${productName}${productId ? ` · ${productId}` : ''}`);
-  try {
-    createdFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  } catch (error) {
-    createdFile.setTrashed(true);
-    throw new Error('모바일에서 이미지를 볼 수 있도록 Google Drive 링크 공유 권한을 설정하지 못했습니다.');
+  const productName = dash_(payload.productName),clientName = dash_(payload.clientName);
+  let targetFolder;
+  if (entries.some(entry => !entry.cached?.imageUrl)) {
+    const rootFolder=DriveApp.getFolderById(CONFIG.DRIVE_ROOT_FOLDER_ID);
+    targetFolder=getOrCreateDriveFolderPath_(rootFolder,['제품이미지',sanitizeDriveName_(clientName),sanitizeDriveName_(productId || productName)]);
   }
-
-  const fileId = createdFile.getId();
-  const resourceKey = typeof createdFile.getResourceKey === 'function'
-    ? String(createdFile.getResourceKey() || '').trim()
-    : '';
-  const resourceKeyQuery = resourceKey ? `&resourcekey=${encodeURIComponent(resourceKey)}` : '';
-
-  return {
-    fileId,
-    imageUrl: `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1200${resourceKeyQuery}`,
-    driveUrl: createdFile.getUrl(),
-    folderUrl: targetFolder.getUrl()
-  };
+  const timestamp=Utilities.formatDate(new Date(),Session.getScriptTimeZone() || 'Asia/Seoul','yyyyMMdd_HHmmss');
+  const baseFileName=sanitizeDriveName_(`${productId || productName}_${timestamp}`);
+  createInboundDriveFiles_(entries.flatMap((entry,index) => entry.cached?.imageUrl ? [] : [{
+    bytes:entry.bytes,mimeType:entry.mimeType,name:`${baseFileName}${files.length > 1 ? '_' + (index + 1) : ''}${getFileExtension_(entry.file.name,entry.mimeType)}`,
+    folder:targetFolder,imageLink:true,description:`제품 이미지 · ${clientName} · ${productName}${productId ? ' · ' + productId : ''}`,
+    saved:value => {
+      const createdFile=DriveApp.getFileById(value.fileId);
+      try {createdFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK,DriveApp.Permission.VIEW);}
+      catch(error){createdFile.setTrashed(true);throw new Error('모바일에서 이미지를 볼 수 있도록 Google Drive 링크 공유 권한을 설정하지 못했습니다.');}
+      const resourceKey=value.resourceKey || (typeof createdFile.getResourceKey === 'function' ? String(createdFile.getResourceKey() || '').trim() : '');
+      const query=resourceKey ? '&resourcekey=' + encodeURIComponent(resourceKey) : '';
+      entry.cached={fileId:value.fileId,imageUrl:`https://drive.google.com/thumbnail?id=${encodeURIComponent(value.fileId)}&sz=w1200${query}`,driveUrl:value.fileUrl,folderUrl:targetFolder.getUrl()};
+      rememberInboundUpload_(entry.key,entry.cached);
+    }
+  }]));
+  const timingMs={validation:validatedAt-started,drive:Date.now()-validatedAt,total:Date.now()-started};
+  console.info(JSON.stringify({event:'photo_upload',kind:'product',fileCount:files.length,bytes:entries.reduce((n,e)=>n+e.bytes.length,0),timingMs}));
+  const images=entries.map(entry=>entry.cached);
+  return {...images[0],...(Array.isArray(payload.imageFiles)?{imageUrls:images.map(image=>image.imageUrl)}:{}),timingMs};
 }
 
 function saveShippingInspection(payload) {

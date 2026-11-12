@@ -121,26 +121,27 @@ test("missing attachment URL is not cached as success", async () => {
   assert.equal((await api.uploadOnce("uploadInboundInvoice", payload, async () => ({ invoiceFileUrl: "https://example.test/file" }))).invoiceFileUrl, "https://example.test/file");
 });
 
-test("shipping photos resume individually and preserve folder, count and file URLs", async () => {
-  const api = runtime();
-  const files = [{ data: "1" }, { data: "2" }, { data: "3" }];
-  const payload = { managementId: "IN1", defectFiles: files };
-  let fail = true;
-  const calls = [];
-  const send = async request => {
-    assert.equal(request.defectFiles.length, 1);
-    const file = request.defectFiles[0];
-    calls.push(file.data);
-    if (fail && file.data === "2") throw Error("offline");
-    return { folderUrl: "https://example.test/folder", uploadedCount: 1, fileUrls: [`https://example.test/${file.data}`] };
+test("shipping batches retain completed files on server retry and return full count and URLs", async () => {
+  const api=runtime(),files=[{data:"1"},{data:"2"},{data:"3"}],payload={managementId:"IN1",defectFiles:files};
+  const saved=new Set(),writes=[];let fail=true,requests=0;
+  const send=async request=>{
+    requests++;assert.equal(request.defectFiles.length,3);
+    let failed=false;for(const file of request.defectFiles){if(saved.has(file.data))continue;if(fail&&file.data==="2"){failed=true;continue;}saved.add(file.data);writes.push(file.data);}
+    if(failed)throw Error("offline");
+    return {folderUrl:"https://example.test/folder",uploadedCount:request.defectFiles.length,fileUrls:request.defectFiles.map(f=>`https://example.test/${f.data}`)};
   };
-  await assert.rejects(api.uploadOnce("uploadShippingDefectPhotos", payload, send));
-  fail = false;
-  const result = await api.uploadOnce("uploadShippingDefectPhotos", payload, send);
-  assert.deepEqual(calls, ["1", "2", "3", "2"]);
-  assert.equal(result.folderUrl, "https://example.test/folder");
-  assert.equal(result.uploadedCount, 3);
-  assert.equal(result.fileUrls.length, 3);
+  await assert.rejects(api.uploadOnce("uploadShippingDefectPhotos",payload,send));fail=false;
+  const result=await api.uploadOnce("uploadShippingDefectPhotos",payload,send);
+  assert.equal(requests,2);assert.deepEqual(writes,["1","3","2"]);assert.equal(result.uploadedCount,3);assert.equal(result.fileUrls.length,3);
+  await api.uploadOnce("uploadShippingDefectPhotos",payload,send);assert.equal(requests,2);
+});
+
+test("product batches share duplicate requests but different files and records remain separate",async()=>{
+ const api=runtime(),files=[{data:"a"},{data:"b"}];let calls=0;
+ const send=async()=>{calls++;return {imageUrl:"https://test/a",imageUrls:["https://test/a","https://test/b"]};};
+ await Promise.all([1,2].map(()=>api.uploadOnce("uploadProductImage",{productId:"P1",imageFiles:files},send)));assert.equal(calls,1);
+ await api.uploadOnce("uploadProductImage",{productId:"P1",imageFiles:[files[0],{data:"c"}]},send);assert.equal(calls,2);
+ await api.uploadOnce("uploadProductImage",{productId:"P2",imageFiles:files},send);assert.equal(calls,3);
 });
 
 test("invoice optimization keeps legibility, caches the result, and releases the bitmap", async () => {
