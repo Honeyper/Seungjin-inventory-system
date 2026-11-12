@@ -128,3 +128,12 @@
 .qr-sheet-work .box-qr-label-reference .box-qr-reference-quantity-value.has-large-quantity {
   --qr-quantity-value-size: 7.2pt;
 }
+
+/* Leave room for a space before the unit on the narrow label. */
+.qr-sheet-work .box-qr-label-reference .box-qr-reference-summary {
+  grid-template-columns: 21fr 24.5fr 17.5fr 18fr 19fr;
+}
+
+.qr-sheet-work .box-qr-label-reference .box-qr-reference-batch-value {
+  padding-inline: 0.15mm;
+}
