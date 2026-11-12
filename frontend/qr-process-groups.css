@@ -77,3 +77,18 @@
     --qr-main-height: 17.8mm;
   }
 }
+
+/* Keep the print method beside its degree inside the existing process cell. */
+.box-qr-label-reference .box-qr-reference-row.has-print-method > strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.05;
+}
+
+.qr-sheet-work .box-qr-label-reference .box-qr-reference-row.has-print-method:not(.is-combined) > strong {
+  font-size: min(6.6pt, calc((var(--qr-equal-row-height) - 0.4mm) / 1.1));
+}
+
+.qr-sheet-work .box-qr-label-reference .box-qr-reference-row.has-print-method.is-combined:not(.is-long-combined) > strong {
+  font-size: min(6.2pt, calc((var(--qr-equal-row-height) - 0.4mm) / 2.1));
+}

@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-12", title:"박스 라벨에 공정별 인쇄 방식 표시", items:["박스 QR 라벨의 공정 칸에 1도 실크·2도 박처럼 각 공정의 인쇄 방식을 함께 표시합니다. 두 라벨 레이아웃에 적용하며 동시 공정과 화염·박가루 표시를 유지합니다."] },
   { date:"2026-11-11", title:"제품 수정·공정 추가 시 생산량 자동 입력", items:["기존 제품 수정 화면에서도 비어 있는 공정별·자동 생산량을 채웁니다. 박 제품에 실크 공정을 추가하면 해당 실크 생산량과 자동 인쇄 생산량이 즉시 입력됩니다. 기존 입력값과 작성 중 직접 수정한 값은 유지합니다."] },
   { date:"2026-11-11", title:"제품 생산량 누락 전수 보완", items:["전체 제품의 생산량을 항목별로 점검해 공정별·자동 인쇄 생산량 누락을 보완했습니다. 기존 평균 생산량이 있는 단일 공정은 그 값을 이어받고, 직접 입력된 생산량은 유지합니다."] },
   { date:"2026-11-10", title:"신규 제품 생산량 자동 입력", items:["신규·복사 등록에서 선택한 박·실크 공정에 맞춰 시간당 생산량을 자동 입력합니다. 수동 실크 1도 1,250개·2·3도 812.5개, 박 1·2·3도 700개, 자동 인쇄 2,250개를 적용하며 직접 수정한 값과 기존 제품 수정 값은 유지합니다."] },
@@ -12744,6 +12745,13 @@ function getInboundQrProcessData(inbound, boxes = [], productProcessInfo = null)
   const processRows = globalThis.SeungjinQrLabel?.getProcessRows({
     finalProcess,
     processGroups: treatmentSource.processGroups,
+    ...Object.fromEntries(Array.from({length: 6}, (_, index) => {
+      const step = index + 1;
+      const key = `processStage${step}`;
+      const method = Object.hasOwn(treatmentSource, key) ? treatmentSource[key]
+        : Object.hasOwn(treatmentSource, `stage${step}`) ? treatmentSource[`stage${step}`] : product?.[key];
+      return [key, method ?? ""];
+    })),
     flameTreatmentStatus,
     dustRemovalStatus
   }) || ["1도", "2도", "3도"].map((label) => ({ label, disabled: false, treatment: false }));
@@ -12913,8 +12921,9 @@ function renderInboundQrReferenceLabel({
 
 function renderQrReferenceProcessRow(processRow) {
   const disabledClass = processRow.disabled ? " is-disabled" : "";
+  const methodClass = /실크|박(?!가루)/.test(processRow.label) && !processRow.treatment && !processRow.disabled ? " has-print-method" : "";
   return `
-    <div class="box-qr-reference-row${disabledClass}${processRow.label.includes("+") ? " is-combined" : ""}${processRow.label.split("+").length > 4 ? " is-long-combined" : ""}"${processRow.disabled ? ' aria-disabled="true"' : ""}>
+    <div class="box-qr-reference-row${disabledClass}${methodClass}${processRow.label.includes("+") ? " is-combined" : ""}${processRow.label.split("+").length > 4 || (methodClass && processRow.label.length > 13) ? " is-long-combined" : ""}"${processRow.disabled ? ' aria-disabled="true"' : ""}>
       <strong>${escapeHtml(processRow.label)}</strong>
       <span class="box-qr-reference-quantity">ea</span>
       <span class="box-qr-reference-work-date">

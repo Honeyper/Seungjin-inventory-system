@@ -63,12 +63,25 @@
       : (finalProcess || "-");
   }
 
-  function getProcessRows({
-    finalProcess = "",
-    flameTreatmentStatus = "무",
-    dustRemovalStatus = "무",
-    processGroups = null
-  } = {}) {
+  function getProcessGroupLabel(group, processInfo) {
+    const methods = group.map(step => {
+      const value = String(processInfo[`processStage${step}`] ?? processInfo[`stage${step}`] ?? "").replace(/\s/g, "");
+      return ["실크", "실크인쇄"].includes(value) ? "실크" : ["박", "박인쇄"].includes(value) ? "박" : "";
+    });
+    const steps = group.map(step => `${step}도`);
+    if (methods[0] && methods.every(method => method === methods[0])) {
+      const degrees = group.length > 2 ? `${group[0]}~${group[group.length - 1]}도` : steps.join("+");
+      return `${degrees} ${methods[0]}`;
+    }
+    if (group.length > 2 && methods.every(Boolean)) {
+      return [...new Set(methods)].map(method =>
+        `${group.filter((step, index) => methods[index] === method).join("+")}도 ${method}`).join(" / ");
+    }
+    return steps.map((label, index) => methods[index] ? `${label} ${methods[index]}` : label).join("+");
+  }
+
+  function getProcessRows(processInfo = {}) {
+    const { finalProcess = "", flameTreatmentStatus = "무", dustRemovalStatus = "무", processGroups = null } = processInfo;
     const singleProcess = String(finalProcess).trim();
     if (["코팅", "라벨"].includes(singleProcess)) {
       return [
@@ -82,7 +95,7 @@
     const finalStep = getProcessStep(finalProcess);
     if (Array.isArray(processGroups) || finalStep > 3) {
       const rows = getProcessGroups({ finalProcess, processGroups }).map(group => ({
-        label: group.map(step => `${step}도`).join("+"), disabled: false, treatment: false
+        label: getProcessGroupLabel(group, processInfo), disabled: false, treatment: false
       }));
       if (hasFlameTreatment) rows.unshift({label: "화염", disabled: false, treatment: true});
       if (hasDustRemoval) rows.push({label: "박가루", disabled: false, treatment: true});
@@ -100,7 +113,7 @@
     return labels.map((label) => {
       const step = getProcessStep(label);
       return {
-        label: step && finalStep && step > finalStep ? "---" : label,
+        label: step && finalStep && step > finalStep ? "---" : step ? getProcessGroupLabel([step], processInfo) : label,
         disabled: Boolean(step && finalStep && step > finalStep),
         treatment: !step
       };
