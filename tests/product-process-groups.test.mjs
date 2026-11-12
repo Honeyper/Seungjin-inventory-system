@@ -22,7 +22,7 @@ test('1+2 simultaneous then 3 saves the final degree and prints one group per QR
   assert.equal(p.finalProcess,'3도');
   assert.equal(p.processRoute,'1도+2도 실크 → 3도 실크');
   assert.deepEqual(p.processGroups,[[1,2],[3]]);
-  assert.deepEqual(qr.getProcessRows(p).map(r=>r.label),['1도+2도','3도','---']);
+  assert.deepEqual(qr.getProcessRows(p).map(r=>r.label),['1도+2도 실크','3도 실크','---']);
   assert.equal(qr.getProcessRows(p)[2].disabled,true);
   assert.equal(qr.getProcessSummary(p),'3도');
   const context=form();context.setProductProcessForm(p);
@@ -40,7 +40,7 @@ test('every consecutive grouping of six degrees preserves all steps through stor
     assert.equal(p.finalProcess,'6도');assert.equal(p.processStage6,'실크');
     assert.deepEqual(p.processGroups,groups);
     const rows=qr.getProcessRows(p).filter(r=>!r.disabled);
-    assert.deepEqual(rows.map(r=>r.label),groups.map(g=>g.map(n=>`${n}도`).join('+')));
+    assert.deepEqual(rows.map(r=>r.label),groups.map(g=>(g.length>2?`${g[0]}~${g.at(-1)}도`:g.map(n=>`${n}도`).join('+'))+' 실크'));
     const c=form();c.setProductProcessForm(p);assert.equal(JSON.stringify(c.getProductProcessFormGroups()),JSON.stringify(groups));
     const updated=applyMutation('updateProduct',{productCode:p.productCode,'제품명':'이름만 변경'},created.state);
     assert.deepEqual(updated.state.products[0].processGroups,groups);
@@ -66,7 +66,7 @@ test('old products default to separate passes and a single process clears all si
 test('treatment rows do not overwrite grouped print passes',()=>{
   const p=create(6,[[1,2],[3,4],[5,6]]).state.products[0];
   const rows=qr.getProcessRows({...p,flameTreatmentStatus:'유',dustRemovalStatus:'유'});
-  assert.deepEqual(rows.map(r=>r.label),['화염','1도+2도','3도+4도','5도+6도','박가루']);
+  assert.deepEqual(rows.map(r=>r.label),['화염','1도+2도 실크','3도+4도 실크','5도+6도 실크','박가루']);
 });
 test('QR uses the current saved SKU groups and final degree instead of an older inbound degree',()=>{
   const p=create(6,[[1,2],[3,4],[5,6]]).state.products[0];
@@ -74,7 +74,7 @@ test('QR uses the current saved SKU groups and final degree instead of an older 
   vm.runInContext(extract('getInboundQrProcessData'),c);
   const result=c.getInboundQrProcessData({process:'3도'},[],p);
   assert.equal(result.finalProcess,'6도');assert.equal(result.summary,'6도');
-  assert.deepEqual(Array.from(result.processRows,r=>r.label),['1도+2도','3도+4도','5도+6도']);
+  assert.deepEqual(Array.from(result.processRows,r=>r.label),['1도+2도 실크','3도+4도 실크','5도+6도 실크']);
 });
 test('기존 제품도 재저장 없이 현재 최종공정을 우선하고 미사용 공정명을 대시로 출력한다',()=>{
   for(const degree of [1,2,3]){
