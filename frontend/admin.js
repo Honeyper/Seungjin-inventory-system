@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-12", title:"라벨 기준수량 글자 확대", items:["박스 QR 라벨의 기준수량·잔량 제목과 수량 숫자를 더 크고 굵게 표시합니다. 두 라벨 레이아웃과 인쇄에 적용합니다."] },
   { date:"2026-11-12", title:"박스 라벨에 공정별 인쇄 방식 표시", items:["박스 QR 라벨의 공정 칸에 1도 실크·2도 박처럼 각 공정의 인쇄 방식을 함께 표시합니다. 두 라벨 레이아웃에 적용하며 동시 공정과 화염·박가루 표시를 유지합니다."] },
   { date:"2026-11-11", title:"제품 수정·공정 추가 시 생산량 자동 입력", items:["기존 제품 수정 화면에서도 비어 있는 공정별·자동 생산량을 채웁니다. 박 제품에 실크 공정을 추가하면 해당 실크 생산량과 자동 인쇄 생산량이 즉시 입력됩니다. 기존 입력값과 작성 중 직접 수정한 값은 유지합니다."] },
   { date:"2026-11-11", title:"제품 생산량 누락 전수 보완", items:["전체 제품의 생산량을 항목별로 점검해 공정별·자동 인쇄 생산량 누락을 보완했습니다. 기존 평균 생산량이 있는 단일 공정은 그 값을 이어받고, 직접 입력된 생산량은 유지합니다."] },
@@ -12885,7 +12886,7 @@ function renderInboundQrReferenceLabel({
       </div>
       <div class="box-qr-reference-summary">
         <strong class="box-qr-reference-quantity-label${quantityData.isRemainder ? " is-remainder" : ""}">${quantityData.isRemainder ? "잔량" : "기준수량"}</strong>
-        <span class="box-qr-reference-quantity-value${quantityData.isRemainder ? " is-remainder" : ""}">${escapeHtml(formatNumber(quantityData.quantity))}ea</span>
+        <span class="box-qr-reference-quantity-value${quantityData.isRemainder ? " is-remainder" : ""}${quantityData.quantity >= 100000 ? " has-large-quantity" : ""}"><span class="box-qr-reference-quantity-number">${escapeHtml(formatNumber(quantityData.quantity))}</span><small class="box-qr-reference-quantity-unit">ea</small></span>
         <strong class="box-qr-reference-batch-value${batchText ? " has-value" : ""}">${escapeHtml(batchText || "-")}</strong>
         <strong>입고일</strong>
         <span class="box-qr-reference-date-value">${variantClass ? escapeHtml(inboundDate).replace(/^(\d{4})\./, "$1.<wbr>") : escapeHtml(inboundDate)}</span>
