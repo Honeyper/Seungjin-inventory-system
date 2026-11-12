@@ -45,12 +45,18 @@ async function installFixtures(context, state) {
         return route.fulfill({ status: 401, json: { ok: false, message: '계정 정보가 일치하지 않습니다.' } });
       }
       if (action === 'uploadProductImage') {
-        state.uploads.push(payload.imageFile.name);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        if (state.failPhoto && payload.imageFile.name === '2.png') {
-          return route.fulfill({ status: 503, json: { ok: false, message: '사진 업로드 실패' } });
+        state.photoSaved ||= new Set();state.photoRequests=(state.photoRequests||0)+1;
+        const files=payload.imageFiles||[payload.imageFile];let failed=false;
+        await new Promise(resolve=>setTimeout(resolve,20));
+        for(const file of files){
+          if(state.photoSaved.has(file.name))continue;
+          state.uploads.push(file.name);
+          if(state.failPhoto&&file.name==='2.png'){failed=true;continue;}
+          state.photoSaved.add(file.name);
         }
-        return route.fulfill({ json: { ok: true, data: { imageUrl: `${origin}/image/${payload.imageFile.name}` } } });
+        if(failed)return route.fulfill({status:503,json:{ok:false,message:'사진 업로드 실패'}});
+        const urls=files.map(file=>`${origin}/image/${file.name}`);
+        return route.fulfill({json:{ok:true,data:{imageUrl:urls[0],...(payload.imageFiles?{imageUrls:urls}:{})}}});
       }
       const data = { products: state.mockProducts || [], purchaseOrders: state.mockOrders || [], inbounds: [], rows: [], notifications: [], stateVersion: 1, source: 'test' };
       return route.fulfill({ json: { ok: true, data } });
@@ -1179,6 +1185,7 @@ async function verifyPartialUpload(page, fixture) {
   const urls = await page.evaluate(() => resolveProductImageUrls({ '업체명': 'Fixture', '제품명': '테스트' }));
   assert.equal(urls.length, 3);
   assert.deepEqual(fixture.uploads, ['1.png', '2.png', '3.png', '2.png']);
+  assert.equal(fixture.photoRequests,2);
 }
 
 async function verifyMonthlyConfirmation(page, fixture) {
@@ -1248,6 +1255,12 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if (process.argv.includes('--uploads-only')) {
+      await verifyPartialUpload(page,fixture);
+      const timing=await measureBatch(page);
+      assert.ok(timing.batchMs<timing.serialMs);assert.equal(errors.length,0);
+      console.log(JSON.stringify({passed:true,uploadRequests:fixture.photoRequests,uploads:fixture.uploads,timing,consoleErrors:errors.length}));return;
+    }
     await verifyProductionPlanPilot(page, fixture);
     await verifyProductionPlanPrintTypes(page, fixture);
     await verifyProductionPlanDetails(page, fixture);

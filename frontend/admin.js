@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-12", title:"사진 업로드 묶음 처리 개선", items:["제품·입고·출고 사진을 원본 그대로 묶어 전송해 반복 요청과 폴더 탐색을 줄였습니다. 파일과 설명을 함께 저장하며, 일부 실패 후 다시 시도하면 이미 저장된 사진을 재사용합니다."] },
   { date:"2026-11-12", title:"라벨 수량과 단위 간격 조정", items:["QR 라벨의 수량 숫자와 ea 사이에 공백을 넣어 구분합니다. 일반·작은 라벨과 인쇄에 적용합니다."] },
   { date:"2026-11-12", title:"라벨 기준수량 글자 확대", items:["박스 QR 라벨의 기준수량·잔량 제목과 수량 숫자를 더 크고 굵게 표시합니다. 두 라벨 레이아웃과 인쇄에 적용합니다."] },
   { date:"2026-11-12", title:"박스 라벨에 공정별 인쇄 방식 표시", items:["박스 QR 라벨의 공정 칸에 1도 실크·2도 박처럼 각 공정의 인쇄 방식을 함께 표시합니다. 두 라벨 레이아웃에 적용하며 동시 공정과 화염·박가루 표시를 유지합니다."] },
@@ -8773,23 +8774,20 @@ function removeProductImageSelection() {
 }
 
 async function resolveProductImageUrls(payload) {
-  const uploadedUrls = await window.SeungjinAttachments.uploadBatch(state.productImagePendingFiles, async ({ file }) => {
-    const imageFile = await getFilePayload(file, {
-      label: "제품 이미지",
-      maxSize: MAX_PRODUCT_IMAGE_FILE_SIZE
+  const files = await window.SeungjinAttachments.mapLimit(state.productImagePendingFiles, ({file}) => getFilePayload(file, {
+    label: "제품 이미지", maxSize: MAX_PRODUCT_IMAGE_FILE_SIZE
+  }));
+  const groups = window.SeungjinAttachments.groupUploadFiles(files);
+  const results = await window.SeungjinAttachments.uploadBatch(groups, async group => {
+    const result = await requestApi("uploadProductImage", {
+      productId: state.editingProductCode, clientName: payload["업체명"], productName: payload["제품명"],
+      ...(group.length === 1 ? {imageFile:group[0]} : {imageFiles:group})
     });
-    const uploadResult = await requestApi("uploadProductImage", {
-      productId: state.editingProductCode,
-      clientName: payload["업체명"],
-      productName: payload["제품명"],
-      imageFile
-    });
-    const productImageUrl = String(uploadResult?.imageUrl || "").trim();
-    if (!productImageUrl) {
-      throw new Error("제품 이미지 링크를 생성하지 못했습니다.");
-    }
-    return productImageUrl;
+    const urls = group.length === 1 ? [result?.imageUrl] : result?.imageUrls;
+    if (!Array.isArray(urls) || urls.length !== group.length || urls.some(url => !String(url || "").trim())) throw new Error("제품 이미지 링크를 생성하지 못했습니다.");
+    return urls;
   });
+  const uploadedUrls = results.flat();
 
   const productImageUrls = normalizeProductImageUrls([...state.productImageUrls, ...uploadedUrls]);
   state.productImageUrls = productImageUrls;

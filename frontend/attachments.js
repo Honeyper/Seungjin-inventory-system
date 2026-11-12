@@ -110,7 +110,7 @@
     return [first, ...await mapLimit(items.slice(1), (item, index) => worker(item, index + 1))];
   }
 
-  function groupUploadFiles(files, maxFiles = 4, maxEncodedBytes = 8 * 1024 * 1024) {
+  function groupUploadFiles(files, maxFiles = 8, maxEncodedBytes = 8 * 1024 * 1024) {
     const groups = [];
     let group = [], bytes = 0;
     for (const file of files) {
@@ -124,11 +124,11 @@
     return groups;
   }
 
-  function uploadOnce(action, payload, send) {
+  function uploadOnce(action, payload, send, grouped = false) {
     const resultField = uploadFields[action];
     if (!resultField) return send(payload);
-    if (action === "uploadShippingDefectPhotos" && payload.defectFiles?.length > 1) {
-      return uploadBatch(payload.defectFiles, file => uploadOnce(action, { ...payload, defectFiles: [file] }, send))
+    if (action === "uploadShippingDefectPhotos" && payload.defectFiles?.length > 1 && !grouped) {
+      return uploadBatch(groupUploadFiles(payload.defectFiles), files => uploadOnce(action, { ...payload, defectFiles: files }, send, true))
         .then(results => ({
           folderUrl: [...new Set(results.map(result => result.folderUrl))].join(" "),
           uploadedCount: results.reduce((total, result) => total + Number(result.uploadedCount || 0), 0),
@@ -137,7 +137,7 @@
     }
     const metadata = { ...payload };
     const ids = [];
-    for (const field of ["invoiceFile", "imageFile", "defectFiles"]) {
+    for (const field of ["invoiceFile", "imageFile", "imageFiles", "defectFiles"]) {
       const files = Array.isArray(metadata[field]) ? metadata[field] : [metadata[field]].filter(Boolean);
       for (const file of files) {
         if (!fileIds.has(file)) fileIds.set(file, ++nextFileId);
