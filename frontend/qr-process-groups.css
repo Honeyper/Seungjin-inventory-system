@@ -4,11 +4,10 @@
   --qr-main-height: 16.4mm;
   --qr-equal-row-height: calc((var(--qr-label-height) - var(--qr-main-height)) / (var(--qr-process-row-count, 3) + 4));
   --qr-title-size: 10.2pt;
+  --qr-content-font-size: min(var(--qr-title-size), calc((var(--qr-equal-row-height) - 0.4mm) / 1.1));
   --qr-box-count-size: 9.8pt;
   --qr-heading-size: 8.5pt;
   --qr-manager-size: 9pt;
-  --qr-quantity-label-size: 10pt;
-  --qr-quantity-value-size: 11pt;
 }
 
 .qr-sheet-work .box-qr-label-reference {
@@ -17,8 +16,6 @@
   --qr-box-count-size: 7pt;
   --qr-heading-size: 7pt;
   --qr-manager-size: 7.2pt;
-  --qr-quantity-label-size: 7.8pt;
-  --qr-quantity-value-size: 8.5pt;
 }
 
 .box-qr-label-reference,
@@ -26,8 +23,21 @@
   grid-template-rows: repeat(2, minmax(0, 1fr)) var(--qr-main-height) minmax(0, 1fr) repeat(var(--qr-process-row-count, 3), minmax(0, 1fr)) minmax(0, 1fr);
 }
 
-.box-qr-label-reference .box-qr-reference-final-process {
-  font-size: min(var(--qr-title-size), calc((var(--qr-equal-row-height) - 0.4mm) / 1.1));
+.box-qr-label-reference .box-qr-reference-final-process,
+.box-qr-label-reference .box-qr-reference-product-name,
+.box-qr-label-reference .box-qr-reference-summary .box-qr-reference-quantity-label,
+.box-qr-label-reference .box-qr-reference-summary .box-qr-reference-quantity-value {
+  font-size: var(--qr-content-font-size);
+}
+
+/* Intrinsic text height must not enlarge the shared product/QR grid row in print. */
+.box-qr-label-reference .box-qr-reference-main {
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.box-qr-label-reference .box-qr-reference-main > * {
+  min-height: 0;
 }
 
 .box-qr-label-reference .box-qr-reference-box-count {
@@ -97,13 +107,8 @@
   font-size: min(6.2pt, calc((var(--qr-equal-row-height) - 0.4mm) / 2.1));
 }
 
-.box-qr-label-reference .box-qr-reference-summary .box-qr-reference-quantity-label {
-  font-size: min(var(--qr-quantity-label-size), calc((var(--qr-equal-row-height) - 0.4mm) / 1.3));
-  font-weight: 700;
-}
-
+.box-qr-label-reference .box-qr-reference-summary .box-qr-reference-quantity-label,
 .box-qr-label-reference .box-qr-reference-summary .box-qr-reference-quantity-value {
-  font-size: min(var(--qr-quantity-value-size), calc((var(--qr-equal-row-height) - 0.4mm) / 1.3));
   font-weight: 700;
 }
 
@@ -125,13 +130,9 @@
   font-size: 5.5pt;
 }
 
-.qr-sheet-work .box-qr-label-reference .box-qr-reference-quantity-value.has-large-quantity {
-  --qr-quantity-value-size: 7.2pt;
-}
-
 /* Leave room for a space before the unit on the narrow label. */
 .qr-sheet-work .box-qr-label-reference .box-qr-reference-summary {
-  grid-template-columns: 21fr 24.5fr 17.5fr 18fr 19fr;
+  grid-template-columns: 24fr 29fr 10fr 18fr 19fr;
 }
 
 .qr-sheet-work .box-qr-label-reference .box-qr-reference-batch-value {
