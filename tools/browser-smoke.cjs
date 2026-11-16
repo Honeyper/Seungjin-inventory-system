@@ -18,6 +18,20 @@ async function installFixtures(context, state) {
     if (url.pathname.startsWith('/api/')) {
       const { action, payload } = route.request().postDataJSON();
       (state.actions ||= []).push(action);
+      if(state.additional && ['getAdditionalProductionSources','registerAdditionalProduction','getInventoryDashboard','getTodayInbounds','getInboundBoxQrs'].includes(action)) {
+        const engine=await import('../supabase/functions/seungjin-dev-gateway/state-engine.js');
+        let data;
+        if(action==='getAdditionalProductionSources')data={boxes:engine.getAdditionalProductionSources(state.additional,payload)};
+        if(action==='getInventoryDashboard')data=engine.buildInventoryDashboard(state.additional.records,state.additional.boxes);
+        if(action==='getTodayInbounds')data={inbounds:state.additional.inbounds};
+        if(action==='getInboundBoxQrs')data=engine.applyMutation(action,payload,state.additional).result;
+        if(action==='registerAdditionalProduction'){
+          state.additionalCalls=(state.additionalCalls||0)+1;
+          const mutation=engine.applyMutation(action,payload,state.additional);state.additional=mutation.state;data=mutation.result;
+          if(state.loseAdditionalResponse){state.loseAdditionalResponse=false;return route.fulfill({status:503,json:{ok:false,message:'응답 유실 시험'}});}
+        }
+        return route.fulfill({json:{ok:true,data}});
+      }
       if (state.inventory && ['getInventoryDashboard', 'getInventoryVersion', 'adjustMissingInventory'].includes(action)) {
         const engine = await import('../supabase/functions/seungjin-dev-gateway/state-engine.js');
         let data;
@@ -1241,6 +1255,42 @@ async function measureBatch(page) {
   });
 }
 
+async function verifyAdditionalProduction(page,fixture) {
+  const inbound={managementId:'IN-ADDITIONAL',productId:'P-ADD',productName:'추가 생산 시험',clientName:'시험',storage:'A-1',boxQuantity:'100 ea',inboundBoxCount:'10 box',inboundTotalQuantity:'1000 ea',inboundDate:'2026-09-18',inboundTime:'10:00',inboundType:'정상입고',process:'1도'};
+  fixture.additional={products:[],orders:[],inbounds:[inbound],records:[inbound,{...inbound,managementId:'RAW',storage:'H-1',stockStatus:'사출재고'}],
+    boxes:[...Array.from({length:10},(_,i)=>({boxId:`IN-ADDITIONAL-B${String(i+1).padStart(3,'0')}`,managementId:inbound.managementId,productId:inbound.productId,number:i+1,quantity:100,status:'보관',storage:'A-1'})),
+      {boxId:'RAW-B001',managementId:'RAW',productId:inbound.productId,number:1,quantity:150,status:'사출재고',storage:'H-1'}]};
+  fixture.loseAdditionalResponse=true;
+  await page.goto(`${origin}/admin.html#inventory`);
+  const open=page.locator('[data-additional-production="IN-ADDITIONAL"]');await open.waitFor();await open.click();
+  const modal=page.locator('#additionalProductionModal');
+  await modal.locator('[data-source]').waitFor();
+  await page.keyboard.press('Escape');assert.equal(await modal.isVisible(),false);
+  await open.click();await modal.locator('[data-source]').waitFor();
+  await modal.locator('[data-boxes] input').fill('80');await modal.locator('[name=lossQuantity]').fill('20');
+  await modal.locator('[name=sourceSearch]').fill('no-match');assert.equal(await modal.locator('[data-sources] label:visible').count(),0);
+  await modal.locator('[name=sourceSearch]').fill('H-1');assert.equal(await modal.locator('[data-sources] label:visible').count(),1);
+  await modal.locator('[data-source]').fill('100');
+  await modal.locator('[type=submit]').click();
+  await page.waitForFunction(()=>document.querySelector('#additionalProductionModal [data-message]').textContent.includes('응답 유실'));
+  await modal.locator('[type=submit]').click();
+  await page.waitForFunction(()=>document.querySelector('#additionalProductionModal').hidden);
+  await page.waitForFunction(()=>document.querySelectorAll('#inboundQrSheet .box-qr-label-reference').length===1);
+  assert.equal(fixture.additionalCalls,2);assert.equal(fixture.additional.boxes.length,12);
+  assert.equal(fixture.additional.boxes.find(b=>b.boxId==='RAW-B001').quantity,50);
+  assert.match(await page.locator('#inboundQrSheet .box-qr-reference-box-count').textContent(),/추가 1 Box/);
+  assert.equal(await page.locator('#inboundQrSheet .box-qr-reference-quantity-number').textContent(),'80');
+  await page.keyboard.press('Escape');await open.click();await modal.locator('[data-source]').waitFor();
+  for(const width of [1280,390]){
+    await page.setViewportSize({width,height:900});
+    const fits=await modal.evaluate(el=>el.querySelector('section').scrollWidth<=el.querySelector('section').clientWidth+1);
+    assert.ok(fits,`additional production dialog fits ${width}px`);
+    assert.ok((await modal.locator('[data-boxes] input').boundingBox()).width>=120,'box quantity remains readable');
+    if(process.env.ADDITIONAL_PRODUCTION_OUTPUT){fs.mkdirSync(process.env.ADDITIONAL_PRODUCTION_OUTPUT,{recursive:true});await page.screenshot({path:path.join(process.env.ADDITIONAL_PRODUCTION_OUTPUT,`dialog-${width}.png`)});}
+  }
+  await page.keyboard.press('Escape');
+}
+
 async function main() {
   const browser = await chromium.launch({
     ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}), headless: true
@@ -1255,6 +1305,10 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if(process.argv.includes('--additional-production-only')){
+      await verifyAdditionalProduction(page,fixture);assert.equal(errors.length,0);
+      console.log(JSON.stringify({passed:true,additionalCalls:fixture.additionalCalls,consoleErrors:errors}));return;
+    }
     if (process.argv.includes('--uploads-only')) {
       await verifyPartialUpload(page,fixture);
       const timing=await measureBatch(page);

@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="./qr-prd-legacy.css?v=20260909-qr-worker-hint-prd-qr-bulk-r38" />
     <link rel="stylesheet" href="./qr-process-groups.css?v=20260918-process-font-r19-expanded-space-r48-equal-rows-r49-stage-methods-r155-quantity-size-r156-quantity-space-r157-print-align-r159" />
     <link rel="stylesheet" href="./common-container-shipping.css?v=20261026-common-partial-r139">
+    <link rel="stylesheet" href="./additional-production.css?v=20261113-additional-production-r160" />
     <link rel="stylesheet" href="./icons.css?v=20261016-thin-r116" />
     <link rel="icon" type="image/svg+xml" href="./assets/seungjin-symbol.svg?v=20261016-blue-r117" />
   </head>
@@ -1679,6 +1680,7 @@
         <i class="ti ti-edit" aria-hidden="true"></i>
         <span>수정</span>
       </button>
+      <button class="row-menu-item" type="button" role="menuitem" data-inbound-menu-action="additional-production"><i class="ti ti-plus" aria-hidden="true"></i><span>추가 생산 박스 등록</span></button>
       <button class="row-menu-item danger" type="button" role="menuitem" data-inbound-menu-action="delete">
         <i class="ti ti-trash" aria-hidden="true"></i>
         <span>삭제</span>
@@ -2134,6 +2136,27 @@
             <button class="secondary-modal-action" type="button" id="cancelShippingCancelModal">닫기</button>
             <button class="primary-modal-action shipping-cancel-confirm-button" type="submit" id="saveShippingCancelButton" disabled>선택 박스 출고 취소</button>
           </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="additionalProductionModal" hidden>
+      <section class="product-modal additional-production-modal" role="dialog" aria-modal="true" aria-labelledby="additionalProductionTitle">
+        <header class="modal-header"><div><h2 id="additionalProductionTitle">추가 생산 박스 등록</h2><p data-target></p></div><button class="modal-close" type="button" data-close aria-label="닫기">×</button></header>
+        <form class="product-form">
+          <fieldset>
+            <div class="additional-production-fields">
+              <label class="form-field"><span>생산일</span><input name="productionDate" type="date" required></label>
+              <label class="form-field"><span>보관 위치</span><input name="storage" required maxlength="100"></label>
+              <label class="form-field"><span>로스 수량 (ea)</span><input name="lossQuantity" type="number" min="0" step="1" value="0" required></label>
+            </div>
+            <section class="additional-production-section"><header><h3>추가할 박스</h3><button class="secondary-modal-action" type="button" data-add-box>+ 박스 추가</button></header><div data-boxes></div></section>
+            <section class="additional-production-section"><header><h3>사용한 사출 재고</h3></header><input name="sourceSearch" type="search" placeholder="관리 ID·보관 위치 검색" aria-label="사출 재고 검색"><div class="additional-production-sources" data-sources></div></section>
+            <section class="additional-production-section"><label class="form-field"><span>비고</span><input name="note" maxlength="500" placeholder="추가 생산 사유"></label></section>
+            <p class="additional-production-summary" data-summary></p>
+          </fieldset>
+          <p class="form-message" data-message role="status" aria-live="polite"></p>
+          <div class="modal-actions"><button class="secondary-modal-action" type="button" data-close>취소</button><button class="primary-modal-action" type="submit">등록 후 라벨 보기</button></div>
         </form>
       </section>
     </div>
@@ -3237,7 +3260,7 @@
     <script src="./inventory-confirmation.js?v=20261001-monthly-day30-v3"></script>
     <script src="./http-client.js?v=20260918-reliability-r20"></script>
     <script src="./attachments.js?v=20261028-inbound-upload-r140-20260918-reliability-r20-photo-batch-r158"></script>
-    <script src="./supabase-gateway.js?v=staff-sheet-r145-20260918-reliability-r20-common-shipping-r23-read-write-performance-r135-inventory-r136-save-guard-registration-r137-add-names-r138"></script>
+    <script src="./supabase-gateway.js?v=additional-production-r160-staff-sheet-r145-20260918-reliability-r20-common-shipping-r23-read-write-performance-r135-inventory-r136-save-guard-registration-r137-add-names-r138"></script>
     <script src="./product-sort.js?v=20260907-product-picker-direction-prd"></script>
     <script src="./inbound-sort.js?v=20260901-recent-first-prd"></script>
     <script src="./qr-label.js?v=20260916-label-process-v1-process-groups-r17-legacy-dashes-r44-stage-methods-r155"></script>
@@ -3250,6 +3273,7 @@
     <script src="./common-container-shipping.js?v=20261026-common-partial-r139"></script>
     <script src="./admin-list-refresh.js?v=20261019-auto-refresh-r124"></script>
     <script src="./inventory-incremental.js?v=20261023-inventory-r136-save-guard-registration-r137-add-names-r138"></script>
-    <script src="./admin.js?v=20260918-audit-bulk-v1-prd-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-count20-r24-process-rates-r25-shipping-fix-r26-notification-read-r27-inbound-confirmation-r32-bulk-move-r33-survey-r34-completed-r35-monthly-day30-r36-storage-r37-qr-bulk-r38-audit-storage-r41-camera-focus-r42-auto-order-r43-legacy-dashes-r44-reopen-cache-r45-shipping-performance-r46-name-fit-r47-expanded-space-r48-equal-rows-r49-search-batch-r50-compact-r51-product-copy-r52-inbound-totals-r53-inline-r54-divider-r55-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-employee-label-r64-stage-picker-r65-stage-label-r66-print-types-r67-caption-r68-auto-machines-r69-plan-save-r70-simple-plan-r71-cost-aware-r90-max-loss-r89-control-center-r88-no-blue-lines-r87-work-hours-r86-remaining-days-r85-daily-total-r84-loss-default-r83-auto-workdays-r82-details-slide-r81-plan-metrics-r80-worktime-label-r79-plan-no-stripe-r78-plan-delivery-r77-plan-details-r76-target-floor500-r75-plan-density-r74-product-cell-r73-remaining-production-r91-mixed-print-progress-r92-setup-carryover-r93-no-unassigned-history-r94-row-details-r95-row-toggle-r96-retry1-popup-escape-r97-chevron-center-r98-deadline-window-r99-remaining-quantity-r100-weekday-r101-inventory-fit-r102-order-picker-r103-date-details-r104-balanced-hours-r105-inline-selectors-r106-weekday-position-r107-minimum-shift-r108-order-continuation-r109-selector-spacing-r110-saturday-first-r111-target-caption-r112-hours-highlight-r113-login-minimal-r114-thin-icons-r116-blue-symbol-r117-purchase-compact-r118-shipping-pending-boxes-r119-mobile-icons-r120-home-align-r121-action-contrast-r122-app-icon-padding-r123-auto-refresh-r124-filter-placeholder-r125-add-plan-row-r126-plan-button-position-r127-details-outside-r128-plan-row-menu-r129-plan-row-drag-r130-plan-picker-edit-r131-selected-order-hours-r132-whole-row-drag-r133-inbound-delete-performance-r134-read-write-performance-r135-inventory-r136-save-guard-registration-r137-add-names-r138-common-partial-r139-inbound-upload-r140-drive-r141-discard-r142-inventory-r143-staff-sheet-r145-staff-popup-r146-staff-server-r147-plan-all-products-r148-foil-worker-r149-rate-defaults-r150-carry-rows-r151-product-rate-auto-r152-rate-audit-r153-rate-edit-r154-qr-stage-methods-r155-qr-quantity-size-r156-quantity-space-r157-photo-batch-r158-print-align-r159"></script>
+    <script src="./additional-production.js?v=20261113-additional-production-r160"></script>
+    <script src="./admin.js?v=20260918-audit-bulk-v1-prd-process-font-r19-reliability-r20-monthly-r21-qr-status-r22-common-shipping-r23-count20-r24-process-rates-r25-shipping-fix-r26-notification-read-r27-inbound-confirmation-r32-bulk-move-r33-survey-r34-completed-r35-monthly-day30-r36-storage-r37-qr-bulk-r38-audit-storage-r41-camera-focus-r42-auto-order-r43-legacy-dashes-r44-reopen-cache-r45-shipping-performance-r46-name-fit-r47-expanded-space-r48-equal-rows-r49-search-batch-r50-compact-r51-product-copy-r52-inbound-totals-r53-inline-r54-divider-r55-medicube-one-row-r60-daily-delivery-r61-objet-two-stage-r62-staff-role-r63-employee-label-r64-stage-picker-r65-stage-label-r66-print-types-r67-caption-r68-auto-machines-r69-plan-save-r70-simple-plan-r71-cost-aware-r90-max-loss-r89-control-center-r88-no-blue-lines-r87-work-hours-r86-remaining-days-r85-daily-total-r84-loss-default-r83-auto-workdays-r82-details-slide-r81-plan-metrics-r80-worktime-label-r79-plan-no-stripe-r78-plan-delivery-r77-plan-details-r76-target-floor500-r75-plan-density-r74-product-cell-r73-remaining-production-r91-mixed-print-progress-r92-setup-carryover-r93-no-unassigned-history-r94-row-details-r95-row-toggle-r96-retry1-popup-escape-r97-chevron-center-r98-deadline-window-r99-remaining-quantity-r100-weekday-r101-inventory-fit-r102-order-picker-r103-date-details-r104-balanced-hours-r105-inline-selectors-r106-weekday-position-r107-minimum-shift-r108-order-continuation-r109-selector-spacing-r110-saturday-first-r111-target-caption-r112-hours-highlight-r113-login-minimal-r114-thin-icons-r116-blue-symbol-r117-purchase-compact-r118-shipping-pending-boxes-r119-mobile-icons-r120-home-align-r121-action-contrast-r122-app-icon-padding-r123-auto-refresh-r124-filter-placeholder-r125-add-plan-row-r126-plan-button-position-r127-details-outside-r128-plan-row-menu-r129-plan-row-drag-r130-plan-picker-edit-r131-selected-order-hours-r132-whole-row-drag-r133-inbound-delete-performance-r134-read-write-performance-r135-inventory-r136-save-guard-registration-r137-add-names-r138-common-partial-r139-inbound-upload-r140-drive-r141-discard-r142-inventory-r143-staff-sheet-r145-staff-popup-r146-staff-server-r147-plan-all-products-r148-foil-worker-r149-rate-defaults-r150-carry-rows-r151-product-rate-auto-r152-rate-audit-r153-rate-edit-r154-qr-stage-methods-r155-qr-quantity-size-r156-quantity-space-r157-photo-batch-r158-print-align-r159-additional-production-r160"></script>
   </body>
 </html>

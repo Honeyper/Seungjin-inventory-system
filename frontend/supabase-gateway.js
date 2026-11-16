@@ -6,6 +6,7 @@
   const readActions = new Set([
     "getProductionPlanReference",
     "getProductionPlanStaff",
+    "getAdditionalProductionSources",
     "getProducts",
     "getPurchaseOrders",
     "getTodayInbounds",
@@ -24,6 +25,7 @@
     "updatePurchaseOrder",
     "deletePurchaseOrder",
     "createInbound",
+    "registerAdditionalProduction",
     "updateInbound",
     "deleteInbound",
     "saveShippingInspection",
@@ -37,6 +39,7 @@
     "returnTakenOutInventory"
   ]);
   const mutationRefreshActions = {
+    registerAdditionalProduction: ["getTodayInbounds", "getInventoryDashboard"],
     createProduct: ["getProducts"],
     updateProduct: ["getProducts", "getInventoryDashboard"],
     deleteProduct: ["getProducts"],

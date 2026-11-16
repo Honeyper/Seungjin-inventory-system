@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-16", title:"추가 생산 박스 등록", items:["입고·재고 목록에서 사용한 사출 재고와 로스를 기록하고 추가 박스를 등록할 수 있습니다. 사출 사용량을 차감하며, 추가 박스에 새 QR을 발급해 해당 라벨만 출력합니다."] },
   { date:"2026-11-12", title:"라벨 글자 크기와 인쇄 QR 위치 정렬", items:["기준수량·수량 숫자·제품명을 최종공정과 같은 글자 크기로 맞췄습니다. 긴 제품명이 줄바꿈돼도 인쇄 시 QR 코드 위치가 내려가지 않도록 수정했습니다."] },
   { date:"2026-11-12", title:"사진 업로드 묶음 처리 개선", items:["제품·입고·출고 사진을 원본 그대로 묶어 전송해 반복 요청과 폴더 탐색을 줄였습니다. 파일과 설명을 함께 저장하며, 일부 실패 후 다시 시도하면 이미 저장된 사진을 재사용합니다."] },
   { date:"2026-11-12", title:"라벨 수량과 단위 간격 조정", items:["QR 라벨의 수량 숫자와 ea 사이에 공백을 넣어 구분합니다. 일반·작은 라벨과 인쇄에 적용합니다."] },
@@ -2600,6 +2601,7 @@ function getTopAdminFloatingPopup() {
     shippingInspectionModal: closeShippingInspectionModal, remainingInventoryModal: closeRemainingInventoryModal,
     shippingCompletionModal: closeShippingCompletionModal,
     ...(typeof closeShippingCancelModal === "function" ? {shippingCancelModal: closeShippingCancelModal} : {}),
+    additionalProductionModal: closeAdditionalProduction,
     transferReturnModal: closeTransferReturnModal, shippingWaitingConfirmModal: closeShippingWaitingConfirmModal,
     shippingHoldGuideModal: closeShippingHoldGuideModal, productModal: closeProductModal,
     productDetailModal: closeProductDetailModal, inboundDetailModal: closeInboundDetailModal,
@@ -2729,6 +2731,13 @@ inboundRowActionMenu.querySelectorAll("[data-inbound-menu-action]").forEach((but
 
     if (action === "edit") {
       openActiveInboundEdit();
+      return;
+    }
+
+    if(action === "additional-production") {
+      const inbound=getInboundByManagementId(state.activeInboundMenuRecord,state.activeInboundMenuProductId);
+      closeInboundRowActionMenu();
+      if(inbound)openAdditionalProduction(inbound);
       return;
     }
 
@@ -11682,6 +11691,7 @@ function renderInventoryTable(message = "") {
         <td>
           <div class="inventory-action-group">
             <button class="inventory-detail-button" type="button" data-inventory-detail="${escapeAttribute(item.managementId)}" data-inventory-detail-product="${escapeAttribute(item.productId)}">상세</button>
+            <button class="inventory-detail-button" type="button" data-additional-production="${escapeAttribute(item.managementId)}" data-additional-product="${escapeAttribute(item.productId)}">추가 생산</button>
             <button class="inventory-detail-button danger" type="button" data-inventory-delete="${escapeAttribute(item.managementId)}" data-inventory-delete-product="${escapeAttribute(item.productId)}">삭제</button>
           </div>
         </td>
@@ -11706,6 +11716,11 @@ function renderInventoryTable(message = "") {
       openInventoryInboundDetail(inbound);
     });
   });
+
+  inventoryTableBody.querySelectorAll("[data-additional-production]").forEach(button=>button.addEventListener("click",()=>{
+    const inbound=getInboundByManagementId(button.dataset.additionalProduction,button.dataset.additionalProduct);
+    if(inbound)openAdditionalProduction(inbound);
+  }));
 
   inventoryTableBody.querySelectorAll("[data-inventory-delete]").forEach((button) => {
     button.addEventListener("click", () => deleteActiveInbound(button.dataset.inventoryDelete, button.dataset.inventoryDeleteProduct));
@@ -12630,7 +12645,20 @@ async function openSelectedInboundQrModal() {
   }
 }
 
-async function openInboundQrModal(managementId, productId = "") {
+let additionalProductionController;
+function openAdditionalProduction(inbound) {
+  additionalProductionController ||= window.SeungjinAdditionalProduction.create({request:requestApi,parseQuantity:parseShippingSettlementNumber,
+    userName:session?.name || "Admin",today:()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date()),
+    onSaved:()=>{
+      showToast("추가 생산 박스를 등록했습니다.");
+      void refreshInboundMutationDataAfterMutation({freshInbounds:true,includeInventory:true}).catch(()=>showToast("등록은 완료됐습니다. 목록 새로고침을 눌러주세요."));
+    },printLabels:openInboundQrModal});
+  return additionalProductionController.open(inbound);
+}
+
+function closeAdditionalProduction() { additionalProductionController?.close(); }
+
+async function openInboundQrModal(managementId, productId = "", selectedBoxIds = null) {
   if (!managementId || !inboundQrModal || state.isLoadingInboundQrs) {
     return;
   }
@@ -12664,13 +12692,14 @@ async function openInboundQrModal(managementId, productId = "") {
   try {
     const result = await requestApi("getInboundBoxQrs", { managementId, productId: state.activeQrInboundProductId });
     if (loadToken !== inboundQrLoadToken) return;
-    const boxes = Array.isArray(result.boxes) ? result.boxes : [];
+    const allBoxes = Array.isArray(result.boxes) ? result.boxes : [];
+    const boxes = Array.isArray(selectedBoxIds) ? allBoxes.filter(box=>selectedBoxIds.includes(box.boxId)) : allBoxes;
     const productProcessInfo = result.productProcessInfo || null;
     const loadedProcessText = getInboundQrProcessData(inbound, boxes, productProcessInfo).summary;
     state.activeQrBoxes = boxes;
     state.activeQrProductProcessInfo = productProcessInfo;
     inboundQrSubtitle.textContent = `${managementId} · ${loadedProcessText} · ${inbound.inboundDate || "-"} · ${boxes.length.toLocaleString("ko-KR")}개`;
-    markInboundQrGenerated(managementId, state.activeQrInboundProductId, boxes.length);
+    markInboundQrGenerated(managementId, state.activeQrInboundProductId, allBoxes.length);
     renderInboundQrSheet(inbound, boxes, productProcessInfo);
   } catch (error) {
     if (loadToken !== inboundQrLoadToken) return;
@@ -12820,7 +12849,7 @@ function renderInboundQrGroups(groups) {
     inboundQrSubtitle.textContent = `${groups.length}건 · QR ${totalLabels}개 · A4 ${Math.ceil(totalLabels / perPage)}장`;
   }
   inboundQrSheet.innerHTML = groups.map(({ inbound, boxes, productProcessInfo }) => {
-    const total = boxes.length;
+    const total = boxes.filter(box=>!box.isAdditionalProduction).length;
     const processData = getInboundQrProcessData(inbound, boxes, productProcessInfo);
     const productName = inbound.productName || boxes[0]?.productName || "-";
     const batchText = formatInboundQrBatch(inbound.batch || boxes[0]?.batch);
@@ -12866,8 +12895,8 @@ function renderInboundQrReferenceLabel({
     currentQuantity: box?.currentQuantity,
     boxQuantity: box?.boxQuantity,
     referenceQuantity: inbound?.boxQuantity,
-    sequence,
-    fullBoxCount: inbound?.inboundBoxCount,
+    sequence: box?.isAdditionalProduction ? undefined : sequence,
+    fullBoxCount: box?.isAdditionalProduction ? undefined : inbound?.inboundBoxCount,
     totalBoxCount: total,
     remainderCount: getInboundRecordRemainderQuantities(inbound).length
   }) || {
@@ -12876,7 +12905,8 @@ function renderInboundQrReferenceLabel({
     ))),
     isRemainder: false
   };
-  const boxLabel = `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
+  const boxLabel = box?.isAdditionalProduction ? `추가 ${Number(box.additionalProductionNumber).toLocaleString("ko-KR")} Box`
+    : `${sequence.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} Box`;
 
   return `
     <article class="box-qr-label box-qr-label-reference${variantClass ? ` ${variantClass}` : ""}${processData.processRows.length > 3 ? " has-expanded-processes" : ""}" style="--qr-process-row-count:${processData.processRows.length}">
