@@ -3305,16 +3305,10 @@ small, em {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-#inventoryView .inventory-table .inventory-action-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  white-space: normal;
-}
-#inventoryView .inventory-table .inventory-detail-button {
+#inventoryView .inventory-table .row-action {
+  min-width: 0;
   max-width: 100%;
-  padding: 0.15rem 0.3rem;
-  font-size: inherit;
+  min-height: 0;
 }
 
 .table-product-name {
@@ -3377,41 +3371,6 @@ small, em {
 .inventory-total-muted {
   color: #7a8798;
   font-weight: 400;
-}
-
-.inventory-detail-button {
-  min-height: 1.75rem;
-  padding: 0 0.58rem;
-  color: var(--navy-dark);
-  font-size: 0.78rem;
-  font-weight: 500;
-  border: 1px solid #dfe7f0;
-  border-radius: 0.3rem;
-  background: #fff;
-}
-
-.inventory-action-group {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  white-space: nowrap;
-}
-
-.inventory-detail-button.danger {
-  color: #e02c22;
-  border-color: #ffd8d5;
-  background: #fff7f6;
-}
-
-.inventory-detail-button:hover {
-  border-color: #c9d8ea;
-  background: #f7fbff;
-}
-
-.inventory-detail-button.danger:hover {
-  border-color: #ffb9b3;
-  background: #fff0ee;
 }
 
 .inventory-badge {
@@ -5920,7 +5879,8 @@ small, em {
   box-shadow: 0 1.1rem 2.6rem rgba(15, 23, 42, 0.16), 0 0.25rem 0.8rem rgba(15, 23, 42, 0.08);
 }
 
-.row-action-menu[hidden] {
+.row-action-menu[hidden],
+.row-menu-item[hidden] {
   display: none;
 }
 

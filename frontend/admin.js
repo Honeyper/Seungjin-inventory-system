@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-16", title:"재고 목록 관리 칸 정리", items:["상세보기·추가 생산 박스 등록·삭제를 관리 메뉴에 모아 재고 목록의 행이 길어지는 문제를 줄였습니다."] },
   { date:"2026-11-16", title:"박스 라벨 순서 기입란 추가", items:["작업일 칸을 줄이고 작업자 오른쪽에 수기로 적는 순서 칸을 추가했습니다. 두 라벨 레이아웃과 인쇄에 적용합니다."] },
   { date:"2026-11-16", title:"추가 생산 박스 등록", items:["입고·재고 목록에서 사용한 사출 재고와 로스를 기록하고 추가 박스를 등록할 수 있습니다. 사출 사용량을 차감하며, 추가 박스에 새 QR을 발급해 해당 라벨만 출력합니다."] },
   { date:"2026-11-12", title:"라벨 글자 크기와 인쇄 QR 위치 정렬", items:["기준수량·수량 숫자·제품명을 최종공정과 같은 글자 크기로 맞췄습니다. 긴 제품명이 줄바꿈돼도 인쇄 시 QR 코드 위치가 내려가지 않도록 수정했습니다."] },
@@ -9022,12 +9023,24 @@ function renderInboundListTotals(inbounds) {
   `;
 }
 
+function renderInboundRowActionButton(item, label = "입고 관리") {
+  return `
+    <button class="row-action inbound-row-action" type="button" data-inbound-record="${escapeAttribute(item.managementId)}" data-inbound-product="${escapeAttribute(item.productId)}" aria-label="${label}" aria-haspopup="menu" aria-controls="inboundRowActionMenu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="5" r="1.6" />
+        <circle cx="12" cy="12" r="1.6" />
+        <circle cx="12" cy="19" r="1.6" />
+      </svg>
+    </button>
+  `;
+}
+
 function renderTodayInbounds(message = "") {
   if (!inboundTableBody || !inboundCountLabel) {
     return;
   }
 
-  closeInboundRowActionMenu();
+  if (inboundTableBody.contains(state.activeInboundMenuButton)) closeInboundRowActionMenu();
 
   const sourceCount = state.todayInbounds.length;
   const inbounds = getFilteredInbounds();
@@ -9073,13 +9086,7 @@ function renderTodayInbounds(message = "") {
         <td>${escapeHtml(item.defectRate)}</td>
         <td>${escapeHtml(item.registrant)}</td>
         <td>
-          <button class="row-action inbound-row-action" type="button" data-inbound-record="${escapeAttribute(item.managementId)}" data-inbound-product="${escapeAttribute(item.productId)}" aria-label="입고 관리" aria-haspopup="menu" aria-expanded="false">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="5" r="1.6" />
-              <circle cx="12" cy="12" r="1.6" />
-              <circle cx="12" cy="19" r="1.6" />
-            </svg>
-          </button>
+          ${renderInboundRowActionButton(item)}
         </td>
       </tr>
     `).join("");
@@ -11658,6 +11665,8 @@ function renderInventoryTable(message = "") {
     return;
   }
 
+  if (inventoryTableBody.contains(state.activeInboundMenuButton)) closeInboundRowActionMenu();
+
   state.filteredInventoryRows = inventoryColumnSort?.sort(state.filteredInventoryRows) || state.filteredInventoryRows;
   const total = state.filteredInventoryRows.length;
   const pageCount = Math.max(1, Math.ceil(total / state.inventoryPageSize));
@@ -11689,13 +11698,7 @@ function renderInventoryTable(message = "") {
         <td>${escapeHtml(item.storage)}</td>
         <td>${renderInventoryProcessBadge(item)}</td>
         <td>${renderInventoryDueBadge(item)}</td>
-        <td>
-          <div class="inventory-action-group">
-            <button class="inventory-detail-button" type="button" data-inventory-detail="${escapeAttribute(item.managementId)}" data-inventory-detail-product="${escapeAttribute(item.productId)}">상세</button>
-            <button class="inventory-detail-button" type="button" data-additional-production="${escapeAttribute(item.managementId)}" data-additional-product="${escapeAttribute(item.productId)}">추가 생산</button>
-            <button class="inventory-detail-button danger" type="button" data-inventory-delete="${escapeAttribute(item.managementId)}" data-inventory-delete-product="${escapeAttribute(item.productId)}">삭제</button>
-          </div>
-        </td>
+        <td>${renderInboundRowActionButton(item, "재고 관리")}</td>
       </tr>
     `)
     ].join("");
@@ -11705,26 +11708,11 @@ function renderInventoryTable(message = "") {
     button.addEventListener("click", () => openInboundQrModal(button.dataset.inventoryQr, button.dataset.inventoryQrProduct));
   });
 
-  inventoryTableBody.querySelectorAll("[data-inventory-detail]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const inbound = getInboundByManagementId(button.dataset.inventoryDetail, button.dataset.inventoryDetailProduct);
-
-      if (!inbound) {
-        showToast("재고 상세 정보를 찾을 수 없습니다.");
-        return;
-      }
-
-      openInventoryInboundDetail(inbound);
+  inventoryTableBody.querySelectorAll("[data-inbound-record]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleInboundRowActionMenu(button);
     });
-  });
-
-  inventoryTableBody.querySelectorAll("[data-additional-production]").forEach(button=>button.addEventListener("click",()=>{
-    const inbound=getInboundByManagementId(button.dataset.additionalProduction,button.dataset.additionalProduct);
-    if(inbound)openAdditionalProduction(inbound);
-  }));
-
-  inventoryTableBody.querySelectorAll("[data-inventory-delete]").forEach((button) => {
-    button.addEventListener("click", () => deleteActiveInbound(button.dataset.inventoryDelete, button.dataset.inventoryDeleteProduct));
   });
 
   inventoryCountLabel.textContent = state.inventoryFilters.query || state.inventoryFilters.client || state.inventoryFilters.storage || state.inventoryFilters.stock || state.inventoryFilters.process
@@ -12240,9 +12228,13 @@ function toggleInboundRowActionMenu(button) {
   state.activeInboundMenuProductId = productId;
   state.activeInboundMenuButton = button;
   button.setAttribute("aria-expanded", "true");
+  const isInventory = inventoryTableBody?.contains(button);
+  inboundRowActionMenu.setAttribute("aria-label", button.getAttribute("aria-label"));
+  inboundRowActionMenu.querySelector('[data-inbound-menu-action="edit"]').hidden = isInventory;
   inboundRowActionMenu.hidden = false;
   inboundRowActionMenu.style.visibility = "hidden";
   positionActionMenu(inboundRowActionMenu, button);
+  inboundRowActionMenu.querySelector('[data-inbound-menu-action="view"]').focus({ preventScroll: true });
 }
 
 function toggleShippingRowActionMenu(button) {
@@ -12514,7 +12506,13 @@ function openActiveInboundDetail() {
     return;
   }
 
+  const isInventory = inventoryTableBody?.contains(state.activeInboundMenuButton);
   closeInboundRowActionMenu();
+  if (isInventory) {
+    openInventoryInboundDetail(inbound);
+    return;
+  }
+
   state.activeDetailInboundId = inbound.managementId;
   state.activeDetailInboundProductId = inbound.productId || "";
   state.activeDetailInboundRecord = inbound;
