@@ -1,0 +1,29 @@
+.additional-production-modal { width: min(52rem, calc(100vw - 2rem)); }
+.inventory-action-group:has([data-additional-production]) { flex-wrap: wrap; }
+.additional-production-modal fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.additional-production-modal input { width: 100%; min-width: 0; min-height: 2.75rem; padding: 0 .75rem; border: 1px solid #dce4ef; border-radius: .38rem; color: #263449; background: #fff; }
+.additional-production-modal .unit-input input { padding-right: 2.5rem; }
+.additional-production-modal input:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+.additional-production-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.additional-production-section { margin-top: 1.25rem; }
+.additional-production-section > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .65rem; }
+.additional-production-section h3 { margin: 0; font-size: .95rem; }
+.additional-production-section > header button { width: auto; min-width: 0; }
+.additional-production-box { display: flex; align-items: end; gap: .75rem; margin-bottom: .5rem; }
+.additional-production-box label { flex: 1; min-width: 0; }
+.additional-production-sources { max-height: 16rem; overflow-y: auto; margin-top: .5rem; }
+.additional-production-source { display: grid; grid-template-columns: minmax(0, 1fr) 8rem; align-items: center; gap: 1rem; padding: .65rem 0; border-bottom: 1px solid #e0e6ee; }
+.additional-production-source[hidden] { display: none; }
+.additional-production-source strong, .additional-production-source small { display: block; overflow-wrap: anywhere; }
+.additional-production-source strong { font-size: .8rem; }
+.additional-production-source small { margin-top: .25rem; color: #65758d; }
+.additional-production-summary { padding: .8rem; background: #f3f6fb; border-radius: .3rem; font-size: .85rem; font-weight: 600; }
+@media(max-width: 600px) {
+  .additional-production-fields { grid-template-columns: 1fr; gap: .6rem; }
+  .additional-production-modal .product-form, .additional-production-modal .modal-header { padding: 1rem; }
+  .additional-production-modal .modal-actions { flex-direction: column; gap: .5rem; }
+  .additional-production-modal .modal-actions button { width: 100%; min-width: 0; }
+  .additional-production-source { grid-template-columns: minmax(0, 1fr) 7rem; gap: .5rem; }
+  .additional-production-box { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+  .additional-production-box button { width: auto; min-width: 3.5rem; padding-inline: .5rem; }
+}

@@ -282,6 +282,7 @@ function applySupabaseOutbox(payload) {
   verifySupabaseSheetSyncToken_(token);
 
   const allowedActions = new Set([
+    'registerAdditionalProduction',
     'createProduct', 'updateProduct', 'deleteProduct', 'backfillProductProductionRates',
     'createPurchaseOrder', 'updatePurchaseOrder', 'deletePurchaseOrder',
     'createInbound', 'updateInbound', 'deleteInbound',
@@ -301,7 +302,7 @@ function applySupabaseOutbox(payload) {
     const id = Number(item.id);
     const action = String(item.action || '');
 
-    if (!Number.isFinite(id) || id <= 0 || !allowedActions.has(action) || !routes[action]) {
+    if (!Number.isFinite(id) || id <= 0 || !allowedActions.has(action) || (!routes[action] && action !== 'registerAdditionalProduction')) {
       results.push({ id: item.id, ok: false, message: `지원하지 않는 동기화 항목입니다: ${action}` });
       stoppedByFailure = true;
       return;
@@ -317,7 +318,9 @@ function applySupabaseOutbox(payload) {
 
     try {
       const canonical = item.canonical_result || item.canonicalResult || {};
-      const data = action === 'backfillProductProductionRates'
+      const data = action === 'registerAdditionalProduction'
+        ? replayAdditionalProductionChanges_(canonical)
+        : action === 'backfillProductProductionRates'
         ? applyProductProductionRateBackfill_(buildSupabaseReplayPayload_(item))
         : action === 'updateShippingStatus' && canonical.commonContainerBoxChanges
         ? replayCommonContainerBoxChanges_(buildSupabaseReplayPayload_(item), canonical)

@@ -35,6 +35,7 @@ export const SUPABASE_MUTATION_ACTIONS = new Set([
   "updatePurchaseOrder",
   "deletePurchaseOrder",
   "createInbound",
+  "registerAdditionalProduction",
   "updateInbound",
   "deleteInbound",
   "saveShippingInspection",
@@ -363,6 +364,81 @@ function selectBoxes(state, payload, { allowEmpty = false, requireSelection = fa
   ));
   if (!allowEmpty && !matches.length) throw new ValidationError("처리할 박스를 찾을 수 없습니다. 최신 목록을 다시 불러와주세요.");
   return matches;
+}
+
+export function getAdditionalProductionSources(state, payload) {
+  const target = state.records.find(row => text(row.managementId) === text(payload.managementId) && text(row.productId) === text(payload.productId));
+  if (!target) throw new ValidationError("추가 생산할 입고·재고를 찾을 수 없습니다.");
+  return state.boxes.filter(box => {
+    const row = state.records.find(item => text(item.managementId) === text(box.managementId) && text(item.productId) === text(box.productId));
+    return row && box.productId === target.productId && box.managementId !== target.managementId
+      && number(box.quantity) > 0 && !/출고|폐기|보류|사용완료/.test(normalizeStatus(box.rawStatus || box.status))
+      && [box.inventoryCategory, box.rawStatus, box.status, row.inventoryCategory, row.stockStatus, row.processStatus]
+        .some(value => ["사출재고", "사출보관재고"].includes(text(value).replace(/\s/g,"")));
+  }).map(box => ({boxId:box.boxId, managementId:box.managementId, number:box.number, quantity:number(box.quantity), storage:box.storage,
+    productName:target.productName}));
+}
+
+function registerAdditionalProduction(payload, state, changes, now) {
+  const managementId=text(payload.managementId), productId=text(payload.productId), requestId=text(payload.requestId);
+  if (!/^[A-Za-z0-9_-]{8,100}$/.test(requestId)) throw new ValidationError("등록 요청 번호가 없습니다. 창을 다시 열어주세요.");
+  const target=state.records.find(row=>text(row.managementId)===managementId && text(row.productId)===productId);
+  if (!target) throw new ValidationError("추가 생산할 입고·재고를 찾을 수 없습니다.");
+  const fingerprint=JSON.stringify([managementId,productId,payload.boxQuantities,payload.sourceUses,payload.lossQuantity,payload.productionDate,payload.storage,text(payload.note)]);
+  const saved=(target.additionalProductionEvents || []).find(event=>event.requestId===requestId);
+  if (saved) {
+    if(saved.fingerprint!==fingerprint) throw new ValidationError("이미 처리된 등록 요청입니다. 최신 재고를 확인한 뒤 창을 다시 열어주세요.");
+    return {...saved.result,alreadyRegistered:true};
+  }
+  const positive=value=>Number.isSafeInteger(Number(value)) && Number(value)>0;
+  const quantities=payload.boxQuantities;
+  const uses=payload.sourceUses;
+  const loss=Number(payload.lossQuantity ?? 0);
+  const parts=dateParts(now),productionDate=text(payload.productionDate),storage=text(payload.storage);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(productionDate) || Number.isNaN(Date.parse(productionDate+'T00:00:00Z'))
+    || new Date(productionDate+'T00:00:00Z').toISOString().slice(0,10)!==productionDate || productionDate>parts.date) throw new ValidationError("실제 생산일을 오늘 이전 날짜로 입력해주세요.");
+  if(!storage || storage.length>100 || text(payload.note).length>500) throw new ValidationError("보관 위치와 비고를 확인해주세요.");
+  if(!Array.isArray(quantities) || !quantities.length || quantities.length>100 || quantities.some(q=>!positive(q))) throw new ValidationError("추가 박스별 수량을 양의 정수로 입력해주세요. 한 번에 100박스까지 등록할 수 있습니다.");
+  if(!Number.isSafeInteger(loss) || loss<0) throw new ValidationError("로스 수량은 0 이상의 정수로 입력해주세요.");
+  if(!Array.isArray(uses) || !uses.length || uses.length>100 || new Set(uses.map(use=>text(use.boxId))).size!==uses.length) throw new ValidationError("사용할 사출 재고를 중복 없이 선택해주세요.");
+  const eligible=new Map(getAdditionalProductionSources(state,payload).map(box=>[box.boxId,box]));
+  let used=0;
+  for(const use of uses){
+    const source=eligible.get(text(use.boxId));
+    if(!source || !positive(use.quantity) || Number(use.quantity)>source.quantity || Number(use.expectedQuantity)!==source.quantity) throw new ValidationError("선택한 사출 재고의 수량이나 상태가 변경됐습니다. 창을 다시 열어 확인해주세요.");
+    used+=Number(use.quantity);
+  }
+  const produced=quantities.reduce((sum,q)=>sum+Number(q),0);
+  if(!Number.isSafeInteger(produced+loss) || used!==produced+loss) throw new ValidationError("사출 사용량은 추가 생산 수량과 로스 수량의 합계와 같아야 합니다.");
+  const userName=text(payload.userName)||"Admin";
+  const note=`[추가생산 ${parts.timestamp}] ${managementId} · 생산 ${produced} ea · 로스 ${loss} ea · ${userName}${text(payload.note)?' · '+text(payload.note):''}`;
+  const changed=[];
+  for(const use of uses){
+    const box=state.boxes.find(box=>box.boxId===text(use.boxId));
+    box.quantity=number(box.quantity)-Number(use.quantity);
+    box.currentQuantity=formatEa(box.quantity);
+    if(box.quantity===0)box.status=box.rawStatus="사용완료";
+    box.productionUses=[...(box.productionUses||[]),{requestId,managementId,quantity:Number(use.quantity),productionDate,registeredAt:parts.timestamp,userName}];
+    box.note=[text(box.note)==="-"?"":text(box.note),note].filter(Boolean).join("\n");
+    changed.push(box);
+  }
+  let sequence=Math.max(0,...state.boxes.filter(box=>text(box.managementId)===managementId).map(box=>integer(box.number)));
+  let additionalNumber=Math.max(0,...state.boxes.filter(box=>box.managementId===managementId && box.productId===productId).map(box=>integer(box.additionalProductionNumber)));
+  const created=quantities.map(quantity=>{
+    let boxId;do{boxId=`${managementId}-B${String(++sequence).padStart(3,"0")}`;}while(state.boxes.some(box=>box.boxId===boxId));
+    return {boxId,managementId,productId,productName:target.productName,number:sequence,quantity:Number(quantity),currentQuantity:formatEa(quantity),boxQuantity:formatEa(quantity),
+      status:"보관",rawStatus:"보관",storage,isAdditionalProduction:true,additionalProductionNumber:++additionalNumber,productionRequestId:requestId,productionDate,
+      registeredAt:parts.timestamp,lastInventoryCheckedAt:parts.timestamp,inventoryConfirmationSource:"additional-production",note,
+      productionSourceUses:uses.map(use=>({boxId:use.boxId,quantity:Number(use.quantity)}))};
+  });
+  state.boxes.push(...created);
+  upsertBoxes([...changed,...created],changes);
+  const result={managementId,productId,requestId,boxIds:created.map(box=>box.boxId),addedBoxCount:created.length,producedQuantity:produced,usedQuantity:used,lossQuantity:loss};
+  target.additionalProductionEvents=[...(target.additionalProductionEvents||[]),{requestId,fingerprint,productionDate,registeredAt:parts.timestamp,userName,note:text(payload.note),result}];
+  target.note=[text(target.note)==="-"?"":text(target.note),note].filter(Boolean).join("\n");
+  touchInventoryRecords(state,[managementId,...changed.map(box=>box.managementId)],changes);
+  // Authenticated outbox replay writes these canonical snapshots, never repeats deductions.
+  return {...result,additionalProductionChanges:{boxes:changes.inventoryBoxes.upserts.map(row=>row.data),stock:changes.inventoryRecords.upserts.map(row=>row.data),stockDeletes:changes.inventoryRecords.deletes}};
 }
 
 function upsertBoxes(boxes, changes) {
@@ -741,6 +817,11 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     && preservesProcessedBoxIdentity;
   const relocatesProcessedInventory = updatesProcessedInventoryInPlace
     && text(currentRecord.storage) !== text(inbound.storage);
+  const hasProductionHistory=previousBoxes.some(box=>box.isAdditionalProduction || box.productionUses?.length);
+  if(action==="updateInbound" && hasProductionHistory && (nextBoxQuantity!==integer(currentRecord.boxQuantity)
+    || nextFullBoxCount!==currentFullBoxCount || JSON.stringify(nextRemainders)!==JSON.stringify(currentRemainders))) {
+    throw new ValidationError("추가 생산·사출 사용 이력이 있어 입고 박스 구성을 변경할 수 없습니다. 기존 수량과 QR을 유지해주세요.");
+  }
   const existingStock = text(payload.category || payload.entryCategory || payload.inboundType).replace(/\s/g, "") === "기존재고";
   if (!existingStock) {
     const oldKey = currentInbound ? inboundKey(currentInbound.managementId, currentInbound.productId) : "";
@@ -770,7 +851,7 @@ function createOrUpdateInbound(action, payload, state, changes, now) {
     && nextFullBoxCount === currentFullBoxCount
     && nextRemainders.length === currentRemainders.length
     && nextRemainders.every((quantity, index) => quantity === currentRemainders[index]);
-  if (relocatesWithoutQuantityChange) {
+  if (relocatesWithoutQuantityChange || (action==="updateInbound" && hasProductionHistory)) {
     Object.assign(currentRecord, record);
     const movedBoxes = previousBoxes.filter((box) => number(box.quantity) > 0
       && !/출고완료|폐기/.test(normalizeStatus(box.rawStatus || box.status))
@@ -1424,12 +1505,15 @@ export function applyMutation(action, payload, sourceState, now = new Date()) {
     result = { purchaseOrderId: id, deleted: true };
   } else if (action === "createInbound" || action === "updateInbound") {
     result = createOrUpdateInbound(action, payload, state, changes, now);
+  } else if (action === "registerAdditionalProduction") {
+    result = registerAdditionalProduction(payload,state,changes,now);
   } else if (action === "deleteInbound") {
     const managementId = text(payload.managementId);
     const productId = text(payload.productId);
     const inbound = state.inbounds.find((item) => text(item.managementId) === managementId && (!productId || text(item.productId) === productId));
     const records = state.records.filter((item) => text(item.managementId) === managementId && (!productId || text(item.productId) === productId));
     const boxes = state.boxes.filter((item) => text(item.managementId) === managementId && (!productId || text(item.productId) === productId));
+    if(boxes.some(box=>box.isAdditionalProduction || box.productionUses?.length)) throw new ValidationError("추가 생산·사출 사용 이력이 있는 입고는 삭제할 수 없습니다.");
     if (!inbound && !records.length) throw new ValidationError("삭제할 입고 내역을 찾을 수 없습니다.");
     if (inbound) changes.inbounds.deletes.push(inboundKey(inbound.managementId, inbound.productId));
     records.forEach((row) => changes.inventoryRecords.deletes.push(text(row.recordKey || inventoryKey(row.managementId, row.productId, row.storage))));

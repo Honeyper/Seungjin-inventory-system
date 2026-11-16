@@ -152,3 +152,46 @@ function writeSheetBackupChanges_(sheet, changes) {
     offset = end;
   }
 }
+
+// Called only after the one-use outbox token is verified in applySupabaseOutbox.
+// Upsert snapshots by identity: never deduct the raw inventory again on a replay.
+function replayAdditionalProductionChanges_(canonical) {
+  const lock=LockService.getScriptLock();lock.waitLock(30000);
+  try{return applyAdditionalProductionSnapshots_(canonical);}finally{lock.releaseLock();}
+}
+
+function applyAdditionalProductionSnapshots_(canonical) {
+  const snapshot=canonical.additionalProductionChanges;
+  if(!snapshot || !Array.isArray(snapshot.boxes) || !snapshot.boxes.length || !Array.isArray(snapshot.stock) || !snapshot.stock.length) throw new Error('추가 생산 백업 원본이 없습니다.');
+  const plans=['boxes','stock'].map(dataset=>{
+    const records=snapshot[dataset];
+    const keys=[...new Set(records.map(record=>String(record.managementId || '').trim()))];
+    const context=sheetBackupContext_(dataset,keys);
+    planSheetBackupRows_(context,records);
+    return {dataset,records,keys};
+  });
+  plans.forEach(({dataset,records,keys})=>{
+    let context=sheetBackupContext_(dataset,keys);
+    if(findHeaderIndex_(context.indexes,['Supabase 원본(JSON)'])<0){
+      const column=context.header.headers.length+1;
+      ensureSheetWriteCapacity_(context.sheet,context.header.rowIndex+1,column);
+      context.sheet.getRange(context.header.rowIndex+1,column).setValue('Supabase 원본(JSON)');
+      context=sheetBackupContext_(dataset,keys);
+    }
+    const rows=planSheetBackupRows_(context,records);
+    const identity=record=>context.definition.identity.map(key=>String(record[key] ?? '').trim()).join('|');
+    const existing=new Map(context.existing.map(entry=>[context.definition.identity.map(key=>pickCell_(entry.row,context.indexes,context.definition.fields[key])).join('|'),entry.rowNumber]));
+    const updates=[],appends=[];
+    records.forEach((record,i)=>{
+      const rowNumber=existing.get(identity(record));
+      if(rowNumber) updates.push({rowNumber,row:rows[i]});else appends.push(rows[i]);
+    });
+    if(dataset==='stock')for(const key of snapshot.stockDeletes || []){
+      if(existing.has(key) && !records.some(record=>identity(record)===key))updates.push({rowNumber:existing.get(key),row:new Array(context.header.headers.length).fill('')});
+    }
+    writeSheetBackupChanges_(context.sheet,updates);
+    if(appends.length)appendStyledRangeRows_(context.sheet,1,appends,context.header.rowIndex+2);
+  });
+  SpreadsheetApp.flush();clearApiReadCaches_();
+  return {additionalProductionSynced:true};
+}

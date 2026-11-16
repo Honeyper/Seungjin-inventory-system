@@ -5,9 +5,10 @@ import { createInventoryReadCache } from "./inventory-read-cache.js";
 import { createProductionPlanStaffReader } from "./production-plan-staff-cache.js";
 import { compactMobileDashboard } from "./state-engine.js";
 import { commonContainerInfo } from "./common-container-shipping.js";
-import { readRequestBody, publicError } from "./request-errors.js";
+import { readRequestBody, publicError, ValidationError } from "./request-errors.js";
 import {
   applyMutation,
+  getAdditionalProductionSources,
   ShippingStateConflict,
   buildInventoryDashboard,
   INBOUND_BOX_CONFIGURATION_CONFLICT,
@@ -421,7 +422,20 @@ async function loadShippingMutationState(payload: JsonRecord) {
   };
 }
 
+async function loadAdditionalProductionState(payload: JsonRecord) {
+  const productId=String(payload.productId || "").trim();
+  if(!productId || !String(payload.managementId || "").trim()) throw new ValidationError("추가 생산할 제품과 입고를 선택해주세요.");
+  const version=await loadStateVersion();
+  const filter=`product_id=eq.${encodeURIComponent(productId)}`;
+  const [records,boxes]=await Promise.all([
+    databaseRows(`dev_inventory_records?${filter}&select=record_key,management_id,product_id,storage,data`),
+    databaseRows(`dev_inventory_boxes?${filter}&select=box_id,management_id,product_id,storage,box_number,data`)
+  ]);
+  return {version,products:[],orders:[],inbounds:[],records:mapInventoryRecordRows(records),boxes:mapInventoryBoxRows(boxes)};
+}
+
 async function loadCanonicalState(action: string, payload: JsonRecord) {
+  if(action==="registerAdditionalProduction") return loadAdditionalProductionState(payload);
   if (action === "getInboundBoxQrs") {
     return loadInboundQrState(payload);
   }
@@ -466,6 +480,7 @@ async function commitCanonicalMutation(action: string, payload: JsonRecord, outb
     };
 
     // A retry of an already saved adjustment must not enqueue or write it again.
+    if(action==="registerAdditionalProduction" && mutation.result.alreadyRegistered) return {...mutation.result,stateVersion:state.version};
     if (action === "adjustRemainingInventory" && mutation.result.updatedBoxRows === 0
       && Number(mutation.result.alreadyAdjustedBoxRows) > 0) {
       return { ...mutation.result, stateVersion: state.version };
@@ -1051,6 +1066,11 @@ async function handleRequest(request: Request) {
       data: result,
       meta: { source: "supabase-canonical" }
     });
+  }
+
+  if(action==="getAdditionalProductionSources") {
+    const state=await loadAdditionalProductionState(payload);
+    return jsonResponse(request,{ok:true,data:{boxes:getAdditionalProductionSources(state,payload),stateVersion:state.version}});
   }
 
   if (ACTION_DATASETS[action] || action === "getInventoryVersion") {
