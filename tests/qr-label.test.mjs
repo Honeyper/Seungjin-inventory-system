@@ -85,8 +85,8 @@ test("QR 작업표는 작업일 제목 아래 월과 일을 다시 두 칸으로
   const adminSource = await readFile(new URL("../frontend/admin.js", import.meta.url), "utf8");
 
   assert.match(css, /\.box-qr-reference-quantity\s*\{[\s\S]*?color:\s*#9aa3af;/);
-  assert.match(css, /\.box-qr-reference-table-head,\s*\.box-qr-reference-row\s*\{[\s\S]*?grid-template-columns:\s*21fr 23fr 37fr 19fr;/);
-  assert.match(adminSource, /<strong>공정<\/strong>\s*<strong>포장수량<\/strong>\s*<strong>작업일<\/strong>\s*<strong>작업자<\/strong>/);
+  assert.match(css, /\.box-qr-reference-table-head,\s*\.box-qr-reference-row\s*\{[\s\S]*?grid-template-columns:\s*21fr 23fr 26fr 19fr 11fr;/);
+  assert.match(adminSource, /<strong>공정<\/strong>\s*<strong>포장수량<\/strong>\s*<strong>작업일<\/strong>\s*<strong>작업자<\/strong>\s*<strong class="box-qr-reference-order-heading">순서<\/strong>/);
   assert.match(adminSource, /box-qr-reference-work-date/);
   assert.match(adminSource, /box-qr-reference-worker/);
   assert.match(adminSource, /box-qr-reference-work-date">\s*<span class="box-qr-reference-month">월<\/span>\s*<span class="box-qr-reference-day">일<\/span>/);

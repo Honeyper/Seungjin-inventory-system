@@ -46,10 +46,18 @@ const baseline = process.argv.includes('--baseline');
         const metrics=await page.locator('.box-qr-label-reference').evaluateAll(labels=>labels.map(label=>{
           const box=label.getBoundingClientRect(), q=label.querySelector('.box-qr-image').getBoundingClientRect();
           const main=label.querySelector('.box-qr-reference-main').getBoundingClientRect();
+          const head=label.querySelector('.box-qr-reference-table-head');
+          const rows=[...label.querySelectorAll('.box-qr-reference-row')];
+          const worker=rows[0].querySelector('.box-qr-reference-worker').getBoundingClientRect();
+          const order=rows[0].querySelector('.box-qr-reference-order')?.getBoundingClientRect();
+          const workDate=rows[0].querySelector('.box-qr-reference-work-date').getBoundingClientRect();
           const font=selector=>parseFloat(getComputedStyle(label.querySelector(selector)).fontSize);
           return {qrX:q.x-box.x,qrY:q.y-box.y,qrBottom:q.bottom-box.y,mainTop:main.top-box.y,mainBottom:main.bottom-box.y,
             title:font('.box-qr-reference-final-process'),quantity:font('.box-qr-reference-quantity-number'),
-            caption:font('.box-qr-reference-quantity-label'),product:font('.box-qr-reference-product-name')};
+            caption:font('.box-qr-reference-quantity-label'),product:font('.box-qr-reference-product-name'),
+            headerCells:head.children.length,orderHeading:head.lastElementChild.textContent,
+            blankOrderCells:rows.every(row=>row.children.length===5 && row.lastElementChild.classList.contains('box-qr-reference-order') && !row.lastElementChild.textContent.trim()),
+            workDateRatio:workDate.width/box.width,orderWidth:order?.width,orderGap:order ? order.left-worker.right : null};
         }));
         for(let offset=0;offset<metrics.length;offset+=columns*5){
           const sheetMetrics=metrics.slice(offset,offset+columns*5);
@@ -58,6 +66,9 @@ const baseline = process.argv.includes('--baseline');
         if(!baseline) for(const m of metrics){
           for(const key of ['quantity','caption','product']) assert.ok(Math.abs(m[key]-m.title)<0.02,`${columns}-column ${media}: ${key} must match title`);
           assert.ok(m.qrY>=m.mainTop && m.qrBottom<=m.mainBottom+0.2,'QR stays inside product row');
+          assert.equal(m.headerCells,5);assert.equal(m.orderHeading,'순서');assert.equal(m.blankOrderCells,true);
+          assert.ok(m.workDateRatio>0.25 && m.workDateRatio<0.27,'work date uses the reduced width');
+          assert.ok(m.orderWidth>=19 && Math.abs(m.orderGap)<0.2,'blank order cell sits directly beside worker');
         }
         measurements.push({columns,media,first:metrics[0],long:metrics[2]});
         await page.screenshot({path:path.join(output,`${columns}-${media}.png`),fullPage:true});

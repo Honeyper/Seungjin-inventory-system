@@ -55,7 +55,12 @@
 
 .box-qr-reference-table-head,
 .box-qr-reference-row {
-  grid-template-columns: 21fr 23fr 37fr 19fr;
+  grid-template-columns: 21fr 23fr 26fr 19fr 11fr;
+}
+
+.box-qr-reference-table-head > .box-qr-reference-order-heading {
+  padding-inline: 0.15mm;
+  white-space: nowrap;
 }
 
 .box-qr-reference-title,
