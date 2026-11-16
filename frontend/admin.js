@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-16", title:"박스 라벨 순서 기입란 추가", items:["작업일 칸을 줄이고 작업자 오른쪽에 수기로 적는 순서 칸을 추가했습니다. 두 라벨 레이아웃과 인쇄에 적용합니다."] },
   { date:"2026-11-16", title:"추가 생산 박스 등록", items:["입고·재고 목록에서 사용한 사출 재고와 로스를 기록하고 추가 박스를 등록할 수 있습니다. 사출 사용량을 차감하며, 추가 박스에 새 QR을 발급해 해당 라벨만 출력합니다."] },
   { date:"2026-11-12", title:"라벨 글자 크기와 인쇄 QR 위치 정렬", items:["기준수량·수량 숫자·제품명을 최종공정과 같은 글자 크기로 맞췄습니다. 긴 제품명이 줄바꿈돼도 인쇄 시 QR 코드 위치가 내려가지 않도록 수정했습니다."] },
   { date:"2026-11-12", title:"사진 업로드 묶음 처리 개선", items:["제품·입고·출고 사진을 원본 그대로 묶어 전송해 반복 요청과 폴더 탐색을 줄였습니다. 파일과 설명을 함께 저장하며, 일부 실패 후 다시 시도하면 이미 저장된 사진을 재사용합니다."] },
@@ -12935,6 +12936,7 @@ function renderInboundQrReferenceLabel({
         <strong>포장수량</strong>
         <strong>작업일</strong>
         <strong>작업자</strong>
+        <strong class="box-qr-reference-order-heading">순서</strong>
       </div>
       ${processData.processRows.map(renderQrReferenceProcessRow).join("")}
       <div class="box-qr-reference-row box-qr-reference-manager">
@@ -12945,6 +12947,7 @@ function renderInboundQrReferenceLabel({
           <span class="box-qr-reference-day">일</span>
         </span>
         <span class="box-qr-reference-worker">(인)</span>
+        <span class="box-qr-reference-order" aria-label="순서 기입란"></span>
       </div>
     </article>
   `;
@@ -12962,6 +12965,7 @@ function renderQrReferenceProcessRow(processRow) {
         <span class="box-qr-reference-day">일</span>
       </span>
       <span class="box-qr-reference-worker">(인)</span>
+      <span class="box-qr-reference-order" aria-label="순서 기입란"></span>
     </div>
   `;
 }
