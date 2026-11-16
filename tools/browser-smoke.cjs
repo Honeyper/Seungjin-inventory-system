@@ -1283,7 +1283,7 @@ async function verifyAdditionalProduction(page,fixture) {
     boxes:[...Array.from({length:10},(_,i)=>({boxId:`IN-ADDITIONAL-B${String(i+1).padStart(3,'0')}`,managementId:inbound.managementId,productId:inbound.productId,number:i+1,quantity:100,status:'보관',storage:'A-1'})),
       {boxId:'RAW-B001',managementId:'RAW',productId:inbound.productId,number:1,quantity:150,status:'사출재고',storage:'H-1'}]};
   fixture.loseAdditionalResponse=true;
-  await page.goto(`${origin}/admin.html#inventory`);
+  await page.goto(`${origin}/admin.html?fixture=additional-production#inventory`);
   const trigger = page.locator('#inventoryTableBody [data-inbound-record="IN-ADDITIONAL"]');
   const menu = page.getByRole('menu', { name: '재고 관리' });
   const open = async () => {
@@ -1349,6 +1349,7 @@ async function main() {
       await verifyMonthlyConfirmation(page, fixture);
       await verifyAdditionalProduction(page, fixture);
       assert.deepEqual(errors, []);
+      console.log(JSON.stringify({ inventoryMenu: true, additionalCalls: fixture.additionalCalls, consoleErrors: errors.length }));
       return;
     }
     if(process.argv.includes('--additional-production-only')){
