@@ -20,6 +20,8 @@ test('10박스는 수량·QR 그대로 두고 새 박스만 만들며 사출 사
   assert.equal(r.state.boxes.find(b=>b.boxId==='RAW-1').currentQuantity,'50 ea');
   assert.equal(r.state.boxes.at(-1).boxId,'IN-TARGET-B011');assert.equal(r.state.boxes.at(-1).additionalProductionNumber,1);
   assert.equal(r.state.boxes.at(-1).quantity,80);assert.equal(r.result.lossQuantity,20);
+  assert.equal(r.state.boxes.at(-1).clientName,inbound.clientName);
+  assert.equal(r.state.boxes.at(-1).finalProcess,'1도');assert.equal(r.state.boxes.at(-1).inboundDate,inbound.inboundDate);
   assert.equal(r.state.boxes.reduce((n,b)=>n+b.quantity,0),before.boxes.reduce((n,b)=>n+b.quantity,0)-20);
   const dashboard=buildInventoryDashboard(r.state.records,r.state.boxes).rows;
   assert.equal(dashboard.find(row=>row.managementId==='IN-TARGET').currentBoxCount,'11 box');
