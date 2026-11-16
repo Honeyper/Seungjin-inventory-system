@@ -1142,6 +1142,23 @@ async function verifyPurchaseOrderDelivery(page, fixture) {
   assert.match(await page.locator('#purchaseOrderTableBody').textContent(), /납기 2026-10-30/);
 }
 
+async function assertAdditionalProductionLabelFits(menu) {
+  const label = menu.getByRole('menuitem', { name: '추가 생산 박스 등록' }).locator('span');
+  const layout = await label.evaluate(span => {
+    const text = document.createRange();
+    text.selectNodeContents(span);
+    const [firstLine, ...otherLines] = text.getClientRects();
+    const bounds = span.closest('[role="menu"]').getBoundingClientRect();
+    const button = span.closest('button').getBoundingClientRect();
+    return {
+      lines: firstLine ? 1 + otherLines.length : 0,
+      labelFits: firstLine?.right <= button.right,
+      menuFits: bounds.left >= 0 && bounds.right <= window.innerWidth
+    };
+  });
+  assert.deepEqual(layout, { lines: 1, labelFits: true, menuFits: true });
+}
+
 async function verifyInventoryTableFit(page) {
   await page.goto(origin+'/admin.html#inventory');
   await page.keyboard.press('Escape');
@@ -1184,6 +1201,7 @@ async function verifyInventoryTableFit(page) {
   assert.deepEqual(await menu.getByRole('menuitem').allTextContents().then(labels => labels.map(label => label.trim())), [
     '상세보기', '추가 생산 박스 등록', '삭제'
   ]);
+  await assertAdditionalProductionLabelFits(menu);
   await page.keyboard.press('Escape');
   assert.equal(await menu.isVisible(), false);
   assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
@@ -1327,6 +1345,16 @@ async function verifyAdditionalProduction(page,fixture) {
     assert.ok((await modal.locator('[data-boxes] input').boundingBox()).width>=120,'box quantity remains readable');
     if(process.env.ADDITIONAL_PRODUCTION_OUTPUT){fs.mkdirSync(process.env.ADDITIONAL_PRODUCTION_OUTPUT,{recursive:true});await page.screenshot({path:path.join(process.env.ADDITIONAL_PRODUCTION_OUTPUT,`dialog-${width}.png`)});}
   }
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto(`${origin}/admin.html?fixture=inbound-menu#inbound`);
+  const inboundTrigger = page.locator('#inboundTableBody [data-inbound-record="IN-ADDITIONAL"]');
+  await inboundTrigger.scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await inboundTrigger.click();
+  const inboundMenu = page.getByRole('menu', { name: '입고 관리' });
+  assert.equal(await inboundMenu.getByRole('menuitem', { name: '수정' }).isVisible(), true);
+  await assertAdditionalProductionLabelFits(inboundMenu);
   await page.keyboard.press('Escape');
 }
 
