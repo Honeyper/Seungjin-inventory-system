@@ -1164,13 +1164,30 @@ async function verifyInventoryTableFit(page) {
     assert.ok(bounds.scroll<=bounds.width+1,JSON.stringify({viewport:width,...bounds}));
     assert.ok(bounds.lastRight<=bounds.wrapRight+1);assert.deepEqual(bounds.clipped,[],JSON.stringify({viewport:width,...bounds}));
     assert.equal(await page.locator('#inventoryTableBody tr:first-child td').count(),14);
+    const firstRow = page.locator('#inventoryTableBody tr').first();
+    assert.equal(await firstRow.locator('td:last-child button').count(), 1);
+    const menuButton = await firstRow.locator('td:last-child button').evaluate(button => ({
+      height: button.getBoundingClientRect().height,
+      rem: parseFloat(getComputedStyle(document.documentElement).fontSize)
+    }));
+    assert.ok(menuButton.height <= 2.1 * menuButton.rem + 1, JSON.stringify({ width, ...menuButton }));
     await page.locator('.inventory-list-panel').screenshot({path:`/private/tmp/seungjin-inventory-fit-${width}.png`});
   }
   await page.setViewportSize({width:1280,height:900});
   await page.locator('.inventory-column-sort-button').filter({hasText:'제품명'}).click();
   assert.equal(await page.locator('.inventory-table th[aria-sort]').count(),1);
-  assert.equal(await page.locator('[data-inventory-detail]').count(),10);
-  assert.equal(await page.locator('[data-inventory-delete]').count(),10);
+  const rowActions = page.locator('#inventoryTableBody [data-inbound-record]');
+  assert.equal(await rowActions.count(), 10);
+  const trigger = rowActions.first();
+  const menu = page.getByRole('menu', { name: '재고 관리' });
+  await trigger.click();
+  assert.deepEqual(await menu.getByRole('menuitem').allTextContents().then(labels => labels.map(label => label.trim())), [
+    '상세보기', '추가 생산 박스 등록', '삭제'
+  ]);
+  await page.keyboard.press('Escape');
+  assert.equal(await menu.isVisible(), false);
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
+  assert.ok(await trigger.evaluate(button => document.activeElement === button));
   console.log(JSON.stringify({inventoryTableFit:true,columns:14,noHorizontalScroll:true,noClippedTextOrButtons:true,sortPreserved:true,widths:[2560,2048,1920,1440,1280,1024,960]}));
 }
 
@@ -1221,7 +1238,12 @@ async function verifyMonthlyConfirmation(page, fixture) {
   assert.equal(await page.locator('#shippingView').isVisible(), true);
   assert.ok((await page.locator('#shippingView tbody').textContent()).includes('MONTHLY-UI'));
   await page.evaluate(() => setActiveView('inventory'));
-  await page.locator('[data-inventory-detail="MONTHLY-UI"]').click();
+  await page.waitForFunction(() => !state.inventoryLoadPromise);
+  const menuTrigger = page.locator('#inventoryTableBody [data-inbound-record="MONTHLY-UI"]');
+  await menuTrigger.scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await menuTrigger.click();
+  await page.getByRole('menuitem', { name: '상세보기' }).click();
   assert.equal(await page.locator('.inventory-audit-box-card.confirmed').count(), 1);
   assert.equal(await page.locator('.inventory-audit-box-card.unconfirmed').count(), 0);
   fixture.now = new Date('2026-10-29T15:00:31Z');
@@ -1262,11 +1284,28 @@ async function verifyAdditionalProduction(page,fixture) {
       {boxId:'RAW-B001',managementId:'RAW',productId:inbound.productId,number:1,quantity:150,status:'사출재고',storage:'H-1'}]};
   fixture.loseAdditionalResponse=true;
   await page.goto(`${origin}/admin.html#inventory`);
-  const open=page.locator('[data-additional-production="IN-ADDITIONAL"]');await open.waitFor();await open.click();
+  const trigger = page.locator('#inventoryTableBody [data-inbound-record="IN-ADDITIONAL"]');
+  const menu = page.getByRole('menu', { name: '재고 관리' });
+  const open = async () => {
+    await trigger.click();
+    await menu.getByRole('menuitem', { name: '추가 생산 박스 등록' }).click();
+  };
+  await trigger.scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await trigger.click();
+  const deleteDialog = page.waitForEvent('dialog').then(async dialog => {
+    const message = dialog.message();
+    await dialog.dismiss();
+    return message;
+  });
+  await menu.getByRole('menuitem', { name: '삭제' }).click();
+  assert.match(await deleteDialog, /IN-ADDITIONAL/);
+  await page.keyboard.press('Escape');
+  await open();
   const modal=page.locator('#additionalProductionModal');
   await modal.locator('[data-source]').waitFor();
   await page.keyboard.press('Escape');assert.equal(await modal.isVisible(),false);
-  await open.click();await modal.locator('[data-source]').waitFor();
+  await open();await modal.locator('[data-source]').waitFor();
   await modal.locator('[data-boxes] input').fill('80');await modal.locator('[name=lossQuantity]').fill('20');
   await modal.locator('[name=sourceSearch]').fill('no-match');assert.equal(await modal.locator('[data-sources] label:visible').count(),0);
   await modal.locator('[name=sourceSearch]').fill('H-1');assert.equal(await modal.locator('[data-sources] label:visible').count(),1);
@@ -1280,7 +1319,7 @@ async function verifyAdditionalProduction(page,fixture) {
   assert.equal(fixture.additional.boxes.find(b=>b.boxId==='RAW-B001').quantity,50);
   assert.match(await page.locator('#inboundQrSheet .box-qr-reference-box-count').textContent(),/추가 1 Box/);
   assert.equal(await page.locator('#inboundQrSheet .box-qr-reference-quantity-number').textContent(),'80');
-  await page.keyboard.press('Escape');await open.click();await modal.locator('[data-source]').waitFor();
+  await page.keyboard.press('Escape');await open();await modal.locator('[data-source]').waitFor();
   for(const width of [1280,390]){
     await page.setViewportSize({width,height:900});
     const fits=await modal.evaluate(el=>el.querySelector('section').scrollWidth<=el.querySelector('section').clientWidth+1);
@@ -1305,6 +1344,13 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if (process.argv.includes('--inventory-menu-only')) {
+      await verifyInventoryTableFit(page);
+      await verifyMonthlyConfirmation(page, fixture);
+      await verifyAdditionalProduction(page, fixture);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if(process.argv.includes('--additional-production-only')){
       await verifyAdditionalProduction(page,fixture);assert.equal(errors.length,0);
       console.log(JSON.stringify({passed:true,additionalCalls:fixture.additionalCalls,consoleErrors:errors}));return;
