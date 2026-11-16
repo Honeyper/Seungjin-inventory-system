@@ -427,6 +427,8 @@ function registerAdditionalProduction(payload, state, changes, now) {
   const created=quantities.map(quantity=>{
     let boxId;do{boxId=`${managementId}-B${String(++sequence).padStart(3,"0")}`;}while(state.boxes.some(box=>box.boxId===boxId));
     return {boxId,managementId,productId,productName:target.productName,number:sequence,quantity:Number(quantity),currentQuantity:formatEa(quantity),boxQuantity:formatEa(quantity),
+      clientName:text(target.clientName),batch:text(target.batch),purchaseOrderId:text(target.purchaseOrderId),purchaseOrderRound:text(target.purchaseOrderRound),
+      finalProcess:text(target.finalProcess || target.process),process:text(target.process || target.finalProcess),inboundDate:text(target.inboundDate),inboundType:"추가생산",dueDate:text(target.dueDate),
       status:"보관",rawStatus:"보관",storage,isAdditionalProduction:true,additionalProductionNumber:++additionalNumber,productionRequestId:requestId,productionDate,
       registeredAt:parts.timestamp,lastInventoryCheckedAt:parts.timestamp,inventoryConfirmationSource:"additional-production",note,
       productionSourceUses:uses.map(use=>({boxId:use.boxId,quantity:Number(use.quantity)}))};

@@ -43,6 +43,8 @@ function sheetBackupDefinition_(dataset) {
     } },
     boxes: { sheet: CONFIG.SHEETS.BOX_DB, scope: 'managementId', identity: ['boxId'], required: ['박스ID', '관리ID', '제품명'], fields: {
       ...common, boxId: ['박스ID'], number: ['박스순번', '박스 순번', '박스 번호'],
+      inboundDate: ['입고일'], inboundType: ['입고 유형'], batch: ['차수'], finalProcess: ['최종공정'],
+      purchaseOrderRound: ['발주 차수'], dueDate: ['납기일'],
       quantity: ['현재 수량'], boxQuantity: ['박스당 수량'], registeredAt: ['등록 일시', '등록일시'],
       qrGenerated: ['QR 생성 여부', 'QR 출력 여부'], qrGeneratedAt: ['QR 생성 일시'], qrData: ['QR 데이터'],
       worker: ['작업자'], shippingType: ['출고유형', '출고 유형'], shippingDate: ['출고일'],
