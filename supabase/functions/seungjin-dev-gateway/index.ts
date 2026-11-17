@@ -434,7 +434,42 @@ async function loadAdditionalProductionState(payload: JsonRecord) {
   return {version,products:[],orders:[],inbounds:[],records:mapInventoryRecordRows(records),boxes:mapInventoryBoxRows(boxes)};
 }
 
+async function loadInventoryAuditMutationState(payload: JsonRecord) {
+  const confirmations = Array.isArray(payload.confirmedBoxes) ? payload.confirmedBoxes : [];
+  const adjustments = payload.confirmationOnly !== true && Array.isArray(payload.adjustments)
+    ? payload.adjustments
+    : [];
+  const managementIds = [...new Set([...confirmations, ...adjustments].map((group) =>
+    String(group?.managementId ?? "").trim()
+  ))];
+  if (!managementIds.length || managementIds.includes("")) {
+    throw new ValidationError("실물 확인 또는 재고 정리할 입고 건을 선택해주세요.");
+  }
+
+  const version = await loadStateVersion();
+  const records: JsonRecord[] = [];
+  const boxes: JsonRecord[] = [];
+  // Record summaries depend on every box in these inbounds, including unselected ones.
+  const batchSize = 50;
+  for (let offset = 0; offset < managementIds.length; offset += batchSize) {
+    const ids = managementIds.slice(offset, offset + batchSize)
+      .map((id) => `"${id.replace(/[\\"]/g, "\\$&")}"`).join(",");
+    const filter = `management_id=in.(${encodeURIComponent(ids)})`;
+    const [recordRows, boxRows] = await Promise.all([
+      databaseRows(`dev_inventory_records?${filter}&select=record_key,management_id,product_id,storage,data&order=management_id,product_id,storage,record_key`),
+      databaseRows(`dev_inventory_boxes?${filter}&select=box_id,management_id,product_id,storage,box_number,data&order=management_id,product_id,box_number,box_id`)
+    ]);
+    records.push(...recordRows);
+    boxes.push(...boxRows);
+  }
+
+  return { version, products: [], orders: [], inbounds: [], records: mapInventoryRecordRows(records), boxes: mapInventoryBoxRows(boxes) };
+}
+
 async function loadCanonicalState(action: string, payload: JsonRecord) {
+  if (action === "adjustMissingInventory") {
+    return loadInventoryAuditMutationState(payload);
+  }
   if(action==="registerAdditionalProduction") return loadAdditionalProductionState(payload);
   if (action === "getInboundBoxQrs") {
     return loadInboundQrState(payload);
