@@ -165,29 +165,39 @@ const SUPABASE_SECRET_KEY = getNamedKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVIC
 const SUPABASE_PUBLISHABLE_KEY = getNamedKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
 
 async function databaseRequest(path: string, init: RequestInit = {}) {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const url = `${SUPABASE_URL}/rest/v1/${path}`;
+  const options = {
     ...init,
     headers: {
       apikey: SUPABASE_SECRET_KEY,
       "Content-Type": "application/json",
       ...(init.headers || {})
     }
-  });
+  };
+  const retryDelays = [250, 750, 1750];
 
-  if (!response.ok) {
-    const message = await response.text();
-    const error = new Error(`Database request failed (${response.status}): ${message}`) as Error & {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(url, options);
+    if (response.status === 204) return null;
+    const body = await response.text();
+    if (response.ok) return body ? JSON.parse(body) : null;
+
+    // The Data API rejected routing before executing the request.
+    const retryDelay = retryDelays[attempt];
+    if (response.status === 400 && body.trim() === "Project not specified." && retryDelay !== undefined) {
+      console.warn("Supabase Data API routing rejected; retrying", path.split("?")[0], attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      continue;
+    }
+
+    const error = new Error(`Database request failed (${response.status}): ${body}`) as Error & {
       status?: number;
       responseText?: string;
     };
     error.status = response.status;
-    error.responseText = message;
+    error.responseText = body;
     throw error;
   }
-
-  if (response.status === 204) return null;
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
 }
 
 async function databaseRows(path: string) {
