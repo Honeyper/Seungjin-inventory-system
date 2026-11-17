@@ -7,7 +7,7 @@ const links=buildOrderShippingLinks([order],[{management_id:'IN1',product_id:'P1
 const box=(quantity,status='출고완료',type='정상출고')=>({box_id:'BOX1',management_id:'IN1',product_id:'P1',quantity,status,shipping_type:type});
 const read=(o,boxes)=>summarizePurchaseOrderShipping([o],links,boxes)[0];
 function runtime(orders) {
- return loadFunctions(adminSource,['getPurchaseOrderDisplayStatus','applyPurchaseOrderFilters','renderPurchaseOrderSummary'],{
+ return loadFunctions(adminSource,['getPurchaseOrderDisplayStatus','isPurchaseOrderInboundComplete','applyPurchaseOrderFilters','renderPurchaseOrderSummary'],{
   state:{purchaseOrders:orders,purchaseOrderQuery:'',purchaseOrderStatusFilter:'',showCompletedPurchaseOrders:false},
   toggleCompletedPurchaseOrdersButton:{textContent:'',setAttribute(k,v){this[k]=v}},purchaseOrderColumnSort:null,
   purchaseOrderTotal:{},purchaseOrderActive:{},purchaseOrderCompleted:{},purchaseOrderRemaining:{},renderPurchaseOrders(){},

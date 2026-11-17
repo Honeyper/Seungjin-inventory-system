@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-17", title:"입고 등록 발주 선택 개선", items:["누적 입고량이 발주량 이상인 발주는 입고 등록의 발주명 선택 목록에서 숨깁니다. 같은 제품의 미입고 수량이 남은 발주는 계속 선택할 수 있습니다."] },
   { date:"2026-11-16", title:"재고 목록 관리 칸 정리", items:["상세보기·추가 생산 박스 등록·삭제를 관리 메뉴에 모아 재고 목록의 행이 길어지는 문제를 줄였습니다. 입고·재고 관리 메뉴의 항목은 한 줄로 표시합니다."] },
   { date:"2026-11-16", title:"박스 라벨 순서 기입란 추가", items:["작업일 칸을 줄이고 작업자 오른쪽에 수기로 적는 순서 칸을 추가했습니다. 두 라벨 레이아웃과 인쇄에 적용합니다."] },
   { date:"2026-11-16", title:"추가 생산 박스 등록", items:["입고·재고 목록에서 사용한 사출 재고와 로스를 기록하고 추가 박스를 등록할 수 있습니다. 사출 사용량을 차감하며, 추가 박스에 새 QR을 발급해 해당 라벨만 출력합니다."] },
@@ -9494,11 +9495,9 @@ function selectInboundProduct(product) {
   }
 
   inboundDueDate.value = "";
-  populateInboundPurchaseOrders(product.productCode);
-
   setInboundLockedFieldEditable(inboundBoxQty, editInboundBoxQtyButton, false);
   setInboundLockedFieldEditable(inboundTrayQty, editInboundTrayQtyButton, false);
-  updateInboundSummary();
+  populateInboundPurchaseOrders(product.productCode);
   closeInboundProductPicker();
 }
 
@@ -10017,9 +10016,14 @@ function getPurchaseOrderDisplayStatus(order) {
   const shipped = Number(order.accumulatedShippingQuantity);
   if (total > 0 && Number.isFinite(shipped) && shipped >= total) return "발주완료";
   if (shipped > 0) return "작업중";
+  return isPurchaseOrderInboundComplete(order) ? "입고완료" : "입고중";
+}
+
+function isPurchaseOrderInboundComplete(order) {
+  const total = Number(order.totalOrderQuantity);
   const inbound = Number(order.accumulatedInboundQuantity);
   const rate = total > 0 && Number.isFinite(inbound) ? inbound / total : Number(order.inboundRate || 0);
-  return rate >= 1 ? "입고완료" : "입고중";
+  return rate >= 1;
 }
 
 function formatPurchaseOrderQuantityInput(value) {
@@ -10254,6 +10258,7 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
   const previousValue = preferredOrderId || inboundPurchaseOrder.value;
   const orders = state.purchaseOrders.filter((order) => (
     order.productId === productId
+    && !isPurchaseOrderInboundComplete(order)
     && !["취소", "임의 완료", "발주완료"].includes(getPurchaseOrderDisplayStatus(order))
   ));
   if (!productId) {
@@ -10273,6 +10278,7 @@ function populateInboundPurchaseOrders(productId, preferredOrderId = "") {
       : "";
   }
   applySelectedInboundPurchaseOrder();
+  updateInboundSummary();
 }
 
 function applySelectedInboundPurchaseOrder() {

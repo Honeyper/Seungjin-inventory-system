@@ -1069,6 +1069,42 @@ async function verifyProductionPlanStorageQuota(page) {
   console.log(JSON.stringify({quotaRecovery:true,cacheCharacters:filled.cacheLength}));
 }
 
+async function verifyInboundOpenOrders(page, fixture) {
+  const product = {
+    productId: 'NP-0001', productCode: 'NP-0001', productName: '오브제 파운데이션 외용기',
+    clientName: '뉴파트너스', finalProcess: '2도', boxQuantity: '567 ea', trayQuantity: '80 ea'
+  };
+  const order = { productId: product.productId, clientName: product.clientName, productName: product.productName,
+    totalOrderQuantity: 130000, startDate: '2026-11-06', endDate: '2026-11-30' };
+  fixture.mockProducts = [product];
+  fixture.mockOrders = [
+    { ...order, purchaseOrderId: 'PO-46', orderRound: '46차 발주', accumulatedInboundQuantity: 78000, accumulatedShippingQuantity: 1643, inboundRate: 0.6 },
+    { ...order, purchaseOrderId: 'PO-45', orderRound: '45차 발주', accumulatedInboundQuantity: 136500, accumulatedShippingQuantity: 128563, inboundRate: 1.05 },
+    { ...order, purchaseOrderId: 'PO-44', orderRound: '44차 발주', accumulatedInboundQuantity: 130000, inboundRate: 1 }
+  ];
+  await page.goto(`${origin}/admin.html?fixture=inbound-open-orders#inbound`);
+  await page.waitForFunction(() => state.purchaseOrdersLoaded && state.products.length === 1);
+  await page.locator('#inboundProductName').click();
+  await page.locator('#inboundProductPickerList .picker-product[data-product="NP-0001"]').click();
+  const picker = page.locator('#inboundPurchaseOrder');
+  assert.deepEqual(await picker.locator('option').evaluateAll(options => options.map(option => option.value)), ['', 'PO-46']);
+
+  await picker.selectOption('PO-46');
+  assert.equal(await page.locator('#inboundDueDate').inputValue(), '2026-11-30');
+  assert.match(await page.locator('#calcOrderProgressText').textContent(), /46차 발주/);
+
+  fixture.mockOrders[0] = { ...fixture.mockOrders[0], accumulatedInboundQuantity: 130000, inboundRate: 1 };
+  await page.evaluate(() => loadPurchaseOrders());
+  assert.equal(await picker.isDisabled(), true);
+  assert.equal(await picker.inputValue(), '');
+  assert.equal(await page.locator('#inboundDueDate').inputValue(), '');
+  assert.doesNotMatch(await page.locator('#calcOrderProgressText').textContent(), /46차 발주/);
+
+  await page.locator('[data-view-link="purchase-orders"]').click();
+  await page.waitForFunction(() => !state.purchaseOrdersLoadPromise);
+  assert.match(await page.locator('#purchaseOrderTableBody').textContent(), /45차 발주/);
+}
+
 async function verifyPurchaseOrderDelivery(page, fixture) {
   await page.goto(origin + '/admin.html#purchase-orders');
   await page.reload();
@@ -1372,6 +1408,12 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if (process.argv.includes('--inbound-open-orders-only')) {
+      await verifyInboundOpenOrders(page, fixture);
+      assert.deepEqual(errors, []);
+      console.log('Inbound order selection verified');
+      return;
+    }
     if (process.argv.includes('--inventory-menu-only')) {
       await verifyInventoryTableFit(page);
       await verifyMonthlyConfirmation(page, fixture);
@@ -1413,6 +1455,7 @@ async function main() {
     await verifyAdminPopupEscape(page);
     await verifyProductionPlanStorageQuota(page);
     await verifyPurchaseOrderDelivery(page, fixture);
+    await verifyInboundOpenOrders(page, fixture);
     await verifyMonthlyConfirmation(page, fixture);
     await verifyInventoryTableFit(page);
     await verifyPartialUpload(page, fixture);
