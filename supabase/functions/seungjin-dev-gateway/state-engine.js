@@ -384,7 +384,8 @@ function registerAdditionalProduction(payload, state, changes, now) {
   if (!/^[A-Za-z0-9_-]{8,100}$/.test(requestId)) throw new ValidationError("등록 요청 번호가 없습니다. 창을 다시 열어주세요.");
   const target=state.records.find(row=>text(row.managementId)===managementId && text(row.productId)===productId);
   if (!target) throw new ValidationError("추가 생산할 입고·재고를 찾을 수 없습니다.");
-  const fingerprint=JSON.stringify([managementId,productId,payload.boxQuantities,payload.sourceUses,payload.lossQuantity,payload.productionDate,payload.storage,text(payload.note)]);
+  const boxesOnly = payload.registrationMode === "boxes-only";
+  const fingerprint=JSON.stringify([managementId,productId,payload.boxQuantities,payload.sourceUses,payload.lossQuantity,payload.productionDate,payload.storage,text(payload.note),...(boxesOnly ? ["boxes-only"] : [])]);
   const saved=(target.additionalProductionEvents || []).find(event=>event.requestId===requestId);
   if (saved) {
     if(saved.fingerprint!==fingerprint) throw new ValidationError("이미 처리된 등록 요청입니다. 최신 재고를 확인한 뒤 창을 다시 열어주세요.");
@@ -392,16 +393,24 @@ function registerAdditionalProduction(payload, state, changes, now) {
   }
   const positive=value=>Number.isSafeInteger(Number(value)) && Number(value)>0;
   const quantities=payload.boxQuantities;
-  const uses=payload.sourceUses;
+  const uses = boxesOnly ? [] : payload.sourceUses;
   const loss=Number(payload.lossQuantity ?? 0);
-  const parts=dateParts(now),productionDate=text(payload.productionDate),storage=text(payload.storage);
+  const parts = dateParts(now);
+  const productionDate = text(payload.productionDate) || (boxesOnly ? parts.date : "");
+  const storage = text(payload.storage) || (boxesOnly ? text(target.storage) || "미지정" : "");
+  if (boxesOnly && (loss !== 0 || (payload.sourceUses !== undefined && (!Array.isArray(payload.sourceUses) || payload.sourceUses.length)))) {
+    throw new ValidationError("추가 박스의 수량을 확인해주세요.");
+  }
   if(!/^\d{4}-\d{2}-\d{2}$/.test(productionDate) || Number.isNaN(Date.parse(productionDate+'T00:00:00Z'))
     || new Date(productionDate+'T00:00:00Z').toISOString().slice(0,10)!==productionDate || productionDate>parts.date) throw new ValidationError("실제 생산일을 오늘 이전 날짜로 입력해주세요.");
   if(!storage || storage.length>100 || text(payload.note).length>500) throw new ValidationError("보관 위치와 비고를 확인해주세요.");
   if(!Array.isArray(quantities) || !quantities.length || quantities.length>100 || quantities.some(q=>!positive(q))) throw new ValidationError("추가 박스별 수량을 양의 정수로 입력해주세요. 한 번에 100박스까지 등록할 수 있습니다.");
   if(!Number.isSafeInteger(loss) || loss<0) throw new ValidationError("로스 수량은 0 이상의 정수로 입력해주세요.");
-  if(!Array.isArray(uses) || !uses.length || uses.length>100 || new Set(uses.map(use=>text(use.boxId))).size!==uses.length) throw new ValidationError("사용할 사출 재고를 중복 없이 선택해주세요.");
-  const eligible=new Map(getAdditionalProductionSources(state,payload).map(box=>[box.boxId,box]));
+  if (!boxesOnly && (!Array.isArray(uses) || !uses.length || uses.length>100
+    || new Set(uses.map(use=>text(use.boxId))).size!==uses.length)) {
+    throw new ValidationError("사용할 사출 재고를 중복 없이 선택해주세요.");
+  }
+  const eligible = new Map((boxesOnly ? [] : getAdditionalProductionSources(state,payload)).map(box=>[box.boxId,box]));
   let used=0;
   for(const use of uses){
     const source=eligible.get(text(use.boxId));
@@ -409,9 +418,10 @@ function registerAdditionalProduction(payload, state, changes, now) {
     used+=Number(use.quantity);
   }
   const produced=quantities.reduce((sum,q)=>sum+Number(q),0);
-  if(!Number.isSafeInteger(produced+loss) || used!==produced+loss) throw new ValidationError("사출 사용량은 추가 생산 수량과 로스 수량의 합계와 같아야 합니다.");
+  if (!Number.isSafeInteger(produced + loss)) throw new ValidationError("추가 박스 수량의 합계를 확인해주세요.");
+  if (!boxesOnly && used !== produced + loss) throw new ValidationError("사출 사용량은 추가 생산 수량과 로스 수량의 합계와 같아야 합니다.");
   const userName=text(payload.userName)||"Admin";
-  const note=`[추가생산 ${parts.timestamp}] ${managementId} · 생산 ${produced} ea · 로스 ${loss} ea · ${userName}${text(payload.note)?' · '+text(payload.note):''}`;
+  const note=`[추가생산 ${parts.timestamp}] ${managementId} · 생산 ${produced} ea${boxesOnly ? "" : ` · 로스 ${loss} ea`} · ${userName}${text(payload.note)?' · '+text(payload.note):''}`;
   const changed=[];
   for(const use of uses){
     const box=state.boxes.find(box=>box.boxId===text(use.boxId));
