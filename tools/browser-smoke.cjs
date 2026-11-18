@@ -13,6 +13,9 @@ const contentTypes = {
 async function installFixtures(context, state) {
   await context.route('**/*', async route => {
     const url = new URL(route.request().url());
+    if (url.href === 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js' && process.env.QRCODE_GENERATOR_FILE) {
+      return route.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(process.env.QRCODE_GENERATOR_FILE) });
+    }
     // No request, including fonts or images, reaches an external service.
     if (url.origin !== origin) return route.abort();
     if (url.pathname.startsWith('/api/')) {
@@ -1357,28 +1360,41 @@ async function verifyAdditionalProduction(page,fixture) {
   await page.keyboard.press('Escape');
   await open();
   const modal=page.locator('#additionalProductionModal');
-  await modal.locator('[data-source]').waitFor();
+  await modal.locator('[name=boxCount]').waitFor();
+  assert.equal(await modal.locator('input').count(), 2);
+  assert.equal(await modal.locator('[name=boxCount]').inputValue(), '1');
+  assert.equal(await modal.locator('[type=submit]').isEnabled(), true);
   await page.keyboard.press('Escape');assert.equal(await modal.isVisible(),false);
-  await open();await modal.locator('[data-source]').waitFor();
-  await modal.locator('[data-boxes] input').fill('80');await modal.locator('[name=lossQuantity]').fill('20');
-  await modal.locator('[name=sourceSearch]').fill('no-match');assert.equal(await modal.locator('[data-sources] label:visible').count(),0);
-  await modal.locator('[name=sourceSearch]').fill('H-1');assert.equal(await modal.locator('[data-sources] label:visible').count(),1);
-  await modal.locator('[data-source]').fill('100');
+  await open();
+  await modal.locator('[name=boxCount]').fill('2');
+  assert.equal(await modal.locator('[data-boxes] input').count(), 2);
+  await modal.locator('[data-boxes] input').nth(0).fill('80');
+  await modal.locator('[data-boxes] input').nth(1).fill('120');
+  assert.match(await modal.locator('[data-summary]').textContent(), /2박스.*200 ea/);
+  assert.equal((fixture.actions || []).filter(action => action === 'getAdditionalProductionSources').length, 0);
   await modal.locator('[type=submit]').click();
   await page.waitForFunction(()=>document.querySelector('#additionalProductionModal [data-message]').textContent.includes('응답 유실'));
   await modal.locator('[type=submit]').click();
   await page.waitForFunction(()=>document.querySelector('#additionalProductionModal').hidden);
-  await page.waitForFunction(()=>document.querySelectorAll('#inboundQrSheet .box-qr-label-reference').length===1);
-  assert.equal(fixture.additionalCalls,2);assert.equal(fixture.additional.boxes.length,12);
-  assert.equal(fixture.additional.boxes.find(b=>b.boxId==='RAW-B001').quantity,50);
-  assert.match(await page.locator('#inboundQrSheet .box-qr-reference-box-count').textContent(),/추가 1 Box/);
-  assert.equal(await page.locator('#inboundQrSheet .box-qr-reference-quantity-number').textContent(),'80');
-  await page.keyboard.press('Escape');await open();await modal.locator('[data-source]').waitFor();
+  await page.waitForFunction(()=>document.querySelectorAll('#inboundQrSheet .box-qr-label-reference').length===2);
+  assert.equal(fixture.additionalCalls,2);assert.equal(fixture.additional.boxes.length,13);
+  assert.equal(fixture.additional.boxes.find(b=>b.boxId==='RAW-B001').quantity,150);
+  assert.deepEqual(await page.locator('#inboundQrSheet .box-qr-reference-quantity-number').allTextContents(), ['80', '120']);
+  assert.match((await page.locator('#inboundQrSheet .box-qr-reference-box-count').allTextContents()).join(' '),/추가 1 Box.*추가 2 Box/);
+  if (process.env.QRCODE_GENERATOR_FILE) {
+    await page.waitForFunction(() => !document.querySelector('#printInboundQrButton').disabled);
+    assert.equal(await page.locator('#inboundQrSheet img[data-qr-value]').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0)), true);
+  }
+  if (process.env.ADDITIONAL_PRODUCTION_OUTPUT) {
+    fs.mkdirSync(process.env.ADDITIONAL_PRODUCTION_OUTPUT, { recursive: true });
+    await page.screenshot({ path: path.join(process.env.ADDITIONAL_PRODUCTION_OUTPUT, 'new-box-qr.png') });
+  }
+  await page.keyboard.press('Escape');await open();
   for(const width of [1280,390]){
     await page.setViewportSize({width,height:900});
     const fits=await modal.evaluate(el=>el.querySelector('section').scrollWidth<=el.querySelector('section').clientWidth+1);
     assert.ok(fits,`additional production dialog fits ${width}px`);
-    assert.ok((await modal.locator('[data-boxes] input').boundingBox()).width>=120,'box quantity remains readable');
+    assert.ok((await modal.locator('[data-boxes] input').first().boundingBox()).width>=120,'box quantity remains readable');
     if(process.env.ADDITIONAL_PRODUCTION_OUTPUT){fs.mkdirSync(process.env.ADDITIONAL_PRODUCTION_OUTPUT,{recursive:true});await page.screenshot({path:path.join(process.env.ADDITIONAL_PRODUCTION_OUTPUT,`dialog-${width}.png`)});}
   }
   await page.keyboard.press('Escape');

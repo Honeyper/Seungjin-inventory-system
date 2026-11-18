@@ -436,7 +436,9 @@ async function loadAdditionalProductionState(payload: JsonRecord) {
   const productId=String(payload.productId || "").trim();
   if(!productId || !String(payload.managementId || "").trim()) throw new ValidationError("추가 생산할 제품과 입고를 선택해주세요.");
   const version=await loadStateVersion();
-  const filter=`product_id=eq.${encodeURIComponent(productId)}`;
+  const filter = payload.registrationMode === "boxes-only"
+    ? `management_id=eq.${encodeURIComponent(String(payload.managementId).trim())}`
+    : `product_id=eq.${encodeURIComponent(productId)}`;
   const [records,boxes]=await Promise.all([
     databaseRows(`dev_inventory_records?${filter}&select=record_key,management_id,product_id,storage,data`),
     databaseRows(`dev_inventory_boxes?${filter}&select=box_id,management_id,product_id,storage,box_number,data`)

@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-18", title:"추가 박스 등록 간소화", items:["박스 수와 각 박스의 수량만 입력해 추가 생산 박스를 등록하고 새 박스의 QR을 바로 출력할 수 있습니다."] },
   { date:"2026-11-17", title:"모바일 출고 저장 연결 오류 개선", items:["출고대기·출고완료 저장 전에 DB 연결이 일시적으로 거절되면 서버에서 해당 요청을 다시 연결합니다."] },
   { date:"2026-11-17", title:"재고 실물 확인 저장 개선", items:["실물 확인과 재고 정리 시 선택한 입고 건만 조회해 전체 재고를 읽다가 저장에 실패하던 문제를 수정했습니다."] },
   { date:"2026-11-17", title:"입고 등록 발주 선택 개선", items:["누적 입고량이 발주량 이상인 발주는 입고 등록의 발주명 선택 목록에서 숨깁니다. 같은 제품의 미입고 수량이 남은 발주는 계속 선택할 수 있습니다."] },
@@ -12655,7 +12656,7 @@ async function openSelectedInboundQrModal() {
 let additionalProductionController;
 function openAdditionalProduction(inbound) {
   additionalProductionController ||= window.SeungjinAdditionalProduction.create({request:requestApi,parseQuantity:parseShippingSettlementNumber,
-    userName:session?.name || "Admin",today:()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date()),
+    userName:session?.name || "Admin",
     onSaved:()=>{
       showToast("추가 생산 박스를 등록했습니다.");
       void refreshInboundMutationDataAfterMutation({freshInbounds:true,includeInventory:true}).catch(()=>showToast("등록은 완료됐습니다. 목록 새로고침을 눌러주세요."));
