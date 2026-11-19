@@ -1,0 +1,20 @@
+.inventory-discard-modal { width: min(36rem, calc(100vw - 2rem)); }
+.inventory-discard-modal fieldset { display: grid; gap: 1rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.inventory-discard-target { margin: 0 0 1rem; font-weight: 500; overflow-wrap: anywhere; }
+.inventory-discard-toolbar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; font-size: .85rem; }
+.inventory-discard-toolbar label { display: inline-flex; align-items: center; gap: .5rem; white-space: nowrap; }
+.inventory-discard-boxes { display: grid; gap: .5rem; max-height: 15rem; overflow: auto; }
+.inventory-discard-box { display: flex; align-items: center; gap: .75rem; padding: .8rem; border: 1px solid #dce4ef; border-radius: .4rem; cursor: pointer; }
+.inventory-discard-box:has(input:checked) { border-color: #d68780; background: #fff5f4; }
+.inventory-discard-box span { display: grid; gap: .25rem; }
+.inventory-discard-box small { color: #6b7b92; }
+.inventory-discard-modal input[type="checkbox"] { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; accent-color: #b42318; }
+.inventory-discard-modal .primary-modal-action { background: #b42318; box-shadow: none; }
+#inventoryDiscardFromDetailButton { color: #b42318; }
+#inventoryDiscardFromDetailButton[hidden] { display: none; }
+@media (max-width: 600px) {
+  .inventory-discard-modal .product-form, .inventory-discard-modal .modal-header { padding: 1rem; }
+  .inventory-discard-toolbar { align-items: flex-start; flex-wrap: wrap; }
+  .inventory-discard-modal .modal-actions { gap: .5rem; }
+  .inventory-discard-modal .modal-actions button { min-width: 0; flex: 1; }
+}
