@@ -109,3 +109,32 @@ test('모바일 폐기 실패 시 스캔 항목을 유지하고 성공한 박스
   assert.equal(calls[0].action, 'saveShippingInspection');
   assert.equal(calls[0].payload.discardRequested, true);
 });
+
+for (const [label, selectedBoxes] of [['단일 박스', [1]], ['여러 위치의 박스', [1, 2]]]) {
+  test(`폐기 취소 ${label}: 전체 재고를 읽지 않고 원래 수량과 같은 입고의 집계를 복구한다`, async () => {
+    const initial = fixture();
+    const disposal = applyMutation('saveShippingInspection', { ...base, selectedBoxes, selectedBoxIds: [], boxQuantities: { 1: 75, 2: 45 } }, initial, now);
+    const state = disposal.state;
+    const t = loader(state);
+    const payload = { managementId: 'M1', productId: 'P1', selectedBoxes, userName: '테스트' };
+    const pending = t.c.loadCanonicalState('cancelDiscardedBoxes', payload);
+    assert.equal(t.paths.length, 0);
+    t.version.resolve(state.version);
+    const scoped = JSON.parse(JSON.stringify(await pending));
+    assert.equal(t.paths.length, 2);
+    const full = applyMutation('cancelDiscardedBoxes', payload, state, now);
+    const restored = applyMutation('cancelDiscardedBoxes', payload, scoped, now);
+    assert.deepEqual(restored.result, full.result);
+    assert.deepEqual(restored.changes, full.changes);
+    assert.equal(restored.state.boxes.find(box => box.boxId === 'M1-P1-B1').quantity, 75);
+    assert.equal(restored.state.boxes.find(box => box.boxId === 'M1-P2-B1').quantity, 200);
+    if (selectedBoxes.length === 2) assert.equal(restored.state.boxes.find(box => box.boxId === 'M1-P1-B2').quantity, 45);
+    assert.equal(initial.boxes.find(box => box.boxId === 'M2-P1-B1').quantity, 400);
+  });
+}
+
+test('폐기 취소에 다른 상태가 포함돼도 조회 범위를 제품 전체로 넓히지 않는다', async()=>{
+ const t=loader(fixture());t.version.resolve(12);
+ await t.c.loadCanonicalState('cancelDiscardedBoxes',{managementId:'M1',productId:'P1',selectedBoxes:[4],status:'보관'});
+ assert.equal(t.paths.length,2);
+});
