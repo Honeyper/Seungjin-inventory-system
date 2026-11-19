@@ -19,6 +19,7 @@
     />
     <link rel="stylesheet" href="./mobile.css?v=20260910-product-image-track-prd-type-r10-bulk-move-r33-survey-r34-camera-focus-r42-search-batch-r50-compact-r51-thin-icons-r116-blue-symbol-r117-mobile-icons-r120-home-align-r121-action-contrast-r122" />
     <link rel="stylesheet" href="../common-container-shipping.css?v=20261026-common-partial-r139">
+    <link rel="stylesheet" href="../discard-reason.css?v=20261119-discard-reason-r168" />
     <link rel="stylesheet" href="../icons.css?v=20261016-thin-r116" />
     <link rel="icon" type="image/svg+xml" href="../assets/seungjin-symbol.svg?v=20261016-blue-r117" />
   </head>
@@ -344,6 +345,21 @@
               <strong id="confirmProductName">-</strong>
             </section>
             <div class="confirm-meta-list" id="confirmMetaList" aria-label="작업 상세"></div>
+<div class="discard-reason-fields" id="mobileDiscardReasonFields" hidden>
+                <label>
+                  <span>폐기 사유</span>
+                  <select data-discard-reason aria-label="폐기 사유" disabled>
+                    <option value="">사유 선택</option>
+                    <option value="박스병합">박스병합</option>
+                    <option value="인쇄중 불량">인쇄중 불량</option>
+                    <option value="기타">기타</option>
+                  </select>
+                </label>
+                <label data-discard-other-field hidden>
+                  <span>기타 사유 (선택)</span>
+                  <textarea data-discard-other rows="2" maxlength="300" placeholder="폐기 사유를 입력하세요." disabled></textarea>
+                </label>
+              </div>
             <label class="mobile-transfer-return-field" id="completedShippingQuantityField" hidden>
               <span>출고대기 수량 (ea)</span>
               <input id="completedShippingQuantity" type="number" inputmode="numeric" min="1" step="1" required placeholder="실제 수량" />
@@ -667,6 +683,7 @@
     <script src="../qr-payload.js?v=20260904-box-checksum-prd"></script>
     <script src="../common-container-shipping.js?v=20261026-common-partial-r139"></script>
     <script src="./dashboard-cache.js?v=20260928-refresh-v2"></script>
-    <script src="./mobile.js?v=20260917-audit-eligible-status-v1-prd-audit-category-r15-reliability-r20-monthly-r21-common-shipping-r23-inbound-confirmation-r32-bulk-move-r33-survey-r34-monthly-day30-r36-scan-label-r40-audit-storage-r41-camera-focus-r42-reopen-cache-r45-search-batch-r50-thin-icons-r116-blue-symbol-r117-common-partial-r139"></script>
+    <script src="../discard-reason.js?v=20261119-discard-reason-r168"></script>
+    <script src="./mobile.js?v=20260917-audit-eligible-status-v1-prd-audit-category-r15-reliability-r20-monthly-r21-common-shipping-r23-inbound-confirmation-r32-bulk-move-r33-survey-r34-monthly-day30-r36-scan-label-r40-audit-storage-r41-camera-focus-r42-reopen-cache-r45-search-batch-r50-thin-icons-r116-blue-symbol-r117-common-partial-r139-discard-reason-r168"></script>
   </body>
 </html>

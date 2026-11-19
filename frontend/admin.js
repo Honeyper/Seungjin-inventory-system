@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-19", title:"박스 폐기 사유 기록", items:["박스 폐기 시 박스병합·인쇄중 불량·기타 중 사유를 선택할 수 있습니다. 기타 사유를 직접 적을 수 있고, 저장한 사유는 출고 상세의 폐기 박스에서 확인할 수 있습니다."] },
   { date:"2026-11-18", title:"추가 박스 등록 간소화", items:["박스 수와 각 박스의 수량만 입력해 추가 생산 박스를 등록하고 새 박스의 QR을 바로 출력할 수 있습니다."] },
   { date:"2026-11-17", title:"모바일 출고 저장 연결 오류 개선", items:["출고대기·출고완료 저장 전에 DB 연결이 일시적으로 거절되면 서버에서 해당 요청을 다시 연결합니다."] },
   { date:"2026-11-17", title:"재고 실물 확인 저장 개선", items:["실물 확인과 재고 정리 시 선택한 입고 건만 조회해 전체 재고를 읽다가 저장에 실패하던 문제를 수정했습니다."] },
@@ -1211,6 +1212,7 @@ const shippingInspectionPhotoName = document.querySelector("#shippingInspectionP
 const shippingInspectionPhotoPreview = document.querySelector("#shippingInspectionPhotoPreview");
 const shippingInspectionHoldStatus = document.querySelector("#shippingInspectionHoldStatus");
 const shippingInspectionDiscardStatus = document.querySelector("#shippingInspectionDiscardStatus");
+const shippingDiscardReasonControl = window.SeungjinDiscardReason.create(document.querySelector("#shippingDiscardReasonFields"));
 const shippingCompletionModal = document.querySelector("#shippingCompletionModal");
 const shippingCompletionForm = document.querySelector("#shippingCompletionForm");
 const shippingCompletionRecordId = document.querySelector("#shippingCompletionRecordId");
@@ -2073,11 +2075,13 @@ shippingInspectionHoldStatus?.addEventListener("change", () => {
   if (shippingInspectionHoldStatus.checked && shippingInspectionDiscardStatus) {
     shippingInspectionDiscardStatus.checked = false;
   }
+  shippingDiscardReasonControl.setEnabled(Boolean(shippingInspectionDiscardStatus?.checked));
 });
 shippingInspectionDiscardStatus?.addEventListener("change", () => {
   if (shippingInspectionDiscardStatus.checked && shippingInspectionHoldStatus) {
     shippingInspectionHoldStatus.checked = false;
   }
+  shippingDiscardReasonControl.setEnabled(shippingInspectionDiscardStatus.checked);
 });
 shippingCompletionForm?.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -4639,6 +4643,7 @@ async function openShippingInspectionModal(row) {
   if (shippingInspectionDiscardStatus) {
     shippingInspectionDiscardStatus.checked = false;
   }
+  shippingDiscardReasonControl.reset();
 
   if (shippingInspectorName) {
     shippingInspectorName.value = session?.name || "Admin";
@@ -4914,6 +4919,7 @@ function getShippingRowBoxes(row, datasetKey, fallbackCount = 0, fallbackQuantit
           defectQuantity: parseShippingSettlementNumber(box.defectQuantity || ""),
           defectRate: parseShippingSettlementNumber(box.defectRate || ""),
           defectReason: box.defectReason || "",
+          note: box.note || "",
           shippingDate: box.shippingDate || "",
           shippingTime: box.shippingTime || "",
           shippingUpdatedAt: box.shippingUpdatedAt || "",
@@ -5286,6 +5292,7 @@ async function saveShippingInspection() {
   ).map((input) => input.value);
   const selectedBoxes = getSelectedShippingInspectionBoxes();
   const discardRequested = Boolean(shippingInspectionDiscardStatus?.checked);
+  if (discardRequested && !shippingDiscardReasonControl.validate()) return;
   const registeredBoxes = getShippingRowBoxes(row, "activeShippingBoxes").filter((box) => (
     ["출고대기", "보류"].includes(normalizeInventoryStockStatus(box.status))
   ));
@@ -5363,7 +5370,8 @@ async function saveShippingInspection() {
     shippingInspectorName?.value?.trim?.() ||
     shippingInspectorName?.textContent?.trim?.() ||
     "";
-  const memo = shippingInspectionNote?.value.trim() || "";
+  const inspectionMemo = shippingInspectionNote?.value.trim() || "";
+  const memo = discardRequested ? shippingDiscardReasonControl.getMemo(inspectionMemo) : inspectionMemo;
 
   try {
     const defectFiles = await getFilePayloadsFromInput(shippingInspectionDefectFiles, {
@@ -13917,6 +13925,12 @@ function renderShippingDetail(item) {
           <div class="discarded-box-detail-copy">
             <span>폐기된 박스</span>
             <strong>${escapeHtml(discardedBoxes.map((box) => `${box.number}번 박스`).join(", "))}</strong>
+            <ul class="discarded-box-reasons">
+              ${discardedBoxes.map((box) => {
+                const reason = String(box.note || "").match(/^폐기 사유: (.+)$/m)?.[1] || "사유 미기록";
+                return `<li>${escapeHtml(box.number)}번 박스 · ${escapeHtml(reason)}</li>`;
+              }).join("")}
+            </ul>
             <small>폐기 취소 시 박스는 보관 상태로 복구되고 수량이 다시 재고에 반영됩니다.</small>
           </div>
           <button class="discarded-box-cancel-button" type="button" data-cancel-discarded-boxes>폐기 취소</button>

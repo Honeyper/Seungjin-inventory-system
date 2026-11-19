@@ -3443,11 +3443,15 @@ function setConfirmPresentation({ eyebrow = "출고 관리", icon = "ti-truck-de
   }
 }
 
+const mobileDiscardReasonControl = window.SeungjinDiscardReason.create(document.querySelector("#mobileDiscardReasonFields"));
+
 function showConfirmDialog() {
   if (!elements.confirmModal) {
     return;
   }
 
+  mobileDiscardReasonControl.reset();
+  mobileDiscardReasonControl.setEnabled(state.selectedConfirmMode === "inventoryMoveBatch" && state.selectedInventoryMoveMode === "discard");
   confirmDialogReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   elements.confirmModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -3853,6 +3857,10 @@ async function handleConfirmShipping() {
     const isInjectionAction = mode === "injection";
     const isInventoryShippingAction = isInventoryShippingScanAction(mode);
     const isInventoryDiscardAction = isInventoryDiscardScanAction(mode);
+    if (isInventoryDiscardAction && !mobileDiscardReasonControl.validate()) return;
+    const discardMemo = isInventoryDiscardAction
+      ? mobileDiscardReasonControl.getMemo("모바일 QR 재고 수정에서 박스 폐기")
+      : "";
     elements.acceptConfirmButton.disabled = true;
     elements.acceptConfirmButton.textContent = isInventoryDiscardAction
       ? "폐기 중"
@@ -3861,7 +3869,7 @@ async function handleConfirmShipping() {
       : isInjectionAction ? "등록 중" : "이동 중";
     try {
       if (isInventoryDiscardAction) {
-        await handleCompleteScannedInventoryDiscard();
+        await handleCompleteScannedInventoryDiscard(discardMemo);
       } else if (isInventoryShippingAction) {
         await handleCompleteScannedInventoryShipping(mode);
       } else {
@@ -5186,7 +5194,7 @@ function applyInventoryShippingResultLocally(item, selectedBoxes, shippingType) 
   });
 }
 
-async function handleCompleteScannedInventoryDiscard() {
+async function handleCompleteScannedInventoryDiscard(discardMemo) {
   if (state.isCompletingShipping) {
     return;
   }
@@ -5200,7 +5208,7 @@ async function handleCompleteScannedInventoryDiscard() {
   state.isCompletingShipping = true;
   updateScannerActionLabels();
   try {
-    const { completedCount, failedItems, errors } = await completeInventoryDiscardItems(items);
+    const { completedCount, failedItems, errors } = await completeInventoryDiscardItems(items, discardMemo);
     if (completedCount > 0) {
       triggerScanFeedback(SCAN_COMPLETE_VIBRATION);
       const failedKeys = new Set(failedItems.map((item) => getInventoryMoveProductGroupKey(item)));
@@ -5226,7 +5234,7 @@ async function handleCompleteScannedInventoryDiscard() {
   }
 }
 
-async function completeInventoryDiscardItems(items) {
+async function completeInventoryDiscardItems(items, discardMemo = "모바일 QR 재고 수정에서 박스 폐기") {
   let completedCount = 0;
   const failedItems = [];
   const errors = [];
@@ -5256,7 +5264,7 @@ async function completeInventoryDiscardItems(items) {
         defectQuantity: discardQuantity,
         defectReasons: ["박스 폐기"],
         discardRequested: true,
-        memo: "모바일 QR 재고 수정에서 박스 폐기",
+        memo: discardMemo,
         selectedBoxes,
         selectedBoxIds: getSelectedBoxIds(item, selectedBoxes),
         boxQuantities
