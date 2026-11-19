@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-19", title:"재고관리 박스 폐기", items:["재고 목록의 관리 메뉴와 재고 상세에서 폐기할 박스와 사유를 선택해 저장할 수 있습니다. 선택한 박스만 재고와 출고 대상에서 제외됩니다."] },
   { date:"2026-11-19", title:"박스 폐기 사유 기록", items:["박스 폐기 시 박스병합·인쇄중 불량·기타 중 사유를 선택할 수 있습니다. 기타 사유를 직접 적을 수 있고, 저장한 사유는 출고 상세의 폐기 박스에서 확인할 수 있습니다."] },
   { date:"2026-11-18", title:"추가 박스 등록 간소화", items:["박스 수와 각 박스의 수량만 입력해 추가 생산 박스를 등록하고 새 박스의 QR을 바로 출력할 수 있습니다."] },
   { date:"2026-11-17", title:"모바일 출고 저장 연결 오류 개선", items:["출고대기·출고완료 저장 전에 DB 연결이 일시적으로 거절되면 서버에서 해당 요청을 다시 연결합니다."] },
@@ -943,6 +944,7 @@ const inboundDetailDescription = document.querySelector("#inboundDetailTitle")?.
 const closeInboundDetailModalButton = document.querySelector("#closeInboundDetailModal");
 const closeInboundDetailButton = document.querySelector("#closeInboundDetailButton");
 const editInboundFromDetailButton = document.querySelector("#editInboundFromDetailButton");
+const inventoryDiscardFromDetailButton = document.querySelector("#inventoryDiscardFromDetailButton");
 const inventoryAuditFromDetailButton = document.querySelector("#inventoryAuditFromDetailButton");
 const inventoryAuditBoxConfirmModal = document.querySelector("#inventoryAuditBoxConfirmModal");
 const inventoryAuditBoxConfirmProduct = document.querySelector("#inventoryAuditBoxConfirmProduct");
@@ -2473,6 +2475,10 @@ document.querySelector("#editProductFromDetailButton").addEventListener("click",
 closeInboundDetailModalButton?.addEventListener("click", closeInboundDetailModal);
 closeInboundDetailButton?.addEventListener("click", closeInboundDetailModal);
 editInboundFromDetailButton?.addEventListener("click", openDetailInboundEdit);
+inventoryDiscardFromDetailButton?.addEventListener("click", () => {
+  const item = getInventoryRecordByManagementId(state.activeDetailInboundId, state.activeDetailInboundProductId);
+  if (item) openInventoryDiscard(item);
+});
 inventoryAuditFromDetailButton?.addEventListener("click", openInventoryAuditFromDetail);
 document.querySelector("#closeInventoryAuditBoxConfirmModal")?.addEventListener("click", closeInventoryAuditBoxConfirmModal);
 document.querySelector("#cancelInventoryAuditBoxConfirmModal")?.addEventListener("click", closeInventoryAuditBoxConfirmModal);
@@ -2611,7 +2617,7 @@ function getTopAdminFloatingPopup() {
     shippingInspectionModal: closeShippingInspectionModal, remainingInventoryModal: closeRemainingInventoryModal,
     shippingCompletionModal: closeShippingCompletionModal,
     ...(typeof closeShippingCancelModal === "function" ? {shippingCancelModal: closeShippingCancelModal} : {}),
-    additionalProductionModal: closeAdditionalProduction,
+    additionalProductionModal: closeAdditionalProduction, inventoryDiscardModal: closeInventoryDiscard,
     transferReturnModal: closeTransferReturnModal, shippingWaitingConfirmModal: closeShippingWaitingConfirmModal,
     shippingHoldGuideModal: closeShippingHoldGuideModal, productModal: closeProductModal,
     productDetailModal: closeProductDetailModal, inboundDetailModal: closeInboundDetailModal,
@@ -2741,6 +2747,13 @@ inboundRowActionMenu.querySelectorAll("[data-inbound-menu-action]").forEach((but
 
     if (action === "edit") {
       openActiveInboundEdit();
+      return;
+    }
+
+    if (action === "discard") {
+      const inbound = getInventoryRecordByManagementId(state.activeInboundMenuRecord, state.activeInboundMenuProductId);
+      closeInboundRowActionMenu();
+      if (inbound) openInventoryDiscard(inbound);
       return;
     }
 
@@ -11875,6 +11888,7 @@ function openShippingDetail(item) {
   if (inventoryAuditFromDetailButton) {
     inventoryAuditFromDetailButton.hidden = true;
   }
+  if (inventoryDiscardFromDetailButton) inventoryDiscardFromDetailButton.hidden = true;
   inboundDetailModal.classList.remove("is-editing");
   renderShippingDetail(item);
   inboundDetailModal.hidden = false;
@@ -12248,6 +12262,9 @@ function toggleInboundRowActionMenu(button) {
   const isInventory = inventoryTableBody?.contains(button);
   inboundRowActionMenu.setAttribute("aria-label", button.getAttribute("aria-label"));
   inboundRowActionMenu.querySelector('[data-inbound-menu-action="edit"]').hidden = isInventory;
+  const inventoryItem = isInventory ? getInventoryRecordByManagementId(recordId, productId) : null;
+  inboundRowActionMenu.querySelector('[data-inbound-menu-action="discard"]').hidden = !isInventory
+    || !window.SeungjinInventoryDiscard.getBoxes(inventoryItem, normalizeInventoryStockStatus, parseShippingSettlementNumber).length;
   inboundRowActionMenu.hidden = false;
   inboundRowActionMenu.style.visibility = "hidden";
   positionActionMenu(inboundRowActionMenu, button);
@@ -12660,6 +12677,27 @@ async function openSelectedInboundQrModal() {
     }
   }
 }
+
+let inventoryDiscardController;
+function openInventoryDiscard(inbound) {
+  inventoryDiscardController ||= window.SeungjinInventoryDiscard.create({
+    request: requestApi, userName: session?.name || "Admin",
+    date: getLocalDateInputValue, time: getLocalTimeInputValue,
+    normalizeStatus: normalizeInventoryStockStatus, parseQuantity: parseShippingSettlementNumber,
+    focusDialog: focusModalDialog,
+    onSaved: (item, result) => {
+      clearShippingBoxDraft(getShippingDraftKeyFromItem(item));
+      if (state.activeDetailInboundSource === "inventory" && state.activeDetailInboundId === item.managementId
+        && state.activeDetailInboundProductId === item.productId) closeInboundDetailModal();
+      showToast(`${formatNumber(result.updatedBoxRows)}개 박스를 폐기했습니다.`);
+      void refreshInventoryDashboardAfterMutation().then(refreshed => {
+        if (refreshed === false) showToast("폐기는 저장됐습니다. 최신 재고는 목록 새로고침을 눌러 확인해주세요.");
+      }).catch(() => showToast("폐기는 저장됐습니다. 목록 새로고침을 눌러주세요."));
+    }
+  });
+  if (!inventoryDiscardController.open(inbound)) showToast("폐기할 수 있는 재고 박스가 없습니다.");
+}
+function closeInventoryDiscard() { inventoryDiscardController?.close(); }
 
 let additionalProductionController;
 function openAdditionalProduction(inbound) {
@@ -13240,6 +13278,12 @@ function setInboundDetailMode(mode) {
       ? getInventoryRecordByManagementId(state.activeDetailInboundId, state.activeDetailInboundProductId)
       : null;
     inventoryAuditFromDetailButton.hidden = !isInventoryDetail || !getInventoryAuditTargetBoxes(auditItem).length;
+  }
+
+  if (inventoryDiscardFromDetailButton) {
+    const item = isInventoryDetail ? getInventoryRecordByManagementId(state.activeDetailInboundId, state.activeDetailInboundProductId) : null;
+    inventoryDiscardFromDetailButton.hidden = !isInventoryDetail
+      || !window.SeungjinInventoryDiscard.getBoxes(item, normalizeInventoryStockStatus, parseShippingSettlementNumber).length;
   }
 
   if (saveInboundEditButton) {

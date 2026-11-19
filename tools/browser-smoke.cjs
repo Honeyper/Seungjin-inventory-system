@@ -28,6 +28,10 @@ async function installFixtures(context, state) {
           data = engine.buildInventoryDashboard(state.discards.records, state.discards.boxes, state.mockProducts || []);
         } else {
           (state.discardCalls ||= []).push({ action, payload });
+          if (state.failInventoryDiscard) {
+            state.failInventoryDiscard = false;
+            return route.fulfill({ status: 400, json: { ok: false, message: '시험: 폐기 저장 실패' } });
+          }
           const mutation = engine.applyMutation(action, payload, state.discards);
           state.discards = mutation.state;
           data = mutation.result;
@@ -1504,6 +1508,93 @@ async function verifyDiscardReasons(page, fixture) {
   console.log(JSON.stringify({ discardReasons: 3, otherText: true, pcAndMobile: true, persisted: true }));
 }
 
+async function verifyInventoryDiscard(page, fixture) {
+  const product = { productId: 'P-STOCK', productCode: 'P-STOCK', productName: '재고 폐기 시험', clientName: '시험' };
+  fixture.mockProducts = [product];
+  fixture.discardCalls = [];
+  fixture.discards = {
+    products: [product], orders: [], inbounds: [],
+    records: ['P-STOCK', 'P-OTHER'].map(productId => ({ managementId: 'IN-STOCK', productId,
+      productName: productId === 'P-STOCK' ? product.productName : '다른 제품', storage: 'A-1', inboundDate: '2026-09-18' })),
+    boxes: ['보관', '보류', '출고대기', '출고완료', '폐기'].map((status, index) => ({
+      boxId: `STOCK-${index + 1}`, managementId: 'IN-STOCK', productId: 'P-STOCK', number: index + 1,
+      quantity: status === '폐기' ? 0 : 100, status, rawStatus: status, storage: 'A-1'
+    })).concat({ boxId: 'OTHER-1', managementId: 'IN-STOCK', productId: 'P-OTHER', number: 1, quantity: 200,
+      status: '보관', rawStatus: '보관', storage: 'B-1' })
+  };
+  await page.goto(`${origin}/admin.html?fixture=inventory-discard#inventory`);
+  await page.waitForFunction(() => state.inventoryLoaded && !state.inventoryLoadPromise);
+  const menuButton = () => page.locator('#inventoryTableBody [data-inbound-record="IN-STOCK"][data-inbound-product="P-STOCK"]');
+  const openMenu = async () => {
+    await menuButton().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(100); // Let the page's scroll-dismiss handler finish before opening the menu.
+    await menuButton().click();
+  };
+  await openMenu();
+  await page.locator('[data-inbound-menu-action="discard"]').click();
+  const modal = page.locator('#inventoryDiscardModal');
+  await modal.waitFor({ state: 'visible' });
+  assert.equal(await modal.locator('[data-boxes] input').count(), 3, '출고완료·폐기 박스는 제외');
+  assert.equal(await modal.locator('[data-boxes] input:checked').count(), 0, '폐기 대상을 기본 선택하지 않는다');
+  assert.equal(await modal.locator('[type="submit"]').isDisabled(), true);
+  await modal.locator('[data-select-all]').check();
+  assert.equal(await modal.locator('[data-boxes] input:checked').count(), 3);
+  await modal.locator('[data-select-all]').uncheck();
+  await modal.getByRole('checkbox', { name: '1번 박스 폐기 선택', exact: true }).check();
+  await modal.locator('[type="submit"]').click();
+  assert.equal(fixture.discardCalls.length, 0, '사유 없이는 폐기하지 않는다');
+  await modal.locator('[data-discard-reason]').selectOption('박스병합');
+  if (process.env.INVENTORY_DISCARD_OUTPUT) {
+    fs.mkdirSync(process.env.INVENTORY_DISCARD_OUTPUT, { recursive: true });
+    await page.screenshot({ path: path.join(process.env.INVENTORY_DISCARD_OUTPUT, 'inventory.png') });
+  }
+  fixture.failInventoryDiscard = true;
+  await modal.locator('[type="submit"]').click();
+  await modal.locator('[data-message]').filter({ hasText: '시험: 폐기 저장 실패' }).waitFor();
+  assert.equal(fixture.discards.boxes[0].status, '보관');
+  assert.equal(await modal.locator('[data-boxes] input:checked').count(), 1, '실패 후 선택 유지');
+  assert.equal(await modal.locator('[data-discard-reason]').inputValue(), '박스병합');
+  // Another administrator changes the quantity after this list was opened.
+  fixture.discards.boxes[0].quantity = 80;
+  await modal.locator('[type="submit"]').click();
+  await modal.waitFor({ state: 'hidden' });
+  assert.equal(fixture.discardCalls.length, 2);
+  assert.equal(fixture.discards.boxes[0].status, '폐기');
+  assert.equal(fixture.discards.boxes[0].beforeDiscardQuantity, 80, '서버의 최신 수량을 보존');
+  assert.equal(fixture.discards.boxes[0].note, '폐기 사유: 박스병합\n재고관리에서 박스 폐기');
+  assert.equal(fixture.discards.boxes[5].quantity, 200, '관리ID·박스번호가 같아도 다른 제품 보존');
+  assert.equal(fixture.discards.boxes[1].quantity, 100);
+  await page.waitForFunction(() => !state.inventoryLoadPromise
+    && state.inventoryRows.find(item => item.productId === 'P-STOCK')?.allShippingBoxes.find(box => box.number === 1)?.status === '폐기');
+  await openMenu();
+  await page.locator('[data-inbound-menu-action="view"]').click();
+  await page.locator('#inventoryDiscardFromDetailButton').click();
+  assert.equal(await modal.locator('[data-boxes] input').count(), 2);
+  await page.keyboard.press('Escape');
+  assert.equal(await modal.isVisible(), false);
+  assert.equal(await page.locator('#inboundDetailModal').isVisible(), true, 'Esc 시 재고 상세는 유지');
+  await page.locator('#inventoryDiscardFromDetailButton').click();
+  await modal.locator('[data-select-all]').check();
+  await modal.locator('[data-discard-reason]').selectOption('기타');
+  await modal.locator('[data-discard-other]').fill('보관 중 손상');
+  await modal.locator('[type="submit"]').click();
+  await modal.waitFor({ state: 'hidden' });
+  await page.waitForFunction(() => !state.inventoryLoadPromise
+    && state.inventoryRows.find(item => item.productId === 'P-STOCK')?.allShippingBoxes.filter(box => box.status === '폐기').length === 4);
+  assert.equal(fixture.discards.boxes[3].status, '출고완료');
+  assert.equal(fixture.discards.boxes[1].note, '폐기 사유: 기타 (보관 중 손상)\n재고관리에서 박스 폐기');
+  assert.equal(fixture.discardCalls.length, 3);
+  // Inventory's action is not exposed in the inbound management menu.
+  await page.evaluate(() => {
+    state.todayInbounds = [{ managementId: 'IN-STOCK', productId: 'P-STOCK', productName: '재고 폐기 시험', inboundDate: getLocalDateInputValue() }];
+    renderTodayInbounds();
+    setActiveView('inbound');
+  });
+  await page.locator('#inboundTableBody [data-inbound-record]').first().click();
+  assert.equal(await page.locator('[data-inbound-menu-action="discard"]').isVisible(), false);
+  console.log(JSON.stringify({ inventoryDiscard: true, selectedOnly: true, preservedOtherProduct: true, serverQuantity: true, errorRetry: true, detailAndMenu: true }));
+}
+
 async function main() {
   const browser = await chromium.launch({
     ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}), headless: true
@@ -1518,6 +1609,12 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if (process.argv.includes('--inventory-discard-only')) {
+      await verifyInventoryDiscard(page, fixture);
+      await verifyDiscardReasons(page, fixture);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes('--discard-reasons-only')) {
       await verifyDiscardReasons(page, fixture);
       assert.deepEqual(errors, []);
