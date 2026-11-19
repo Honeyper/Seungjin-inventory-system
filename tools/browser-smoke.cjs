@@ -21,6 +21,19 @@ async function installFixtures(context, state) {
     if (url.pathname.startsWith('/api/')) {
       const { action, payload } = route.request().postDataJSON();
       (state.actions ||= []).push(action);
+      if (state.discards && ['getInventoryDashboard', 'saveShippingInspection', 'cancelDiscardedBoxes'].includes(action)) {
+        const engine = await import('../supabase/functions/seungjin-dev-gateway/state-engine.js');
+        let data;
+        if (action === 'getInventoryDashboard') {
+          data = engine.buildInventoryDashboard(state.discards.records, state.discards.boxes, state.mockProducts || []);
+        } else {
+          (state.discardCalls ||= []).push({ action, payload });
+          const mutation = engine.applyMutation(action, payload, state.discards);
+          state.discards = mutation.state;
+          data = mutation.result;
+        }
+        return route.fulfill({ json: { ok: true, data: { ...data, stateVersion: (state.discardCalls || []).length + 1 } } });
+      }
       if(state.additional && ['getAdditionalProductionSources','registerAdditionalProduction','getInventoryDashboard','getTodayInbounds','getInboundBoxQrs'].includes(action)) {
         const engine=await import('../supabase/functions/seungjin-dev-gateway/state-engine.js');
         let data;
@@ -1410,6 +1423,87 @@ async function verifyAdditionalProduction(page,fixture) {
   await page.keyboard.press('Escape');
 }
 
+async function verifyDiscardReasons(page, fixture) {
+  const product = { productId: 'P-DISCARD', productCode: 'P-DISCARD', productName: '폐기 사유 시험',
+    clientName: '시험', trayQuantity: '20 ea', boxQuantity: '100 ea', finalProcess: '1도' };
+  const makeState = () => ({
+    products: [product], orders: [], inbounds: [],
+    records: [{ managementId: 'IN-DISCARD', productId: product.productId, productName: product.productName,
+      clientName: product.clientName, storage: 'A-1', inboundDate: '2026-09-18', finalProcess: '1도' }],
+    boxes: [1, 2].map(number => ({ boxId: `IN-DISCARD-B00${number}`, managementId: 'IN-DISCARD',
+      productId: product.productId, number, quantity: 100, status: '보관', rawStatus: '보관', storage: 'A-1' }))
+  });
+  fixture.mockProducts = [product];
+  for (const [index, reason] of ['박스병합', '인쇄중 불량', '기타'].entries()) {
+    fixture.discards = makeState();
+    fixture.discardCalls = [];
+    await page.goto(`${origin}/admin.html?fixture=discard-${index}#shipping`);
+    await page.waitForFunction(() => state.inventoryLoaded && !state.inventoryLoadPromise);
+    await page.locator('[data-shipping-action="inspect"]').first().click();
+    const modal = page.locator('#shippingInspectionModal');
+    const control = page.locator('#shippingDiscardReasonFields');
+    assert.equal(await control.isVisible(), false);
+    await modal.locator('input[name="shippingInspectionBox"][value="2"]').uncheck();
+    await page.locator('#shippingInspectionDiscardStatus').check();
+    await modal.locator('[type=submit]').click();
+    assert.equal(fixture.discardCalls.length, 0, '사유를 고르기 전에는 저장하지 않는다');
+    await control.locator('select').selectOption(reason);
+    if (reason === '기타') await control.locator('textarea').fill('포장재 손상');
+    await page.locator('#shippingInspectionNote').fill('관리자 확인');
+    if (process.env.DISCARD_REASON_OUTPUT) {
+      fs.mkdirSync(process.env.DISCARD_REASON_OUTPUT, { recursive: true });
+      await control.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: path.join(process.env.DISCARD_REASON_OUTPUT, `pc-${index}.png`) });
+    }
+    await modal.locator('[type=submit]').click();
+    await page.waitForFunction(() => document.querySelector('#shippingInspectionModal').hidden);
+    assert.equal(fixture.discardCalls.length, 1);
+    const saved = fixture.discards.boxes[0];
+    const label = reason === '기타' ? '기타 (포장재 손상)' : reason;
+    assert.equal(saved.note, `폐기 사유: ${label}\n관리자 확인`);
+    assert.equal(saved.status, '폐기');
+    assert.equal(saved.beforeDiscardQuantity, 100);
+    assert.equal(fixture.discards.boxes[1].quantity, 100);
+    await page.waitForFunction(() => !state.inventoryLoadPromise && state.inventoryRows[0]?.allShippingBoxes.some(box => box.status === '폐기'));
+    await page.evaluate(() => openShippingInventoryDetail(shippingTableBody.querySelector('tr[data-management-id]')));
+    assert.match(await page.locator('.discarded-box-reasons').textContent(), new RegExp(reason));
+    await page.keyboard.press('Escape');
+    await page.locator('[data-shipping-action="inspect"]').first().click();
+    assert.equal(await control.isVisible(), false, '재검수 시 이전 사유를 초기화한다');
+    await page.keyboard.press('Escape');
+  }
+
+  fixture.discards = makeState();
+  fixture.discardCalls = [];
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${origin}/mobile/index.html?fixture=discard`);
+  await page.evaluate(() => sessionStorage.setItem('seungjinMobileSession', JSON.stringify({
+    name: 'Fixture', role: 'admin', supabaseSessionToken: 'fixture', supabaseSessionExpiresAt: '2099-01-01'
+  })));
+  await page.reload();
+  await page.waitForFunction(() => state.user);
+  await page.locator('[data-mobile-route="inventoryMove"]:visible').first().click();
+  await page.waitForFunction(() => state.dashboard.length > 0 && !state.dashboardLoadPromise);
+  await page.evaluate(() => {
+    const row = state.dashboard.find(row => row.managementId === 'IN-DISCARD');
+    state.scannedMoveRows = [{ ...row, scannedBox: row.allShippingBoxes.find(box => box.number === 1) }];
+    openScannedInventoryMoveConfirmModal('discard');
+  });
+  const mobileControl = page.locator('#mobileDiscardReasonFields');
+  await page.locator('#acceptConfirmButton').click();
+  assert.equal(fixture.discardCalls.length, 0);
+  await mobileControl.locator('select').selectOption('인쇄중 불량');
+  if (process.env.DISCARD_REASON_OUTPUT) {
+    await page.screenshot({ path: path.join(process.env.DISCARD_REASON_OUTPUT, 'mobile.png') });
+  }
+  await page.locator('#acceptConfirmButton').click();
+  await page.waitForFunction(() => !state.isCompletingShipping);
+  assert.equal(fixture.discardCalls.length, 1);
+  assert.equal(fixture.discards.boxes[0].note, '폐기 사유: 인쇄중 불량\n모바일 QR 재고 수정에서 박스 폐기');
+  assert.equal(fixture.discards.boxes[1].status, '보관');
+  console.log(JSON.stringify({ discardReasons: 3, otherText: true, pcAndMobile: true, persisted: true }));
+}
+
 async function main() {
   const browser = await chromium.launch({
     ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}), headless: true
@@ -1424,6 +1518,11 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if (process.argv.includes('--discard-reasons-only')) {
+      await verifyDiscardReasons(page, fixture);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes('--inbound-open-orders-only')) {
       await verifyInboundOpenOrders(page, fixture);
       assert.deepEqual(errors, []);
