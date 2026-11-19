@@ -1595,6 +1595,62 @@ async function verifyInventoryDiscard(page, fixture) {
   console.log(JSON.stringify({ inventoryDiscard: true, selectedOnly: true, preservedOtherProduct: true, serverQuantity: true, errorRetry: true, detailAndMenu: true }));
 }
 
+async function verifyDiscardedInventoryView(page, fixture) {
+  const product = { productId: 'P-HISTORY', productCode: 'P-HISTORY', productName: '폐기 조회 시험', clientName: '시험' };
+  fixture.mockProducts = [product];
+  fixture.discardCalls = [];
+  fixture.discards = { products: [product], orders: [], inbounds: [],
+    records: ['ALL', 'MIXED'].map(key => ({managementId: `IN-HISTORY-${key}`, productId: product.productId,
+      productName: product.productName, clientName: product.clientName, inboundDate: '2026-09-18', stockStatus: '보관', storage: 'A-1'})),
+    boxes: [
+      {boxId:'D-ALL',managementId:'IN-HISTORY-ALL',productId:product.productId,number:1,status:'폐기',quantity:0,beforeDiscardQuantity:100,note:'폐기 사유: 박스병합',inspectionDate:'2026-09-18',inspectionTime:'14:00',inspector:'담당자',storage:'A-1'},
+      {boxId:'D-MIXED',managementId:'IN-HISTORY-MIXED',productId:product.productId,number:2,status:'폐기',quantity:0,beforeDiscardQuantity:40,note:'폐기 사유: 기타 (파손)',storage:'A-1'},
+      {boxId:'A-MIXED',managementId:'IN-HISTORY-MIXED',productId:product.productId,number:1,status:'보관',quantity:80,storage:'A-1'}
+    ]
+  };
+  await page.goto(`${origin}/admin.html?fixture=discard-history#inventory`);
+  await page.waitForFunction(() => state.inventoryLoaded && !state.inventoryLoadPromise);
+  assert.equal(await page.locator('#inventoryTableBody [data-inbound-record="IN-HISTORY-ALL"]').count(), 0);
+  const totals = await page.locator('#inventoryListTotals').textContent();
+  assert.match(totals, /80 ea/);
+  await page.locator('#toggleInventoryDiscardedButton').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+  await page.locator('#toggleInventoryDiscardedButton').click();
+  assert.equal(await page.locator('#toggleInventoryDiscardedButton').getAttribute('aria-pressed'), 'true');
+  const full = page.locator('#inventoryTableBody [data-inbound-record="IN-HISTORY-ALL"]');
+  assert.equal(await full.count(), 1);
+  assert.match(await page.locator('#inventoryListTotals').textContent(), /80 ea/);
+  assert.match(await full.locator('xpath=ancestor::tr').textContent(), /폐기 1box/);
+  await page.locator('#inventorySearch').fill('IN-HISTORY-ALL');
+  assert.equal(await page.locator('#inventoryTableBody [data-inbound-record]').count(), 1);
+  if (process.env.DISCARD_HISTORY_OUTPUT) {
+    fs.mkdirSync(process.env.DISCARD_HISTORY_OUTPUT, {recursive:true});
+    await page.screenshot({path:path.join(process.env.DISCARD_HISTORY_OUTPUT,'list.png')});
+  }
+  await full.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+  await full.click();
+  await page.locator('[data-inbound-menu-action="view"]').click();
+  const history = page.locator('[data-inventory-discard-history]');
+  assert.match(await history.textContent(), /1번 박스 · 폐기 전 100 ea/);
+  assert.match(await history.textContent(), /박스병합/);
+  assert.match(await history.textContent(), /2026-09-18 · 14:00 · 담당자/);
+  assert.equal(await page.locator('#inventoryDiscardFromDetailButton').isVisible(), false);
+  if (process.env.DISCARD_HISTORY_OUTPUT) {
+    await history.scrollIntoViewIfNeeded();
+    await page.screenshot({path:path.join(process.env.DISCARD_HISTORY_OUTPUT,'detail.png')});
+  }
+  await page.keyboard.press('Escape');
+  await page.locator('#inventorySearch').fill('');
+  await page.locator('#toggleInventoryDiscardedButton').click();
+  assert.equal(await full.count(), 0);
+  await page.locator('#inventoryStockFilter').selectOption('폐기');
+  assert.equal(await full.count(), 1, '재고 상태에서 폐기를 직접 선택해도 조회');
+  assert.equal(await page.locator('#inventoryTableBody [data-inbound-record="IN-HISTORY-MIXED"]').count(), 1, '일부 박스만 폐기된 입고 건도 조회');
+  await page.locator('#inventoryStockFilter').selectOption('');
+  console.log(JSON.stringify({discardedInventoryView:true,fullyDiscarded:true,history:true,unchangedInventoryTotals:true,searchAndStatusFilter:true}));
+}
+
 async function main() {
   const browser = await chromium.launch({
     ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}), headless: true
@@ -1609,6 +1665,12 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if (process.argv.includes('--discard-history-only')) {
+      await verifyDiscardedInventoryView(page, fixture);
+      await verifyInventoryDiscard(page, fixture);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes('--inventory-discard-only')) {
       await verifyInventoryDiscard(page, fixture);
       await verifyDiscardReasons(page, fixture);

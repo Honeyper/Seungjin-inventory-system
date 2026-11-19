@@ -18,3 +18,10 @@
   .inventory-discard-modal .modal-actions { gap: .5rem; }
   .inventory-discard-modal .modal-actions button { min-width: 0; flex: 1; }
 }
+
+.inventory-list-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.inventory-process-badges { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .3rem; }
+.inventory-discard-count { display: inline-block; padding: .2rem .4rem; border-radius: .25rem; color: #b42318; background: #fff0ee; font-size: .75rem; font-weight: 500; white-space: nowrap; }
+.inventory-discard-history { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.inventory-discard-history li { display: grid; gap: .3rem; padding: .75rem; border: 1px solid #f0d5d2; border-radius: .4rem; }
+.inventory-discard-history span, .inventory-discard-history small { font-size: .82rem; color: #6b7b92; }

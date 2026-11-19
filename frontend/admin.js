@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-19", title:"폐기 박스 조회", items:["재고 목록의 폐기 박스도 보기에서 전량 폐기된 입고 건도 조회할 수 있습니다. 재고 상세에서 박스별 폐기 전 수량·사유·처리 정보를 확인합니다."] },
   { date:"2026-11-19", title:"폐기 사유 입력창 간소화", items:["폐기 사유 제목과 선택창을 한 줄로 정리하고 여백과 높이를 줄였습니다."] },
   { date:"2026-11-19", title:"재고관리 박스 폐기", items:["재고 목록의 관리 메뉴와 재고 상세에서 폐기할 박스와 사유를 선택해 저장할 수 있습니다. 선택한 박스만 재고와 출고 대상에서 제외됩니다."] },
   { date:"2026-11-19", title:"박스 폐기 사유 기록", items:["박스 폐기 시 박스병합·인쇄중 불량·기타 중 사유를 선택할 수 있습니다. 기타 사유를 직접 적을 수 있고, 저장한 사유는 출고 상세의 폐기 박스에서 확인할 수 있습니다."] },
@@ -725,6 +726,7 @@ const state = {
   inventoryRows: [],
   filteredInventoryRows: [],
   showCompletedInventory: false,
+  showDiscardedInventory: false,
   inventoryLocationBoxStats: [],
   inventoryLocationQuantityStats: [],
   inventoryLoadPromise: null,
@@ -1133,6 +1135,7 @@ const inventoryUnspecifiedStorage = document.querySelector("#inventoryUnspecifie
 const inventoryLongStorage = document.querySelector("#inventoryLongStorage");
 const inventoryHoldDiscard = document.querySelector("#inventoryHoldDiscard");
 const inventorySearch = document.querySelector("#inventorySearch");
+const toggleInventoryDiscardedButton = document.querySelector("#toggleInventoryDiscardedButton");
 const toggleInventoryCompletedButton = document.querySelector("#toggleInventoryCompletedButton");
 const inventoryClientFilter = document.querySelector("#inventoryClientFilter");
 const inventoryStorageFilter = document.querySelector("#inventoryStorageFilter");
@@ -2000,6 +2003,7 @@ inventorySearch?.addEventListener("input", (event) => {
 });
 refreshInventoryButton?.addEventListener("click", refreshInventoryDashboard);
 toggleInventoryCompletedButton?.addEventListener("click", toggleInventoryCompleted);
+toggleInventoryDiscardedButton?.addEventListener("click", toggleInventoryDiscarded);
 inventoryAttentionButtons.forEach((button) => {
   button.addEventListener("click", () => openInventoryAttentionModal(button.dataset.inventoryAttention));
 });
@@ -4512,7 +4516,7 @@ async function refreshActiveAdminList(context, canApply) {
     result.qrStatusVersion = version?.qrStatusVersion ?? null;
     result.versionCheckedBeforeRead = version?.stateVersion !== null && version?.stateVersion !== undefined;
     applyInventoryDashboardResult(result);
-    writeAdminLargeCache("inventory-dashboard:v2", result);
+    writeAdminLargeCache("inventory-dashboard:v3-discard-history", result);
     return true;
   }
 
@@ -10421,7 +10425,7 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
   const mutationRevision = Number(state.inventoryMutationRevision) || 0;
   refreshInventoryConfirmationStatus();
   const hadLoadedData = state.inventoryLoaded;
-  const cachedResult = state.inventoryLoaded ? null : await readAdminLargeCache("inventory-dashboard:v2");
+  const cachedResult = state.inventoryLoaded ? null : await readAdminLargeCache("inventory-dashboard:v3-discard-history");
 
   if (cachedResult) {
     if (cachedResult.versionCheckedBeforeRead !== true) cachedResult.stateVersion = null;
@@ -10466,7 +10470,7 @@ async function loadInventoryDashboardRequest(showLoadingToast = true) {
     result.qrStatusVersion = checkedQrStatusVersion;
     result.versionCheckedBeforeRead = checkedVersion !== null;
     applyInventoryDashboardResult(result);
-    writeAdminLargeCache("inventory-dashboard:v2", result);
+    writeAdminLargeCache("inventory-dashboard:v3-discard-history", result);
 
     if (showLoadingToast) {
       showToast("재고 정보를 불러왔습니다.");
@@ -11373,7 +11377,7 @@ function renderInventoryFilterOptions(filters) {
   renderSelectOptions(inventoryStorageFilter, filters.storages, "전체");
   renderSelectOptions(
     inventoryStockFilter,
-    [...new Set([...(filters.stockStatuses || []), ...INVENTORY_CATEGORY_FILTERS])],
+    [...new Set([...(filters.stockStatuses || []), "폐기", ...INVENTORY_CATEGORY_FILTERS])],
     "전체"
   );
   renderSelectOptions(inventoryProcessFilter, filters.processStatuses, "전체");
@@ -11496,6 +11500,7 @@ function matchesInventoryStockFilter(item, filterValue) {
   }
 
   const normalizedFilter = normalizeInventoryCategory(filterValue);
+  if (normalizedFilter === "폐기") return isDiscardedInventoryRow(item);
 
   if (INVENTORY_CATEGORY_FILTERS.includes(normalizedFilter)) {
     const categoryStats = getInventoryCategoryStats(item, normalizedFilter);
@@ -11570,6 +11575,40 @@ function toggleInventoryCompleted() {
   applyInventoryFilters();
 }
 
+function toggleInventoryDiscarded() {
+  state.showDiscardedInventory = !state.showDiscardedInventory;
+  toggleInventoryDiscardedButton?.setAttribute("aria-pressed", String(state.showDiscardedInventory));
+  state.inventoryPage = 1;
+  applyInventoryFilters();
+}
+
+function getInventoryDiscardedBoxes(item) {
+  const boxes = Array.isArray(item?.allShippingBoxes) ? item.allShippingBoxes : item?.discardedShippingBoxes || [];
+  return boxes.filter(box => normalizeInventoryStockStatus(box.rawStatus || box.status) === "폐기")
+    .sort((a, b) => Number(a.number) - Number(b.number));
+}
+
+function isDiscardedInventoryRow(item) {
+  return getInventoryDiscardedBoxes(item).length > 0
+    || normalizeInventoryStockStatus(item?.stockStatus) === "폐기";
+}
+
+function renderInventoryDiscardedHistory(item) {
+  const boxes = getInventoryDiscardedBoxes(item);
+  if (!boxes.length) return "";
+  return `<section class="product-detail-section" data-inventory-discard-history>
+    <h3>폐기된 박스 <span class="inventory-discard-count">${formatNumber(boxes.length)} box</span></h3>
+    <ul class="inventory-discard-history">${boxes.map(box => {
+      const reason = String(box.note || "").match(/^폐기 사유: (.+)$/m)?.[1] || "사유 미기록";
+      const quantity = box.beforeDiscardQuantity;
+      const quantityText = quantity !== null && quantity !== undefined && quantity !== ""
+        ? ` · 폐기 전 ${formatNumber(parseShippingSettlementNumber(quantity))} ea` : "";
+      const metadata = [box.inspectionDate, box.inspectionTime, box.inspector].filter(Boolean).join(" · ");
+      return `<li><strong>${escapeHtml(box.number)}번 박스${quantityText}</strong><span>${escapeHtml(reason)}</span>${metadata ? `<small>${escapeHtml(metadata)}</small>` : ""}</li>`;
+    }).join("")}</ul>
+  </section>`;
+}
+
 function isCompletedInventoryRow(item) {
   return normalizeInventoryStockStatus(item?.stockStatus).includes("출고완료")
     || normalizeInventoryStockStatus(item?.processStatus).includes("출고완료");
@@ -11584,6 +11623,7 @@ function applyInventoryFilters() {
 
   state.filteredInventoryRows = state.inventoryRows.filter((item) => {
     if (item.countsAsInventory === false && !isInventoryCategoryFilter
+      && !((state.showDiscardedInventory || filters.stock === "폐기") && isDiscardedInventoryRow(item))
       && !(state.showCompletedInventory && isCompletedInventoryRow(item))) {
       return false;
     }
@@ -11824,7 +11864,8 @@ function renderInventoryProcessBadge(itemOrValue) {
     출고완료: "green"
   };
   const tone = toneMap[normalized] || "gray";
-  return renderInventoryBadge(label, tone);
+  const discarded = isItem ? getInventoryDiscardedBoxes(itemOrValue).length : 0;
+  return `<span class="inventory-process-badges">${renderInventoryBadge(label, tone)}${discarded ? `<span class="inventory-discard-count">폐기 ${formatNumber(discarded)}box</span>` : ""}</span>`;
 }
 
 function renderInventoryDueBadge(item) {
@@ -13607,6 +13648,7 @@ function renderInventoryDetailLayout(inbound, productImageUrls, remainderDetail)
       ${section("검수 정보", [field("검수 수량", inbound.inspectionQuantity), field("불량 수량", inbound.defectQuantity), field("불량률", inbound.defectRate), field("불량 사유", inbound.defectReason)], renderAttachmentViewCard("불량사진", inbound.defectPhotoUrls, "등록된 불량사진이 없습니다."))}
       ${section("관리 정보", [field("등록자", inbound.registrant), field("최종 재고 확인일시", inbound.lastInventoryCheckedAt)])}
     </div>
+    ${renderInventoryDiscardedHistory(inbound)}
     ${renderInventoryAuditBoxStatus(inbound)}
     <section class="product-detail-section"><h3>비고</h3><p class="product-detail-note">${escapeHtml(normalizeDisplayValue(inbound.note) === "-" ? "등록된 비고가 없습니다." : inbound.note)}</p></section>
   </div>`;

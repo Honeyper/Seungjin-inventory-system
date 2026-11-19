@@ -8,9 +8,9 @@ const makeRuntime=()=> {
   {managementId:'OTHER',productName:'다른 용기',clientName:'B',stockStatus:'출고완료',countsAsInventory:false,currentBoxCount:0,currentTotalQuantity:0},
   {managementId:'DISCARD',productName:'Arti 용기',clientName:'A',stockStatus:'폐기',countsAsInventory:false,currentBoxCount:0,currentTotalQuantity:0}
  ];
- return loadFunctions(adminSource,['applyInventoryFilters','toggleInventoryCompleted','isCompletedInventoryRow','buildInventoryAggregateStats','countInventoryDistinct'],{
+ return loadFunctions(adminSource,['applyInventoryFilters','toggleInventoryCompleted','isCompletedInventoryRow','getInventoryDiscardedBoxes','isDiscardedInventoryRow','toggleInventoryDiscarded','buildInventoryAggregateStats','countInventoryDistinct'],{
   state:{inventoryRows:rows,inventoryFilters:{},inventoryPage:3,showCompletedInventory:false},
-  toggleInventoryCompletedButton:{setAttribute(){}},INVENTORY_CATEGORY_FILTERS:[],syncInventoryFilterState(){},
+  toggleInventoryCompletedButton:{setAttribute(){}},toggleInventoryDiscardedButton:{setAttribute(){}},INVENTORY_CATEGORY_FILTERS:[],syncInventoryFilterState(){},
   normalizeInventoryCategory:v=>v,normalizeInventoryStockStatus:v=>String(v||''),normalizeSearchText:v=>String(v||'').toLowerCase(),
   matchesInventoryStockFilter:(item,stock)=>!stock||item.stockStatus===stock,
   isInventoryCompletedWithoutStorage:item=>item.stockStatus==='출고완료',renderInventoryTable(){},parseShippingSettlementNumber:v=>Number(v)||0
@@ -42,4 +42,18 @@ test('대표 위치가 아닌 개별 박스 위치로도 재고를 찾을 수 �
  app.state.inventoryFilters.storage='A-1';
  app.applyInventoryFilters();
  assert.deepEqual(Array.from(app.state.filteredInventoryRows,x=>x.managementId),['ACTIVE']);
+});
+
+test('폐기 보기 토글은 전량 폐기 기록을 추가하고 기존 재고 합계는 유지한다',()=>{
+ const app=makeRuntime();app.applyInventoryFilters();
+ const before=app.buildInventoryAggregateStats(app.state.filteredInventoryRows);
+ app.toggleInventoryDiscarded();
+ assert.deepEqual(Array.from(app.state.filteredInventoryRows,x=>x.managementId),['ACTIVE','DISCARD']);
+ assert.equal(app.state.inventoryPage,1);
+ const after=app.buildInventoryAggregateStats(app.state.filteredInventoryRows);
+ assert.equal(after.totalBoxes,before.totalBoxes);assert.equal(after.totalQuantity,before.totalQuantity);
+ app.toggleInventoryCompleted();
+ assert.equal(app.state.filteredInventoryRows.length,4);
+ app.toggleInventoryDiscarded();
+ assert.deepEqual(Array.from(app.state.filteredInventoryRows,x=>x.managementId),['ACTIVE','SHIPPED','OTHER']);
 });

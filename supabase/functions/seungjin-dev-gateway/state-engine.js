@@ -1596,7 +1596,7 @@ export function buildInventoryDashboard(records, boxes, products = [], now = new
     row.allShippingBoxes = all;
     row.activeShippingBoxes = active;
     row.shippedShippingBoxes = shipped;
-    row.stockStatus = active.length && shipped.length ? "일부 출고" : !active.length && shipped.length ? "출고완료" : normalizeStatus(active[0]?.rawStatus || active[0]?.status || row.stockStatus);
+    row.stockStatus = active.length && shipped.length ? "일부 출고" : !active.length && shipped.length ? "출고완료" : !active.length && all.some(box => normalizeStatus(box.rawStatus || box.status) === "폐기") ? "폐기" : normalizeStatus(active[0]?.rawStatus || active[0]?.status || row.stockStatus);
     row.processStatus = row.stockStatus;
     row.storage = active[0]?.storage || transfer[0]?.storage || row.storage || "미지정";
     row.currentBoxCount = formatBox(counted.length);
@@ -1627,7 +1627,8 @@ export function buildInventoryDashboard(records, boxes, products = [], now = new
     row.inventoryConfirmedBoxCount = physicalConfirmationBoxes.filter((box) => inventoryConfirmation.isConfirmed(box, now)).length;
     row.inventoryUnconfirmedBoxCount = physicalConfirmationBoxes.length - row.inventoryConfirmedBoxCount;
     return row;
-  }).filter((row) => !text(row.stockStatus).includes("폐기") && (number(row.currentTotalQuantity) > 0 || text(row.stockStatus).includes("출고완료"))).reverse();
+  }).filter((row) => row.allShippingBoxes.some(box => normalizeStatus(box.rawStatus || box.status) === "폐기")
+    || (!text(row.stockStatus).includes("폐기") && (number(row.currentTotalQuantity) > 0 || text(row.stockStatus).includes("출고완료")))).reverse();
 
   const activeRows = rows.filter((row) => row.countsAsInventory);
   const locations = new Map();
