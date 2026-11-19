@@ -114,7 +114,7 @@ test('inventory polls only its lightweight version when unchanged; QR changes fe
   await changed.context.refreshActiveAdminList({ view: 'shipping' }, () => true);
   assert.equal(changed.applied[0].qrStatusVersion, 'qr-2');
   assert.equal(changed.context.state.inventoryPage, 3); assert.equal(changed.context.state.shippingPage, 2);
-  assert.equal(changed.caches[0].key, 'inventory-dashboard:v2');
+  assert.equal(changed.caches[0].key, 'inventory-dashboard:v3-discard-history');
   assert.equal(changed.caches[0].result.versionCheckedBeforeRead, true);
 });
 
