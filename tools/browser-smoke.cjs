@@ -1651,6 +1651,39 @@ async function verifyDiscardedInventoryView(page, fixture) {
   console.log(JSON.stringify({discardedInventoryView:true,fullyDiscarded:true,history:true,unchangedInventoryTotals:true,searchAndStatusFilter:true}));
 }
 
+async function verifyCancelDiscardedBoxes(page, fixture) {
+  const product = {productId:'P-CANCEL',productCode:'P-CANCEL',productName:'폐기 취소 시험'};
+  fixture.mockProducts=[product];fixture.discardCalls=[];
+  fixture.discards={products:[product],orders:[],inbounds:[],
+    records:[{managementId:'IN-CANCEL',productId:product.productId,productName:product.productName,stockStatus:'보관',storage:'A-1',inboundDate:'2026-09-18'}],
+    boxes:[
+      {managementId:'IN-CANCEL',productId:product.productId,boxId:'CANCEL-1',number:1,status:'폐기',rawStatus:'폐기',quantity:0,beforeDiscardQuantity:75,note:'폐기 사유: 박스병합',storage:'A-1'},
+      {managementId:'IN-CANCEL',productId:product.productId,boxId:'CANCEL-2',number:2,status:'보관',rawStatus:'보관',quantity:50,storage:'A-1'},
+      {managementId:'IN-CANCEL',productId:product.productId,boxId:'CANCEL-3',number:3,status:'출고완료',rawStatus:'출고완료',quantity:200,storage:'A-1'}
+    ]};
+  await page.goto(`${origin}/admin.html?fixture=cancel-discard#shipping`);
+  await page.waitForFunction(()=>state.inventoryLoaded&&!state.inventoryLoadPromise);
+  await page.evaluate(()=>openShippingInventoryDetail(shippingTableBody.querySelector('tr[data-management-id]')));
+  const cancel=page.locator('[data-cancel-discarded-boxes]');
+  await cancel.waitFor({state:'visible'});
+  page.once('dialog',dialog=>dialog.accept());
+  await cancel.click();
+  await page.waitForFunction(()=>document.querySelector('#inboundDetailModal').hidden&&!state.inventoryLoadPromise);
+  assert.equal(fixture.discardCalls.length,1);
+  assert.equal(fixture.discardCalls[0].action,'cancelDiscardedBoxes');
+  assert.deepEqual(fixture.discardCalls[0].payload.selectedBoxIds,['CANCEL-1']);
+  assert.equal(fixture.discards.boxes[0].quantity,75);
+  assert.equal(fixture.discards.boxes[0].status,'보관');
+  assert.equal(fixture.discards.boxes[0].beforeDiscardQuantity,0);
+  assert.equal(fixture.discards.boxes[1].quantity,50);
+  assert.equal(fixture.discards.boxes[2].status,'출고완료');
+  assert.equal(fixture.discards.boxes[2].quantity,200);
+  const row=await page.evaluate(()=>state.inventoryRows.find(row=>row.managementId==='IN-CANCEL'));
+  assert.equal(row.currentTotalQuantity,'125 ea');
+  assert.equal(row.currentBoxCount,'2 box');
+  console.log(JSON.stringify({cancelDiscardedBoxes:true,restoredQuantity:75,inventoryQuantity:125,unselectedPreserved:true}));
+}
+
 async function main() {
   const browser = await chromium.launch({
     ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}), headless: true
@@ -1665,6 +1698,11 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if (process.argv.includes('--discard-cancel-only')) {
+      await verifyCancelDiscardedBoxes(page,fixture);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes('--discard-history-only')) {
       await verifyDiscardedInventoryView(page, fixture);
       await verifyInventoryDiscard(page, fixture);
