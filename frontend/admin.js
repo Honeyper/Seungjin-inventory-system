@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-20", title:"기존 누적 생산량 입력", items:["생산계획의 누적 생산량에서 기준일과 기존 생산 수량을 입력할 수 있습니다. 기준일 다음 날부터의 실적만 더해 잔여 수량과 작업일을 계산하며, 발주·공정별 입력과 일별 원본 기록을 구분해 보존합니다."] },
   { date:"2026-11-19", title:"폐기 취소 처리 개선", items:["폐기 취소 시 해당 입고 건만 조회하도록 바꿔 전체 재고 조회 시간 초과로 취소에 실패하던 문제를 수정했습니다."] },
   { date:"2026-11-19", title:"폐기 박스 조회", items:["재고 목록의 폐기 박스도 보기에서 전량 폐기된 입고 건도 조회할 수 있습니다. 재고 상세에서 박스별 폐기 전 수량·사유·처리 정보를 확인합니다."] },
   { date:"2026-11-19", title:"폐기 사유 입력창 간소화", items:["폐기 사유 제목과 선택창을 한 줄로 정리하고 여백과 높이를 줄였습니다."] },
@@ -2620,7 +2621,7 @@ document.addEventListener("click", (event) => {
 
 function getTopAdminFloatingPopup() {
   const modalClosers = {
-    productionPlanStaffPickerModal: closeProductionPlanStaffPicker,
+    productionPlanStaffPickerModal: closeProductionPlanStaffPicker, productionPlanBaselineModal: closeProductionPlanBaseline,
     shippingInspectionModal: closeShippingInspectionModal, remainingInventoryModal: closeRemainingInventoryModal,
     shippingCompletionModal: closeShippingCompletionModal,
     ...(typeof closeShippingCancelModal === "function" ? {shippingCancelModal: closeShippingCancelModal} : {}),
@@ -3178,8 +3179,11 @@ function getProductionPlanDailyCompletionDate(order, selectedJob) {
   const job = selectedJob || savedJob || state.productionPlanJobs.find(item => item.purchaseOrderId === order.purchaseOrderId);
   if (!job) return null;
   const number = window.SeungjinProductionPlanner.number;
-  let completed = 0, firstAssigned = null, lastActual = null;
+  const baseline = window.SeungjinProductionBaseline ? getProductionPlanBaseline(job) : null;
+  if (baseline === undefined) return null;
+  let completed = baseline?.quantity || 0, firstAssigned = baseline?.date || null, lastActual = baseline?.date || null;
   for (const snapshot of snapshots) {
+    if (baseline && snapshot.date <= baseline.date) continue;
     const sources = getProductionPlanActualSources(snapshot.jobs, job);
     if (!sources.length) continue;
     const actual = getProductionPlanActualSubtotal(snapshot.jobs, job);
@@ -3821,20 +3825,61 @@ function getProductionPlanActualSubtotal(jobs, target, field = "actualProduction
   return Number.isSafeInteger(total) ? total / scale : null;
 }
 
+function getProductionPlanBaseline(job, {beforeDateOnly = false} = {}) {
+  if (!window.SeungjinProductionBaseline || !job.purchaseOrderId || !job.productId) return null;
+  try {
+    const date = beforeDateOnly ? window.SeungjinProductionBaseline.previousDate(state.productionPlanDate) : state.productionPlanDate;
+    return window.SeungjinProductionBaseline.read(localStorage, PRODUCTION_PLAN_STORAGE_PREFIX, job, date);
+  } catch (_error) { return undefined; }
+}
+
+let productionPlanBaselineDialog;
+function openProductionPlanBaseline(job) {
+  if (!job?.purchaseOrderId || !job.productId) return;
+  productionPlanBaselineDialog ||= window.SeungjinProductionBaseline.createDialog({
+    readValue: (target, date) => window.SeungjinProductionBaseline.read(localStorage, PRODUCTION_PLAN_STORAGE_PREFIX, target, date),
+    saveValue: (target, date, quantity) => {
+      try { window.SeungjinProductionBaseline.save(localStorage, PRODUCTION_PLAN_STORAGE_PREFIX, target, date, quantity); }
+      catch (error) {
+        if (!isBrowserStorageQuotaError(error)) throw error;
+        clearAdminResponseCaches(localStorage, true);
+        window.SeungjinProductionBaseline.save(localStorage, PRODUCTION_PLAN_STORAGE_PREFIX, target, date, quantity);
+      }
+    },
+    removeValue: (target, date) => window.SeungjinProductionBaseline.remove(localStorage, PRODUCTION_PLAN_STORAGE_PREFIX, target, date),
+    focusDialog: focusModalDialog,
+    onChanged: (target, removed) => {
+      invalidateProductionPlanActualLedger();
+      productionPlanCalculationCache.clear();
+      renderProductionPlan();
+      const trigger = Array.from(productionPlanTableBody.querySelectorAll('[data-plan-baseline]')).find(button => button.dataset.planBaseline === target.planRowId);
+      trigger?.focus({preventScroll:true});
+      showToast(removed ? "기존 생산량 입력을 삭제했습니다. 일별 기록은 유지됩니다." : "기존 생산량을 저장했습니다.");
+    }
+  });
+  const label = [getProductionPlanProduct(job.productId)?.productName || job.productName, job.orderRound, getProductionPlanStageLabel(job)].filter(Boolean).join(" · ");
+  const result = productionPlanBaselineDialog.open(job, state.productionPlanDate, label);
+  if (result.error) showToast(result.error);
+}
+function closeProductionPlanBaseline() { productionPlanBaselineDialog?.close(); }
+
 function getProductionPlanCumulativeActual(job, field, {beforeDateOnly = false} = {}) {
   const scale = field === "actualWorkHours" ? 100 : 1;
   if (!job.purchaseOrderId) return null;
   const ledger = readProductionPlanActualLedger();
   if (!ledger) return null;
-  let total = 0;
+  const baseline = field === "actualProduction" && window.SeungjinProductionBaseline ? getProductionPlanBaseline(job, {beforeDateOnly}) : null;
+  if (baseline === undefined) return null;
+  let total = baseline?.quantity || 0;
   for (const snapshot of ledger) {
+    if (baseline && snapshot.date <= baseline.date) continue;
     if (snapshot.date > state.productionPlanDate) continue;
     if (snapshot.date === state.productionPlanDate && (beforeDateOnly || snapshot.factory === state.productionPlanFactory)) continue;
     const subtotal = getProductionPlanActualSubtotal(snapshot.jobs, job, field);
     if (subtotal === null) return null;
     total += Math.round(subtotal * scale);
   }
-  const current = beforeDateOnly ? 0 : getProductionPlanActualSubtotal(state.productionPlanJobs.includes(job) ? state.productionPlanJobs : [job], job, field);
+  const current = beforeDateOnly || baseline && state.productionPlanDate <= baseline.date ? 0 : getProductionPlanActualSubtotal(state.productionPlanJobs.includes(job) ? state.productionPlanJobs : [job], job, field);
   const units = current === null ? null : total + Math.round(current * scale);
   return units !== null && Number.isSafeInteger(units) ? units / scale : null;
 }
@@ -3883,7 +3928,7 @@ function renderProductionPlanMetrics(job) {
     {key:"totalExpectedHours",label:"총 소요 시간(예상)",title:"전체 발주량 ÷ 제품에 등록된 시간당 생산량"},
     {key:"orderQuantity",label:"발주량"},
     {key:"loss",label:"최대 허용 LOSS",unit:"ea",title:"기본값은 발주량의 5%이며 수량을 직접 수정할 수 있습니다."},
-    {key:"cumulativeProduction",label:"누적 생산량",title:"현재 브라우저에서 선택 날짜까지 같은 발주·제품·공정에 저장된 금일 생산량 합계 (실크·자동화 통합)"},
+    {key:"cumulativeProduction",label:"누적 생산량",title:"기존 생산량 + 기준일 다음 날부터 선택 날짜까지의 금일 생산량 합계 (실크·자동화 통합, 현재 브라우저 저장 기준)"},
     {key:"remainingProduction",label:"잔여 수량",title:"발주량 − 선택 날짜까지 누적 생산량 (최소 0개)"},
     {key:"cumulativeHours",label:"누적 시간",title:"현재 브라우저에서 선택 날짜까지 같은 발주·제품·공정에 저장된 실 근무시간 합계 (실크·자동화 통합)"},
     {key:"actualWorkHours",label:"실 근무시간",unit:"시간",step:"0.01",title:"선택 날짜에 이 발주·공정에 실제로 투입한 시간. 예: 44차 3시간, 45차 5시간을 각각 입력"},
@@ -3894,7 +3939,7 @@ function renderProductionPlanMetrics(job) {
   ];
   return `<dl class="production-plan-details-metrics">${fields.map(field => `<div title="${escapeAttribute(field.title || "")}"><dt>${escapeHtml(field.label)}</dt><dd>${field.unit
     ? `<label class="production-plan-detail-input"><input type="number" inputmode="${field.step ? "decimal" : "numeric"}" min="${field.min || 0}" step="${field.step || 1}" data-plan-field="${field.key}" data-plan-detail-input value="${escapeAttribute(window.SeungjinProductionPlanner.number(job[field.key]) ?? "")}" aria-label="${escapeAttribute(productName + " " + field.label)}" placeholder="입력"><span>${field.unit}</span></label>`
-    : `<strong data-plan-detail-value="${field.key}">${escapeHtml(formatProductionPlanDetailValue(field.key, metrics[field.key]))}</strong>`}</dd></div>`).join("")}</dl>`;
+    : `<strong data-plan-detail-value="${field.key}">${escapeHtml(formatProductionPlanDetailValue(field.key, metrics[field.key]))}</strong>${field.key === "cumulativeProduction" ? `<button type="button" class="production-plan-baseline-trigger" data-plan-baseline="${escapeAttribute(job.planRowId)}" ${job.purchaseOrderId && job.productId ? "" : "disabled"}>기존 생산량 입력</button>` : ""}`}</dd></div>`).join("")}</dl>`;
 }
 
 function refreshProductionPlanMetrics(row, job) {
@@ -4039,6 +4084,12 @@ function collapseProductionPlanDetailsOutside(event) {
 }
 
 function handleProductionPlanTableClick(event) {
+  const baselineButton = event.target.closest("[data-plan-baseline]");
+  if (baselineButton) {
+    const job = state.productionPlanJobs.find(item => item.planRowId === baselineButton.dataset.planBaseline);
+    if (job) openProductionPlanBaseline(job);
+    return;
+  }
   const staffButton = event.target.closest("[data-plan-staff-picker]");
   if (staffButton) { openProductionPlanStaffPicker(staffButton); return; }
   const detailsButton = event.target.closest("[data-plan-details-toggle]");

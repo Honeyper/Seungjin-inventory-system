@@ -1684,6 +1684,78 @@ async function verifyCancelDiscardedBoxes(page, fixture) {
   console.log(JSON.stringify({cancelDiscardedBoxes:true,restoredQuantity:75,inventoryQuantity:125,unselectedPreserved:true}));
 }
 
+async function verifyProductionBaseline(page, fixture) {
+  fixture.mockProducts=[{productId:'NP-0001',productCode:'NP-0001',productName:'기존 생산량 시험',clientName:'시험',finalProcess:'2도',processStage1:'실크',processStage2:'실크',processGroups:[[1],[2]],processHourlyProductionRates:{'1도':1250,'2도':1000},automaticHourlyProductionRate:2250}];
+  fixture.mockOrders=[{purchaseOrderId:'PO-BASELINE',productId:'NP-0001',productName:'기존 생산량 시험',orderRound:'45차',clientName:'시험',totalOrderQuantity:130000,remainingShippingQuantity:130000,status:'작업중',deliveryType:'daily',dailyMinimumQuantity:7500}];
+  await page.clock.setFixedTime(new Date('2026-11-20T02:00:00Z'));
+  await page.goto(`${origin}/admin.html?fixture=baseline#production-plan`);
+  await page.waitForFunction(()=>state.purchaseOrdersLoaded&&!state.productsLoadPromise&&state.productionPlanJobs[0]?.purchaseOrderId==='PO-BASELINE');
+  const original=await page.evaluate(()=>{
+    const job=state.productionPlanJobs[0];Object.assign(job,{machine:'4호기',actualProduction:8000,actualWorkHours:8});
+    const key=`${PRODUCTION_PLAN_STORAGE_PREFIX}:selected-job:1공장:2026-11-19`;
+    const raw=JSON.stringify({jobs:[{...job,actualProduction:6500,actualWorkHours:7}]});
+    localStorage.setItem(key,raw);invalidateProductionPlanActualLedger();renderProductionPlan();saveProductionPlanDraft();
+    return {key,raw,baselineKey:window.SeungjinProductionBaseline.key(PRODUCTION_PLAN_STORAGE_PREFIX,job)};
+  });
+  const row=page.locator('#productionPlanTableBody [data-plan-row-id]').first();
+  const details=page.locator('#productionPlanTableBody [data-plan-details-row]').first();
+  await row.locator('[data-plan-details-toggle]').click();
+  const total=details.locator('[data-plan-detail-value="cumulativeProduction"]');
+  assert.equal(await total.textContent(),'14,500 ea');
+  await details.locator('[data-plan-baseline]').click();
+  const modal=page.locator('#productionPlanBaselineModal');
+  assert.equal(await modal.locator('[name="baselineDate"]').inputValue(),'2026-11-19');
+  await modal.locator('[name="baselineQuantity"]').fill('60000');
+  await modal.locator('[name="baselineDate"]').fill('2026-11-21');
+  await modal.locator('[type="submit"]').click();
+  assert.equal(await modal.isVisible(),true,'미래 기준일은 저장하지 않는다');
+  await modal.locator('[name="baselineDate"]').fill('2026-11-19');
+  if(process.env.PRODUCTION_BASELINE_OUTPUT){fs.mkdirSync(process.env.PRODUCTION_BASELINE_OUTPUT,{recursive:true});await page.screenshot({path:path.join(process.env.PRODUCTION_BASELINE_OUTPUT,'dialog.png')});}
+  await page.evaluate(()=>{
+    window.baselineOriginalSet=Storage.prototype.setItem;
+    Storage.prototype.setItem=function(key,value){if(key.includes(':baseline:'))throw new DOMException('Quota exceeded','QuotaExceededError');return window.baselineOriginalSet.call(this,key,value);};
+  });
+  await modal.locator('[type="submit"]').click();
+  assert.equal(await modal.isVisible(),true,'저장 실패 시 입력 유지');
+  assert.equal(await modal.locator('[name="baselineQuantity"]').inputValue(),'60000');
+  assert.equal(await total.textContent(),'14,500 ea');
+  await page.evaluate(()=>{Storage.prototype.setItem=window.baselineOriginalSet;});
+  await modal.locator('[type="submit"]').click();
+  await modal.waitFor({state:'hidden'});
+  assert.equal(await total.textContent(),'68,000 ea');
+  assert.equal(await details.locator('[data-plan-detail-value="remainingProduction"]').textContent(),'62,000 ea');
+  assert.equal(await details.locator('[data-plan-detail-value="workDays"]').textContent(),'7.8일');
+  assert.equal(await details.locator('[data-plan-detail-value="cumulativeHours"]').textContent(),'15시간');
+  assert.equal(await page.evaluate(({key})=>localStorage.getItem(key),original),original.raw,'과거 일별 기록 보존');
+  await page.reload();await page.waitForFunction(()=>state.purchaseOrdersLoaded&&!state.productsLoadPromise&&state.productionPlanJobs[0]?.actualProduction===8000);
+  await row.locator('[data-plan-details-toggle]').click();
+  assert.equal(await total.textContent(),'68,000 ea','기준은 별도 계획 저장 없이 재조회된다');
+  await row.locator('[data-plan-field="stage"]').selectOption('1');
+  assert.equal(await total.textContent(),'0 ea','다른 공정에 기존 생산량이 섞이지 않는다');
+  await row.locator('[data-plan-field="stage"]').selectOption('2');
+  assert.equal(await total.textContent(),'68,000 ea');
+  await details.locator('[data-plan-baseline]').click();
+  assert.equal(await modal.locator('[name="baselineQuantity"]').inputValue(),'60000');
+  await page.keyboard.press('Escape');
+  assert.equal(await modal.isVisible(),false);
+  assert.equal(await details.isVisible(),true,'팝업을 닫아도 세부사항은 유지');
+  const currentInput=details.locator('[data-plan-field="actualProduction"]');
+  await page.evaluate(()=>window.baselineProductionInput=document.querySelector('[data-plan-field="actualProduction"]'));
+  const other=await page.context().newPage();await other.goto(`${origin}/storage-test.html`);
+  await other.evaluate(key=>localStorage.setItem(key,JSON.stringify({version:1,entries:[{date:'2026-11-19',quantity:61000}]})),original.baselineKey);
+  await page.waitForFunction(()=>document.querySelector('[data-plan-detail-value="cumulativeProduction"]').textContent==='69,000 ea');
+  assert.equal(await currentInput.inputValue(),'8000');
+  assert.equal(await page.evaluate(()=>window.baselineProductionInput===document.querySelector('[data-plan-field="actualProduction"]')),true);
+  await other.close();
+  if(process.env.PRODUCTION_BASELINE_OUTPUT){await details.scrollIntoViewIfNeeded();await page.screenshot({path:path.join(process.env.PRODUCTION_BASELINE_OUTPUT,'details.png')});}
+  await details.locator('[data-plan-baseline]').click();
+  page.once('dialog',dialog=>dialog.accept());
+  await modal.locator('[data-remove]').click();await modal.waitFor({state:'hidden'});
+  assert.equal(await total.textContent(),'14,500 ea');
+  assert.equal(await page.evaluate(({key})=>localStorage.getItem(key),original),original.raw);
+  console.log(JSON.stringify({productionBaseline:true,baseline60000PlusDaily8000:true,reload:true,stageIsolation:true,crossTab:true,storageFailurePreserved:true,originalDailyRecordsPreserved:true}));
+}
+
 async function main() {
   const browser = await chromium.launch({
     ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}), headless: true
@@ -1698,6 +1770,11 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await verifyLogin(page, fixture);
     await verifyAdminViews(page);
+    if (process.argv.includes('--production-baseline-only')) {
+      await verifyProductionBaseline(page,fixture);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes('--discard-cancel-only')) {
       await verifyCancelDiscardedBoxes(page,fixture);
       assert.deepEqual(errors, []);
