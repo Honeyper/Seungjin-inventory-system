@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-20", title:"라벨 순번 명칭 변경", items:["두 라벨 레이아웃의 순서 항목을 순번으로 변경했습니다."] },
   { date:"2026-11-20", title:"박스 폐기 버튼 색상 변경", items:["재고 상세의 박스 폐기 버튼을 붉은색 배경과 흰색 글자로 변경했습니다."] },
   { date:"2026-11-20", title:"기존 누적 생산량 입력", items:["생산계획의 누적 생산량에서 기준일과 기존 생산 수량을 입력할 수 있습니다. 기준일 다음 날부터의 실적만 더해 잔여 수량과 작업일을 계산하며, 발주·공정별 입력과 일별 원본 기록을 구분해 보존합니다."] },
   { date:"2026-11-19", title:"폐기 취소 처리 개선", items:["폐기 취소 시 해당 입고 건만 조회하도록 바꿔 전체 재고 조회 시간 초과로 취소에 실패하던 문제를 수정했습니다."] },
@@ -13084,7 +13085,7 @@ function renderInboundQrReferenceLabel({
         <strong>포장수량</strong>
         <strong>작업일</strong>
         <strong>작업자</strong>
-        <strong class="box-qr-reference-order-heading">순서</strong>
+        <strong class="box-qr-reference-order-heading">순번</strong>
       </div>
       ${processData.processRows.map(renderQrReferenceProcessRow).join("")}
       <div class="box-qr-reference-row box-qr-reference-manager">
@@ -13095,7 +13096,7 @@ function renderInboundQrReferenceLabel({
           <span class="box-qr-reference-day">일</span>
         </span>
         <span class="box-qr-reference-worker">(인)</span>
-        <span class="box-qr-reference-order" aria-label="순서 기입란"></span>
+        <span class="box-qr-reference-order" aria-label="순번 기입란"></span>
       </div>
     </article>
   `;
@@ -13113,7 +13114,7 @@ function renderQrReferenceProcessRow(processRow) {
         <span class="box-qr-reference-day">일</span>
       </span>
       <span class="box-qr-reference-worker">(인)</span>
-      <span class="box-qr-reference-order" aria-label="순서 기입란"></span>
+      <span class="box-qr-reference-order" aria-label="순번 기입란"></span>
     </div>
   `;
 }
