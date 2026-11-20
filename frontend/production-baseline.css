@@ -1,0 +1,17 @@
+.production-plan-baseline-trigger { display: block; margin: .25rem auto 0; padding: .1rem .15rem; border: 0; color: #315e9b; background: none; font: inherit; font-size: .65rem; line-height: 1.4; text-decoration: underline; text-underline-offset: .2rem; cursor: pointer; }
+.production-plan-baseline-trigger:disabled { color: #8995a6; cursor: default; text-decoration: none; }
+.production-plan-baseline-modal { width: min(30rem, calc(100vw - 2rem)); }
+.production-plan-baseline-target { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.production-plan-baseline-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+.production-plan-baseline-fields label { display: grid; gap: .4rem; font-size: .85rem; min-width: 0; }
+.production-plan-baseline-fields input { box-sizing: border-box; width: 100%; min-width: 0; height: 2.75rem; padding: .5rem .65rem; border: 1px solid #dce4ef; border-radius: .4rem; color: inherit; background: #fff; font: inherit; }
+.production-plan-baseline-help { margin: .75rem 0 0; color: #6b7b92; font-size: .78rem; line-height: 1.6; }
+.production-plan-baseline-remove { margin-right: auto; padding: .4rem 0; border: 0; color: #b42318; background: none; font: inherit; font-size: .78rem; cursor: pointer; }
+.production-plan-baseline-modal .modal-actions { flex-wrap: wrap; gap: .5rem; }
+.production-plan-baseline-modal .modal-actions .primary-modal-action,
+.production-plan-baseline-modal .modal-actions .secondary-modal-action { min-width: 5rem; }
+@media(max-width: 600px) {
+ .production-plan-baseline-modal .product-form, .production-plan-baseline-modal .modal-header { padding: 1rem; }
+ .production-plan-baseline-fields { grid-template-columns: 1fr; }
+}
+@media print { .production-plan-baseline-trigger { display: none; } }

@@ -1009,3 +1009,75 @@ test('납기로 자동 숨겨진 빈 날짜가 이전 계획을 지우지 않고
  c.state.purchaseOrders[0].endDate='2026-10-31';c.loadProductionPlanDraft();assert.equal(c.state.productionPlanJobs.length,1);assert.equal(c.state.productionPlanJobs[0].machine,'5호기');
  assert.deepEqual([...c.testStorage],[...raw]);
 });
+
+function baselineSetup() {
+ const c=setup();
+ vm.runInContext(fs.readFileSync(new URL('../frontend/production-baseline.js',import.meta.url),'utf8'),c);
+ c.state.productionPlanDate='2026-11-20';
+ Object.assign(c.state.purchaseOrders[0],{totalOrderQuantity:130000,endDate:'2026-12-10'});
+ c.state.products[0].processHourlyProductionRates['2도']=1000;
+ c.state.productionPlanJobs=c.buildProductionPlanJobs();
+ const job=c.state.productionPlanJobs[0];
+ Object.assign(job,{actualProduction:8000,actualWorkHours:8,machine:'4호기'});
+ const raw=JSON.stringify({jobs:[{...job,actualProduction:6500,actualWorkHours:7,stageDrafts:{}}]});
+ c.testStorage.set('rows-test:selected-job:1공장:2026-11-19',raw);
+ c.invalidateProductionPlanActualLedger();
+ return {c,job,raw,base:c.window.SeungjinProductionBaseline};
+}
+
+test('기존 생산량 기준은 과거 실적을 중복하지 않고 당일·잔량·작업일·계획 목표에 반영된다',()=>{
+ const {c,job,raw,base}=baselineSetup();
+ base.save(c.localStorage,'rows-test',job,'2026-11-19',60000);
+ assert.equal(c.getProductionPlanCumulativeProduction(job),68000);
+ assert.equal(c.getProductionPlanCumulativeActual(job,'actualProduction',{beforeDateOnly:true}),60000);
+ assert.equal(c.getProductionPlanCumulativeHours(job),15,'근무시간은 추정하거나 과거 기록을 제외하지 않는다');
+ const metrics=c.getProductionPlanDetailMetrics(job);
+ assert.equal(metrics.remainingProduction,62000);
+ assert.equal(c.getProductionPlanCalculations(job).remainingQuantity,70000);
+ assert.equal(c.testStorage.get('rows-test:selected-job:1공장:2026-11-19'),raw);
+ c.saveProductionPlanDraft();c.saveProductionPlanDraft();c.loadProductionPlanDraft();
+ assert.equal(c.getProductionPlanCumulativeProduction(c.state.productionPlanJobs[0]),68000);
+});
+
+test('기준일 이전 조회에는 기존 기준을 적용하지 않고 발주·공정·박 유형을 분리한다',()=>{
+ const {c,job,base}=baselineSetup();base.save(c.localStorage,'rows-test',job,'2026-11-19',60000);
+ c.state.productionPlanDate='2026-11-19';
+ assert.equal(c.getProductionPlanCumulativeProduction(job),60000,'기준일 당일 실적은 재합산하지 않는다');
+ assert.equal(c.getProductionPlanCumulativeActual(job,'actualProduction',{beforeDateOnly:true}),0);
+ c.state.productionPlanDate='2026-11-18';job.actualProduction=300;
+ assert.equal(c.getProductionPlanCumulativeProduction(job),300);
+ c.state.productionPlanDate='2026-11-20';job.actualProduction=8000;
+ assert.equal(c.getProductionPlanCumulativeProduction({...job,stage:1,stageGroup:[1],actualProduction:0}),0);
+ assert.equal(c.getProductionPlanCumulativeProduction({...job,process:'박 인쇄',actualProduction:0}),0);
+ assert.equal(c.getProductionPlanCumulativeProduction({...job,purchaseOrderId:'OTHER',actualProduction:0}),0);
+ assert.equal(c.getProductionPlanCumulativeProduction({...job,process:'자동화',actualProduction:8000}),68000,'실크와 자동화의 기준은 공유');
+});
+
+test('여러 공장·동일 공정의 작업 행에 기준을 한 번만 더하고 기록 삭제 없이 해제한다',()=>{
+ const {c,job,raw,base}=baselineSetup();base.save(c.localStorage,'rows-test',job,'2026-11-19',60000);
+ c.testStorage.set('rows-test:selected-job:2공장:2026-11-19',JSON.stringify({jobs:[{...job,actualProduction:2000}]}));
+ c.testStorage.set('rows-test:selected-job:2공장:2026-11-20',JSON.stringify({jobs:[{...job,actualProduction:1000,actualWorkHours:1}]}));
+ c.state.productionPlanJobs.push({...job,planRowId:'second',actualProduction:3000});c.invalidateProductionPlanActualLedger();
+ assert.equal(c.getProductionPlanCumulativeProduction(job),72000);
+ base.remove(c.localStorage,'rows-test',job,'2026-11-19');
+ assert.equal(c.getProductionPlanCumulativeProduction(job),20500);
+ assert.equal(c.testStorage.get('rows-test:selected-job:1공장:2026-11-19'),raw);
+});
+
+test('매일 납기의 예상 완료일도 기존 생산량 다음 날부터 계산하고 날짜 조회만으로 밀리지 않는다',()=>{
+ const {c,job,base}=baselineSetup();
+ Object.assign(c.state.purchaseOrders[0],{deliveryType:'daily',dailyMinimumQuantity:7500,endDate:''});
+ job.actualProduction=0;job.actualWorkHours=0;
+ base.save(c.localStorage,'rows-test',job,'2026-11-19',114000);
+ assert.equal(c.getProductionPlanDailyCompletionDate(c.state.purchaseOrders[0],job),'2026-11-23');
+ c.state.productionPlanDate='2026-11-23';
+ assert.equal(c.getProductionPlanDailyCompletionDate(c.state.purchaseOrders[0],job),'2026-11-23');
+});
+
+test('읽을 수 없는 기존 생산량을 0으로 간주하거나 덮어쓰지 않는다',()=>{
+ const {c,job,base}=baselineSetup();const key=base.key('rows-test',job);
+ c.testStorage.set(key,'broken');
+ assert.equal(c.getProductionPlanCumulativeProduction(job),null);
+ assert.throws(()=>base.save(c.localStorage,'rows-test',job,'2026-11-19',60000),/기록/);
+ assert.equal(c.testStorage.get(key),'broken');
+});
