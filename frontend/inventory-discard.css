@@ -10,7 +10,8 @@
 .inventory-discard-box small { color: #6b7b92; }
 .inventory-discard-modal input[type="checkbox"] { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; accent-color: #b42318; }
 .inventory-discard-modal .primary-modal-action { background: #b42318; box-shadow: none; }
-#inventoryDiscardFromDetailButton { color: #b42318; }
+#inventoryDiscardFromDetailButton { color: #fff; background: #b42318; border-color: #b42318; }
+#inventoryDiscardFromDetailButton:hover:not(:disabled) { background: #912018; border-color: #912018; }
 #inventoryDiscardFromDetailButton[hidden] { display: none; }
 @media (max-width: 600px) {
   .inventory-discard-modal .product-form, .inventory-discard-modal .modal-header { padding: 1rem; }
