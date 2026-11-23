@@ -36,7 +36,7 @@
             if (!response.ok || !result || typeof result !== "object" || result.ok !== true) {
               throw new RequestError(typeof result?.message === "string" && result.message
                 ? result.message : "요청을 처리하지 못했습니다. 잠시 후 다시 확인해주세요.", {
-                status: response.status, code: "server_error"
+                status: response.status, code: typeof result?.code === "string" ? result.code : "server_error"
               });
             }
             return result;
@@ -54,7 +54,7 @@
         const error = cause instanceof RequestError ? cause : new RequestError(readOnly
           ? "서버에 연결하지 못했습니다. 인터넷 연결을 확인해주세요."
           : "서버 연결이 끊겼습니다. 저장됐을 수 있으니 최신 내역을 확인해주세요.", { code: "network" });
-        const retryable = ["network", "timeout"].includes(error.code) || temporaryStatuses.has(error.status);
+        const retryable = error.code !== "daily_limit" && (["network", "timeout"].includes(error.code) || temporaryStatuses.has(error.status));
         if (attempt + 1 >= attempts || !retryable) throw error;
       } finally {
         clearTimeout(timer);

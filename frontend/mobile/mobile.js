@@ -138,6 +138,7 @@ const CLIENT_TONE_BY_KEY = {
 const state = {
   user: null,
   dashboard: [],
+  dashboardSnapshot: null,
   dashboardLoadedAt: 0,
   dashboardStateVersion: null,
   dashboardLoadPromise: null,
@@ -1194,6 +1195,7 @@ function logout() {
   clearPersistentMobileData();
   state.user = null;
   state.dashboard = [];
+  state.dashboardSnapshot = null;
   state.dashboardLoadedAt = 0;
   state.dashboardStateVersion = null;
   dashboardQrIndex = null;
@@ -1379,10 +1381,19 @@ async function loadShippingDashboard(options = {}) {
         }
       }
 
-      const data = await requestApi("getInventoryDashboard", { knownStateVersion: checkedVersion, responseFormat: "mobile-box-table-v1" });
+      const baseline = state.dashboardSnapshot;
+      const baselineVersion = baseline ? getDashboardStateVersion(state.dashboardStateVersion) : null;
+      const canReadDelta = baseline?.summary && baselineVersion !== null && window.SeungjinInventoryIncremental;
+      const response = await requestApi("getInventoryDashboard", {
+        knownStateVersion: checkedVersion, responseFormat: "mobile-box-table-v1",
+        ...(canReadDelta ? {allowInventoryDelta:true,deltaSinceVersion:baselineVersion} : {})
+      });
+      const data = response.inventoryDelta
+        ? window.SeungjinInventoryIncremental.merge(baseline, response) : response;
       if (state.user !== currentUser) return false;
       if (loadRevision !== (state.shippingMutationRevision || 0)) return false;
       state.dashboard = expandMobileDashboard(data);
+      state.dashboardSnapshot = data.summary ? {...data,stateVersion:checkedVersion,rows:state.dashboard} : null;
       state.dashboardLoadedAt = Date.now();
       // Use the version read before the rows so a concurrent write cannot mark old rows as current.
       state.dashboardStateVersion = checkedVersion;
@@ -7894,6 +7905,7 @@ async function restoreCachedDashboard() {
     }
 
     state.dashboard = expandMobileDashboard(cached.dashboard);
+    state.dashboardSnapshot = cached.dashboard.summary ? {...cached.dashboard,stateVersion:getDashboardStateVersion(cached.stateVersion),rows:state.dashboard} : null;
     state.dashboardLoadedAt = savedAt;
     state.dashboardStateVersion = getDashboardStateVersion(cached.stateVersion);
     dashboardQrIndex = null;

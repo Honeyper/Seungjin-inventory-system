@@ -104,3 +104,9 @@ test("denied sessionStorage falls through to the available persistent session", 
   vm.runInContext(readFileSync(new URL("../frontend/supabase-gateway.js", import.meta.url), "utf8"), context);
   await context.window.SeungjinDataGateway.requestRead("getProducts");
 });
+
+test('an exhausted daily quota fails promptly without repeating the database request',async()=>{
+ let calls=0;const http=runtime(async()=>{calls++;return response(503,{ok:false,code:'daily_limit',message:'일일 한도'});});
+ await assert.rejects(http.request('test',{readOnly:true,retryDelayMs:0}),error=>error.code==='daily_limit'&&error.message==='일일 한도');
+ assert.equal(calls,1);
+});

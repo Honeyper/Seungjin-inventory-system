@@ -55,3 +55,20 @@ test("조회로 객체가 교체돼도 같은 박스만 갱신하고 실패한 �
   app.markShippingItemsAvailable([targets[0]]);
   assert.equal(app.state.scannedShippingRows[0].scannedBox.rawStatus, "보관");
 });
+
+test('mobile refresh merges changed products without downloading or losing unchanged products',async()=>{
+ const {app,reads}=setup();app.state.dashboardStateVersion=100;
+ const row=(productId,qty)=>({managementId:productId,productId,currentBoxCount:'1 box',currentTotalQuantity:qty+' ea',countsAsInventory:true,allShippingBoxes:[],activeShippingBoxes:[]});
+ app.state.dashboardSnapshot={stateVersion:100,summary:{totalBoxes:2},rows:[row('A',10),row('B',20)],locationBoxStats:[],locationQuantityStats:[]};
+ app.state.dashboard=app.state.dashboardSnapshot.rows;
+ app.window.SeungjinDataGateway={canRead:()=>true};app.getDashboardStateVersion=value=>value===null?null:Number(value);
+ vm.runInNewContext(fs.readFileSync(new URL('../frontend/inventory-incremental.js',import.meta.url),'utf8'),app);
+ const requests=[];app.requestApi=(action,payload)=>new Promise(resolve=>requests.push({action,payload,resolve}));
+ const pending=app.loadShippingDashboard({silent:true});requests[0].resolve({stateVersion:101});await new Promise(setImmediate);
+ assert.equal(requests[1].payload.allowInventoryDelta,true);assert.equal(requests[1].payload.deltaSinceVersion,100);
+ requests[1].resolve({stateVersion:101,rows:[row('A',5)],inventoryDelta:{fromVersion:100,productIds:['A']}});
+ assert.equal(await pending,true);assert.equal(app.state.dashboard.length,2);assert.equal(app.state.dashboardSnapshot.summary.totalQuantity,25);
+ assert.equal(app.state.dashboard.find(row=>row.productId==='B').currentTotalQuantity,'20 ea');
+ app.invalidateShippingDashboardRead();const next=app.loadShippingDashboard({silent:true});requests[2].resolve({stateVersion:102});await new Promise(setImmediate);
+ assert.equal(requests[3].payload.allowInventoryDelta,undefined);requests[3].resolve({stateVersion:102,rows:[]});await next;
+});
