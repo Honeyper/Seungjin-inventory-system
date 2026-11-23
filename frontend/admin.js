@@ -99,6 +99,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-23", title:"Cloudflare 서버 전환", items:["입고·재고·발주·출고 저장과 조회를 Cloudflare 서버로 전환했습니다. 기존 QR과 첨부파일, 엑셀 연동을 유지하고 재고를 나누어 전송해 조회 실패를 줄였습니다."] },
   { date:"2026-11-20", title:"라벨 순번 명칭 변경", items:["두 라벨 레이아웃의 순서 항목을 순번으로 변경했습니다."] },
   { date:"2026-11-20", title:"박스 폐기 버튼 색상 변경", items:["재고 상세의 박스 폐기 버튼을 붉은색 배경과 흰색 글자로 변경했습니다."] },
   { date:"2026-11-20", title:"기존 누적 생산량 입력", items:["생산계획의 누적 생산량에서 기준일과 기존 생산 수량을 입력할 수 있습니다. 기준일 다음 날부터의 실적만 더해 잔여 수량과 작업일을 계산하며, 발주·공정별 입력과 일별 원본 기록을 구분해 보존합니다."] },

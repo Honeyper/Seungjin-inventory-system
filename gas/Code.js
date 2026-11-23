@@ -25,7 +25,7 @@ const API_READ_CACHE_SCHEMA_VERSION = 'v7';
 const API_READ_CACHE_VERSION_PROPERTY = 'API_READ_CACHE_VERSION';
 const SUPABASE_ENVIRONMENTS = {
   prod: {
-    gatewayUrl: 'https://zicvuuzpzcfeeegwhmif.supabase.co/functions/v1/seungjin-dev-gateway',
+    gatewayUrl: 'https://seungjin-inventory-api.seungjin-cloudflare-20261123.workers.dev',
     publishableKey: 'sb_publishable_sLam9G9WsRekLtl11pw0Mw_sXAv0fVN'
   },
   dev: {

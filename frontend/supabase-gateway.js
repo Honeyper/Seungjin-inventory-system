@@ -14,6 +14,7 @@
     "getInboundBoxQrs",
     "getCommonContainerShipping",
     "getInventoryDashboard",
+    "getInventoryChunk",
     "getSheetBackupNotifications",
     "getServerUsage"
   ]);
@@ -164,8 +165,31 @@
     const key = JSON.stringify([session.supabaseSessionToken, action, readPayload]);
     let pendingRead = pendingReads.get(key);
     if (!pendingRead) {
-      pendingRead = callGateway(action, readPayload, session.supabaseSessionToken)
-        .then((result) => compactInventory ? expandInventoryResponse(result.data) : result.data);
+      pendingRead = (async()=>{
+        for(let attempt=0;attempt<3;attempt++){
+          try{
+            const result=await callGateway(action,readPayload,session.supabaseSessionToken);
+            if(result.data?.format!=="inventory-chunks-v1")return compactInventory?expandInventoryResponse(result.data):result.data;
+            const manifest=result.data;
+            const chunks=new Array(manifest.pages.length);let cursor=0;
+            await Promise.all(Array.from({length:Math.min(12,manifest.pages.length)},async()=>{
+              while(cursor<manifest.pages.length){const index=cursor++;const page=manifest.pages[index];
+                const response=await callGateway("getInventoryChunk",{...page,expectedVersion:manifest.stateVersion,productIds:manifest.productIds},session.supabaseSessionToken);
+                chunks[index]=response.data.fragment;
+              }
+            }));
+            const version=await callGateway("getInventoryVersion",{},session.supabaseSessionToken);
+            if(Number(version.data.stateVersion)!==Number(manifest.stateVersion))throw new GatewayError("재고가 변경되어 다시 불러옵니다.",409);
+            const serialized=chunks.join("");
+            const entries=serialized?JSON.parse("["+serialized.slice(1)+"]"):[];
+            const rows=entries.map(entry=>expandInventoryResponse({format:"inventory-box-table-v1",rows:[entry.row],boxTable:entry.boxTable}).rows[0]);
+            const patch={rows,stateVersion:manifest.stateVersion,qrStatusVersion:manifest.qrStatusVersion,qrInbounds:manifest.qrInbounds};
+            if(manifest.inventoryDelta)return {...patch,inventoryDelta:manifest.inventoryDelta};
+            if(!window.SeungjinInventoryIncremental)throw new GatewayError("재고 화면을 새로 열어주세요.");
+            return window.SeungjinInventoryIncremental.merge({rows:[],stateVersion:0,locationBoxStats:[],locationQuantityStats:[]},{...patch,inventoryDelta:{fromVersion:0,productIds:[]}});
+          }catch(error){if(error.status!==409||attempt===2)throw error;}
+        }
+      })();
       pendingReads.set(key, pendingRead);
     }
     try {
