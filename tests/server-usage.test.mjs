@@ -12,19 +12,15 @@ const migrationSource = await readFile(
   "utf8"
 );
 
-test("알림 팝업은 일반 알림 제목과 실시간 서버 사용량을 표시한다", () => {
+test("알림창에는 백업 결과와 업데이트 탭을 표시하고 저장 용량은 조회하지 않는다", () => {
   assert.match(adminHtml, /id="backupNotificationTitle">알림<\/h2>/);
-  assert.doesNotMatch(adminHtml, /id="backupNotificationTitle">백업 알림<\/h2>/);
-  assert.match(adminHtml, /id="serverUsageCard"/);
-  assert.match(adminHtml, /id="serverUsageProgressBar"/);
-  assert.match(stylesSource, /\.server-usage-card/);
-});
-
-test("알림을 열거나 새로고침하면 서버 사용량을 읽고 열린 동안 30초마다 갱신한다", () => {
+  assert.match(adminHtml, /id="backupNotificationList"/);
+  assert.match(adminHtml, /id="updateHistoryTabPanel"/);
+  assert.doesNotMatch(adminHtml, /id="serverUsageCard"/);
+  assert.doesNotMatch(stylesSource, /\.server-usage-card/);
+  assert.doesNotMatch(adminSource, /getServerUsage|loadServerUsage|SERVER_USAGE_POLL_MS/);
+  assert.match(adminSource, /requestApi\("getSheetBackupNotifications"\)/);
   assert.match(gatewaySource, /"getServerUsage"/);
-  assert.match(adminSource, /requestApi\("getServerUsage"\)/);
-  assert.match(adminSource, /SERVER_USAGE_POLL_MS = 30 \* 1000/);
-  assert.match(adminSource, /if \(!backupNotificationPanel\?\.hidden\) loadServerUsage\(\)/);
 });
 
 test("서버 사용량 API는 현재 데이터베이스 크기와 무료 한도 비율을 반환한다", () => {

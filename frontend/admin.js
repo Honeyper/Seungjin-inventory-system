@@ -74,7 +74,6 @@ const ADMIN_LARGE_CACHE_DB_NAME = `${ADMIN_CACHE_PREFIX}:large`;
 const ADMIN_LARGE_CACHE_STORE = "responses";
 let adminLargeCacheDatabasePromise = null;
 const BACKUP_NOTIFICATION_POLL_MS = 60 * 1000;
-const SERVER_USAGE_POLL_MS = 30 * 1000;
 const BACKUP_NOTIFICATION_READ_KEY = `seungjinBackupNotificationRead:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}:${session?.name || "admin"}`;
 const PRODUCTION_PLAN_STORAGE_PREFIX = `seungjinProductionPlan:v1:${window.SEUNGJIN_CONFIG?.ENV || "prod"}`;
 const PRODUCTION_PROCESS_ORDER = ["박 인쇄", "실크 인쇄", "자동화"];
@@ -99,6 +98,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-24", title:"알림창 정리", items:["서버 저장 용량 표시와 자동 조회를 알림창에서 제거했습니다."] },
   { date:"2026-11-24", title:"모바일 출고 저장 속도 개선", items:["일반 제품 출고 시 필요한 확인을 저장 요청에서 함께 처리하고, 완료 후 재고는 변경분만 불러옵니다. 공용용기는 기존대로 출고 제품과 수량을 지정합니다."] },
   { date:"2026-11-23", title:"조회량 및 저장 처리 개선", items:["재고 전송을 다음 위치부터 이어 읽도록 바꾸고 전송 요청 수를 줄였습니다. 입고 날짜 검색과 출고 저장에 조회 인덱스를 적용하고 저장 시 필요한 제품만 읽습니다. 모바일은 변경된 제품만 갱신하며 서버 일일 한도 도달 시 재시도 없이 안내합니다."] },
   { date:"2026-11-23", title:"Cloudflare 서버 전환", items:["입고·재고·발주·출고 저장과 조회를 Cloudflare 서버로 전환했습니다. 기존 QR과 첨부파일, 엑셀 연동을 유지하고 재고를 나누어 전송해 조회 실패를 줄였습니다."] },
@@ -848,8 +848,6 @@ const state = {
   },
   backupNotifications: [],
   isLoadingBackupNotifications: false,
-  serverUsage: null,
-  isLoadingServerUsage: false,
   backupNotificationActiveTab: "notifications",
   productionPlanDate: "",
   productionPlanFactory: "1공장",
@@ -880,12 +878,6 @@ const updateHistoryTab = document.querySelector("#updateHistoryTab");
 const backupNotificationsTabPanel = document.querySelector("#backupNotificationsTabPanel");
 const updateHistoryTabPanel = document.querySelector("#updateHistoryTabPanel");
 const updateHistoryList = document.querySelector("#updateHistoryList");
-const serverUsageCard = document.querySelector("#serverUsageCard");
-const serverUsageValue = document.querySelector("#serverUsageValue");
-const serverUsagePercent = document.querySelector("#serverUsagePercent");
-const serverUsageProgress = document.querySelector(".server-usage-progress");
-const serverUsageProgressBar = document.querySelector("#serverUsageProgressBar");
-const serverUsageDescription = document.querySelector("#serverUsageDescription");
 const productTotal = document.querySelector("#productTotal");
 const clientTotal = document.querySelector("#clientTotal");
 const recentDate = document.querySelector("#recentDate");
@@ -1571,85 +1563,8 @@ function renderBackupNotifications() {
   updateBackupNotificationBadge();
 }
 
-function formatServerUsageBytes(value) {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return "-";
-  const megabytes = bytes / (1024 * 1024);
-  return `${megabytes.toLocaleString("ko-KR", { maximumFractionDigits: 1 })} MB`;
-}
-
-function formatServerUsageMeasuredAt(value) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "측정 시간 미확인";
-  return `${new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  }).format(date)} 기준`;
-}
-
-function renderServerUsage() {
-  if (!serverUsageCard || !serverUsageValue || !serverUsagePercent || !serverUsageProgress || !serverUsageProgressBar || !serverUsageDescription) {
-    return;
-  }
-
-  const usage = state.serverUsage;
-  if (!usage) {
-    serverUsageCard.classList.remove("is-warning", "is-critical", "has-error");
-    serverUsageValue.textContent = state.isLoadingServerUsage ? "확인 중" : "확인 불가";
-    serverUsagePercent.textContent = "-";
-    serverUsageProgressBar.style.width = "0%";
-    serverUsageProgress.setAttribute("aria-valuenow", "0");
-    serverUsageDescription.textContent = state.isLoadingServerUsage
-      ? "Supabase 데이터베이스 사용량을 확인하고 있습니다."
-      : "서버 사용량을 불러오지 못했습니다. 새로고침해주세요.";
-    serverUsageCard.classList.toggle("has-error", !state.isLoadingServerUsage);
-    return;
-  }
-
-  const databaseBytes = Math.max(0, Number(usage.databaseBytes) || 0);
-  const limitBytes = Math.max(1, Number(usage.databaseLimitBytes) || 1);
-  const percent = Math.max(0, (databaseBytes / limitBytes) * 100);
-  const boundedPercent = Math.min(100, percent);
-
-  serverUsageValue.textContent = `${formatServerUsageBytes(databaseBytes)} / ${formatServerUsageBytes(limitBytes)}`;
-  serverUsagePercent.textContent = `${percent.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`;
-  serverUsageProgressBar.style.width = `${boundedPercent}%`;
-  serverUsageProgress.setAttribute("aria-valuenow", String(Math.round(boundedPercent)));
-  serverUsageDescription.textContent = `데이터베이스 용량 · ${formatServerUsageMeasuredAt(usage.measuredAt)}`;
-  serverUsageCard.classList.remove("has-error");
-  serverUsageCard.classList.toggle("is-warning", percent >= 70 && percent < 90);
-  serverUsageCard.classList.toggle("is-critical", percent >= 90);
-}
-
 function updateNotificationRefreshButton() {
-  refreshBackupNotificationsButton?.toggleAttribute(
-    "disabled",
-    state.isLoadingBackupNotifications || state.isLoadingServerUsage
-  );
-}
-
-async function loadServerUsage({ showLoading = false } = {}) {
-  if (!window.SeungjinDataGateway?.canRead("getServerUsage") || state.isLoadingServerUsage) {
-    return;
-  }
-
-  state.isLoadingServerUsage = true;
-  updateNotificationRefreshButton();
-  if (showLoading && !state.serverUsage) renderServerUsage();
-
-  try {
-    state.serverUsage = await requestApi("getServerUsage");
-  } catch (error) {
-    if (!state.serverUsage) renderServerUsage();
-    if (showLoading) showToast(error.message || "서버 사용량을 불러오지 못했습니다.");
-  } finally {
-    state.isLoadingServerUsage = false;
-    renderServerUsage();
-    updateNotificationRefreshButton();
-  }
+  refreshBackupNotificationsButton?.toggleAttribute("disabled", state.isLoadingBackupNotifications);
 }
 
 async function loadBackupNotifications({ showLoading = false } = {}) {
@@ -1691,7 +1606,6 @@ function setBackupNotificationPanelOpen(shouldOpen) {
     setBackupNotificationTab(state.backupNotificationActiveTab);
     markBackupNotificationsRead();
     loadBackupNotifications({ showLoading: true });
-    loadServerUsage({ showLoading: true });
   }
 }
 
@@ -1701,7 +1615,6 @@ backupNotificationButton?.addEventListener("click", () => {
 
 refreshBackupNotificationsButton?.addEventListener("click", () => {
   loadBackupNotifications({ showLoading: true });
-  loadServerUsage({ showLoading: true });
 });
 
 backupNotificationsTab?.addEventListener("click", () => {
@@ -2847,15 +2760,10 @@ if (window.SeungjinDataGateway?.canRead("getSheetBackupNotifications")) {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       loadBackupNotifications();
-      if (!backupNotificationPanel?.hidden) loadServerUsage();
     }
   });
 }
-if (window.SeungjinDataGateway?.canRead("getServerUsage")) {
-  window.setInterval(() => {
-    if (!document.hidden && !backupNotificationPanel?.hidden) loadServerUsage();
-  }, SERVER_USAGE_POLL_MS);
-}
+
 
 window.setInterval(() => {
   if (!document.hidden) refreshInventoryConfirmationStatus();
