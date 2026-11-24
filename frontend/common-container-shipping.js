@@ -1,6 +1,7 @@
 /* Shared by PC and mobile. Product names are shipment snapshots, never stock IDs. */
 (function (root) {
   "use strict";
+  const UNREGISTERED_SHIPPING_PRODUCT = "미등록";
   const text = value => String(value ?? "").trim();
   const escape = value => text(value).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
   const format = value => Number(value || 0).toLocaleString("ko-KR");
@@ -144,9 +145,9 @@
     const result = shippingSource ?? await request("getCommonContainerShipping", { managementId: payload.managementId, productId: payload.productId });
     const product = result.product;
     if (!product) throw new Error("출고할 제품 정보를 다시 불러와주세요.");
-    const { enabled, names } = info(product);
+    const { enabled, names: registeredNames } = info(product);
     if (!enabled) return payload;
-    if (!names.length) throw new Error("제품 관리에서 공용용기의 출고 제품명을 먼저 등록해주세요.");
+    const names = [...new Set([...registeredNames, UNREGISTERED_SHIPPING_PRODUCT])];
     const next = queue.catch(() => {}).then(async () => {
       if (revision !== cancelRevision) throw new Error("공용용기 출고를 취소했습니다.");
       const ids = new Set((payload.selectedBoxIds || []).map(text));

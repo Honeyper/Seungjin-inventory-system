@@ -1,5 +1,7 @@
 import { ValidationError } from "./request-errors.js";
 
+const UNREGISTERED_SHIPPING_PRODUCT = "미등록";
+
 export function commonContainerInfo(product = {}) {
   const flag = product.isCommonContainer ?? product.commonContainerProduct ?? product["공용용기 제품"];
   const enabled = flag === true || ["true", "유", "예", "1"].includes(String(flag).trim().toLowerCase());
@@ -39,7 +41,6 @@ export function planCommonContainerShipping(products, boxes, payload, quantityMa
       throw new ValidationError(`${box.number}번 공용용기 박스의 수량이 변경되었습니다. 최신 수량으로 출고 제품·수량을 지정해주세요.`);
     }
     if (!normalCompletion && !(status === "출고대기" && entry)) continue;
-    if (!info.shippingProductNames.length) throw new ValidationError("제품 관리에서 공용용기의 출고 제품명을 먼저 등록해주세요.");
     const allocation = entry?.products ?? box.shippingAllocations;
     const expected = quantityMap.has(Number(box.number)) ? quantityMap.get(Number(box.number)) : Number(box.quantity);
     const partial = payload.commonContainerPartialShipment === true;
@@ -58,7 +59,8 @@ export function planCommonContainerShipping(products, boxes, payload, quantityMa
     const normalized = allocation.map(item => {
       const name = String(item?.productName || "").trim();
       const quantity = Number(item?.quantity);
-      if (!info.shippingProductNames.includes(name) || seen.has(name)) throw new ValidationError(`${box.number}번 박스의 출고 제품이 등록 목록과 다르거나 중복됩니다.`);
+      const allowed = name === UNREGISTERED_SHIPPING_PRODUCT || info.shippingProductNames.includes(name);
+      if (!allowed || seen.has(name)) throw new ValidationError(`${box.number}번 박스의 출고 제품이 등록 목록과 다르거나 중복됩니다.`);
       if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new ValidationError(`${box.number}번 박스의 제품별 수량은 1 이상의 정수여야 합니다.`);
       seen.add(name);
       total += quantity;

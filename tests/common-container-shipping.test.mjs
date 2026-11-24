@@ -41,7 +41,7 @@ test('단일·혼합 박스 출고: 원재고에서 선택 박스만 차감하�
 test('잘못된 제품·중복·음수·소수·합계·박스 위조·누락 요청은 전체 거절한다', () => {
   const bad = [
     undefined, [], {},
-    [{ boxId: 'B1', products: [{ productName: '미등록', quantity: 100 }] }],
+    [{ boxId: 'B1', products: [{ productName: '등록하지 않은 임의 제품', quantity: 100 }] }],
     [{ boxId: 'B1', products: [{ productName: '쉐딩', quantity: 50 }, { productName: '쉐딩', quantity: 50 }] }],
     [{ boxId: 'B1', products: [{ productName: '쉐딩', quantity: -1 }] }],
     [{ boxId: 'B1', products: [{ productName: '쉐딩', quantity: 99.5 }, { productName: '블러쉬', quantity: 0.5 }] }],

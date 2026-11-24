@@ -79,11 +79,28 @@ test('시트 재실행은 확정된 잔량과 출고 기록을 중복 없이 반
  findHeaderIndex_:(headers,names)=>headers.findIndex(h=>names.includes(h)),findShippingTypeHeaderIndex_:headers=>headers.indexOf('출고유형'),
  setRowValue_:(row,headers,names,value)=>{const i=headers.findIndex(h=>names.includes(h));if(i>=0)row[i]=value;},ensureSheetWriteCapacity_:()=>{},formatEa_:n=>`${n.toLocaleString('en-US')} ea`,updateStockStatusRows_:(s,id,value)=>{status=value;},SpreadsheetApp:{flush:()=>{}}});
  vm.runInContext(code,ctx);
- const initial=fixture(),saved=apply(initial,ship(initial,[{productName:'애프리콧',quantity:1200}]));
+ const initial=fixture(),saved=apply(initial,ship(initial,[{productName:'미등록',quantity:1200}]));
  ctx.replayCommonContainerBoxChanges_({managementId:'IN'},saved.result);ctx.replayCommonContainerBoxChanges_({managementId:'IN'},saved.result);
  assert.equal(rows.length,4);const ci=h=>rows[0].indexOf(h);assert.equal(rows[1][ci('현재 수량')],'1,920 ea');assert.equal(rows[3][ci('현재 수량')],'1,200 ea');assert.equal(rows[1][ci('QR 데이터')],'original-qr-1');assert.equal(rows[3][ci('QR 데이터')],'');assert.equal(status,'일부 출고');
+ assert.deepEqual(JSON.parse(rows[3][ci('공용용기 출고 정보')]).shippingAllocations,[{productName:'미등록',quantity:1200}]);
  const shipment=saved.result.shippedBoxes[0],cancelled=apply(saved.state,{managementId:'IN',productId:'P',selectedBoxIds:[shipment.boxId],status:'보관',allowCancelCompleted:true});
  ctx.replayCommonContainerBoxChanges_({managementId:'IN'},cancelled.result);ctx.replayCommonContainerBoxChanges_({managementId:'IN'},cancelled.result);
  assert.equal(rows.length,3);assert.equal(rows[1][ci('현재 수량')],'3,120 ea');assert.equal(status,'출고대기');
  assert.equal(JSON.parse(rows[1][ci('공용용기 출고 정보')]).commonContainerShippingHistory.at(-1).action,'출고취소');
+});
+
+test('미등록은 공용용기 출고 기록에 남고 등록 제품과 나누어 출고할 수 있다', () => {
+ const state = fixture();
+ const products = [{productName:'애프리콧',quantity:800},{productName:'미등록',quantity:400}];
+ const saved = apply(state, ship(state, products));
+ assert.deepEqual(saved.result.shippedBoxes[0].shippingAllocations, products);
+ assert.equal(saved.result.remainingBoxes[0].quantity, 1920);
+ assert.deepEqual(saved.state.products[0].shippingProductNames, names);
+ const empty = fixture();
+ empty.products[0].shippingProductNames = [];
+ const unregistered = [{productName:'미등록',quantity:1200}];
+ assert.deepEqual(apply(empty, ship(empty, unregistered)).result.shippedBoxes[0].shippingAllocations, unregistered);
+ const ordinary = fixture();
+ ordinary.products[0].isCommonContainer = false;
+ assert.throws(() => apply(ordinary, ship(ordinary, unregistered)), /설정이 변경/);
 });
