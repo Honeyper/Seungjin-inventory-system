@@ -30,6 +30,7 @@ test("모바일의 실제 바로 출고 요청은 선택 박스만 검수와 출
   const source = fixture();
   let mutation;
   const context = vm.createContext({
+    window: {},
     state: { user: { name: "테스트 작업자" } },
     getSelectedBoxQuantities: () => ({}),
     parseNumber: (value) => Number.parseFloat(value) || 0,
@@ -68,4 +69,32 @@ test("완료·폐기 박스가 섞이면 전체 요청을 거부하고 원본 �
     }, source, now), /출고/);
     assert.deepEqual(source, before);
   }
+});
+
+test("공용용기는 서버가 반환한 박스로 선택창을 열고 확정한 수량으로만 다시 요청한다", async () => {
+  const shippingSource = { product: { isCommonContainer: true }, boxes: [{ boxId: "M-QR-B001", quantity: 120 }] };
+  const requests = [];
+  const context = vm.createContext({
+    state: { user: { name: "테스트 작업자" } },
+    getSelectedBoxQuantities: () => ({ 1: 40 }),
+    parseNumber: Number.parseFloat,
+    toDateKey: () => "2026-09-08", toTimeKey: () => "10:00",
+    window: {
+      SeungjinDataGateway: { canMutate: action => action === "saveMobileShipping" },
+      SeungjinCommonShipping: { prepare: async (_action, payload, _request, source) => {
+        assert.equal(source, shippingSource);
+        return { ...payload, shippingAllocations: [{ boxId: "M-QR-B001", products: [{ productName: "제품", quantity: 40 }] }] };
+      } }
+    },
+    requestApi: async (action, payload) => {
+      requests.push({ action, payload });
+      return requests.length === 1 ? { commonContainerShipping: shippingSource } : { updatedBoxRows: 1 };
+    }
+  });
+  vm.runInContext(completeShippingItem, context);
+  const result = await context.completeShippingItem({ ...directPayload, trayQuantity: "20 ea" }, [1], "complete", ["M-QR-B001"]);
+  assert.equal(result.updatedBoxRows, 1);
+  assert.deepEqual(requests.map(item => item.action), ["saveMobileShipping", "saveMobileShipping"]);
+  assert.equal(requests[0].payload.shippingAllocations, undefined);
+  assert.equal(requests[1].payload.shippingAllocations[0].products[0].quantity, 40);
 });

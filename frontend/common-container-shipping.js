@@ -136,12 +136,12 @@
     });
   }
 
-  async function prepare(action, payload, request) {
+  async function prepare(action, payload, request, shippingSource) {
     if (action !== "updateShippingStatus" || payload.status !== "출고완료"
       || (payload.shippingType || payload["출고유형"] || "정상출고") !== "정상출고"
       || payload.shippingAllocations !== undefined) return payload;
     const revision = cancelRevision;
-    const result = await request("getCommonContainerShipping", { managementId: payload.managementId, productId: payload.productId });
+    const result = shippingSource ?? await request("getCommonContainerShipping", { managementId: payload.managementId, productId: payload.productId });
     const product = result.product;
     if (!product) throw new Error("출고할 제품 정보를 다시 불러와주세요.");
     const { enabled, names } = info(product);

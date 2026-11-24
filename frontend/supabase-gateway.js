@@ -34,6 +34,7 @@
     "classifyRemainingInventory",
     "adjustRemainingInventory",
     "updateShippingStatus",
+    "saveMobileShipping",
     "adjustMissingInventory",
     "updateInventoryBoxMove",
     "returnTransferredInventory",
@@ -125,7 +126,8 @@
   }
 
   function canMutate(action) {
-    return enabled && config.SUPABASE_CANONICAL_WRITES === true && mutationActions.has(action);
+    return enabled && config.SUPABASE_CANONICAL_WRITES === true && mutationActions.has(action)
+      && (action !== "saveMobileShipping" || config.MOBILE_SHIPPING_FLOW === true);
   }
 
   function expandInventoryResponse(data) {

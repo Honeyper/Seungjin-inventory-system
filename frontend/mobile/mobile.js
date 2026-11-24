@@ -1382,16 +1382,16 @@ async function loadShippingDashboard(options = {}) {
       }
 
       const baseline = state.dashboardSnapshot;
-      const baselineVersion = baseline ? getDashboardStateVersion(state.dashboardStateVersion) : null;
+      const baselineVersion = baseline ? getDashboardStateVersion(baseline.stateVersion) : null;
       const canReadDelta = baseline?.summary && baselineVersion !== null && window.SeungjinInventoryIncremental;
       const response = await requestApi("getInventoryDashboard", {
         knownStateVersion: checkedVersion, responseFormat: "mobile-box-table-v1",
         ...(canReadDelta ? {allowInventoryDelta:true,deltaSinceVersion:baselineVersion} : {})
       });
-      const data = response.inventoryDelta
-        ? window.SeungjinInventoryIncremental.merge(baseline, response) : response;
       if (state.user !== currentUser) return false;
       if (loadRevision !== (state.shippingMutationRevision || 0)) return false;
+      const data = response.inventoryDelta
+        ? window.SeungjinInventoryIncremental.merge(baseline, response) : response;
       state.dashboard = expandMobileDashboard(data);
       state.dashboardSnapshot = data.summary ? {...data,stateVersion:checkedVersion,rows:state.dashboard} : null;
       state.dashboardLoadedAt = Date.now();
@@ -4099,7 +4099,9 @@ async function completeShippingItems(items, action = "complete") {
       if (updatedCount <= 0) {
         throw new Error("서버에서 처리된 박스를 확인하지 못했습니다.");
       }
-      invalidateShippingDashboardRead();
+      const preserveDeltaBaseline = (action === "complete" || action === "pending")
+        && Number.isSafeInteger(result.stateVersion);
+      invalidateShippingDashboardRead({ preserveDeltaBaseline });
       return { completedCount: updatedCount, failedItems: [], errors: [], remainingBoxes: result.remainingBoxes || [] };
     } catch (error) {
       return {
@@ -4119,11 +4121,12 @@ async function completeShippingItems(items, action = "complete") {
   }, { completedCount: 0, failedItems: [], errors: [], remainingBoxes: [] });
 }
 
-function invalidateShippingDashboardRead({ retainLoadedSnapshot = false } = {}) {
+function invalidateShippingDashboardRead({ retainLoadedSnapshot = false, preserveDeltaBaseline = false } = {}) {
   // A response started before this successful write must never restore old pending boxes.
   state.shippingMutationRevision = (state.shippingMutationRevision || 0) + 1;
   state.dashboardLoadPromise = null;
   state.dashboardStateVersion = null;
+  if (!preserveDeltaBaseline) state.dashboardSnapshot = null;
   if (!retainLoadedSnapshot) state.dashboardLoadedAt = 0;
   dashboardQrIndex = null;
 }
@@ -4266,10 +4269,13 @@ async function completeShippingItem(item, selectedBoxes, action = "complete", se
     if (isCancelCompletedAction) {
       payload.allowCancelCompleted = true;
     }
+    if (isPendingAction && window.SeungjinDataGateway?.canMutate("saveMobileShipping")) {
+      return requestApi("saveMobileShipping", payload);
+    }
     return requestApi("updateShippingStatus", payload);
   }
 
-  return requestApi("updateShippingStatus", {
+  const completion = {
     ...payload,
     forceCompleteShipping: true,
     autoShippingInspection: true,
@@ -4280,7 +4286,20 @@ async function completeShippingItem(item, selectedBoxes, action = "complete", se
     defectQuantity: 0,
     defectRate: "0%",
     defectReason: "양호"
-  });
+  };
+  if (!window.SeungjinDataGateway?.canMutate("saveMobileShipping")) {
+    return requestApi("updateShippingStatus", completion);
+  }
+
+  const result = await requestApi("saveMobileShipping", completion);
+  if (!result.commonContainerShipping) return result;
+
+  // The first response only supplies the current product and box details.
+  // Save a common-container shipment after the user has chosen its allocations.
+  const prepared = await window.SeungjinCommonShipping.prepare(
+    "updateShippingStatus", completion, requestApi, result.commonContainerShipping
+  );
+  return requestApi("saveMobileShipping", prepared);
 }
 
 function getInventoryAuditProductKey(item) {

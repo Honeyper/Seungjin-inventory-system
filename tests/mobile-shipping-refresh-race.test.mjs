@@ -64,6 +64,8 @@ test('mobile refresh merges changed products without downloading or losing uncha
  app.window.SeungjinDataGateway={canRead:()=>true};app.getDashboardStateVersion=value=>value===null?null:Number(value);
  vm.runInNewContext(fs.readFileSync(new URL('../frontend/inventory-incremental.js',import.meta.url),'utf8'),app);
  const requests=[];app.requestApi=(action,payload)=>new Promise(resolve=>requests.push({action,payload,resolve}));
+ app.invalidateShippingDashboardRead({preserveDeltaBaseline:true});
+ assert.equal(app.state.dashboardStateVersion,null);
  const pending=app.loadShippingDashboard({silent:true});requests[0].resolve({stateVersion:101});await new Promise(setImmediate);
  assert.equal(requests[1].payload.allowInventoryDelta,true);assert.equal(requests[1].payload.deltaSinceVersion,100);
  requests[1].resolve({stateVersion:101,rows:[row('A',5)],inventoryDelta:{fromVersion:100,productIds:['A']}});
