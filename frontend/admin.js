@@ -98,6 +98,7 @@ const PRODUCTION_MACHINE_OPTIONS = {
 };
 const PRODUCTION_STANDARD_WORK_HOURS = 8;
 const SYSTEM_UPDATE_HISTORY = [
+  { date:"2026-11-24", title:"서버 일일 한도 표시", items:["관리자 알림창에 Cloudflare의 일일 조회·쓰기 한도와 사용량을 표시합니다. 집계 시각과 오전 9시 초기화 시각도 함께 확인할 수 있습니다."] },
   { date:"2026-11-24", title:"알림창 정리", items:["서버 저장 용량 표시와 자동 조회를 알림창에서 제거했습니다."] },
   { date:"2026-11-24", title:"모바일 출고 저장 속도 개선", items:["일반 제품 출고 시 필요한 확인을 저장 요청에서 함께 처리하고, 완료 후 재고는 변경분만 불러옵니다. 공용용기는 기존대로 출고 제품과 수량을 지정합니다."] },
   { date:"2026-11-23", title:"조회량 및 저장 처리 개선", items:["재고 전송을 다음 위치부터 이어 읽도록 바꾸고 전송 요청 수를 줄였습니다. 입고 날짜 검색과 출고 저장에 조회 인덱스를 적용하고 저장 시 필요한 제품만 읽습니다. 모바일은 변경된 제품만 갱신하며 서버 일일 한도 도달 시 재시도 없이 안내합니다."] },
@@ -1563,6 +1564,43 @@ function renderBackupNotifications() {
   updateBackupNotificationBadge();
 }
 
+let serverQuotaRequest;
+
+function loadServerQuota() {
+  const card = document.querySelector("#serverQuotaCard");
+  if (!card || !window.SeungjinDataGateway?.canRead("getD1Quota")) return;
+  card.hidden = false;
+  if (serverQuotaRequest) return serverQuotaRequest;
+
+  const status = card.querySelector("#serverQuotaStatus");
+  status.textContent = "사용량 확인 중 · 매일 오전 9시(한국시간) 초기화";
+  serverQuotaRequest = requestApi("getD1Quota").then(quota => {
+    for (const [id, used, limit] of [
+      ["serverQuotaRead", quota.rowsRead, quota.readLimit],
+      ["serverQuotaWrite", quota.rowsWritten, quota.writeLimit]
+    ]) {
+      const field = card.querySelector("#" + id);
+      const remaining = Math.max(0, limit - used);
+      field.textContent = Number.isSafeInteger(used)
+        ? `${formatNumber(used)} / ${formatNumber(limit)}행 · 잔여 ${formatNumber(remaining)}행`
+        : `— / ${formatNumber(limit)}행`;
+      field.classList.toggle("is-at-limit", Number.isSafeInteger(used) && used >= limit);
+    }
+    const checkedAt = quota.checkedAt && new Date(quota.checkedAt);
+    const checked = checkedAt && Number.isFinite(checkedAt.getTime())
+      ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric",
+          hour: "numeric", minute: "2-digit", hour12: false }).format(checkedAt)
+      : "";
+    const detail = checked
+      ? `${checked} 확인${quota.source === "snapshot" ? " · 마지막 확인값" : ""}`
+      : "현재 사용량은 Cloudflare 통계에서 확인";
+    status.textContent = detail + " · 매일 오전 9시 초기화";
+  }).catch(() => {
+    status.textContent = "사용량 조회 실패 · 표시된 값은 이전 확인값입니다. 최신 값은 Cloudflare 통계에서 확인하세요.";
+  }).finally(() => { serverQuotaRequest = null; });
+  return serverQuotaRequest;
+}
+
 function updateNotificationRefreshButton() {
   refreshBackupNotificationsButton?.toggleAttribute("disabled", state.isLoadingBackupNotifications);
 }
@@ -1606,6 +1644,7 @@ function setBackupNotificationPanelOpen(shouldOpen) {
     setBackupNotificationTab(state.backupNotificationActiveTab);
     markBackupNotificationsRead();
     loadBackupNotifications({ showLoading: true });
+    if (state.backupNotificationActiveTab === "notifications") loadServerQuota();
   }
 }
 
@@ -1615,10 +1654,12 @@ backupNotificationButton?.addEventListener("click", () => {
 
 refreshBackupNotificationsButton?.addEventListener("click", () => {
   loadBackupNotifications({ showLoading: true });
+  loadServerQuota();
 });
 
 backupNotificationsTab?.addEventListener("click", () => {
   setBackupNotificationTab("notifications");
+  loadServerQuota();
 });
 
 updateHistoryTab?.addEventListener("click", () => {

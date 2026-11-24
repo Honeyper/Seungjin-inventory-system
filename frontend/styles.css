@@ -1750,6 +1750,55 @@ small, em {
   opacity: 0.6;
 }
 
+.server-quota-card {
+  margin: 0.82rem 0.82rem 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #dbe5f2;
+  border-radius: 0.65rem;
+  background: #fff;
+  font-size: 0.72rem;
+}
+
+.server-quota-heading,
+.server-quota-metrics > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.server-quota-heading h3,
+.server-quota-card p {
+  margin: 0;
+  font-size: inherit;
+}
+
+.server-quota-heading a {
+  color: #285a96;
+  white-space: nowrap;
+}
+
+.server-quota-metrics {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.6rem 0;
+}
+
+.server-quota-metrics dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.server-quota-metrics .is-at-limit {
+  color: #a52623;
+  font-weight: 700;
+}
+
+.server-quota-card p {
+  color: #66758a;
+}
+
 .backup-notification-list {
   display: grid;
   align-content: start;

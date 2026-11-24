@@ -16,7 +16,8 @@
     "getInventoryDashboard",
     "getInventoryChunk",
     "getSheetBackupNotifications",
-    "getServerUsage"
+    "getServerUsage",
+    "getD1Quota"
   ]);
   const mutationActions = new Set([
     "createProduct",
@@ -122,7 +123,8 @@
   }
 
   function canRead(action) {
-    return enabled && readActions.has(action);
+    return enabled && readActions.has(action)
+      && (action !== "getD1Quota" || config.D1_QUOTA_ENABLED === true);
   }
 
   function canMutate(action) {

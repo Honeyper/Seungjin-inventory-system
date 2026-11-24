@@ -4,5 +4,6 @@ window.SEUNGJIN_CONFIG = {
   SUPABASE_GATEWAY_URL: "https://seungjin-inventory-api.seungjin-cloudflare-20261123.workers.dev",
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_sLam9G9WsRekLtl11pw0Mw_sXAv0fVN",
   SUPABASE_CANONICAL_WRITES: true,
-  MOBILE_SHIPPING_FLOW: true
+  MOBILE_SHIPPING_FLOW: true,
+  D1_QUOTA_ENABLED: true
 };
