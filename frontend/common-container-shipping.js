@@ -147,7 +147,7 @@
     if (!product) throw new Error("출고할 제품 정보를 다시 불러와주세요.");
     const { enabled, names: registeredNames } = info(product);
     if (!enabled) return payload;
-    const names = [...new Set([...registeredNames, UNREGISTERED_SHIPPING_PRODUCT])];
+    const names = [...new Set([UNREGISTERED_SHIPPING_PRODUCT, ...registeredNames])];
     const next = queue.catch(() => {}).then(async () => {
       if (revision !== cancelRevision) throw new Error("공용용기 출고를 취소했습니다.");
       const ids = new Set((payload.selectedBoxIds || []).map(text));
